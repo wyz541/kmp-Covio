@@ -434,6 +434,10 @@ private struct MonitorPowerCard: View {
             toggleDetails()
             return .handled
         }
+        .onKeyPress(.space) {
+            toggleDetails()
+            return .handled
+        }
         .onAppear {
             detailsPresented = detailsExpanded
         }

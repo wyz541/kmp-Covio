@@ -329,7 +329,7 @@ final class SettingsSectionTests: XCTestCase {
         XCTAssertGreaterThan(HubMetrics.screenshotsBodyHeight, HubMetrics.placeholderBodyHeight)
 
         // 还没落地的页签用占位高度。
-        for tab in [HubTab.now, .devices, .board] {
+        for tab in [HubTab.now, .board] {
             XCTAssertEqual(
                 HubMetrics.bodyHeight(for: .pane(tab)),
                 HubMetrics.placeholderBodyHeight,

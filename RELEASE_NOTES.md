@@ -25,6 +25,7 @@
 - The search box searches settings. Selecting a result jumps to that row and highlights it.
 - The app requires macOS 26 or later.
 - The app adds the clipboard history.
+- The Monitor tab shows a Stats-style dashboard for CPU, GPU, memory, disk, network, and battery.
 - `config.json` is compatible with 0.4.2 in both directions.
 
 The details are in `README.md`, section "What is new in 0.5.0".

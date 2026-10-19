@@ -224,9 +224,9 @@ enum ContractCopy {
     /// `copy/hub/tab/clipboard/summary`
     static let copyHubTabClipboardSummary = LocalizedCopy(key: "copy/hub/tab/clipboard/summary", en: "Recent text, images, and files.", zhHans: "最近文本、图片和文件列表。")
     /// `copy/hub/tab/devices`
-    static let copyHubTabDevices = LocalizedCopy(key: "copy/hub/tab/devices", en: "Devices", zhHans: "设备")
+    static let copyHubTabDevices = LocalizedCopy(key: "copy/hub/tab/devices", en: "Monitor", zhHans: "监控")
     /// `copy/hub/tab/devices/summary`
-    static let copyHubTabDevicesSummary = LocalizedCopy(key: "copy/hub/tab/devices/summary", en: "Paired devices, discovery results, and the transfer queue.", zhHans: "已配对设备、发现结果和传输队列。")
+    static let copyHubTabDevicesSummary = LocalizedCopy(key: "copy/hub/tab/devices/summary", en: "Live CPU, GPU, memory, disk, network, and battery metrics.", zhHans: "CPU、GPU、内存、磁盘、网络和电池的实时指标。")
     /// `copy/hub/tab/files`
     static let copyHubTabFiles = LocalizedCopy(key: "copy/hub/tab/files", en: "Files", zhHans: "文件")
     /// `copy/hub/tab/files/summary`
@@ -252,7 +252,7 @@ enum ContractCopy {
     /// `copy/hub/widget/clock/title`
     static let copyHubWidgetClockTitle = LocalizedCopy(key: "copy/hub/widget/clock/title", en: "Now", zhHans: "现在")
     /// `copy/hub/widget/devices/title`
-    static let copyHubWidgetDevicesTitle = LocalizedCopy(key: "copy/hub/widget/devices/title", en: "Devices", zhHans: "设备")
+    static let copyHubWidgetDevicesTitle = LocalizedCopy(key: "copy/hub/widget/devices/title", en: "Monitor", zhHans: "监控")
     /// `copy/hub/widget/remove`
     static let copyHubWidgetRemove = LocalizedCopy(key: "copy/hub/widget/remove", en: "Remove", zhHans: "删除")
     /// `copy/hub/widget/resize`
@@ -307,6 +307,96 @@ enum ContractCopy {
     static let copyModeDark = LocalizedCopy(key: "copy/mode/dark", en: "Dark", zhHans: "深色")
     /// `copy/mode/light`
     static let copyModeLight = LocalizedCopy(key: "copy/mode/light", en: "Light", zhHans: "浅色")
+    /// `copy/monitor/battery/remaining`
+    static let copyMonitorBatteryRemaining = LocalizedCopy(key: "copy/monitor/battery/remaining", en: "Remaining", zhHans: "剩余")
+    /// `copy/monitor/battery/source`
+    static let copyMonitorBatterySource = LocalizedCopy(key: "copy/monitor/battery/source", en: "Source", zhHans: "电源")
+    /// `copy/monitor/battery/state`
+    static let copyMonitorBatteryState = LocalizedCopy(key: "copy/monitor/battery/state", en: "State", zhHans: "状态")
+    /// `copy/monitor/cores`
+    static let copyMonitorCores = LocalizedCopy(key: "copy/monitor/cores", en: "Cores", zhHans: "核心")
+    /// `copy/monitor/disk/free`
+    static let copyMonitorDiskFree = LocalizedCopy(key: "copy/monitor/disk/free", en: "Free", zhHans: "可用")
+    /// `copy/monitor/disk/read`
+    static let copyMonitorDiskRead = LocalizedCopy(key: "copy/monitor/disk/read", en: "Read", zhHans: "读取")
+    /// `copy/monitor/disk/used`
+    static let copyMonitorDiskUsed = LocalizedCopy(key: "copy/monitor/disk/used", en: "Used", zhHans: "已用")
+    /// `copy/monitor/disk/write`
+    static let copyMonitorDiskWrite = LocalizedCopy(key: "copy/monitor/disk/write", en: "Write", zhHans: "写入")
+    /// `copy/monitor/gpu/device`
+    static let copyMonitorGpuDevice = LocalizedCopy(key: "copy/monitor/gpu/device", en: "Device", zhHans: "设备")
+    /// `copy/monitor/gpu/memory`
+    static let copyMonitorGpuMemory = LocalizedCopy(key: "copy/monitor/gpu/memory", en: "Memory in use", zhHans: "已用显存")
+    /// `copy/monitor/history`
+    static let copyMonitorHistory = LocalizedCopy(key: "copy/monitor/history", en: "60 samples", zhHans: "60 个采样")
+    /// `copy/monitor/live`
+    static let copyMonitorLive = LocalizedCopy(key: "copy/monitor/live", en: "Live", zhHans: "实时")
+    /// `copy/monitor/load1`
+    static let copyMonitorLoad1 = LocalizedCopy(key: "copy/monitor/load1", en: "Load 1m", zhHans: "1 分钟负载")
+    /// `copy/monitor/memory-pressure/critical`
+    static let copyMonitorMemoryPressureCritical = LocalizedCopy(key: "copy/monitor/memory-pressure/critical", en: "Critical", zhHans: "紧急")
+    /// `copy/monitor/memory-pressure/normal`
+    static let copyMonitorMemoryPressureNormal = LocalizedCopy(key: "copy/monitor/memory-pressure/normal", en: "Normal", zhHans: "正常")
+    /// `copy/monitor/memory-pressure/warning`
+    static let copyMonitorMemoryPressureWarning = LocalizedCopy(key: "copy/monitor/memory-pressure/warning", en: "Warning", zhHans: "警告")
+    /// `copy/monitor/memory/pressure`
+    static let copyMonitorMemoryPressure = LocalizedCopy(key: "copy/monitor/memory/pressure", en: "Pressure", zhHans: "压力")
+    /// `copy/monitor/memory/swap`
+    static let copyMonitorMemorySwap = LocalizedCopy(key: "copy/monitor/memory/swap", en: "Swap", zhHans: "交换")
+    /// `copy/monitor/memory/total`
+    static let copyMonitorMemoryTotal = LocalizedCopy(key: "copy/monitor/memory/total", en: "Total", zhHans: "总量")
+    /// `copy/monitor/memory/used`
+    static let copyMonitorMemoryUsed = LocalizedCopy(key: "copy/monitor/memory/used", en: "Used", zhHans: "已用")
+    /// `copy/monitor/network/download`
+    static let copyMonitorNetworkDownload = LocalizedCopy(key: "copy/monitor/network/download", en: "Download", zhHans: "下行")
+    /// `copy/monitor/network/interface`
+    static let copyMonitorNetworkInterface = LocalizedCopy(key: "copy/monitor/network/interface", en: "Interface", zhHans: "接口")
+    /// `copy/monitor/network/upload`
+    static let copyMonitorNetworkUpload = LocalizedCopy(key: "copy/monitor/network/upload", en: "Upload", zhHans: "上行")
+    /// `copy/monitor/per-core`
+    static let copyMonitorPerCore = LocalizedCopy(key: "copy/monitor/per-core", en: "Per core", zhHans: "每核")
+    /// `copy/monitor/sampling/fast`
+    static let copyMonitorSamplingFast = LocalizedCopy(key: "copy/monitor/sampling/fast", en: "1s", zhHans: "1 秒")
+    /// `copy/monitor/sampling/slow`
+    static let copyMonitorSamplingSlow = LocalizedCopy(key: "copy/monitor/sampling/slow", en: "5s", zhHans: "5 秒")
+    /// `copy/monitor/state/ac-power`
+    static let copyMonitorStateAcPower = LocalizedCopy(key: "copy/monitor/state/ac-power", en: "Power adapter", zhHans: "电源适配器")
+    /// `copy/monitor/state/charged`
+    static let copyMonitorStateCharged = LocalizedCopy(key: "copy/monitor/state/charged", en: "Charged", zhHans: "已充满")
+    /// `copy/monitor/state/charging`
+    static let copyMonitorStateCharging = LocalizedCopy(key: "copy/monitor/state/charging", en: "Charging", zhHans: "充电中")
+    /// `copy/monitor/state/on-battery`
+    static let copyMonitorStateOnBattery = LocalizedCopy(key: "copy/monitor/state/on-battery", en: "On battery", zhHans: "使用电池")
+    /// `copy/monitor/state/unknown`
+    static let copyMonitorStateUnknown = LocalizedCopy(key: "copy/monitor/state/unknown", en: "Unknown", zhHans: "未知")
+    /// `copy/monitor/thermal`
+    static let copyMonitorThermal = LocalizedCopy(key: "copy/monitor/thermal", en: "Thermal", zhHans: "热状态")
+    /// `copy/monitor/thermal/critical`
+    static let copyMonitorThermalCritical = LocalizedCopy(key: "copy/monitor/thermal/critical", en: "Critical", zhHans: "过热")
+    /// `copy/monitor/thermal/fair`
+    static let copyMonitorThermalFair = LocalizedCopy(key: "copy/monitor/thermal/fair", en: "Fair", zhHans: "较热")
+    /// `copy/monitor/thermal/nominal`
+    static let copyMonitorThermalNominal = LocalizedCopy(key: "copy/monitor/thermal/nominal", en: "Normal", zhHans: "正常")
+    /// `copy/monitor/thermal/serious`
+    static let copyMonitorThermalSerious = LocalizedCopy(key: "copy/monitor/thermal/serious", en: "Serious", zhHans: "过热")
+    /// `copy/monitor/title/battery`
+    static let copyMonitorTitleBattery = LocalizedCopy(key: "copy/monitor/title/battery", en: "Battery", zhHans: "电池")
+    /// `copy/monitor/title/cpu`
+    static let copyMonitorTitleCpu = LocalizedCopy(key: "copy/monitor/title/cpu", en: "CPU", zhHans: "CPU")
+    /// `copy/monitor/title/disk`
+    static let copyMonitorTitleDisk = LocalizedCopy(key: "copy/monitor/title/disk", en: "Disk", zhHans: "磁盘")
+    /// `copy/monitor/title/gpu`
+    static let copyMonitorTitleGpu = LocalizedCopy(key: "copy/monitor/title/gpu", en: "GPU", zhHans: "GPU")
+    /// `copy/monitor/title/memory`
+    static let copyMonitorTitleMemory = LocalizedCopy(key: "copy/monitor/title/memory", en: "Memory", zhHans: "内存")
+    /// `copy/monitor/title/network`
+    static let copyMonitorTitleNetwork = LocalizedCopy(key: "copy/monitor/title/network", en: "Network", zhHans: "网络")
+    /// `copy/monitor/unavailable`
+    static let copyMonitorUnavailable = LocalizedCopy(key: "copy/monitor/unavailable", en: "Unavailable", zhHans: "不可用")
+    /// `copy/monitor/uptime`
+    static let copyMonitorUptime = LocalizedCopy(key: "copy/monitor/uptime", en: "Uptime", zhHans: "运行时间")
+    /// `copy/monitor/usage`
+    static let copyMonitorUsage = LocalizedCopy(key: "copy/monitor/usage", en: "Usage", zhHans: "使用率")
     /// `copy/nav/battery`
     static let copyNavBattery = LocalizedCopy(key: "copy/nav/battery", en: "Battery", zhHans: "电池")
     /// `copy/nav/general`
@@ -773,6 +863,51 @@ enum ContractCopy {
         copyMacos27AlignmentStaticVerified,
         copyModeDark,
         copyModeLight,
+        copyMonitorBatteryRemaining,
+        copyMonitorBatterySource,
+        copyMonitorBatteryState,
+        copyMonitorCores,
+        copyMonitorDiskFree,
+        copyMonitorDiskRead,
+        copyMonitorDiskUsed,
+        copyMonitorDiskWrite,
+        copyMonitorGpuDevice,
+        copyMonitorGpuMemory,
+        copyMonitorHistory,
+        copyMonitorLive,
+        copyMonitorLoad1,
+        copyMonitorMemoryPressureCritical,
+        copyMonitorMemoryPressureNormal,
+        copyMonitorMemoryPressureWarning,
+        copyMonitorMemoryPressure,
+        copyMonitorMemorySwap,
+        copyMonitorMemoryTotal,
+        copyMonitorMemoryUsed,
+        copyMonitorNetworkDownload,
+        copyMonitorNetworkInterface,
+        copyMonitorNetworkUpload,
+        copyMonitorPerCore,
+        copyMonitorSamplingFast,
+        copyMonitorSamplingSlow,
+        copyMonitorStateAcPower,
+        copyMonitorStateCharged,
+        copyMonitorStateCharging,
+        copyMonitorStateOnBattery,
+        copyMonitorStateUnknown,
+        copyMonitorThermal,
+        copyMonitorThermalCritical,
+        copyMonitorThermalFair,
+        copyMonitorThermalNominal,
+        copyMonitorThermalSerious,
+        copyMonitorTitleBattery,
+        copyMonitorTitleCpu,
+        copyMonitorTitleDisk,
+        copyMonitorTitleGpu,
+        copyMonitorTitleMemory,
+        copyMonitorTitleNetwork,
+        copyMonitorUnavailable,
+        copyMonitorUptime,
+        copyMonitorUsage,
         copyNavBattery,
         copyNavGeneral,
         copyNavIdle,

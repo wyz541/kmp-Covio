@@ -204,6 +204,12 @@ enum HubMetrics {
     /// 占位页的主体高度。占位页只有一张说明卡。
     static let placeholderBodyHeight: CGFloat = 180
 
+    /// 监控页的卡片高度。两行卡片加间距和状态行正好填满主体。
+    static let monitorCardHeight: CGFloat = 236
+
+    /// 监控页的主体高度：状态行、两行卡片与两处间距。
+    static let monitorBodyHeight: CGFloat = 18 + MacTheme.space2 + monitorCardHeight * 2 + MacTheme.space3
+
     /// 设置页的主体高度。六个分节共用，内容超出时页内滚动。
     static let settingsBodyHeight: CGFloat = 500
 
@@ -233,7 +239,8 @@ enum HubMetrics {
             rows > 0 ? bentoGridHeight(rows: rows) : emptyHomeHeight
         case .pane(let tab):
             switch tab {
-            case .now, .devices, .board: placeholderBodyHeight
+            case .devices: monitorBodyHeight
+            case .now, .board: placeholderBodyHeight
             case .settings: settingsBodyHeight
             case .screenshots: screenshotsBodyHeight
             case .clipboard: clipboardBodyHeight

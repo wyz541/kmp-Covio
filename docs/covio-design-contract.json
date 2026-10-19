@@ -4193,12 +4193,12 @@
       "zh-Hans": "最近文本、图片和文件列表。"
     },
     "copy/hub/tab/devices": {
-      "en": "Devices",
-      "zh-Hans": "设备"
+      "en": "Monitor",
+      "zh-Hans": "监控"
     },
     "copy/hub/tab/devices/summary": {
-      "en": "Paired devices, discovery results, and the transfer queue.",
-      "zh-Hans": "已配对设备、发现结果和传输队列。"
+      "en": "Live CPU, GPU, memory, disk, network, and battery metrics.",
+      "zh-Hans": "CPU、GPU、内存、磁盘、网络和电池的实时指标。"
     },
     "copy/hub/tab/files": {
       "en": "Files",
@@ -4313,8 +4313,8 @@
       "zh-Hans": "最近截图"
     },
     "copy/hub/widget/devices/title": {
-      "en": "Devices",
-      "zh-Hans": "设备"
+      "en": "Monitor",
+      "zh-Hans": "监控"
     },
     "copy/hub/home/empty-title": {
       "en": "No widgets yet",
@@ -4339,6 +4339,186 @@
     "copy/hub/update/up-to-date": {
       "en": "Covio is up to date.",
       "zh-Hans": "Covio 已是最新版本。"
+    },
+    "copy/monitor/title/cpu": {
+      "en": "CPU",
+      "zh-Hans": "CPU"
+    },
+    "copy/monitor/title/gpu": {
+      "en": "GPU",
+      "zh-Hans": "GPU"
+    },
+    "copy/monitor/title/memory": {
+      "en": "Memory",
+      "zh-Hans": "内存"
+    },
+    "copy/monitor/title/disk": {
+      "en": "Disk",
+      "zh-Hans": "磁盘"
+    },
+    "copy/monitor/title/network": {
+      "en": "Network",
+      "zh-Hans": "网络"
+    },
+    "copy/monitor/title/battery": {
+      "en": "Battery",
+      "zh-Hans": "电池"
+    },
+    "copy/monitor/live": {
+      "en": "Live",
+      "zh-Hans": "实时"
+    },
+    "copy/monitor/sampling/fast": {
+      "en": "1s",
+      "zh-Hans": "1 秒"
+    },
+    "copy/monitor/sampling/slow": {
+      "en": "5s",
+      "zh-Hans": "5 秒"
+    },
+    "copy/monitor/usage": {
+      "en": "Usage",
+      "zh-Hans": "使用率"
+    },
+    "copy/monitor/per-core": {
+      "en": "Per core",
+      "zh-Hans": "每核"
+    },
+    "copy/monitor/load1": {
+      "en": "Load 1m",
+      "zh-Hans": "1 分钟负载"
+    },
+    "copy/monitor/cores": {
+      "en": "Cores",
+      "zh-Hans": "核心"
+    },
+    "copy/monitor/uptime": {
+      "en": "Uptime",
+      "zh-Hans": "运行时间"
+    },
+    "copy/monitor/thermal": {
+      "en": "Thermal",
+      "zh-Hans": "热状态"
+    },
+    "copy/monitor/gpu/device": {
+      "en": "Device",
+      "zh-Hans": "设备"
+    },
+    "copy/monitor/gpu/memory": {
+      "en": "Memory in use",
+      "zh-Hans": "已用显存"
+    },
+    "copy/monitor/memory/used": {
+      "en": "Used",
+      "zh-Hans": "已用"
+    },
+    "copy/monitor/memory/total": {
+      "en": "Total",
+      "zh-Hans": "总量"
+    },
+    "copy/monitor/memory/swap": {
+      "en": "Swap",
+      "zh-Hans": "交换"
+    },
+    "copy/monitor/memory/pressure": {
+      "en": "Pressure",
+      "zh-Hans": "压力"
+    },
+    "copy/monitor/disk/used": {
+      "en": "Used",
+      "zh-Hans": "已用"
+    },
+    "copy/monitor/disk/free": {
+      "en": "Free",
+      "zh-Hans": "可用"
+    },
+    "copy/monitor/disk/read": {
+      "en": "Read",
+      "zh-Hans": "读取"
+    },
+    "copy/monitor/disk/write": {
+      "en": "Write",
+      "zh-Hans": "写入"
+    },
+    "copy/monitor/network/download": {
+      "en": "Download",
+      "zh-Hans": "下行"
+    },
+    "copy/monitor/network/upload": {
+      "en": "Upload",
+      "zh-Hans": "上行"
+    },
+    "copy/monitor/network/interface": {
+      "en": "Interface",
+      "zh-Hans": "接口"
+    },
+    "copy/monitor/battery/state": {
+      "en": "State",
+      "zh-Hans": "状态"
+    },
+    "copy/monitor/battery/remaining": {
+      "en": "Remaining",
+      "zh-Hans": "剩余"
+    },
+    "copy/monitor/battery/source": {
+      "en": "Source",
+      "zh-Hans": "电源"
+    },
+    "copy/monitor/state/charging": {
+      "en": "Charging",
+      "zh-Hans": "充电中"
+    },
+    "copy/monitor/state/on-battery": {
+      "en": "On battery",
+      "zh-Hans": "使用电池"
+    },
+    "copy/monitor/state/ac-power": {
+      "en": "Power adapter",
+      "zh-Hans": "电源适配器"
+    },
+    "copy/monitor/state/charged": {
+      "en": "Charged",
+      "zh-Hans": "已充满"
+    },
+    "copy/monitor/state/unknown": {
+      "en": "Unknown",
+      "zh-Hans": "未知"
+    },
+    "copy/monitor/memory-pressure/normal": {
+      "en": "Normal",
+      "zh-Hans": "正常"
+    },
+    "copy/monitor/memory-pressure/warning": {
+      "en": "Warning",
+      "zh-Hans": "警告"
+    },
+    "copy/monitor/memory-pressure/critical": {
+      "en": "Critical",
+      "zh-Hans": "紧急"
+    },
+    "copy/monitor/thermal/nominal": {
+      "en": "Normal",
+      "zh-Hans": "正常"
+    },
+    "copy/monitor/thermal/fair": {
+      "en": "Fair",
+      "zh-Hans": "较热"
+    },
+    "copy/monitor/thermal/serious": {
+      "en": "Serious",
+      "zh-Hans": "过热"
+    },
+    "copy/monitor/thermal/critical": {
+      "en": "Critical",
+      "zh-Hans": "过热"
+    },
+    "copy/monitor/unavailable": {
+      "en": "Unavailable",
+      "zh-Hans": "不可用"
+    },
+    "copy/monitor/history": {
+      "en": "60 samples",
+      "zh-Hans": "60 个采样"
     },
     "copy/icon/concept/blue-grid": {
       "en": "05 · BLUE GRID",

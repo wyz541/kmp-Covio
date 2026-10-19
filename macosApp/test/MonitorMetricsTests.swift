@@ -275,15 +275,22 @@ final class MonitorMetricsTests: XCTestCase {
         }
         _ = window.update(samples: baseline, at: start)
 
-        let measured = (0..<4).map { index in
-            sample(
-                pid: Int32(index + 1),
-                app: "app\(index)",
-                energy: UInt64(3_600_000_000 * (index + 1))
+        var measured: [MonitorProcessEnergySample] = []
+        for index in 0..<4 {
+            let processIdentifier = Int32(index + 1)
+            let applicationName = "app\(index)"
+            let energy = UInt64(index + 1) * 3_600_000_000
+            measured.append(
+                sample(
+                    pid: processIdentifier,
+                    app: applicationName,
+                    energy: energy
+                )
             )
         }
         let top = window.update(samples: measured, at: start.addingTimeInterval(10))
-        XCTAssertEqual(top.map(\.name), ["app3", "app2", "app1"])
+        let names: [String] = top.map { $0.name }
+        XCTAssertEqual(names, ["app3", "app2", "app1"])
     }
 
     func testEnergyWindowDropsBucketsOlderThanOneHour() {

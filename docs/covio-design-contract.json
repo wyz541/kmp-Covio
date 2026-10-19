@@ -4197,8 +4197,8 @@
       "zh-Hans": "监控"
     },
     "copy/hub/tab/devices/summary": {
-      "en": "Live CPU, GPU, memory, disk, network, and battery metrics.",
-      "zh-Hans": "CPU、GPU、内存、磁盘、网络和电池的实时指标。"
+      "en": "Live CPU, GPU, memory, disk, network, and power metrics.",
+      "zh-Hans": "CPU、GPU、内存、磁盘、网络和电源的实时指标。"
     },
     "copy/hub/tab/files": {
       "en": "Files",
@@ -4361,8 +4361,8 @@
       "zh-Hans": "网络"
     },
     "copy/monitor/title/battery": {
-      "en": "Battery",
-      "zh-Hans": "电池"
+      "en": "Power",
+      "zh-Hans": "电源"
     },
     "copy/monitor/live": {
       "en": "Live",
@@ -4463,6 +4463,54 @@
     "copy/monitor/battery/source": {
       "en": "Source",
       "zh-Hans": "电源"
+    },
+    "copy/monitor/power/state/battery": {
+      "en": "On battery",
+      "zh-Hans": "电池供电"
+    },
+    "copy/monitor/power/state/connected": {
+      "en": "Power connected",
+      "zh-Hans": "已接通电源"
+    },
+    "copy/monitor/power/temperature": {
+      "en": "Temperature",
+      "zh-Hans": "温度"
+    },
+    "copy/monitor/power/draw": {
+      "en": "Power draw",
+      "zh-Hans": "功耗"
+    },
+    "copy/monitor/power/remaining": {
+      "en": "Estimated time",
+      "zh-Hans": "预计可使用"
+    },
+    "copy/monitor/power/top-apps": {
+      "en": "Top energy · 1 hour",
+      "zh-Hans": "耗电 Top3 · 近 1 小时"
+    },
+    "copy/monitor/power/no-data": {
+      "en": "No data",
+      "zh-Hans": "暂无数据"
+    },
+    "copy/monitor/power/no-battery": {
+      "en": "No battery",
+      "zh-Hans": "无电池设备"
+    },
+    "copy/monitor/power/low-battery": {
+      "en": "Low battery",
+      "zh-Hans": "电量低"
+    },
+    "copy/monitor/power/critical-battery": {
+      "en": "Battery critical",
+      "zh-Hans": "电量极低"
+    },
+    "copy/monitor/power/high-temperature": {
+      "en": "Battery hot",
+      "zh-Hans": "电池温度高"
+    },
+    "copy/monitor/power/read-failed": {
+      "en": "Some readings unavailable",
+      "zh-Hans": "部分读数不可用"
     },
     "copy/monitor/state/charging": {
       "en": "Charging",

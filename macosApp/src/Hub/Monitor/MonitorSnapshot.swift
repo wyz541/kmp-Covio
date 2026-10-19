@@ -72,6 +72,7 @@ struct MonitorSnapshot: Equatable, Sendable {
     let disk: Disk?
     let network: Network?
     let battery: Battery?
+    let power: Power?
     let thermal: ThermalState
     let sampledAt: Date
 
@@ -82,13 +83,29 @@ struct MonitorSnapshot: Equatable, Sendable {
         disk: nil,
         network: nil,
         battery: nil,
+        power: nil,
         thermal: .nominal,
         sampledAt: .distantPast
     )
 
     /// 使用电池时降低采样频率。台式机与接电源时保持快速刷新。
     var isOnBattery: Bool {
-        battery?.state == .discharging
+        power?.supply == .battery || battery?.state == .discharging
+    }
+
+    /// 电源卡片有独立的 1 秒采样循环。这个函数只替换电源数据。
+    func replacingPower(_ power: Power) -> MonitorSnapshot {
+        MonitorSnapshot(
+            cpu: cpu,
+            gpu: gpu,
+            memory: memory,
+            disk: disk,
+            network: network,
+            battery: battery,
+            power: power,
+            thermal: thermal,
+            sampledAt: sampledAt
+        )
     }
 }
 

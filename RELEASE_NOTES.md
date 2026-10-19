@@ -26,6 +26,8 @@
 - The app requires macOS 26 or later.
 - The app adds the clipboard history.
 - The Monitor tab shows a Stats-style dashboard for CPU, GPU, memory, disk, network, and battery.
+- The Monitor power card shows the supply state, battery level, temperature, power draw,
+  estimated time, and the top three energy users from the last hour.
 - `config.json` is compatible with 0.4.2 in both directions.
 
 The details are in `README.md`, section "What is new in 0.5.0".

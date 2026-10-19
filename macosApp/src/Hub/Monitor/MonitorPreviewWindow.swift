@@ -48,12 +48,13 @@ enum MonitorSnapshotRenderer {
         let sampler = MonitorSampler()
         var history = MonitorHistory()
         var snapshot = MonitorSnapshot.empty
-        for index in 0..<24 {
+        // 能耗窗口要跨过第一次 10 秒基线，截图才会显示真实的 Top3。
+        for index in 0..<26 {
             snapshot = await sampler.sample()
             history.append(snapshot)
-            guard index < 23 else { continue }
+            guard index < 25 else { continue }
             do {
-                try await Task.sleep(for: .milliseconds(100))
+                try await Task.sleep(for: .milliseconds(500))
             } catch {
                 return false
             }
@@ -65,12 +66,15 @@ enum MonitorSnapshotRenderer {
         GlassSurfaceMode.current = .material
         defer { GlassSurfaceMode.current = previousMode }
 
+        let colorScheme: ColorScheme = ProcessInfo.processInfo.environment["AppleInterfaceStyle"]?
+            .lowercased() == "dark" ? .dark : .light
         let renderer = ImageRenderer(
             content: MonitorPreviewRoot(
                 snapshot: snapshot,
                 history: history,
                 runsSampling: false
             )
+            .environment(\.colorScheme, colorScheme)
         )
         renderer.scale = 2
         guard let image = renderer.nsImage,

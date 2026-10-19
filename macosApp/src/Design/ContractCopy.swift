@@ -226,7 +226,7 @@ enum ContractCopy {
     /// `copy/hub/tab/devices`
     static let copyHubTabDevices = LocalizedCopy(key: "copy/hub/tab/devices", en: "Monitor", zhHans: "监控")
     /// `copy/hub/tab/devices/summary`
-    static let copyHubTabDevicesSummary = LocalizedCopy(key: "copy/hub/tab/devices/summary", en: "Live CPU, GPU, memory, disk, network, and battery metrics.", zhHans: "CPU、GPU、内存、磁盘、网络和电池的实时指标。")
+    static let copyHubTabDevicesSummary = LocalizedCopy(key: "copy/hub/tab/devices/summary", en: "Live CPU, GPU, memory, disk, network, and power metrics.", zhHans: "CPU、GPU、内存、磁盘、网络和电源的实时指标。")
     /// `copy/hub/tab/files`
     static let copyHubTabFiles = LocalizedCopy(key: "copy/hub/tab/files", en: "Files", zhHans: "文件")
     /// `copy/hub/tab/files/summary`
@@ -355,6 +355,30 @@ enum ContractCopy {
     static let copyMonitorNetworkUpload = LocalizedCopy(key: "copy/monitor/network/upload", en: "Upload", zhHans: "上行")
     /// `copy/monitor/per-core`
     static let copyMonitorPerCore = LocalizedCopy(key: "copy/monitor/per-core", en: "Per core", zhHans: "每核")
+    /// `copy/monitor/power/critical-battery`
+    static let copyMonitorPowerCriticalBattery = LocalizedCopy(key: "copy/monitor/power/critical-battery", en: "Battery critical", zhHans: "电量极低")
+    /// `copy/monitor/power/draw`
+    static let copyMonitorPowerDraw = LocalizedCopy(key: "copy/monitor/power/draw", en: "Power draw", zhHans: "功耗")
+    /// `copy/monitor/power/high-temperature`
+    static let copyMonitorPowerHighTemperature = LocalizedCopy(key: "copy/monitor/power/high-temperature", en: "Battery hot", zhHans: "电池温度高")
+    /// `copy/monitor/power/low-battery`
+    static let copyMonitorPowerLowBattery = LocalizedCopy(key: "copy/monitor/power/low-battery", en: "Low battery", zhHans: "电量低")
+    /// `copy/monitor/power/no-battery`
+    static let copyMonitorPowerNoBattery = LocalizedCopy(key: "copy/monitor/power/no-battery", en: "No battery", zhHans: "无电池设备")
+    /// `copy/monitor/power/no-data`
+    static let copyMonitorPowerNoData = LocalizedCopy(key: "copy/monitor/power/no-data", en: "No data", zhHans: "暂无数据")
+    /// `copy/monitor/power/read-failed`
+    static let copyMonitorPowerReadFailed = LocalizedCopy(key: "copy/monitor/power/read-failed", en: "Some readings unavailable", zhHans: "部分读数不可用")
+    /// `copy/monitor/power/remaining`
+    static let copyMonitorPowerRemaining = LocalizedCopy(key: "copy/monitor/power/remaining", en: "Estimated time", zhHans: "预计可使用")
+    /// `copy/monitor/power/state/battery`
+    static let copyMonitorPowerStateBattery = LocalizedCopy(key: "copy/monitor/power/state/battery", en: "On battery", zhHans: "电池供电")
+    /// `copy/monitor/power/state/connected`
+    static let copyMonitorPowerStateConnected = LocalizedCopy(key: "copy/monitor/power/state/connected", en: "Power connected", zhHans: "已接通电源")
+    /// `copy/monitor/power/temperature`
+    static let copyMonitorPowerTemperature = LocalizedCopy(key: "copy/monitor/power/temperature", en: "Temperature", zhHans: "温度")
+    /// `copy/monitor/power/top-apps`
+    static let copyMonitorPowerTopApps = LocalizedCopy(key: "copy/monitor/power/top-apps", en: "Top energy · 1 hour", zhHans: "耗电 Top3 · 近 1 小时")
     /// `copy/monitor/sampling/fast`
     static let copyMonitorSamplingFast = LocalizedCopy(key: "copy/monitor/sampling/fast", en: "1s", zhHans: "1 秒")
     /// `copy/monitor/sampling/slow`
@@ -380,7 +404,7 @@ enum ContractCopy {
     /// `copy/monitor/thermal/serious`
     static let copyMonitorThermalSerious = LocalizedCopy(key: "copy/monitor/thermal/serious", en: "Serious", zhHans: "过热")
     /// `copy/monitor/title/battery`
-    static let copyMonitorTitleBattery = LocalizedCopy(key: "copy/monitor/title/battery", en: "Battery", zhHans: "电池")
+    static let copyMonitorTitleBattery = LocalizedCopy(key: "copy/monitor/title/battery", en: "Power", zhHans: "电源")
     /// `copy/monitor/title/cpu`
     static let copyMonitorTitleCpu = LocalizedCopy(key: "copy/monitor/title/cpu", en: "CPU", zhHans: "CPU")
     /// `copy/monitor/title/disk`
@@ -887,6 +911,18 @@ enum ContractCopy {
         copyMonitorNetworkInterface,
         copyMonitorNetworkUpload,
         copyMonitorPerCore,
+        copyMonitorPowerCriticalBattery,
+        copyMonitorPowerDraw,
+        copyMonitorPowerHighTemperature,
+        copyMonitorPowerLowBattery,
+        copyMonitorPowerNoBattery,
+        copyMonitorPowerNoData,
+        copyMonitorPowerReadFailed,
+        copyMonitorPowerRemaining,
+        copyMonitorPowerStateBattery,
+        copyMonitorPowerStateConnected,
+        copyMonitorPowerTemperature,
+        copyMonitorPowerTopApps,
         copyMonitorSamplingFast,
         copyMonitorSamplingSlow,
         copyMonitorStateAcPower,

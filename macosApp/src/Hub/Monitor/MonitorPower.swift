@@ -27,7 +27,11 @@ extension MonitorSnapshot {
         let watts: Double?
         let averageWatts: Double?
         let remainingSeconds: TimeInterval?
+        let chargePowerWatts: Double?
+        let timeToFullSeconds: TimeInterval?
+        let batteryHealthPercent: Double?
         let topApps: [TopApp]
+        let events: [MonitorPowerEvent]
         let batteryDataAvailable: Bool
         let powerDataAvailable: Bool
         let energyDataAvailable: Bool
@@ -45,7 +49,11 @@ extension MonitorSnapshot {
             watts: nil,
             averageWatts: nil,
             remainingSeconds: nil,
+            chargePowerWatts: nil,
+            timeToFullSeconds: nil,
+            batteryHealthPercent: nil,
             topApps: [],
+            events: [],
             batteryDataAvailable: false,
             powerDataAvailable: false,
             energyDataAvailable: false
@@ -175,31 +183,252 @@ struct MonitorEnergyWindow: Equatable, Sendable {
     }
 }
 
-/// 电源卡片的降级策略。
+/// 电源卡片的一分钟历史点。
+struct MonitorPowerMinutePoint: Identifiable, Equatable, Sendable {
+    let minuteStart: Date
+    let watts: Double?
+    let temperatureCelsius: Double?
+    let sampleCount: Int
+
+    var id: TimeInterval { minuteStart.timeIntervalSince1970 }
+}
+
+/// 电源卡片的历史窗口。
 ///
-/// 隐藏顺序固定为 Top3、预计可使用时间、功耗。
-enum MonitorPowerLayoutPolicy {
-    static let fullHeight: CGFloat = 170
-    static let withoutTopAppsHeight: CGFloat = 132
-    static let withoutRemainingHeight: CGFloat = 104
+/// 折叠态保留最近 60 个一秒样本。详情区保留最近 30 个一分钟聚合点。
+/// 两种视图使用同一次采样，温度和功耗不会出现不同来源。
+struct MonitorPowerHistory: Equatable, Sendable {
+    static let windowMinutes = 30
+    static let recentCapacity = 60
+
+    private(set) var recentPower: [Double] = []
+    private(set) var recentTemperature: [Double] = []
+
+    private var completedMinutes: [MonitorPowerMinutePoint] = []
+    private var activeMinuteStart: Date?
+    private var activePowerSum = 0.0
+    private var activePowerCount = 0
+    private var activeTemperatureSum = 0.0
+    private var activeTemperatureCount = 0
+    private var activeSampleCount = 0
+
+    mutating func append(_ power: MonitorSnapshot.Power, at date: Date = Date()) {
+        if let watts = power.watts, watts.isFinite, watts >= 0 {
+            recentPower.append(watts)
+            if recentPower.count > Self.recentCapacity {
+                recentPower.removeFirst(recentPower.count - Self.recentCapacity)
+            }
+        }
+        if let temperature = power.temperatureCelsius,
+           temperature.isFinite {
+            recentTemperature.append(temperature)
+            if recentTemperature.count > Self.recentCapacity {
+                recentTemperature.removeFirst(recentTemperature.count - Self.recentCapacity)
+            }
+        }
+
+        guard power.watts != nil || power.temperatureCelsius != nil else { return }
+        let minuteStart = Calendar.current.dateInterval(of: .minute, for: date)?.start ?? date
+        if activeMinuteStart != minuteStart {
+            finalizeActiveMinute()
+            activeMinuteStart = minuteStart
+        }
+
+        activeSampleCount += 1
+        if let watts = power.watts, watts.isFinite, watts >= 0 {
+            activePowerSum += watts
+            activePowerCount += 1
+        }
+        if let temperature = power.temperatureCelsius,
+           temperature.isFinite {
+            activeTemperatureSum += temperature
+            activeTemperatureCount += 1
+        }
+        prune(at: date)
+    }
+
+    var minutePoints: [MonitorPowerMinutePoint] {
+        var points = completedMinutes
+        if let active = activePoint {
+            points.append(active)
+        }
+        return points.sorted { $0.minuteStart < $1.minuteStart }
+    }
+
+    mutating func reset() {
+        self = MonitorPowerHistory()
+    }
+
+    private var activePoint: MonitorPowerMinutePoint? {
+        guard let activeMinuteStart, activeSampleCount > 0 else { return nil }
+        return MonitorPowerMinutePoint(
+            minuteStart: activeMinuteStart,
+            watts: activePowerCount > 0 ? activePowerSum / Double(activePowerCount) : nil,
+            temperatureCelsius: activeTemperatureCount > 0
+                ? activeTemperatureSum / Double(activeTemperatureCount)
+                : nil,
+            sampleCount: activeSampleCount
+        )
+    }
+
+    private mutating func finalizeActiveMinute() {
+        guard let point = activePoint else {
+            activeMinuteStart = nil
+            return
+        }
+        completedMinutes.append(point)
+        activeMinuteStart = nil
+        activePowerSum = 0
+        activePowerCount = 0
+        activeTemperatureSum = 0
+        activeTemperatureCount = 0
+        activeSampleCount = 0
+    }
+
+    private mutating func prune(at date: Date) {
+        let cutoff = date.addingTimeInterval(-TimeInterval(Self.windowMinutes * 60))
+        completedMinutes.removeAll { $0.minuteStart < cutoff }
+    }
+}
+
+/// 一条供电状态变更事件。
+struct MonitorPowerEvent: Codable, Identifiable, Equatable, Sendable {
+    enum Kind: String, Codable, Equatable, Sendable {
+        case connected
+        case disconnected
+        case fullyCharged
+    }
+
+    let kind: Kind
+    let at: Date
+
+    var id: String { "\(kind.rawValue)-\(at.timeIntervalSince1970)" }
+}
+
+/// 近 24 小时的供电事件窗口。
+struct MonitorPowerEventHistory: Equatable, Sendable {
+    static let windowSeconds: TimeInterval = 24 * 60 * 60
+
+    private(set) var events: [MonitorPowerEvent]
+    private var lastSupply: MonitorSnapshot.Power.Supply?
+    private var lastPercent: Double?
+
+    init(events: [MonitorPowerEvent] = []) {
+        self.events = events.sorted { $0.at < $1.at }
+    }
+
+    mutating func replace(events: [MonitorPowerEvent]) {
+        self.events = events.sorted { $0.at < $1.at }
+    }
+
+    mutating func observe(
+        supply: MonitorSnapshot.Power.Supply,
+        batteryPercent: Double?,
+        at date: Date
+    ) -> [MonitorPowerEvent] {
+        defer {
+            lastSupply = supply
+            lastPercent = batteryPercent
+            prune(at: date)
+        }
+        guard let previous = lastSupply, previous != .unknown, supply != .unknown else {
+            return events
+        }
+
+        let wasAdapter = previous == .charging || previous == .adapter
+        let isAdapter = supply == .charging || supply == .adapter
+        if !wasAdapter, isAdapter {
+            events.append(MonitorPowerEvent(kind: .connected, at: date))
+        } else if wasAdapter, supply == .battery {
+            events.append(MonitorPowerEvent(kind: .disconnected, at: date))
+        }
+
+        if isAdapter,
+           let percent = batteryPercent,
+           percent >= 99.5,
+           (lastPercent ?? 0) < 99.5 {
+            events.append(MonitorPowerEvent(kind: .fullyCharged, at: date))
+        }
+        return events
+    }
+
+    mutating func prune(at date: Date) {
+        let cutoff = date.addingTimeInterval(-Self.windowSeconds)
+        events.removeAll { $0.at < cutoff }
+    }
+}
+
+/// 展开详情区的裁剪策略。
+///
+/// 高度不足时从 P4 向 P0 顺序隐藏。P0 始终保留。
+enum MonitorPowerDetailLayoutPolicy {
+    static let fullHeight: CGFloat = 560
+    static let withoutEventsHeight: CGFloat = 480
+    static let withoutChargingHeight: CGFloat = 400
+    static let withoutEstimateHeight: CGFloat = 320
+    static let withoutHistoryHeight: CGFloat = 200
 
     struct Visibility: Equatable, Sendable {
         let showsTopApps: Bool
-        let showsRemaining: Bool
-        let showsPower: Bool
+        let showsHistory: Bool
+        let showsEstimate: Bool
+        let showsCharging: Bool
+        let showsEvents: Bool
     }
 
     static func resolve(height: CGFloat) -> Visibility {
         if height >= fullHeight {
-            return Visibility(showsTopApps: true, showsRemaining: true, showsPower: true)
+            return Visibility(
+                showsTopApps: true,
+                showsHistory: true,
+                showsEstimate: true,
+                showsCharging: true,
+                showsEvents: true
+            )
         }
-        if height >= withoutTopAppsHeight {
-            return Visibility(showsTopApps: false, showsRemaining: true, showsPower: true)
+        if height >= withoutEventsHeight {
+            return Visibility(
+                showsTopApps: true,
+                showsHistory: true,
+                showsEstimate: true,
+                showsCharging: true,
+                showsEvents: false
+            )
         }
-        if height >= withoutRemainingHeight {
-            return Visibility(showsTopApps: false, showsRemaining: false, showsPower: true)
+        if height >= withoutChargingHeight {
+            return Visibility(
+                showsTopApps: true,
+                showsHistory: true,
+                showsEstimate: true,
+                showsCharging: false,
+                showsEvents: false
+            )
         }
-        return Visibility(showsTopApps: false, showsRemaining: false, showsPower: false)
+        if height >= withoutEstimateHeight {
+            return Visibility(
+                showsTopApps: true,
+                showsHistory: true,
+                showsEstimate: false,
+                showsCharging: false,
+                showsEvents: false
+            )
+        }
+        if height >= withoutHistoryHeight {
+            return Visibility(
+                showsTopApps: true,
+                showsHistory: false,
+                showsEstimate: false,
+                showsCharging: false,
+                showsEvents: false
+            )
+        }
+        return Visibility(
+            showsTopApps: true,
+            showsHistory: false,
+            showsEstimate: false,
+            showsCharging: false,
+            showsEvents: false
+        )
     }
 }
 
@@ -210,6 +439,7 @@ enum MonitorPowerFormat {
     static let highTemperatureCelsius = 45.0
     static let powerRefreshSeconds: TimeInterval = 1
     static let estimateRefreshSeconds: TimeInterval = 10
+    static let detailAnimationSeconds: TimeInterval = 0.22
 
     private static let posix = Locale(identifier: "en_US_POSIX")
 
@@ -249,6 +479,13 @@ enum MonitorPowerFormat {
 
     static func share(_ fraction: Double) -> String {
         "\(Int((min(1, max(0, fraction)) * 100).rounded()))%"
+    }
+
+    static func eventTime(_ date: Date, language: AppLanguage) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = language.locale
+        formatter.dateFormat = language == .simplifiedChinese ? "MM-dd HH:mm" : "MMM d, HH:mm"
+        return formatter.string(from: date)
     }
 
     static func batterySupply(

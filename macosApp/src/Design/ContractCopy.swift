@@ -355,12 +355,44 @@ enum ContractCopy {
     static let copyMonitorNetworkUpload = LocalizedCopy(key: "copy/monitor/network/upload", en: "Upload", zhHans: "上行")
     /// `copy/monitor/per-core`
     static let copyMonitorPerCore = LocalizedCopy(key: "copy/monitor/per-core", en: "Per core", zhHans: "每核")
+    /// `copy/monitor/power/average/draw`
+    static let copyMonitorPowerAverageDraw = LocalizedCopy(key: "copy/monitor/power/average/draw", en: "Average power", zhHans: "平均功耗")
+    /// `copy/monitor/power/charge/health`
+    static let copyMonitorPowerChargeHealth = LocalizedCopy(key: "copy/monitor/power/charge/health", en: "Battery health", zhHans: "电池健康度")
+    /// `copy/monitor/power/charge/power`
+    static let copyMonitorPowerChargePower = LocalizedCopy(key: "copy/monitor/power/charge/power", en: "Charging power", zhHans: "充电功率")
+    /// `copy/monitor/power/charge/time-to-full`
+    static let copyMonitorPowerChargeTimeToFull = LocalizedCopy(key: "copy/monitor/power/charge/time-to-full", en: "Time to full", zhHans: "预计充满")
+    /// `copy/monitor/power/charge/title`
+    static let copyMonitorPowerChargeTitle = LocalizedCopy(key: "copy/monitor/power/charge/title", en: "Charging information", zhHans: "充电信息")
     /// `copy/monitor/power/critical-battery`
     static let copyMonitorPowerCriticalBattery = LocalizedCopy(key: "copy/monitor/power/critical-battery", en: "Battery critical", zhHans: "电量极低")
+    /// `copy/monitor/power/details/close`
+    static let copyMonitorPowerDetailsClose = LocalizedCopy(key: "copy/monitor/power/details/close", en: "Close power details", zhHans: "关闭电源详情")
+    /// `copy/monitor/power/details/collapse`
+    static let copyMonitorPowerDetailsCollapse = LocalizedCopy(key: "copy/monitor/power/details/collapse", en: "Hide details", zhHans: "收起详情")
+    /// `copy/monitor/power/details/expand`
+    static let copyMonitorPowerDetailsExpand = LocalizedCopy(key: "copy/monitor/power/details/expand", en: "Show details", zhHans: "展开详情")
+    /// `copy/monitor/power/details/title`
+    static let copyMonitorPowerDetailsTitle = LocalizedCopy(key: "copy/monitor/power/details/title", en: "Power details", zhHans: "电源详情")
     /// `copy/monitor/power/draw`
     static let copyMonitorPowerDraw = LocalizedCopy(key: "copy/monitor/power/draw", en: "Power draw", zhHans: "功耗")
+    /// `copy/monitor/power/estimate/basis`
+    static let copyMonitorPowerEstimateBasis = LocalizedCopy(key: "copy/monitor/power/estimate/basis", en: "Based on recent average power", zhHans: "按近期平均功耗估算")
+    /// `copy/monitor/power/events/connected`
+    static let copyMonitorPowerEventsConnected = LocalizedCopy(key: "copy/monitor/power/events/connected", en: "Adapter connected", zhHans: "已接通电源")
+    /// `copy/monitor/power/events/disconnected`
+    static let copyMonitorPowerEventsDisconnected = LocalizedCopy(key: "copy/monitor/power/events/disconnected", en: "Adapter disconnected", zhHans: "已断开电源")
+    /// `copy/monitor/power/events/fully-charged`
+    static let copyMonitorPowerEventsFullyCharged = LocalizedCopy(key: "copy/monitor/power/events/fully-charged", en: "Fully charged", zhHans: "已充满")
+    /// `copy/monitor/power/events/title`
+    static let copyMonitorPowerEventsTitle = LocalizedCopy(key: "copy/monitor/power/events/title", en: "Power events · 24 h", zhHans: "供电事件 · 近 24 小时")
     /// `copy/monitor/power/high-temperature`
     static let copyMonitorPowerHighTemperature = LocalizedCopy(key: "copy/monitor/power/high-temperature", en: "Battery hot", zhHans: "电池温度高")
+    /// `copy/monitor/power/history/accumulating`
+    static let copyMonitorPowerHistoryAccumulating = LocalizedCopy(key: "copy/monitor/power/history/accumulating", en: "Collecting data", zhHans: "数据积累中")
+    /// `copy/monitor/power/history/title`
+    static let copyMonitorPowerHistoryTitle = LocalizedCopy(key: "copy/monitor/power/history/title", en: "Power and temperature · 30 min", zhHans: "功耗与温度 · 近 30 分钟")
     /// `copy/monitor/power/low-battery`
     static let copyMonitorPowerLowBattery = LocalizedCopy(key: "copy/monitor/power/low-battery", en: "Low battery", zhHans: "电量低")
     /// `copy/monitor/power/no-battery`
@@ -379,6 +411,10 @@ enum ContractCopy {
     static let copyMonitorPowerTemperature = LocalizedCopy(key: "copy/monitor/power/temperature", en: "Temperature", zhHans: "温度")
     /// `copy/monitor/power/top-apps`
     static let copyMonitorPowerTopApps = LocalizedCopy(key: "copy/monitor/power/top-apps", en: "Top energy · 1 hour", zhHans: "耗电 Top3 · 近 1 小时")
+    /// `copy/monitor/power/trend/title`
+    static let copyMonitorPowerTrendTitle = LocalizedCopy(key: "copy/monitor/power/trend/title", en: "Recent trend", zhHans: "近期趋势")
+    /// `copy/monitor/power/trend/window`
+    static let copyMonitorPowerTrendWindow = LocalizedCopy(key: "copy/monitor/power/trend/window", en: "Last 1 min", zhHans: "近 1 分钟")
     /// `copy/monitor/sampling/fast`
     static let copyMonitorSamplingFast = LocalizedCopy(key: "copy/monitor/sampling/fast", en: "1s", zhHans: "1 秒")
     /// `copy/monitor/sampling/slow`
@@ -911,9 +947,25 @@ enum ContractCopy {
         copyMonitorNetworkInterface,
         copyMonitorNetworkUpload,
         copyMonitorPerCore,
+        copyMonitorPowerAverageDraw,
+        copyMonitorPowerChargeHealth,
+        copyMonitorPowerChargePower,
+        copyMonitorPowerChargeTimeToFull,
+        copyMonitorPowerChargeTitle,
         copyMonitorPowerCriticalBattery,
+        copyMonitorPowerDetailsClose,
+        copyMonitorPowerDetailsCollapse,
+        copyMonitorPowerDetailsExpand,
+        copyMonitorPowerDetailsTitle,
         copyMonitorPowerDraw,
+        copyMonitorPowerEstimateBasis,
+        copyMonitorPowerEventsConnected,
+        copyMonitorPowerEventsDisconnected,
+        copyMonitorPowerEventsFullyCharged,
+        copyMonitorPowerEventsTitle,
         copyMonitorPowerHighTemperature,
+        copyMonitorPowerHistoryAccumulating,
+        copyMonitorPowerHistoryTitle,
         copyMonitorPowerLowBattery,
         copyMonitorPowerNoBattery,
         copyMonitorPowerNoData,
@@ -923,6 +975,8 @@ enum ContractCopy {
         copyMonitorPowerStateConnected,
         copyMonitorPowerTemperature,
         copyMonitorPowerTopApps,
+        copyMonitorPowerTrendTitle,
+        copyMonitorPowerTrendWindow,
         copyMonitorSamplingFast,
         copyMonitorSamplingSlow,
         copyMonitorStateAcPower,

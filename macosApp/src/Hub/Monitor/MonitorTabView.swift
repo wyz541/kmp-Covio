@@ -11,18 +11,21 @@ struct MonitorTabView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var snapshot: MonitorSnapshot
     @State private var history: MonitorHistory
+    @State private var powerHistory = MonitorPowerHistory()
     @State private var sampler = MonitorSampler()
 
     init(
         language: AppLanguage,
         initialSnapshot: MonitorSnapshot = .empty,
         initialHistory: MonitorHistory = MonitorHistory(),
+        initialPowerHistory: MonitorPowerHistory = MonitorPowerHistory(),
         runsSampling: Bool = true
     ) {
         self.language = language
         self.runsSampling = runsSampling
         _snapshot = State(initialValue: initialSnapshot)
         _history = State(initialValue: initialHistory)
+        _powerHistory = State(initialValue: initialPowerHistory)
     }
 
     private let columns = Array(
@@ -78,6 +81,7 @@ struct MonitorTabView: View {
             guard !Task.isCancelled else { break }
             await MainActor.run {
                 snapshot = snapshot.replacingPower(power)
+                powerHistory.append(power)
             }
             do {
                 try await Task.sleep(for: .seconds(MonitorPowerFormat.powerRefreshSeconds))
@@ -231,6 +235,7 @@ struct MonitorTabView: View {
         if let power = snapshot.power {
             MonitorPowerCard(
                 power: power,
+                history: powerHistory,
                 language: language,
                 reduceMotion: reduceMotion,
                 onOpenApp: openApplication
@@ -238,6 +243,7 @@ struct MonitorTabView: View {
         } else {
             MonitorPowerCard(
                 power: MonitorSnapshot.Power.empty,
+                history: powerHistory,
                 language: language,
                 reduceMotion: reduceMotion,
                 onOpenApp: openApplication
@@ -324,11 +330,15 @@ private enum MonitorCardKind {
 
 private struct MonitorPowerCard: View {
     let power: MonitorSnapshot.Power
+    let history: MonitorPowerHistory
     let language: AppLanguage
     let reduceMotion: Bool
     let onOpenApp: (String) -> Void
 
+    @AppStorage("monitor.power.detailsExpanded") private var detailsExpanded = false
+    @State private var detailsPresented = false
     @State private var chargingPulse = false
+    @FocusState private var isFocused: Bool
 
     private var lowBattery: Bool {
         guard let percent = power.batteryPercent else { return false }
@@ -356,6 +366,10 @@ private struct MonitorPowerCard: View {
         }
     }
 
+    private var temperatureAccent: Color {
+        highTemperature ? MacTheme.errorText : MacTheme.warningText
+    }
+
     private var batteryColor: Color {
         lowBattery ? MacTheme.errorText : MacTheme.textPrimary
     }
@@ -369,27 +383,83 @@ private struct MonitorPowerCard: View {
         }
     }
 
+    private var detailActionText: String {
+        detailsPresented
+            ? ContractCopy.copyMonitorPowerDetailsCollapse.text(for: language)
+            : ContractCopy.copyMonitorPowerDetailsExpand.text(for: language)
+    }
+
     var body: some View {
-        MonitorCardShell(
-            kind: .power,
-            accent: accent,
-            language: language,
-            combinesAccessibility: false
-        ) {
-            GeometryReader { proxy in
-                let visibility = MonitorPowerLayoutPolicy.resolve(height: proxy.size.height)
+        Button {
+            toggleDetails()
+        } label: {
+            MonitorCardShell(
+                kind: .power,
+                accent: accent,
+                language: language,
+                combinesAccessibility: false
+            ) {
                 VStack(alignment: .leading, spacing: 6) {
                     primaryRow
-                    metricsRow(visibility: visibility)
-                    if visibility.showsTopApps {
-                        topAppsView
-                    } else {
+                    MonitorPowerTrendSection(
+                        power: power,
+                        history: history,
+                        language: language,
+                        powerAccent: accent,
+                        temperatureAccent: temperatureAccent
+                    )
+                    Spacer(minLength: 0)
+                    HStack(spacing: 4) {
+                        Text(detailActionText)
+                            .font(.system(size: 8, weight: .medium))
+                            .foregroundStyle(MacTheme.textSecondary)
                         Spacer(minLength: 0)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(accent)
+                            .rotationEffect(detailsPresented ? .degrees(90) : .zero)
+                            .animation(
+                                .easeInOut(duration: MonitorPowerFormat.detailAnimationSeconds),
+                                value: detailsPresented
+                            )
                     }
+                    .frame(height: 12)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }
+        .buttonStyle(.plain)
+        .focused($isFocused)
+        .onKeyPress(.return) {
+            toggleDetails()
+            return .handled
+        }
+        .onAppear {
+            detailsPresented = detailsExpanded
+        }
+        .onChange(of: detailsPresented) { _, presented in
+            detailsExpanded = presented
+        }
+        .popover(isPresented: $detailsPresented, arrowEdge: .trailing) {
+            MonitorPowerDetailPanel(
+                power: power,
+                history: history,
+                language: language,
+                reduceMotion: reduceMotion,
+                onOpenApp: onOpenApp,
+                onClose: { detailsPresented = false }
+            )
+        }
+        .overlay {
+            if isFocused {
+                RoundedRectangle(cornerRadius: MacTheme.cardRadius, style: .continuous)
+                    .stroke(MacTheme.focusRing, lineWidth: 2)
+                    .padding(1)
+                    .allowsHitTesting(false)
+            }
+        }
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint(detailActionText)
         .task(id: power.supply) {
             chargingPulse = false
             guard power.supply == .charging, !reduceMotion else { return }
@@ -404,6 +474,16 @@ private struct MonitorPowerCard: View {
                 }
             }
         }
+    }
+
+    private var accessibilityLabel: String {
+        let percent = MonitorPowerFormat.percent(power.batteryPercent)
+        let temperature = MonitorPowerFormat.temperature(power.temperatureCelsius)
+        return "\(ContractCopy.copyMonitorTitleBattery.text(for: language)), \(statusText), \(percent), \(temperature)"
+    }
+
+    private func toggleDetails() {
+        detailsPresented.toggle()
     }
 
     private var primaryRow: some View {
@@ -451,7 +531,6 @@ private struct MonitorPowerCard: View {
 
             Spacer(minLength: 0)
         }
-        .accessibilityElement(children: .combine)
     }
 
     private var warningHint: (text: String, symbol: String, color: Color)? {
@@ -485,51 +564,283 @@ private struct MonitorPowerCard: View {
         }
         return nil
     }
+}
 
-    private func metricsRow(visibility: MonitorPowerLayoutPolicy.Visibility) -> some View {
-        HStack(spacing: MacTheme.space1) {
-            MonitorPowerMetric(
-                label: ContractCopy.copyMonitorPowerTemperature.text(for: language),
-                value: MonitorPowerFormat.temperature(power.temperatureCelsius),
-                symbol: "thermometer.medium",
-                color: highTemperature ? MacTheme.errorText : MacTheme.textPrimary
-            )
+private struct MonitorPowerTrendSection: View {
+    let power: MonitorSnapshot.Power
+    let history: MonitorPowerHistory
+    let language: AppLanguage
+    let powerAccent: Color
+    let temperatureAccent: Color
 
-            if visibility.showsPower {
-                MonitorPowerMetric(
-                    label: ContractCopy.copyMonitorPowerDraw.text(for: language),
-                    value: MonitorPowerFormat.watts(power.watts),
-                    symbol: "bolt.fill",
-                    color: MacTheme.textPrimary
-                )
-            }
-
-            if visibility.showsRemaining {
-                MonitorPowerMetric(
-                    label: ContractCopy.copyMonitorPowerRemaining.text(for: language),
-                    value: MonitorPowerFormat.remaining(power.remainingSeconds, language: language),
-                    symbol: "hourglass",
-                    color: MacTheme.textPrimary
-                )
-            }
-        }
-        .frame(height: 34)
-    }
-
-    private var topAppsView: some View {
+    var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 4) {
-                Image(systemName: "chart.bar.fill")
-                    .font(.system(size: 8, weight: .semibold))
-                    .foregroundStyle(accent)
-                Text(ContractCopy.copyMonitorPowerTopApps.text(for: language))
+                Text(ContractCopy.copyMonitorPowerTrendTitle.text(for: language))
                     .font(.system(size: 8, weight: .semibold))
                     .foregroundStyle(MacTheme.textSecondary)
-                    .lineLimit(1)
+                Spacer(minLength: 0)
+                Text(ContractCopy.copyMonitorPowerTrendWindow.text(for: language))
+                    .font(.system(size: 7, weight: .medium))
+                    .foregroundStyle(MacTheme.textSecondary)
+            }
+
+            HStack(spacing: 8) {
+                trendLegend(
+                    symbol: "bolt.fill",
+                    value: MonitorPowerFormat.watts(power.watts),
+                    color: powerAccent
+                )
+                trendLegend(
+                    symbol: "thermometer.medium",
+                    value: MonitorPowerFormat.temperature(power.temperatureCelsius),
+                    color: temperatureAccent
+                )
                 Spacer(minLength: 0)
             }
-            .frame(height: 10)
 
+            MonitorPowerDualLineChart(
+                powerValues: history.recentPower.map(Optional.some),
+                temperatureValues: power.hasBattery
+                    ? history.recentTemperature.map(Optional.some)
+                    : [],
+                powerAccent: powerAccent,
+                temperatureAccent: temperatureAccent,
+                emptyText: ContractCopy.copyMonitorPowerHistoryAccumulating.text(for: language)
+            )
+            .frame(height: 48)
+        }
+        .padding(7)
+        .background(
+            MacTheme.surface.opacity(0.28),
+            in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+        )
+    }
+
+    private func trendLegend(symbol: String, value: String, color: Color) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: symbol)
+                .font(.system(size: 7, weight: .semibold))
+                .foregroundStyle(color)
+            Text(value)
+                .font(.system(size: 8, weight: .semibold, design: .rounded))
+                .foregroundStyle(MacTheme.textPrimary)
+                .monospacedDigit()
+        }
+    }
+}
+
+private struct MonitorPowerDualLineChart: View {
+    let powerValues: [Double?]
+    let temperatureValues: [Double?]
+    let powerAccent: Color
+    let temperatureAccent: Color
+    let emptyText: String
+
+    var body: some View {
+        GeometryReader { proxy in
+            let powerCount = validCount(powerValues)
+            let temperatureCount = validCount(temperatureValues)
+            let hasAnyData = powerCount + temperatureCount > 0
+            let hasEnoughData = max(powerCount, temperatureCount) >= 2
+            ZStack {
+                linePath(values: powerValues, in: proxy.size, zeroBaseline: true)
+                    .stroke(
+                        powerAccent,
+                        style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round)
+                    )
+                linePath(values: temperatureValues, in: proxy.size, zeroBaseline: false)
+                    .stroke(
+                        temperatureAccent.opacity(0.9),
+                        style: StrokeStyle(lineWidth: 1.2, lineCap: .round, lineJoin: .round)
+                    )
+                markerPath(values: powerValues, in: proxy.size, zeroBaseline: true)
+                    .fill(powerAccent)
+                markerPath(values: temperatureValues, in: proxy.size, zeroBaseline: false)
+                    .fill(temperatureAccent)
+
+                if !hasAnyData {
+                    Text(emptyText)
+                        .font(.system(size: 8, weight: .medium))
+                        .foregroundStyle(MacTheme.textSecondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if !hasEnoughData {
+                    Text(emptyText)
+                        .font(.system(size: 7, weight: .medium))
+                        .foregroundStyle(MacTheme.textSecondary)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(MacTheme.surface.opacity(0.72), in: Capsule())
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                }
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    private func validCount(_ values: [Double?]) -> Int {
+        values.filter { $0?.isFinite == true }.count
+    }
+
+    private func markerPath(
+        values: [Double?],
+        in size: CGSize,
+        zeroBaseline: Bool
+    ) -> Path {
+        let finiteValues = values.compactMap { value -> Double? in
+            guard let value, value.isFinite else { return nil }
+            return value
+        }
+        guard let lastIndex = values.lastIndex(where: { $0?.isFinite == true }),
+              let lastValue = values[lastIndex],
+              !finiteValues.isEmpty
+        else { return Path() }
+
+        let minimum = zeroBaseline ? 0 : (finiteValues.min() ?? 0) - 1
+        let maximum = zeroBaseline
+            ? max(finiteValues.max() ?? 1, 0.1)
+            : max((finiteValues.max() ?? 1) + 1, minimum + 1)
+        let span = max(0.001, maximum - minimum)
+        let denominator = max(1, values.count - 1)
+        let x = values.count == 1
+            ? size.width
+            : size.width * CGFloat(lastIndex) / CGFloat(denominator)
+        let normalized = min(1, max(0, (lastValue - minimum) / span))
+        let y = size.height - CGFloat(normalized) * max(0, size.height - 2) - 1
+        var path = Path()
+        path.addEllipse(in: CGRect(x: x - 1.8, y: y - 1.8, width: 3.6, height: 3.6))
+        return path
+    }
+
+    private func linePath(
+        values: [Double?],
+        in size: CGSize,
+        zeroBaseline: Bool
+    ) -> Path {
+        let finiteValues = values.compactMap { value -> Double? in
+            guard let value, value.isFinite else { return nil }
+            return value
+        }
+        guard !finiteValues.isEmpty else { return Path() }
+
+        let minimum = zeroBaseline ? 0 : (finiteValues.min() ?? 0) - 1
+        let maximum = zeroBaseline
+            ? max(finiteValues.max() ?? 1, 0.1)
+            : max((finiteValues.max() ?? 1) + 1, minimum + 1)
+        let span = max(0.001, maximum - minimum)
+        let denominator = max(1, values.count - 1)
+        var path = Path()
+        var hasCurrentPoint = false
+
+        for (index, raw) in values.enumerated() {
+            guard let value = raw, value.isFinite else {
+                hasCurrentPoint = false
+                continue
+            }
+            let x = values.count == 1
+                ? size.width
+                : size.width * CGFloat(index) / CGFloat(denominator)
+            let normalized = min(1, max(0, (value - minimum) / span))
+            let y = size.height - CGFloat(normalized) * max(0, size.height - 2) - 1
+            let point = CGPoint(x: x, y: y)
+            if hasCurrentPoint {
+                path.addLine(to: point)
+            } else {
+                path.move(to: point)
+            }
+            hasCurrentPoint = true
+        }
+        return path
+    }
+}
+
+// MARK: - 可展开详情
+
+struct MonitorPowerDetailPanel: View {
+    let power: MonitorSnapshot.Power
+    let history: MonitorPowerHistory
+    let language: AppLanguage
+    let reduceMotion: Bool
+    let onOpenApp: (String) -> Void
+    let onClose: () -> Void
+
+    private var detailHeight: CGFloat {
+        let available = NSScreen.main?.visibleFrame.height ?? 800
+        return min(620, max(300, available - 140))
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let visibility = MonitorPowerDetailLayoutPolicy.resolve(height: proxy.size.height)
+            VStack(alignment: .leading, spacing: 8) {
+                header
+                if visibility.showsTopApps {
+                    topAppsSection
+                }
+                if visibility.showsHistory {
+                    historySection
+                }
+                if visibility.showsEstimate, power.hasBattery {
+                    estimateSection
+                }
+                if visibility.showsCharging,
+                   power.hasBattery,
+                   power.supply == .charging || power.supply == .adapter {
+                    chargingSection
+                }
+                if visibility.showsEvents {
+                    eventsSection
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(MacTheme.space4)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+        .frame(width: 480, height: detailHeight)
+        .background(
+            MacTheme.surface.opacity(0.97),
+            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(MacTheme.divider.opacity(0.8), lineWidth: 1)
+        )
+    }
+
+    private var header: some View {
+        HStack(spacing: MacTheme.space2) {
+            Image(systemName: "powerplug.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(accent)
+            Text(ContractCopy.copyMonitorPowerDetailsTitle.text(for: language))
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(MacTheme.textPrimary)
+            Spacer(minLength: 0)
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 10, weight: .bold))
+                    .frame(width: 24, height: 24)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(MacTheme.textSecondary)
+            .accessibilityLabel(ContractCopy.copyMonitorPowerDetailsClose.text(for: language))
+        }
+        .frame(height: 26)
+    }
+
+    private var accent: Color {
+        switch power.supply {
+        case .charging, .adapter: MacTheme.successText
+        case .battery: MacTheme.brand
+        case .unknown: MacTheme.textSecondary
+        }
+    }
+
+    private var topAppsSection: some View {
+        MonitorPowerDetailSection(
+            title: ContractCopy.copyMonitorPowerTopApps.text(for: language)
+        ) {
             if power.energyDataAvailable, !power.topApps.isEmpty {
                 VStack(spacing: 0) {
                     ForEach(Array(power.topApps.prefix(3))) { app in
@@ -541,44 +852,230 @@ private struct MonitorPowerCard: View {
                             }
                             .buttonStyle(.plain)
                             .contentShape(Rectangle())
-                            .frame(height: 24)
+                            .frame(height: 28)
                             .accessibilityLabel(
                                 "\(app.name), \(MonitorPowerFormat.energy(app.energyMilliwattHours)), \(MonitorPowerFormat.share(app.share))"
                             )
                         } else {
                             topAppRow(app)
-                                .frame(height: 24)
+                                .frame(height: 28)
                         }
                     }
                 }
             } else {
-                Text(ContractCopy.copyMonitorPowerNoData.text(for: language))
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(MacTheme.textSecondary)
-                    .frame(maxWidth: .infinity, minHeight: 45, alignment: .center)
+                emptyRow(ContractCopy.copyMonitorPowerNoData.text(for: language))
             }
         }
     }
 
     private func topAppRow(_ app: MonitorSnapshot.Power.TopApp) -> some View {
-        HStack(spacing: 4) {
+        HStack(spacing: MacTheme.space2) {
             Text(app.name)
-                .font(.system(size: 9, weight: .medium))
+                .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(MacTheme.textPrimary)
                 .lineLimit(1)
-            Spacer(minLength: 2)
+            Spacer(minLength: 4)
             Text(MonitorPowerFormat.energy(app.energyMilliwattHours))
-                .font(.system(size: 8, weight: .medium, design: .rounded))
+                .font(.system(size: 9, weight: .medium, design: .rounded))
                 .foregroundStyle(MacTheme.textSecondary)
                 .monospacedDigit()
-                .lineLimit(1)
             Text(MonitorPowerFormat.share(app.share))
-                .font(.system(size: 8, weight: .semibold, design: .rounded))
+                .font(.system(size: 9, weight: .semibold, design: .rounded))
                 .foregroundStyle(accent)
                 .monospacedDigit()
-                .frame(width: 28, alignment: .trailing)
+                .frame(width: 36, alignment: .trailing)
         }
+    }
+
+    private var historySection: some View {
+        let points = history.minutePoints
+        return MonitorPowerDetailSection(
+            title: ContractCopy.copyMonitorPowerHistoryTitle.text(for: language)
+        ) {
+            HStack(spacing: 10) {
+                detailLegend(
+                    symbol: "bolt.fill",
+                    value: MonitorPowerFormat.watts(points.last?.watts),
+                    color: MacTheme.successText
+                )
+                if power.hasBattery {
+                    detailLegend(
+                        symbol: "thermometer.medium",
+                        value: MonitorPowerFormat.temperature(points.last?.temperatureCelsius),
+                        color: MacTheme.warningText
+                    )
+                }
+                Spacer(minLength: 0)
+            }
+            MonitorPowerDualLineChart(
+                powerValues: points.map(\.watts),
+                temperatureValues: power.hasBattery ? points.map(\.temperatureCelsius) : [],
+                powerAccent: MacTheme.successText,
+                temperatureAccent: MacTheme.warningText,
+                emptyText: ContractCopy.copyMonitorPowerHistoryAccumulating.text(for: language)
+            )
+            .frame(height: 104)
+        }
+    }
+
+    private var estimateSection: some View {
+        MonitorPowerDetailSection(
+            title: ContractCopy.copyMonitorPowerRemaining.text(for: language)
+        ) {
+            MonitorPowerDetailRow(
+                label: ContractCopy.copyMonitorPowerRemaining.text(for: language),
+                value: MonitorPowerFormat.remaining(power.remainingSeconds, language: language),
+                symbol: "hourglass"
+            )
+            MonitorPowerDetailRow(
+                label: ContractCopy.copyMonitorPowerAverageDraw.text(for: language),
+                value: MonitorPowerFormat.watts(power.averageWatts),
+                symbol: "chart.line.uptrend.xyaxis"
+            )
+            Text(ContractCopy.copyMonitorPowerEstimateBasis.text(for: language))
+                .font(.system(size: 8, weight: .medium))
+                .foregroundStyle(MacTheme.textSecondary)
+        }
+    }
+
+    private var chargingSection: some View {
+        MonitorPowerDetailSection(
+            title: ContractCopy.copyMonitorPowerChargeTitle.text(for: language)
+        ) {
+            MonitorPowerDetailRow(
+                label: ContractCopy.copyMonitorPowerChargePower.text(for: language),
+                value: MonitorPowerFormat.watts(power.chargePowerWatts),
+                symbol: "bolt.fill",
+                color: MacTheme.successText
+            )
+            MonitorPowerDetailRow(
+                label: ContractCopy.copyMonitorPowerChargeTimeToFull.text(for: language),
+                value: MonitorPowerFormat.remaining(power.timeToFullSeconds, language: language),
+                symbol: "timer"
+            )
+            MonitorPowerDetailRow(
+                label: ContractCopy.copyMonitorPowerChargeHealth.text(for: language),
+                value: MonitorPowerFormat.percent(power.batteryHealthPercent),
+                symbol: "heart.text.square"
+            )
+        }
+    }
+
+    private var eventsSection: some View {
+        MonitorPowerDetailSection(
+            title: ContractCopy.copyMonitorPowerEventsTitle.text(for: language)
+        ) {
+            if power.events.isEmpty {
+                emptyRow(ContractCopy.copyMonitorPowerNoData.text(for: language))
+            } else {
+                ForEach(Array(power.events.suffix(3).reversed())) { event in
+                    HStack(spacing: MacTheme.space2) {
+                        Image(systemName: eventSymbol(event.kind))
+                            .font(.system(size: 8, weight: .semibold))
+                            .foregroundStyle(eventColor(event.kind))
+                            .frame(width: 12)
+                        Text(eventText(event.kind))
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(MacTheme.textPrimary)
+                        Spacer(minLength: 4)
+                        Text(MonitorPowerFormat.eventTime(event.at, language: language))
+                            .font(.system(size: 8, weight: .medium, design: .rounded))
+                            .foregroundStyle(MacTheme.textSecondary)
+                    }
+                    .frame(height: 22)
+                }
+            }
+        }
+    }
+
+    private func detailLegend(symbol: String, value: String, color: Color) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: symbol)
+                .font(.system(size: 7, weight: .semibold))
+                .foregroundStyle(color)
+            Text(value)
+                .font(.system(size: 8, weight: .semibold, design: .rounded))
+                .foregroundStyle(MacTheme.textPrimary)
+                .monospacedDigit()
+        }
+    }
+
+    private func emptyRow(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 9, weight: .medium))
+            .foregroundStyle(MacTheme.textSecondary)
+            .frame(maxWidth: .infinity, minHeight: 42, alignment: .center)
+    }
+
+    private func eventText(_ kind: MonitorPowerEvent.Kind) -> String {
+        switch kind {
+        case .connected: ContractCopy.copyMonitorPowerEventsConnected.text(for: language)
+        case .disconnected: ContractCopy.copyMonitorPowerEventsDisconnected.text(for: language)
+        case .fullyCharged: ContractCopy.copyMonitorPowerEventsFullyCharged.text(for: language)
+        }
+    }
+
+    private func eventSymbol(_ kind: MonitorPowerEvent.Kind) -> String {
+        switch kind {
+        case .connected: "powerplug.fill"
+        case .disconnected: "powerplug"
+        case .fullyCharged: "battery.100percent.bolt"
+        }
+    }
+
+    private func eventColor(_ kind: MonitorPowerEvent.Kind) -> Color {
+        switch kind {
+        case .connected, .fullyCharged: MacTheme.successText
+        case .disconnected: MacTheme.textSecondary
+        }
+    }
+}
+
+private struct MonitorPowerDetailSection<Content: View>: View {
+    let title: String
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(MacTheme.textSecondary)
+                .lineLimit(1)
+            content
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            MacTheme.elevated.opacity(0.82),
+            in: RoundedRectangle(cornerRadius: 9, style: .continuous)
+        )
+    }
+}
+
+private struct MonitorPowerDetailRow: View {
+    let label: String
+    let value: String
+    let symbol: String
+    var color: Color = MacTheme.textPrimary
+
+    var body: some View {
+        HStack(spacing: MacTheme.space2) {
+            Image(systemName: symbol)
+                .font(.system(size: 8, weight: .semibold))
+                .foregroundStyle(color)
+                .frame(width: 12)
+            Text(label)
+                .font(.system(size: 9, weight: .medium))
+                .foregroundStyle(MacTheme.textSecondary)
+            Spacer(minLength: 4)
+            Text(value)
+                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                .foregroundStyle(color)
+                .monospacedDigit()
+        }
+        .frame(height: 18)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -629,38 +1126,6 @@ private struct MonitorPowerSymbol: View {
         case ..<0.875: "battery.75percent"
         default: "battery.100percent"
         }
-    }
-}
-
-private struct MonitorPowerMetric: View {
-    let label: String
-    let value: String
-    let symbol: String
-    let color: Color
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 1) {
-            HStack(spacing: 3) {
-                Image(systemName: symbol)
-                    .font(.system(size: 7, weight: .semibold))
-                Text(label)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-            }
-            .font(.system(size: 7, weight: .medium))
-            .foregroundStyle(MacTheme.textSecondary)
-
-            Text(value)
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                .foregroundStyle(color)
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
-        }
-        .padding(.horizontal, 5)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .background(MacTheme.surface.opacity(0.34), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-        .accessibilityElement(children: .combine)
     }
 }
 

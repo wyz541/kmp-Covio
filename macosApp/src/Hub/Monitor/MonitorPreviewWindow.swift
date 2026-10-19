@@ -10,15 +10,18 @@ struct MonitorPreviewRoot: View {
     private let language = AppLanguage.simplifiedChinese
     let snapshot: MonitorSnapshot
     let history: MonitorHistory
+    let powerHistory: MonitorPowerHistory
     let runsSampling: Bool
 
     init(
         snapshot: MonitorSnapshot = .empty,
         history: MonitorHistory = MonitorHistory(),
+        powerHistory: MonitorPowerHistory = MonitorPowerHistory(),
         runsSampling: Bool = true
     ) {
         self.snapshot = snapshot
         self.history = history
+        self.powerHistory = powerHistory
         self.runsSampling = runsSampling
     }
 
@@ -32,6 +35,7 @@ struct MonitorPreviewRoot: View {
                 language: language,
                 initialSnapshot: snapshot,
                 initialHistory: history,
+                initialPowerHistory: powerHistory,
                 runsSampling: runsSampling
             )
             .frame(height: HubMetrics.monitorBodyHeight)
@@ -47,11 +51,15 @@ enum MonitorSnapshotRenderer {
     static func render(to path: String) async -> Bool {
         let sampler = MonitorSampler()
         var history = MonitorHistory()
+        var powerHistory = MonitorPowerHistory()
         var snapshot = MonitorSnapshot.empty
         // 能耗窗口要跨过第一次 10 秒基线，截图才会显示真实的 Top3。
         for index in 0..<26 {
             snapshot = await sampler.sample()
             history.append(snapshot)
+            if let power = snapshot.power {
+                powerHistory.append(power)
+            }
             guard index < 25 else { continue }
             do {
                 try await Task.sleep(for: .milliseconds(500))
@@ -72,10 +80,58 @@ enum MonitorSnapshotRenderer {
             content: MonitorPreviewRoot(
                 snapshot: snapshot,
                 history: history,
+                powerHistory: powerHistory,
                 runsSampling: false
             )
             .environment(\.colorScheme, colorScheme)
         )
+        renderer.scale = 2
+        guard let image = renderer.nsImage,
+              let tiff = image.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiff),
+              let png = bitmap.representation(using: .png, properties: [:])
+        else { return false }
+        do {
+            try png.write(to: URL(fileURLWithPath: path), options: .atomic)
+            return true
+        } catch {
+            return false
+        }
+    }
+}
+
+@MainActor
+enum MonitorPowerDetailRenderer {
+    static func render(to path: String) async -> Bool {
+        let sampler = MonitorSampler()
+        var powerHistory = MonitorPowerHistory()
+        var power = MonitorSnapshot.Power.empty
+        for index in 0..<26 {
+            power = await sampler.samplePowerOnly()
+            powerHistory.append(power)
+            guard index < 25 else { continue }
+            do {
+                try await Task.sleep(for: .milliseconds(500))
+            } catch {
+                return false
+            }
+        }
+
+        let colorScheme: ColorScheme = ProcessInfo.processInfo.environment["AppleInterfaceStyle"]?
+            .lowercased() == "dark" ? .dark : .light
+        let content = MonitorPowerDetailPanel(
+            power: power,
+            history: powerHistory,
+            language: .simplifiedChinese,
+            reduceMotion: false,
+            onOpenApp: { _ in },
+            onClose: {}
+        )
+        .environment(\.colorScheme, colorScheme)
+        .padding(24)
+        .background(MacTheme.canvas)
+
+        let renderer = ImageRenderer(content: content)
         renderer.scale = 2
         guard let image = renderer.nsImage,
               let tiff = image.tiffRepresentation,

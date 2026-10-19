@@ -28,6 +28,8 @@ final class MacMonitorReader {
         let capacityWattHours: Double?
         let batteryPowerMilliwatts: Double?
         let systemPowerMilliwatts: Double?
+        let chargePowerMilliwatts: Double?
+        let healthPercent: Double?
     }
 
     private struct IOPSBatteryAggregate {
@@ -35,7 +37,8 @@ final class MacMonitorReader {
         let percent: Double?
         let supply: MonitorSnapshot.Power.Supply
         let isCharged: Bool
-        let systemRemainingSeconds: TimeInterval?
+        let timeToEmptySeconds: TimeInterval?
+        let timeToFullSeconds: TimeInterval?
     }
 
     private struct AppIdentity: Equatable {
@@ -51,6 +54,7 @@ final class MacMonitorReader {
     private var previousDisk: DiskCounters?
     private var previousNetwork: NetworkCounters?
     private var powerAverage = MonitorPowerAverage()
+    private var previousPowerSupply: MonitorSnapshot.Power.Supply?
     private var energyWindow = MonitorEnergyWindow()
     private var lastEnergyScanAt = Date.distantPast
     private var lastEnergyApps: [MonitorSnapshot.Power.TopApp] = []
@@ -58,6 +62,7 @@ final class MacMonitorReader {
     private var identityCache: [Int32: AppIdentity] = [:]
     private var mainApplications: [AppIdentity] = []
     private var lastIdentityRefreshAt = Date.distantPast
+    private let powerEventStore = MonitorPowerEventStore()
 
     func read() -> MonitorSnapshot {
         let memory = readMemory()
@@ -420,13 +425,11 @@ final class MacMonitorReader {
             measuredWatts = MonitorPowerFormat.watts(fromMilliwatts: registry.systemPowerMilliwatts)
         }
 
-        let averageWatts: Double?
-        if iops.supply == .battery {
-            averageWatts = powerAverage.append(measuredWatts)
-        } else {
+        if previousPowerSupply != iops.supply, iops.supply == .battery {
             powerAverage.reset()
-            averageWatts = nil
         }
+        previousPowerSupply = iops.supply
+        let averageWatts = powerAverage.append(measuredWatts)
 
         let calculatedRemaining = MonitorPowerFormat.estimatedRemainingSeconds(
             capacityWattHours: registry.capacityWattHours,
@@ -434,9 +437,10 @@ final class MacMonitorReader {
             averageWatts: averageWatts
         )
         let remaining = iops.supply == .battery
-            ? (calculatedRemaining ?? iops.systemRemainingSeconds)
+            ? (calculatedRemaining ?? iops.timeToEmptySeconds)
             : nil
         let topApps = readEnergyUsage(at: now)
+        let isAdapter = iops.supply == .charging || iops.supply == .adapter
 
         let power = MonitorSnapshot.Power(
             supply: iops.supply,
@@ -446,7 +450,17 @@ final class MacMonitorReader {
             watts: measuredWatts,
             averageWatts: averageWatts,
             remainingSeconds: remaining,
+            chargePowerWatts: isAdapter
+                ? MonitorPowerFormat.watts(fromMilliwatts: registry.chargePowerMilliwatts)
+                : nil,
+            timeToFullSeconds: isAdapter ? iops.timeToFullSeconds : nil,
+            batteryHealthPercent: registry.healthPercent,
             topApps: topApps,
+            events: powerEventStore.observe(
+                supply: iops.supply,
+                batteryPercent: iops.percent,
+                at: now
+            ),
             batteryDataAvailable: iops.hasBattery
                 && iops.percent != nil
                 && registry.temperatureCelsius != nil,
@@ -472,7 +486,8 @@ final class MacMonitorReader {
                 percent: nil,
                 supply: .unknown,
                 isCharged: false,
-                systemRemainingSeconds: nil
+                timeToEmptySeconds: nil,
+                timeToFullSeconds: nil
             )
         }
 
@@ -487,7 +502,8 @@ final class MacMonitorReader {
         var isCharging = false
         var isCharged = true
         var adapterConnected = provider.caseInsensitiveCompare("AC Power") == .orderedSame
-        var systemRemainingSeconds: TimeInterval?
+        var timeToEmptySeconds: TimeInterval?
+        var timeToFullSeconds: TimeInterval?
 
         for source in sources {
             guard let description = IOPSGetPowerSourceDescription(blob, source)?
@@ -507,13 +523,19 @@ final class MacMonitorReader {
             adapterConnected = adapterConnected
                 || powerState.caseInsensitiveCompare("AC Power") == .orderedSame
 
-            if systemRemainingSeconds == nil {
-                let key = powerState.caseInsensitiveCompare("Battery Power") == .orderedSame
-                    ? "Time to Empty"
-                    : "Time to Full Charge"
-                if let minutes = description[key] as? Int, minutes > 0, minutes < 65_535 {
-                    systemRemainingSeconds = TimeInterval(minutes) * 60
-                }
+            if powerState.caseInsensitiveCompare("Battery Power") == .orderedSame,
+               timeToEmptySeconds == nil,
+               let minutes = description["Time to Empty"] as? Int,
+               minutes > 0,
+               minutes < 65_535 {
+                timeToEmptySeconds = TimeInterval(minutes) * 60
+            }
+            if powerState.caseInsensitiveCompare("AC Power") == .orderedSame,
+               timeToFullSeconds == nil,
+               let minutes = description["Time to Full Charge"] as? Int,
+               minutes > 0,
+               minutes < 65_535 {
+                timeToFullSeconds = TimeInterval(minutes) * 60
             }
         }
 
@@ -534,7 +556,8 @@ final class MacMonitorReader {
             percent: percent,
             supply: supply,
             isCharged: hasBattery && isCharged,
-            systemRemainingSeconds: systemRemainingSeconds
+            timeToEmptySeconds: timeToEmptySeconds,
+            timeToFullSeconds: timeToFullSeconds
         )
     }
 
@@ -553,7 +576,9 @@ final class MacMonitorReader {
                 temperatureCelsius: nil,
                 capacityWattHours: nil,
                 batteryPowerMilliwatts: nil,
-                systemPowerMilliwatts: nil
+                systemPowerMilliwatts: nil,
+                chargePowerMilliwatts: nil,
+                healthPercent: nil
             )
         }
 
@@ -563,15 +588,20 @@ final class MacMonitorReader {
                 temperatureCelsius: nil,
                 capacityWattHours: nil,
                 batteryPowerMilliwatts: nil,
-                systemPowerMilliwatts: nil
+                systemPowerMilliwatts: nil,
+                chargePowerMilliwatts: nil,
+                healthPercent: nil
             )
         }
         defer { IOObjectRelease(iterator) }
 
         var temperatureCelsius: Double?
         var capacityWattHours = 0.0
+        var fullChargeCapacity = 0.0
+        var designCapacity = 0.0
         var batteryPowerMilliwatts: Double?
         var systemPowerMilliwatts: Double?
+        var chargePowerMilliwatts: Double?
 
         var service = IOIteratorNext(iterator)
         while service != 0 {
@@ -585,14 +615,24 @@ final class MacMonitorReader {
             if let data = registryDictionary(service, key: "BatteryData"),
                let voltage,
                voltage > 0 {
-                let fullChargeCapacity = number(data["FullChargeCapacity"])
-                if fullChargeCapacity > 0 {
-                    capacityWattHours += Double(fullChargeCapacity) * voltage / 1_000_000
+                let currentFullCharge = Double(number(data["FullChargeCapacity"]))
+                let currentDesignCapacity = Double(number(data["DesignCapacity"]))
+                fullChargeCapacity += currentFullCharge
+                designCapacity += currentDesignCapacity
+                if currentFullCharge > 0 {
+                    capacityWattHours += currentFullCharge * voltage / 1_000_000
                 }
             }
 
             if let temperature = readBatteryTemperature(service, depth: 0) {
                 temperatureCelsius = max(temperatureCelsius ?? temperature, temperature)
+            }
+
+            if let measuredChargePower = readChargePowerMilliwatts(service, depth: 0) {
+                chargePowerMilliwatts = max(
+                    chargePowerMilliwatts ?? 0,
+                    measuredChargePower
+                )
             }
 
             if let telemetry = registryDictionary(service, key: "PowerTelemetryData") {
@@ -621,11 +661,16 @@ final class MacMonitorReader {
             }
         }
 
+        let healthPercent = designCapacity > 0
+            ? min(100, max(0, fullChargeCapacity / designCapacity * 100))
+            : nil
         return BatteryRegistryMetrics(
             temperatureCelsius: temperatureCelsius,
             capacityWattHours: capacityWattHours > 0 ? capacityWattHours : nil,
             batteryPowerMilliwatts: batteryPowerMilliwatts,
-            systemPowerMilliwatts: systemPowerMilliwatts
+            systemPowerMilliwatts: systemPowerMilliwatts,
+            chargePowerMilliwatts: chargePowerMilliwatts,
+            healthPercent: healthPercent
         )
     }
 
@@ -664,6 +709,34 @@ final class MacMonitorReader {
             }
         }
         return maximum
+    }
+
+    private func readChargePowerMilliwatts(_ service: io_object_t, depth: Int) -> Double? {
+        guard depth <= 6 else { return nil }
+        if let data = registryDictionary(service, key: "ChargerData"),
+           let current = signedNumber(data["ChargingCurrent"]),
+           let voltage = signedNumber(data["ChargingVoltage"]),
+           current > 0,
+           voltage > 0 {
+            return current * voltage / 1_000
+        }
+        var children: io_iterator_t = 0
+        guard IORegistryEntryGetChildIterator(service, kIOServicePlane, &children) == KERN_SUCCESS else {
+            return nil
+        }
+        defer { IOObjectRelease(children) }
+
+        var child = IOIteratorNext(children)
+        while child != 0 {
+            defer {
+                IOObjectRelease(child)
+                child = IOIteratorNext(children)
+            }
+            if let value = readChargePowerMilliwatts(child, depth: depth + 1) {
+                return value
+            }
+        }
+        return nil
     }
 
     // MARK: - Energy
@@ -862,6 +935,44 @@ final class MacMonitorReader {
         case let value as UInt64: Double(value)
         default: nil
         }
+    }
+}
+
+/// 供电事件的本地持久化。
+///
+/// 只保存事件类型和时间。数据留在本机，不上传。
+private final class MonitorPowerEventStore {
+    private static let key = "monitor.power.events.v1"
+
+    private let defaults: UserDefaults
+    private var history: MonitorPowerEventHistory
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        if let data = defaults.data(forKey: Self.key),
+           let events = try? JSONDecoder().decode([MonitorPowerEvent].self, from: data) {
+            history = MonitorPowerEventHistory(events: events)
+        } else {
+            history = MonitorPowerEventHistory()
+        }
+    }
+
+    func observe(
+        supply: MonitorSnapshot.Power.Supply,
+        batteryPercent: Double?,
+        at date: Date
+    ) -> [MonitorPowerEvent] {
+        let previous = history.events
+        let events = history.observe(
+            supply: supply,
+            batteryPercent: batteryPercent,
+            at: date
+        )
+        if events != previous,
+           let data = try? JSONEncoder().encode(events) {
+            defaults.set(data, forKey: Self.key)
+        }
+        return events
     }
 }
 

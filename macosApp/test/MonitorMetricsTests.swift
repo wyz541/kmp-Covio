@@ -62,6 +62,7 @@ final class MonitorMetricsTests: XCTestCase {
     func testPowerRefreshIsOneSecond() {
         XCTAssertEqual(MonitorPowerFormat.powerRefreshSeconds, 1)
         XCTAssertLessThanOrEqual(MonitorPowerFormat.estimateRefreshSeconds, 10)
+        XCTAssertLessThanOrEqual(MonitorPowerFormat.detailAnimationSeconds, 0.3)
     }
 
     func testPowerFormattingUsesOneDecimal() {
@@ -206,7 +207,11 @@ final class MonitorMetricsTests: XCTestCase {
             watts: 8,
             averageWatts: nil,
             remainingSeconds: nil,
+            chargePowerWatts: nil,
+            timeToFullSeconds: nil,
+            batteryHealthPercent: nil,
             topApps: [],
+            events: [],
             batteryDataAvailable: false,
             powerDataAvailable: true,
             energyDataAvailable: true
@@ -225,23 +230,93 @@ final class MonitorMetricsTests: XCTestCase {
         XCTAssertEqual(average.average, 8)
     }
 
-    func testPowerLayoutDegradesInRequiredOrder() {
-        XCTAssertEqual(
-            MonitorPowerLayoutPolicy.resolve(height: 200),
-            .init(showsTopApps: true, showsRemaining: true, showsPower: true)
+    func testDetailLayoutCropsFromLastPriority() {
+        let full = MonitorPowerDetailLayoutPolicy.resolve(height: 620)
+        XCTAssertTrue(full.showsTopApps)
+        XCTAssertTrue(full.showsHistory)
+        XCTAssertTrue(full.showsEstimate)
+        XCTAssertTrue(full.showsCharging)
+        XCTAssertTrue(full.showsEvents)
+
+        let noEvents = MonitorPowerDetailLayoutPolicy.resolve(height: 500)
+        XCTAssertTrue(noEvents.showsTopApps)
+        XCTAssertTrue(noEvents.showsCharging)
+        XCTAssertFalse(noEvents.showsEvents)
+
+        let noCharging = MonitorPowerDetailLayoutPolicy.resolve(height: 420)
+        XCTAssertTrue(noCharging.showsEstimate)
+        XCTAssertFalse(noCharging.showsCharging)
+        XCTAssertFalse(noCharging.showsEvents)
+
+        let noEstimate = MonitorPowerDetailLayoutPolicy.resolve(height: 330)
+        XCTAssertTrue(noEstimate.showsHistory)
+        XCTAssertFalse(noEstimate.showsEstimate)
+
+        let onlyTopApps = MonitorPowerDetailLayoutPolicy.resolve(height: 180)
+        XCTAssertTrue(onlyTopApps.showsTopApps)
+        XCTAssertFalse(onlyTopApps.showsHistory)
+    }
+
+    func testPowerHistoryKeepsRecentMinuteAndSixtySecondWindow() {
+        var history = MonitorPowerHistory()
+        let start = Date(timeIntervalSince1970: 3_600)
+
+        for index in 0..<70 {
+            history.append(
+                power(supply: .battery, watts: Double(index)),
+                at: start.addingTimeInterval(Double(index))
+            )
+        }
+
+        XCTAssertEqual(history.recentPower.count, MonitorPowerHistory.recentCapacity)
+        XCTAssertEqual(history.recentPower.last, 69)
+        XCTAssertEqual(history.minutePoints.count, 2)
+        XCTAssertEqual(history.minutePoints[0].sampleCount, 60)
+        XCTAssertEqual(history.minutePoints[0].watts ?? 0, 29.5, accuracy: 0.001)
+        XCTAssertEqual(history.minutePoints[1].sampleCount, 10)
+    }
+
+    func testPowerHistoryDropsMinutesOlderThanThirtyMinutes() {
+        var history = MonitorPowerHistory()
+        let start = Date(timeIntervalSince1970: 7_200)
+        history.append(power(supply: .battery, watts: 4), at: start)
+        history.append(
+            power(supply: .battery, watts: 8),
+            at: start.addingTimeInterval(31 * 60)
         )
-        XCTAssertEqual(
-            MonitorPowerLayoutPolicy.resolve(height: 169),
-            .init(showsTopApps: false, showsRemaining: true, showsPower: true)
+
+        XCTAssertEqual(history.minutePoints.count, 1)
+        XCTAssertEqual(history.minutePoints[0].watts ?? 0, 8, accuracy: 0.001)
+    }
+
+    func testPowerEventsTrackAdapterAndChargeChanges() {
+        var history = MonitorPowerEventHistory()
+        let start = Date(timeIntervalSince1970: 10_800)
+
+        _ = history.observe(supply: .battery, batteryPercent: 80, at: start)
+        var events = history.observe(
+            supply: .charging,
+            batteryPercent: 80,
+            at: start.addingTimeInterval(10)
         )
-        XCTAssertEqual(
-            MonitorPowerLayoutPolicy.resolve(height: 131),
-            .init(showsTopApps: false, showsRemaining: false, showsPower: true)
+        XCTAssertEqual(events.map(\.kind), [.connected])
+
+        events = history.observe(
+            supply: .charging,
+            batteryPercent: 99.6,
+            at: start.addingTimeInterval(20)
         )
-        XCTAssertEqual(
-            MonitorPowerLayoutPolicy.resolve(height: 100),
-            .init(showsTopApps: false, showsRemaining: false, showsPower: false)
+        XCTAssertEqual(events.map(\.kind), [.connected, .fullyCharged])
+
+        events = history.observe(
+            supply: .battery,
+            batteryPercent: 99,
+            at: start.addingTimeInterval(30)
         )
+        XCTAssertEqual(events.map(\.kind), [.connected, .fullyCharged, .disconnected])
+
+        history.prune(at: start.addingTimeInterval(25 * 60 * 60))
+        XCTAssertTrue(history.events.isEmpty)
     }
 
     func testEnergyWindowAggregatesProcessesByApplication() {
@@ -333,7 +408,11 @@ final class MonitorMetricsTests: XCTestCase {
         temperature: Double? = 32.2,
         watts: Double? = 4.5,
         remaining: TimeInterval? = nil,
+        chargePower: Double? = 14,
+        timeToFull: TimeInterval? = 1_800,
+        health: Double? = 94,
         topApps: [MonitorSnapshot.Power.TopApp] = [],
+        events: [MonitorPowerEvent] = [],
         batteryAvailable: Bool = true,
         powerAvailable: Bool = true,
         energyAvailable: Bool = true
@@ -346,7 +425,11 @@ final class MonitorMetricsTests: XCTestCase {
             watts: watts,
             averageWatts: watts,
             remainingSeconds: remaining,
+            chargePowerWatts: chargePower,
+            timeToFullSeconds: timeToFull,
+            batteryHealthPercent: health,
             topApps: topApps,
+            events: events,
             batteryDataAvailable: batteryAvailable,
             powerDataAvailable: powerAvailable,
             energyDataAvailable: energyAvailable

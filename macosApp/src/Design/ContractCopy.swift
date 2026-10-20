@@ -215,6 +215,14 @@ enum ContractCopy {
     static let copyHubLogView = LocalizedCopy(key: "copy/hub/log/view", en: "View Log", zhHans: "查看日志")
     /// `copy/hub/placeholder-notice`
     static let copyHubPlaceholderNotice = LocalizedCopy(key: "copy/hub/placeholder-notice", en: "This tab is a placeholder. Content lands in a later phase.", zhHans: "本页签是占位。内容在后续阶段落地。")
+    /// `copy/hub/power/segment/overview`
+    static let copyHubPowerSegmentOverview = LocalizedCopy(key: "copy/hub/power/segment/overview", en: "Overview", zhHans: "概览")
+    /// `copy/hub/power/segment/power`
+    static let copyHubPowerSegmentPower = LocalizedCopy(key: "copy/hub/power/segment/power", en: "Power", zhHans: "电源")
+    /// `copy/hub/power/summary`
+    static let copyHubPowerSummary = LocalizedCopy(key: "copy/hub/power/summary", en: "Manage sleep, display, lid, battery, and adapter behavior.", zhHans: "管理睡眠、屏幕、合盖、电池和适配器行为。")
+    /// `copy/hub/power/title`
+    static let copyHubPowerTitle = LocalizedCopy(key: "copy/hub/power/title", en: "Power management", zhHans: "电源管理")
     /// `copy/hub/tab/board`
     static let copyHubTabBoard = LocalizedCopy(key: "copy/hub/tab/board", en: "Custom", zhHans: "自建")
     /// `copy/hub/tab/board/summary`
@@ -573,6 +581,104 @@ enum ContractCopy {
     static let copyPageTopShelfSettingsSummary = LocalizedCopy(key: "copy/page/top-shelf-settings/summary", en: "Control screenshot takeover and the top shelf.", zhHans: "控制截图接管和顶部挂帘。")
     /// `copy/page/top-shelf-settings/title`
     static let copyPageTopShelfSettingsTitle = LocalizedCopy(key: "copy/page/top-shelf-settings/title", en: "Top Shelf", zhHans: "顶部挂帘")
+    /// `copy/power/alert/external-conflict`
+    static let copyPowerAlertExternalConflict = LocalizedCopy(key: "copy/power/alert/external-conflict", en: "Another app changed the sleep setting. Covio will not clear it.", zhHans: "其他应用修改了睡眠设置。Covio 不会清除该设置。")
+    /// `copy/power/alert/helper-missing`
+    static let copyPowerAlertHelperMissing = LocalizedCopy(key: "copy/power/alert/helper-missing", en: "Install the helper before using closed-lid hold.", zhHans: "使用合盖保持唤醒前请安装助手。")
+    /// `copy/power/alert/thermal`
+    static let copyPowerAlertThermal = LocalizedCopy(key: "copy/power/alert/thermal", en: "The heat guard will release every hold.", zhHans: "温度保护会释放全部保持唤醒。")
+    /// `copy/power/history/adapter-connected`
+    static let copyPowerHistoryAdapterConnected = LocalizedCopy(key: "copy/power/history/adapter-connected", en: "Power adapter connected", zhHans: "已接通电源")
+    /// `copy/power/history/adapter-disconnected`
+    static let copyPowerHistoryAdapterDisconnected = LocalizedCopy(key: "copy/power/history/adapter-disconnected", en: "Power adapter disconnected", zhHans: "已断开电源")
+    /// `copy/power/history/guard-released`
+    static let copyPowerHistoryGuardReleased = LocalizedCopy(key: "copy/power/history/guard-released", en: "Heat guard released the hold", zhHans: "温度保护已释放保持唤醒")
+    /// `copy/power/history/hold-started`
+    static let copyPowerHistoryHoldStarted = LocalizedCopy(key: "copy/power/history/hold-started", en: "Closed-lid hold started", zhHans: "合盖保持唤醒已开始")
+    /// `copy/power/history/no-events`
+    static let copyPowerHistoryNoEvents = LocalizedCopy(key: "copy/power/history/no-events", en: "No recent events", zhHans: "最近没有事件")
+    /// `copy/power/history/slept`
+    static let copyPowerHistorySlept = LocalizedCopy(key: "copy/power/history/slept", en: "Mac slept", zhHans: "Mac 已睡眠")
+    /// `copy/power/history/window`
+    static let copyPowerHistoryWindow = LocalizedCopy(key: "copy/power/history/window", en: "Last 24 hours", zhHans: "最近 24 小时")
+    /// `copy/power/history/woke`
+    static let copyPowerHistoryWoke = LocalizedCopy(key: "copy/power/history/woke", en: "Mac woke", zhHans: "Mac 已唤醒")
+    /// `copy/power/overview/note`
+    static let copyPowerOverviewNote = LocalizedCopy(key: "copy/power/overview/note", en: "The existing live metrics stay in Overview.", zhHans: "现有实时指标保留在概览中。")
+    /// `copy/power/rules/adapter`
+    static let copyPowerRulesAdapter = LocalizedCopy(key: "copy/power/rules/adapter", en: "Keep awake on adapter", zhHans: "接通电源时保持唤醒")
+    /// `copy/power/rules/battery`
+    static let copyPowerRulesBattery = LocalizedCopy(key: "copy/power/rules/battery", en: "Keep awake on battery", zhHans: "使用电池时保持唤醒")
+    /// `copy/power/rules/battery-floor`
+    static let copyPowerRulesBatteryFloor = LocalizedCopy(key: "copy/power/rules/battery-floor", en: "Battery floor", zhHans: "电池下限")
+    /// `copy/power/rules/external-display`
+    static let copyPowerRulesExternalDisplay = LocalizedCopy(key: "copy/power/rules/external-display", en: "Pause lid hold with external display", zhHans: "有外接屏时暂停合盖保持唤醒")
+    /// `copy/power/rules/heat-guard`
+    static let copyPowerRulesHeatGuard = LocalizedCopy(key: "copy/power/rules/heat-guard", en: "Heat guard", zhHans: "温度保护")
+    /// `copy/power/rules/lid`
+    static let copyPowerRulesLid = LocalizedCopy(key: "copy/power/rules/lid", en: "Allow closed-lid hold", zhHans: "允许合盖保持唤醒")
+    /// `copy/power/rules/off`
+    static let copyPowerRulesOff = LocalizedCopy(key: "copy/power/rules/off", en: "Off", zhHans: "关闭")
+    /// `copy/power/rules/on`
+    static let copyPowerRulesOn = LocalizedCopy(key: "copy/power/rules/on", en: "On", zhHans: "开启")
+    /// `copy/power/rules/time-cap`
+    static let copyPowerRulesTimeCap = LocalizedCopy(key: "copy/power/rules/time-cap", en: "Closed-lid time cap", zhHans: "合盖时长上限")
+    /// `copy/power/section/history`
+    static let copyPowerSectionHistory = LocalizedCopy(key: "copy/power/section/history", en: "Recent activity", zhHans: "最近活动")
+    /// `copy/power/section/rules`
+    static let copyPowerSectionRules = LocalizedCopy(key: "copy/power/section/rules", en: "Safety and automation", zhHans: "安全与自动规则")
+    /// `copy/power/section/session`
+    static let copyPowerSectionSession = LocalizedCopy(key: "copy/power/section/session", en: "Keep awake", zhHans: "保持唤醒")
+    /// `copy/power/section/status`
+    static let copyPowerSectionStatus = LocalizedCopy(key: "copy/power/section/status", en: "Current power", zhHans: "当前供电")
+    /// `copy/power/session/active`
+    static let copyPowerSessionActive = LocalizedCopy(key: "copy/power/session/active", en: "Active", zhHans: "运行中")
+    /// `copy/power/session/display`
+    static let copyPowerSessionDisplay = LocalizedCopy(key: "copy/power/session/display", en: "System + display", zhHans: "系统与屏幕")
+    /// `copy/power/session/duration-15m`
+    static let copyPowerSessionDuration15m = LocalizedCopy(key: "copy/power/session/duration-15m", en: "15 min", zhHans: "15 分钟")
+    /// `copy/power/session/duration-1h`
+    static let copyPowerSessionDuration1h = LocalizedCopy(key: "copy/power/session/duration-1h", en: "1 hour", zhHans: "1 小时")
+    /// `copy/power/session/duration-2h`
+    static let copyPowerSessionDuration2h = LocalizedCopy(key: "copy/power/session/duration-2h", en: "2 hours", zhHans: "2 小时")
+    /// `copy/power/session/duration-4h`
+    static let copyPowerSessionDuration4h = LocalizedCopy(key: "copy/power/session/duration-4h", en: "4 hours", zhHans: "4 小时")
+    /// `copy/power/session/duration-open`
+    static let copyPowerSessionDurationOpen = LocalizedCopy(key: "copy/power/session/duration-open", en: "Until off", zhHans: "直到关闭")
+    /// `copy/power/session/end`
+    static let copyPowerSessionEnd = LocalizedCopy(key: "copy/power/session/end", en: "End", zhHans: "结束")
+    /// `copy/power/session/expires`
+    static let copyPowerSessionExpires = LocalizedCopy(key: "copy/power/session/expires", en: "Ends in", zhHans: "剩余")
+    /// `copy/power/session/inactive`
+    static let copyPowerSessionInactive = LocalizedCopy(key: "copy/power/session/inactive", en: "Off", zhHans: "关闭")
+    /// `copy/power/session/lid`
+    static let copyPowerSessionLid = LocalizedCopy(key: "copy/power/session/lid", en: "Closed lid", zhHans: "合盖运行")
+    /// `copy/power/session/none`
+    static let copyPowerSessionNone = LocalizedCopy(key: "copy/power/session/none", en: "No keep-awake session is active.", zhHans: "当前没有保持唤醒会话。")
+    /// `copy/power/session/reason-adapter`
+    static let copyPowerSessionReasonAdapter = LocalizedCopy(key: "copy/power/session/reason-adapter", en: "Power adapter connected", zhHans: "已接通电源")
+    /// `copy/power/session/reason-lid`
+    static let copyPowerSessionReasonLid = LocalizedCopy(key: "copy/power/session/reason-lid", en: "Lid held only while safety checks pass", zhHans: "安全条件通过时才保持合盖运行")
+    /// `copy/power/session/start`
+    static let copyPowerSessionStart = LocalizedCopy(key: "copy/power/session/start", en: "Start", zhHans: "开始")
+    /// `copy/power/session/system`
+    static let copyPowerSessionSystem = LocalizedCopy(key: "copy/power/session/system", en: "System", zhHans: "仅系统")
+    /// `copy/power/status/adapter`
+    static let copyPowerStatusAdapter = LocalizedCopy(key: "copy/power/status/adapter", en: "Adapter", zhHans: "适配器")
+    /// `copy/power/status/connected`
+    static let copyPowerStatusConnected = LocalizedCopy(key: "copy/power/status/connected", en: "Connected", zhHans: "已连接")
+    /// `copy/power/status/external-display`
+    static let copyPowerStatusExternalDisplay = LocalizedCopy(key: "copy/power/status/external-display", en: "External display", zhHans: "外接屏")
+    /// `copy/power/status/guard-missing`
+    static let copyPowerStatusGuardMissing = LocalizedCopy(key: "copy/power/status/guard-missing", en: "Safety guard unavailable", zhHans: "安全护栏不可用")
+    /// `copy/power/status/guard-ready`
+    static let copyPowerStatusGuardReady = LocalizedCopy(key: "copy/power/status/guard-ready", en: "Safety guard ready", zhHans: "安全护栏就绪")
+    /// `copy/power/status/low-power-mode`
+    static let copyPowerStatusLowPowerMode = LocalizedCopy(key: "copy/power/status/low-power-mode", en: "Low Power Mode", zhHans: "低电量模式")
+    /// `copy/power/status/no-external-display`
+    static let copyPowerStatusNoExternalDisplay = LocalizedCopy(key: "copy/power/status/no-external-display", en: "None", zhHans: "无")
+    /// `copy/power/status/not-connected`
+    static let copyPowerStatusNotConnected = LocalizedCopy(key: "copy/power/status/not-connected", en: "Not connected", zhHans: "未连接")
     /// `copy/state/cancel`
     static let copyStateCancel = LocalizedCopy(key: "copy/state/cancel", en: "Cancel", zhHans: "取消")
     /// `copy/state/component/toolbar/default/disabled`
@@ -817,6 +923,10 @@ enum ContractCopy {
         copyHubLogExport,
         copyHubLogView,
         copyHubPlaceholderNotice,
+        copyHubPowerSegmentOverview,
+        copyHubPowerSegmentPower,
+        copyHubPowerSummary,
+        copyHubPowerTitle,
         copyHubTabBoard,
         copyHubTabBoardSummary,
         copyHubTabClipboard,
@@ -996,6 +1106,55 @@ enum ContractCopy {
         copyPageTopShelfSettingsStateWarning,
         copyPageTopShelfSettingsSummary,
         copyPageTopShelfSettingsTitle,
+        copyPowerAlertExternalConflict,
+        copyPowerAlertHelperMissing,
+        copyPowerAlertThermal,
+        copyPowerHistoryAdapterConnected,
+        copyPowerHistoryAdapterDisconnected,
+        copyPowerHistoryGuardReleased,
+        copyPowerHistoryHoldStarted,
+        copyPowerHistoryNoEvents,
+        copyPowerHistorySlept,
+        copyPowerHistoryWindow,
+        copyPowerHistoryWoke,
+        copyPowerOverviewNote,
+        copyPowerRulesAdapter,
+        copyPowerRulesBattery,
+        copyPowerRulesBatteryFloor,
+        copyPowerRulesExternalDisplay,
+        copyPowerRulesHeatGuard,
+        copyPowerRulesLid,
+        copyPowerRulesOff,
+        copyPowerRulesOn,
+        copyPowerRulesTimeCap,
+        copyPowerSectionHistory,
+        copyPowerSectionRules,
+        copyPowerSectionSession,
+        copyPowerSectionStatus,
+        copyPowerSessionActive,
+        copyPowerSessionDisplay,
+        copyPowerSessionDuration15m,
+        copyPowerSessionDuration1h,
+        copyPowerSessionDuration2h,
+        copyPowerSessionDuration4h,
+        copyPowerSessionDurationOpen,
+        copyPowerSessionEnd,
+        copyPowerSessionExpires,
+        copyPowerSessionInactive,
+        copyPowerSessionLid,
+        copyPowerSessionNone,
+        copyPowerSessionReasonAdapter,
+        copyPowerSessionReasonLid,
+        copyPowerSessionStart,
+        copyPowerSessionSystem,
+        copyPowerStatusAdapter,
+        copyPowerStatusConnected,
+        copyPowerStatusExternalDisplay,
+        copyPowerStatusGuardMissing,
+        copyPowerStatusGuardReady,
+        copyPowerStatusLowPowerMode,
+        copyPowerStatusNoExternalDisplay,
+        copyPowerStatusNotConnected,
         copyStateCancel,
         copyStateComponentToolbarDefaultDisabled,
         copyStateComponentToolbarDefaultFocused,

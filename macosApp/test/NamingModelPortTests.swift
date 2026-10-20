@@ -78,6 +78,17 @@ final class NamingModelPortTests: XCTestCase {
         XCTAssertEqual(response.metrics.outputTokenCount, 0)
     }
 
+    func testValidatorRejectsSchemaInstructionLeakage() {
+        XCTAssertThrowsError(
+            try NamingModelOutputValidator.validate(
+                title: "1 到80 个字素-category",
+                category: "图片"
+            )
+        ) { error in
+            XCTAssertEqual((error as? NamingModelError)?.code, .malformedOutput)
+        }
+    }
+
     func testFactsMapToKMPWithoutModelControlledMetadata() async throws {
         let response = try await HeuristicNamingModel().generate(
             NamingModelRequest(

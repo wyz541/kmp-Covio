@@ -370,6 +370,9 @@ The app is arm64 only. `kmpDomain.framework` has one slice, `macosArm64`.
 Run this checklist before a public release.
 The current internal test does not complete this checklist.
 
+File naming passed the 12-sample matrix on a 64 GB Apple Silicon Mac.
+Exact 8 GB hardware validation is tracked by [#185](https://github.com/wyz541/kmp-Covio/issues/185).
+
 1. Install the build under test.
 2. Confirm the app version matches `APP_VERSION` in `kmpDomain/src/com/wyz/covio/core/Models.kt`.
 3. Install the privileged helper.

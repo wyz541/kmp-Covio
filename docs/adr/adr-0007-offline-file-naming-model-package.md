@@ -69,7 +69,7 @@ Covio 的文件自动命名使用本地 `Qwen3-VL-2B-Instruct-4bit`。
 
 | 项目 | 状态 | 确认方法 |
 | --- | --- | --- |
-| GitHub Release 资产是否小于 2 GB | 通过，1,537,709,056 bytes | 打包后读取 DMG 字节数 |
+| GitHub Release 资产是否小于 2 GB | 通过，1,537,739,776 bytes | 打包后读取 DMG 字节数 |
 | Developer ID 公证 | 不在本 ADR 范围 | 后续发布决策 |
 
 ## 参考

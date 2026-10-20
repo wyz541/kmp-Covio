@@ -67,6 +67,32 @@ final class SleepControllerTests: XCTestCase {
         XCTAssertEqual(reads, 2)
     }
 
+    /// 系统与屏幕使用不同断言。每一步都回读，退出时释放。
+    func testSystemAndDisplayAssertionsRoundTripThroughIOKit() {
+        let controller = MacSleepController(
+            clock: { 0 },
+            timeoutReader: { 600 }
+        )
+        defer { _ = controller.applyIdleSleepPrevention(prevention: .none) }
+
+        let system = controller.applyIdleSleepPrevention(prevention: .system)
+        XCTAssertTrue(system.success, system.error ?? "")
+        XCTAssertEqual(system.actual, .system)
+        XCTAssertEqual(controller.readIdleSleepPrevention(), .system)
+        XCTAssertNil(controller.systemIdleSleepTimeoutSeconds())
+
+        let display = controller.applyIdleSleepPrevention(prevention: .systemAndDisplay)
+        XCTAssertTrue(display.success, display.error ?? "")
+        XCTAssertEqual(display.actual, .systemAndDisplay)
+        XCTAssertEqual(controller.readIdleSleepPrevention(), .systemAndDisplay)
+
+        let released = controller.applyIdleSleepPrevention(prevention: .none)
+        XCTAssertTrue(released.success, released.error ?? "")
+        XCTAssertEqual(released.actual, .none)
+        XCTAssertEqual(controller.readIdleSleepPrevention(), .none)
+        XCTAssertEqual(controller.systemIdleSleepTimeoutSeconds()?.int64Value, 600)
+    }
+
     /// `pmset` 读不到时是 `nil`，不是异常。
     /// `nil` 也要缓存，否则每次 `tick()` 都会再起一个进程去撞同一个失败。
     func testUnavailableTimeoutIsCachedAsUnavailable() {

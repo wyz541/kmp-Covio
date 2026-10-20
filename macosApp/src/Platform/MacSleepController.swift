@@ -4,15 +4,15 @@ import kmpDomain
 
 /// `SleepController` 端口的 macOS 实现。
 ///
-/// 对应 Compose 版的 `app/src/com/wyz/covio/app/platform/MacSleepController.kt`。
+/// 系统保持唤醒使用 `PreventUserIdleSystemSleep`。
+/// 屏幕保持唤醒使用 `PreventUserIdleDisplaySleep`。
+/// 屏幕断言已经阻止系统空闲睡眠，所以两种断言不叠加。
 ///
-/// 阻止空闲睡眠用 `NoIdleSleepAssertion`，这是唯一不需要 root 的机制。
-/// 阻止合盖睡眠必须用 `pmset disablesleep`，那条路径由 helper 走。
-///
-/// **警告：** 断言没释放会让 Mac 无法空闲睡眠。`stop()` 与异常路径都要释放。
+/// **警告：** 断言没释放会让 Mac 无法空闲睡眠。停止与错误路径都会尝试释放。
 final class MacSleepController: NSObject, SleepController {
     private let lock = NSLock()
     private var assertion: IOPMAssertionID = 0
+    private var assertionPrevention: IdleSleepPrevention = .none
 
     /// 缓存实现只有一份，在 `kmpDomain` 的 `IdleSleepTimeoutCache` 里。
     ///
@@ -39,38 +39,183 @@ final class MacSleepController: NSObject, SleepController {
         PmsetCommand.run("displaysleepnow")
     }
 
-    func setIdleSleepPrevented(prevented: Bool) {
+    func applyIdleSleepPrevention(prevention requested: IdleSleepPrevention) -> IdleSleepAssertionResult {
         lock.lock()
         defer { lock.unlock() }
         timeoutCache.invalidate()
-        if prevented && assertion == 0 {
-            var created: IOPMAssertionID = 0
-            let result = IOPMAssertionCreateWithName(
-                "NoIdleSleepAssertion" as CFString,
-                IOPMAssertionLevel(kIOPMAssertionLevelOn),
-                "Covio prevents idle sleep" as CFString,
-                &created
+
+        if requested == .unknown {
+            return IdleSleepAssertionResult(
+                requested: requested,
+                actual: readAssertionLocked(),
+                success: false,
+                error: "Unknown idle sleep prevention request"
             )
-            assertion = result == kIOReturnSuccess ? created : 0
-        } else if !prevented && assertion != 0 {
-            IOPMAssertionRelease(assertion)
-            assertion = 0
         }
+        if requested == .none {
+            return releaseAssertionLocked()
+        }
+
+        let currentActual = readAssertionLocked()
+        if assertion != 0, assertionPrevention == requested, currentActual == requested {
+            return IdleSleepAssertionResult(
+                requested: requested,
+                actual: currentActual,
+                success: true,
+                error: nil
+            )
+        }
+
+        let previousID = assertion
+        let previousPrevention = assertionPrevention
+        var created: IOPMAssertionID = 0
+        let createResult = IOPMAssertionCreateWithName(
+            assertionType(for: requested),
+            IOPMAssertionLevel(kIOPMAssertionLevelOn),
+            assertionReason(for: requested),
+            &created
+        )
+        guard createResult == kIOReturnSuccess, created != 0 else {
+            return IdleSleepAssertionResult(
+                requested: requested,
+                actual: readAssertionLocked(),
+                success: false,
+                error: ioError("IOPMAssertionCreateWithName", createResult)
+            )
+        }
+
+        if previousID != 0 {
+            let releaseResult = IOPMAssertionRelease(previousID)
+            guard releaseSucceeded(releaseResult) else {
+                IOPMAssertionRelease(created)
+                assertion = previousID
+                assertionPrevention = previousPrevention
+                return IdleSleepAssertionResult(
+                    requested: requested,
+                    actual: readAssertionLocked(),
+                    success: false,
+                    error: ioError("IOPMAssertionRelease", releaseResult)
+                )
+            }
+        }
+
+        assertion = created
+        assertionPrevention = requested
+        let actual = readAssertionLocked()
+        if actual == requested {
+            return IdleSleepAssertionResult(
+                requested: requested,
+                actual: actual,
+                success: true,
+                error: nil
+            )
+        }
+
+        // 无法验证新断言时释放它。未知状态必须允许系统睡眠。
+        let cleanup = IOPMAssertionRelease(created)
+        if releaseSucceeded(cleanup) {
+            assertion = 0
+            assertionPrevention = .none
+        }
+        let finalActual = readAssertionLocked()
+        return IdleSleepAssertionResult(
+            requested: requested,
+            actual: finalActual,
+            success: false,
+            error: "Assertion readback mismatch: requested \(requested), actual \(actual)"
+        )
+    }
+
+    func readIdleSleepPrevention() -> IdleSleepPrevention {
+        lock.lock()
+        defer { lock.unlock() }
+        return readAssertionLocked()
     }
 
     func systemIdleSleepTimeoutSeconds() -> KotlinLong? {
         lock.lock()
-        let held = assertion != 0
+        let prevention = readAssertionLocked()
         lock.unlock()
+        let held = prevention == .system || prevention == .systemAndDisplay
         // 已经阻止空闲睡眠时，系统设置无关紧要。
         if held { return nil }
-        // Kotlin 侧返回 KotlinLong?，端口要 KotlinLong?，原样返回。
         return timeoutCache.get()
     }
 
+    private func releaseAssertionLocked() -> IdleSleepAssertionResult {
+        guard assertion != 0 else {
+            return IdleSleepAssertionResult(
+                requested: .none,
+                actual: .none,
+                success: true,
+                error: nil
+            )
+        }
+        let releasedID = assertion
+        let released = IOPMAssertionRelease(releasedID)
+        let didRelease = releaseSucceeded(released)
+        if didRelease {
+            assertion = 0
+            assertionPrevention = .none
+        }
+        let actual = readAssertionLocked()
+        return IdleSleepAssertionResult(
+            requested: .none,
+            actual: actual,
+            success: didRelease && actual == .none,
+            error: didRelease
+                ? (actual == .none ? nil : "Assertion readback mismatch after release")
+                : ioError("IOPMAssertionRelease", released)
+        )
+    }
+
+    private func readAssertionLocked() -> IdleSleepPrevention {
+        guard assertion != 0 else { return .none }
+        guard let properties = IOPMAssertionCopyProperties(assertion)?
+            .takeRetainedValue() as? [String: Any] else {
+            return .unknown
+        }
+        let level = (properties["AssertLevel"] as? NSNumber)?.int32Value ?? 0
+        guard level == Int32(kIOPMAssertionLevelOn) else { return .none }
+        let type = properties["AssertType"] as? String ?? ""
+        switch type {
+        case "PreventUserIdleSystemSleep":
+            return .system
+        case "PreventUserIdleDisplaySleep":
+            return .systemAndDisplay
+        default:
+            return .unknown
+        }
+    }
+
+    private func assertionType(for prevention: IdleSleepPrevention) -> CFString {
+        if prevention == .systemAndDisplay {
+            return "PreventUserIdleDisplaySleep" as CFString
+        }
+        return "PreventUserIdleSystemSleep" as CFString
+    }
+
+    private func assertionReason(for prevention: IdleSleepPrevention) -> CFString {
+        if prevention == .systemAndDisplay {
+            return "Covio keeps the display and system awake" as CFString
+        }
+        return "Covio keeps the system awake" as CFString
+    }
+
+    private func releaseSucceeded(_ result: IOReturn) -> Bool {
+        result == kIOReturnSuccess || result == kIOReturnNotFound
+    }
+
+    private func ioError(_ operation: String, _ result: IOReturn) -> String {
+        "\(operation) failed with IOReturn 0x\(String(result, radix: 16))"
+    }
+
     deinit {
+        lock.lock()
+        defer { lock.unlock() }
         if assertion != 0 {
             IOPMAssertionRelease(assertion)
+            assertion = 0
         }
     }
 }

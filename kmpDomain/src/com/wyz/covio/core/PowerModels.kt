@@ -117,6 +117,41 @@ data class HoldLease(
     val expiresAtEpochSeconds: Long? = null,
 )
 
+/** Covio 当前持有的空闲睡眠断言。 */
+enum class IdleSleepPrevention {
+    UNKNOWN,
+    NONE,
+    SYSTEM,
+    SYSTEM_AND_DISPLAY;
+
+    val isActive: Boolean
+        get() = this == SYSTEM || this == SYSTEM_AND_DISPLAY
+}
+
+/** 一次断言请求与系统回读结果。 */
+data class IdleSleepAssertionResult(
+    val requested: IdleSleepPrevention,
+    val actual: IdleSleepPrevention,
+    val success: Boolean,
+    val error: String? = null,
+)
+
+/** 运行时租约管理器的一次完整视图。 */
+data class HoldLeaseSnapshot(
+    val leases: List<HoldLease> = emptyList(),
+    val desiredPrevention: IdleSleepPrevention = IdleSleepPrevention.NONE,
+    val actualPrevention: IdleSleepPrevention = IdleSleepPrevention.UNKNOWN,
+    val suspended: Boolean = false,
+    val lastError: String? = null,
+) {
+    val systemSleepPrevented: Boolean
+        get() = actualPrevention == IdleSleepPrevention.SYSTEM ||
+            actualPrevention == IdleSleepPrevention.SYSTEM_AND_DISPLAY
+
+    val displaySleepPrevented: Boolean
+        get() = actualPrevention == IdleSleepPrevention.SYSTEM_AND_DISPLAY
+}
+
 /** 阻止保持唤醒的原因。安全原因优先于用户强制模式。 */
 enum class SafetyVeto {
     POWER_DISABLED,

@@ -29,6 +29,11 @@ struct IdlePage: View {
                     )
                 }
                 .settingsRowAnchor(SettingsRowID.idleCharging)
+                if let error = runtime.appState.lastError {
+                    MacStatusLine(
+                        text: "\(ContractCopy.copyToastError.text(for: runtime.language)) \(error)"
+                    )
+                }
             }
 
             MacCard {

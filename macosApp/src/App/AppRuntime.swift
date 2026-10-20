@@ -360,9 +360,9 @@ final class AppRuntime {
         syncState()
     }
 
-    /// 闲置时是否阻止睡眠。开关状态来自引擎，不是配置。
+    /// 闲置时是否阻止睡眠。开关状态来自引擎的实际断言。
     func toggleIdleSleep() {
-        engine.setIdleSleepAvailable(available: appState.idleSleepAvailable)
+        engine.setIdleSleepAvailable(available: !appState.idleSleepAvailable)
         syncState()
     }
 
@@ -573,6 +573,7 @@ final class AppRuntime {
             lid: engine.currentState.lid,
             enabled: engine.currentState.enabled,
             idleSleepAvailable: engine.currentState.idleSleepAvailable,
+            idleSleepPrevention: engine.currentState.idleSleepPrevention,
             lidSleepAvailable: engine.currentState.lidSleepAvailable,
             idleCancelRemainingSeconds: engine.currentState.idleCancelRemainingSeconds,
             lidCancelRemainingSeconds: engine.currentState.lidCancelRemainingSeconds,
@@ -609,13 +610,14 @@ final class AppRuntime {
 
     /// 引擎启动前的状态。全默认，只有 `enabled` 来自配置。
     ///
-    /// Kotlin 的 `AppState()` 默认参数不导出，所以这里要写全 11 个字段。
+    /// Kotlin 的 `AppState()` 默认参数不导出，所以这里要写全所有字段。
     static func initialState(enabled: Bool) -> AppState {
         AppState(
             battery: nil,
             lid: .unknown,
             enabled: enabled,
             idleSleepAvailable: true,
+            idleSleepPrevention: .none,
             lidSleepAvailable: true,
             idleCancelRemainingSeconds: nil,
             lidCancelRemainingSeconds: nil,

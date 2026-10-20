@@ -35,7 +35,18 @@ interface IdleSensor {
 interface SleepController {
     fun sleep()
     fun displaySleep()
-    fun setIdleSleepPrevented(prevented: Boolean)
+
+    /**
+     * 设置空闲睡眠断言，并回读系统实际状态。
+     *
+     * 屏幕断言已经阻止系统空闲睡眠。
+     * 因此 [IdleSleepPrevention.SYSTEM_AND_DISPLAY] 只创建屏幕断言。
+     */
+    fun applyIdleSleepPrevention(prevention: IdleSleepPrevention): IdleSleepAssertionResult
+
+    /** 回读 Covio 自己的断言。无法确认时返回 [IdleSleepPrevention.UNKNOWN]。 */
+    fun readIdleSleepPrevention(): IdleSleepPrevention
+
     fun systemIdleSleepTimeoutSeconds(): Long?
 }
 

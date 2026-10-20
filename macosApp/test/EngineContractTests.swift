@@ -393,6 +393,62 @@ final class EngineContractTests: XCTestCase {
         XCTAssertTrue(fixture.engine.currentState.idleSleepAvailable)
     }
 
+    /// 对应 `display idle hold exposes the readback level`。
+    func testDisplayIdleHoldExposesTheReadbackLevel() {
+        let fixture = Fixture()
+        fixture.engine.start()
+
+        XCTAssertTrue(fixture.engine.setIdleSleepPrevention(prevention: .systemAndDisplay))
+
+        let state = fixture.engine.currentState
+        XCTAssertFalse(state.idleSleepAvailable)
+        XCTAssertEqual(state.idleSleepPrevention, .systemAndDisplay)
+        XCTAssertEqual(fixture.sleep.prevention, .systemAndDisplay)
+    }
+
+    /// 对应 `assertion failure leaves the real state available and records the error`。
+    func testAssertionFailureLeavesTheRealStateAvailableAndRecordsTheError() {
+        let fixture = Fixture()
+        fixture.engine.start()
+        fixture.sleep.failAssertion = true
+
+        XCTAssertFalse(fixture.engine.setIdleSleepPrevention(prevention: .system))
+
+        let state = fixture.engine.currentState
+        XCTAssertTrue(state.idleSleepAvailable)
+        XCTAssertEqual(state.idleSleepPrevention, .none)
+        XCTAssertEqual(state.lastError, "assertion failure")
+    }
+
+    /// 对应 `idle timer expiry keeps a separate manual hold`。
+    func testIdleTimerExpiryKeepsASeparateManualHold() {
+        var now: Int64 = 1_000
+        let fixture = Fixture(clock: { now })
+        fixture.engine.start()
+        fixture.engine.setIdleSleepAvailable(available: false)
+        fixture.engine.scheduleCancelIdle(afterSeconds: 300)
+
+        now += 301_000
+        fixture.engine.tick(nowMillis: now)
+
+        XCTAssertFalse(fixture.engine.currentState.idleSleepAvailable)
+        XCTAssertEqual(fixture.engine.currentState.idleSleepPrevention, .system)
+    }
+
+    /// 对应 `manual idle off leaves the charging rule active`。
+    func testManualIdleOffLeavesTheChargingRuleActive() {
+        let fixture = Fixture(config: AppConfigs.make(disableIdleSleepInCharging: true))
+        fixture.power.value = BatteryStatus(percent: 80, state: .charging, remainingSeconds: nil)
+        fixture.engine.start()
+        XCTAssertFalse(fixture.engine.currentState.idleSleepAvailable)
+
+        fixture.engine.setIdleSleepAvailable(available: false)
+        fixture.engine.setIdleSleepAvailable(available: true)
+
+        XCTAssertFalse(fixture.engine.currentState.idleSleepAvailable)
+        XCTAssertEqual(fixture.engine.currentState.idleSleepPrevention, .system)
+    }
+
     /// 对应 `sleep now temporarily restores restrictions and wake restores them`。
     func testSleepNowTemporarilyRestoresRestrictionsAndWakeRestoresThem() {
         let fixture = Fixture()

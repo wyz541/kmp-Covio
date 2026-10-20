@@ -212,14 +212,34 @@ final class FakeIdle: NSObject, IdleSensor {
 final class FakeSleepController: NSObject, SleepController {
     var sleepCalls = 0
     var displayCalls = 0
-    var prevented = false
+    var prevention: IdleSleepPrevention = .none
+    var failAssertion = false
+    var appliedPrevention: [IdleSleepPrevention] = []
     var timeoutSeconds: KotlinLong? = KotlinLong(longLong: 600)
+
+    var prevented: Bool {
+        prevention == .system || prevention == .systemAndDisplay
+    }
 
     func sleep() { sleepCalls += 1 }
 
     func displaySleep() { displayCalls += 1 }
 
-    func setIdleSleepPrevented(prevented: Bool) { self.prevented = prevented }
+    func applyIdleSleepPrevention(prevention requested: IdleSleepPrevention) -> IdleSleepAssertionResult {
+        appliedPrevention.append(requested)
+        if failAssertion {
+            return IdleSleepAssertionResult(
+                requested: requested,
+                actual: prevention,
+                success: false,
+                error: "assertion failure"
+            )
+        }
+        prevention = requested
+        return IdleSleepAssertionResult(requested: requested, actual: requested, success: true, error: nil)
+    }
+
+    func readIdleSleepPrevention() -> IdleSleepPrevention { prevention }
 
     func systemIdleSleepTimeoutSeconds() -> KotlinLong? { timeoutSeconds }
 }

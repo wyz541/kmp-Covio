@@ -4568,6 +4568,90 @@
       "en": "Battery health",
       "zh-Hans": "电池健康度"
     },
+    "copy/monitor/power/charge-limit/apply": {
+      "en": "Apply limit",
+      "zh-Hans": "应用上限"
+    },
+    "copy/monitor/power/charge-limit/applying": {
+      "en": "Applying charge limit",
+      "zh-Hans": "正在应用充电上限"
+    },
+    "copy/monitor/power/charge-limit/current-charge": {
+      "en": "Current charge",
+      "zh-Hans": "当前电量"
+    },
+    "copy/monitor/power/charge-limit/current-target": {
+      "en": "Current target",
+      "zh-Hans": "当前目标"
+    },
+    "copy/monitor/power/charge-limit/enable": {
+      "en": "Enable limit",
+      "zh-Hans": "启用上限"
+    },
+    "copy/monitor/power/charge-limit/failed": {
+      "en": "Charge limit did not apply",
+      "zh-Hans": "充电上限未生效"
+    },
+    "copy/monitor/power/charge-limit/helper-required": {
+      "en": "Install or repair the helper",
+      "zh-Hans": "请安装或修复 helper"
+    },
+    "copy/monitor/power/charge-limit/restore": {
+      "en": "Restore system default",
+      "zh-Hans": "恢复系统默认"
+    },
+    "copy/monitor/power/charge-limit/resume-at": {
+      "en": "Resume charging at",
+      "zh-Hans": "恢复充电阈值"
+    },
+    "copy/monitor/power/charge-limit/state/above-limit": {
+      "en": "Above limit",
+      "zh-Hans": "高于上限"
+    },
+    "copy/monitor/power/charge-limit/state/bypass": {
+      "en": "Bypass power",
+      "zh-Hans": "旁路供电"
+    },
+    "copy/monitor/power/charge-limit/state/calibration": {
+      "en": "Calibration in progress",
+      "zh-Hans": "校准中"
+    },
+    "copy/monitor/power/charge-limit/state/conflict": {
+      "en": "System policy conflict",
+      "zh-Hans": "系统策略冲突"
+    },
+    "copy/monitor/power/charge-limit/state/error": {
+      "en": "Charge limit error",
+      "zh-Hans": "充电上限错误"
+    },
+    "copy/monitor/power/charge-limit/state/holding": {
+      "en": "Charging paused",
+      "zh-Hans": "已暂停充电"
+    },
+    "copy/monitor/power/charge-limit/state/protection": {
+      "en": "System protection",
+      "zh-Hans": "系统保护中"
+    },
+    "copy/monitor/power/charge-limit/state/sailing": {
+      "en": "Holding current level",
+      "zh-Hans": "保持当前电量"
+    },
+    "copy/monitor/power/charge-limit/state/system": {
+      "en": "macOS controls the charge limit",
+      "zh-Hans": "macOS 控制充电上限"
+    },
+    "copy/monitor/power/charge-limit/state/unplugged": {
+      "en": "Connect the power adapter",
+      "zh-Hans": "请接通电源适配器"
+    },
+    "copy/monitor/power/charge-limit/title": {
+      "en": "Charge limit",
+      "zh-Hans": "充电上限"
+    },
+    "copy/monitor/power/charge-limit/unsupported": {
+      "en": "Charge limit is unavailable",
+      "zh-Hans": "当前设备不支持充电上限"
+    },
     "copy/monitor/power/events/title": {
       "en": "Power events · 24 h",
       "zh-Hans": "供电事件 · 近 24 小时"

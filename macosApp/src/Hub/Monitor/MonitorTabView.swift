@@ -1,4 +1,5 @@
 import SwiftUI
+import kmpDomain
 
 /// Stats 风格的实时监控页。
 ///
@@ -6,6 +7,7 @@ import SwiftUI
 /// `.task`，采样器随之停止。
 struct MonitorTabView: View {
     let language: AppLanguage
+    let runtime: AppRuntime?
     private let runsSampling: Bool
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -16,12 +18,14 @@ struct MonitorTabView: View {
 
     init(
         language: AppLanguage,
+        runtime: AppRuntime? = nil,
         initialSnapshot: MonitorSnapshot = .empty,
         initialHistory: MonitorHistory = MonitorHistory(),
         initialPowerHistory: MonitorPowerHistory = MonitorPowerHistory(),
         runsSampling: Bool = true
     ) {
         self.language = language
+        self.runtime = runtime
         self.runsSampling = runsSampling
         _snapshot = State(initialValue: initialSnapshot)
         _history = State(initialValue: initialHistory)
@@ -238,6 +242,7 @@ struct MonitorTabView: View {
                 history: powerHistory,
                 language: language,
                 reduceMotion: reduceMotion,
+                runtime: runtime,
                 onOpenApp: openApplication
             )
         } else {
@@ -246,6 +251,7 @@ struct MonitorTabView: View {
                 history: powerHistory,
                 language: language,
                 reduceMotion: reduceMotion,
+                runtime: runtime,
                 onOpenApp: openApplication
             )
         }
@@ -333,6 +339,7 @@ private struct MonitorPowerCard: View {
     let history: MonitorPowerHistory
     let language: AppLanguage
     let reduceMotion: Bool
+    let runtime: AppRuntime?
     let onOpenApp: (String) -> Void
 
     @AppStorage("monitor.power.detailsExpanded") private var detailsExpanded = false
@@ -450,6 +457,7 @@ private struct MonitorPowerCard: View {
                 history: history,
                 language: language,
                 reduceMotion: reduceMotion,
+                runtime: runtime,
                 onOpenApp: onOpenApp,
                 onClose: { detailsPresented = false }
             )
@@ -765,12 +773,13 @@ struct MonitorPowerDetailPanel: View {
     let history: MonitorPowerHistory
     let language: AppLanguage
     let reduceMotion: Bool
+    let runtime: AppRuntime?
     let onOpenApp: (String) -> Void
     let onClose: () -> Void
 
     private var detailHeight: CGFloat {
         let available = NSScreen.main?.visibleFrame.height ?? 800
-        return min(620, max(300, available - 140))
+        return min(MonitorPowerDetailLayoutPolicy.fullHeight, max(300, available - 140))
     }
 
     var body: some View {
@@ -778,6 +787,13 @@ struct MonitorPowerDetailPanel: View {
             let visibility = MonitorPowerDetailLayoutPolicy.resolve(height: proxy.size.height)
             VStack(alignment: .leading, spacing: 8) {
                 header
+                if power.hasBattery {
+                    MonitorPowerChargeLimitControls(
+                        runtime: runtime,
+                        power: power,
+                        language: language
+                    )
+                }
                 if visibility.showsTopApps {
                     topAppsSection
                 }
@@ -1032,6 +1048,237 @@ struct MonitorPowerDetailPanel: View {
         case .connected, .fullyCharged: MacTheme.successText
         case .disconnected: MacTheme.textSecondary
         }
+    }
+}
+
+private struct MonitorPowerChargeLimitControls: View {
+    let runtime: AppRuntime?
+    let power: MonitorSnapshot.Power
+    let language: AppLanguage
+
+    @State private var pendingLimit: Double
+    @State private var busy = false
+    @State private var localError: String?
+
+    init(runtime: AppRuntime?, power: MonitorSnapshot.Power, language: AppLanguage) {
+        self.runtime = runtime
+        self.power = power
+        self.language = language
+        _pendingLimit = State(initialValue: Double(runtime?.config.chargeLimitPercent ?? 80))
+    }
+
+    private var isEnabled: Bool { runtime?.config.chargeLimitEnabled == true }
+
+    private var status: ChargeLimitHelperStatus? { runtime?.chargeLimitStatus }
+
+    private var controlsDisabled: Bool {
+        busy || runtime?.helperStatus != .installed || status?.phase == "unsupported"
+    }
+
+    private var statusSymbol: String {
+        guard runtime != nil, runtime?.helperStatus == .installed else {
+            return "exclamationmark.triangle.fill"
+        }
+        if localError != nil { return "exclamationmark.triangle.fill" }
+        guard runtime?.config.chargeLimitEnabled == true else { return "gearshape.fill" }
+        guard let status else { return "exclamationmark.triangle.fill" }
+        if status.bypassEngaged { return "powerplug.fill" }
+        return switch status.phase {
+        case "charging", "full": "bolt.fill"
+        case "holding", "sailing", "aboveLimit": "pause.circle.fill"
+        case "applying", "calibration", "systemProtection": "arrow.triangle.2.circlepath"
+        case "unplugged": "powerplug"
+        case "unsupported", "conflict", "error": "exclamationmark.triangle.fill"
+        default: "gearshape.fill"
+        }
+    }
+
+    private var statusColor: Color {
+        guard runtime?.helperStatus == .installed else { return MacTheme.warningText }
+        if localError != nil { return MacTheme.errorText }
+        guard runtime?.config.chargeLimitEnabled == true else { return MacTheme.textSecondary }
+        guard let status else { return MacTheme.warningText }
+        if status.bypassEngaged { return MacTheme.successText }
+        return switch status.phase {
+        case "charging", "full", "holding", "sailing", "aboveLimit":
+            MacTheme.successText
+        case "applying", "calibration", "systemProtection", "unplugged":
+            MacTheme.warningText
+        case "unsupported", "conflict", "error": MacTheme.errorText
+        default: MacTheme.textSecondary
+        }
+    }
+
+    private var statusText: String {
+        guard let runtime else {
+            return ContractCopy.copyMonitorPowerChargeLimitHelperRequired.text(for: language)
+        }
+        guard runtime.helperStatus == .installed else {
+            return ContractCopy.copyMonitorPowerChargeLimitHelperRequired.text(for: language)
+        }
+        if let localError { return localError }
+        guard runtime.config.chargeLimitEnabled else {
+            return ContractCopy.copyMonitorPowerChargeLimitStateSystem.text(for: language)
+        }
+        guard let status, status.enabled else {
+            return ContractCopy.copyMonitorPowerChargeLimitFailed.text(for: language)
+        }
+        if status.bypassEngaged {
+            return ContractCopy.copyMonitorPowerChargeLimitStateBypass.text(for: language)
+        }
+        return switch status.phase {
+        case "applying":
+            ContractCopy.copyMonitorPowerChargeLimitApplying.text(for: language)
+        case "charging":
+            ContractCopy.copyMonitorStateCharging.text(for: language)
+        case "holding":
+            ContractCopy.copyMonitorPowerChargeLimitStateHolding.text(for: language)
+        case "sailing":
+            ContractCopy.copyMonitorPowerChargeLimitStateSailing.text(for: language)
+        case "aboveLimit":
+            ContractCopy.copyMonitorPowerChargeLimitStateAboveLimit.text(for: language)
+        case "full":
+            ContractCopy.copyMonitorStateCharged.text(for: language)
+        case "calibration":
+            ContractCopy.copyMonitorPowerChargeLimitStateCalibration.text(for: language)
+        case "systemProtection":
+            ContractCopy.copyMonitorPowerChargeLimitStateProtection.text(for: language)
+        case "conflict":
+            ContractCopy.copyMonitorPowerChargeLimitStateConflict.text(for: language)
+        case "unplugged":
+            ContractCopy.copyMonitorPowerChargeLimitStateUnplugged.text(for: language)
+        case "unsupported":
+            ContractCopy.copyMonitorPowerChargeLimitUnsupported.text(for: language)
+        case "helperMissing":
+            ContractCopy.copyMonitorPowerChargeLimitHelperRequired.text(for: language)
+        case "error":
+            ContractCopy.copyMonitorPowerChargeLimitStateError.text(for: language)
+        default:
+            ContractCopy.copyMonitorPowerChargeLimitStateSystem.text(for: language)
+        }
+    }
+
+    var body: some View {
+        MonitorPowerDetailSection(
+            title: ContractCopy.copyMonitorPowerChargeLimitTitle.text(for: language)
+        ) {
+            HStack(spacing: MacTheme.space2) {
+                Image(systemName: statusSymbol)
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(statusColor)
+                Text(statusText)
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(MacTheme.textPrimary)
+                    .lineLimit(2)
+                Spacer(minLength: 0)
+            }
+            .accessibilityElement(children: .combine)
+
+            HStack(spacing: MacTheme.space2) {
+                Text("\(Int(pendingLimit))%")
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .foregroundStyle(MacTheme.textPrimary)
+                    .monospacedDigit()
+                    .frame(width: 46, alignment: .leading)
+                Slider(value: $pendingLimit, in: 20...100, step: 5)
+                    .disabled(controlsDisabled)
+                    .accessibilityLabel(ContractCopy.copyMonitorPowerChargeLimitTitle.text(for: language))
+            }
+            .frame(height: 24)
+
+            HStack(spacing: 5) {
+                ForEach([50, 60, 80, 100], id: \.self) { value in
+                    Button("\(value)%") {
+                        pendingLimit = Double(value)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.mini)
+                    .frame(minWidth: 48, minHeight: 24)
+                    .contentShape(Rectangle())
+                    .disabled(controlsDisabled)
+                    .accessibilityLabel("\(value)%")
+                }
+                Spacer(minLength: 0)
+            }
+
+            MonitorPowerDetailRow(
+                label: ContractCopy.copyMonitorPowerChargeLimitCurrentCharge.text(for: language),
+                value: MonitorPowerFormat.percent(power.batteryPercent),
+                symbol: "battery.75percent"
+            )
+            MonitorPowerDetailRow(
+                label: ContractCopy.copyMonitorPowerChargeLimitCurrentTarget.text(for: language),
+                value: MonitorPowerFormat.percent(status?.targetPercent.map(Double.init)),
+                symbol: "scope"
+            )
+            MonitorPowerDetailRow(
+                label: ContractCopy.copyMonitorPowerChargeLimitResumeAt.text(for: language),
+                value: resumeText,
+                symbol: "arrow.clockwise"
+            )
+
+            HStack(spacing: MacTheme.space2) {
+                Button(isEnabled
+                    ? ContractCopy.copyMonitorPowerChargeLimitApply.text(for: language)
+                    : ContractCopy.copyMonitorPowerChargeLimitEnable.text(for: language)
+                ) {
+                    apply()
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .disabled(controlsDisabled)
+
+                if isEnabled || status?.enabled == true {
+                    Button(ContractCopy.copyMonitorPowerChargeLimitRestore.text(for: language)) {
+                        restore()
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(busy || runtime?.helperStatus != .installed)
+                }
+                Spacer(minLength: 0)
+            }
+        }
+        .task {
+            guard let runtime else { return }
+            while !Task.isCancelled {
+                runtime.refreshChargeLimitStatusInBackground()
+                do {
+                    try await Task.sleep(for: .seconds(5))
+                } catch {
+                    break
+                }
+            }
+        }
+        .onChange(of: runtime?.config.chargeLimitPercent) { _, value in
+            if let value { pendingLimit = Double(value) }
+        }
+        .onChange(of: runtime?.helperStatus) { _, _ in
+            runtime?.refreshChargeLimitStatus()
+        }
+    }
+
+    private var resumeText: String {
+        guard let limit = status?.userLimitPercent ?? runtime.map({ Int($0.config.chargeLimitPercent) })
+        else { return "—" }
+        let resume = ChargeLimitPolicy.shared.resumeThreshold(upperLimitPercent: Int32(limit))
+        return "\(resume)%"
+    }
+
+    private func apply() {
+        guard let runtime else { return }
+        busy = true
+        let success = runtime.applyChargeLimit(Int(pendingLimit))
+        busy = false
+        localError = success ? nil : ContractCopy.copyMonitorPowerChargeLimitFailed.text(for: language)
+    }
+
+    private func restore() {
+        guard let runtime else { return }
+        busy = true
+        let success = runtime.restoreChargeLimit()
+        busy = false
+        localError = success ? nil : ContractCopy.copyMonitorPowerChargeLimitFailed.text(for: language)
     }
 }
 

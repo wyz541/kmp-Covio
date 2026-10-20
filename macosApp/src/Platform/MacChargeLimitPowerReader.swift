@@ -7,9 +7,14 @@ import notify
 ///
 /// 只读 IOPS、AppleSmartBattery 和系统热状态。所有动作仍由 MCL 后端执行。
 final class MacChargeLimitPowerReader: ChargeLimitPowerReadingSource, @unchecked Sendable {
+    private let powerUI: PowerUIChargeReading
     private let calibrationState = DarwinNotificationBool(
         name: "com.apple.system.powersources.chargingtofulloverride"
     )
+
+    init(powerUI: PowerUIChargeReading = SystemPowerUIChargeClient()) {
+        self.powerUI = powerUI
+    }
 
     func read() -> ChargeLimitPowerReading? {
         guard let blob = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
@@ -39,7 +44,7 @@ final class MacChargeLimitPowerReader: ChargeLimitPowerReadingSource, @unchecked
                 isCharged: isCharged,
                 calibrationActive: calibrationState.value,
                 systemProtectionActive: thermalState == .serious || thermalState == .critical,
-                bypassEngaged: false
+                bypassEngaged: powerUI.bypassEngaged()
             )
         }
 

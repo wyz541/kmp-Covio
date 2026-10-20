@@ -162,6 +162,14 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
             return .failure(.invalidTarget(userLimitPercent))
         }
         return syncOnQueue {
+            let previous: ChargeLimitRuntimeState?
+            do {
+                previous = try stateStore.load()
+            } catch let failure as ChargeLimitMCLFailure {
+                return .failure(failure)
+            } catch {
+                return .failure(.stateUnreadable)
+            }
             let state = ChargeLimitRuntimeState(
                 userLimitPercent: userLimitPercent,
                 chargingLatch: false,
@@ -179,6 +187,7 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
             case .success:
                 return statusLocked()
             case .failure(let failure):
+                _ = rollbackConfigurationLocked(previous: previous)
                 return .failure(failure)
             }
         }
@@ -250,20 +259,22 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
         case .failure(let failure):
             return .failure(failure)
         }
+        let observedTarget = backend.observedTargetPercent()
+        let expectedTarget = effectiveTarget(backendState?.targetPercent)
         let observation = ChargeLimitObservation(
             enabled: true,
             upperLimitPercent: Int32(state.userLimitPercent),
             adapterConnected: reading.adapterConnected,
             currentPercent: reading.currentPercent.map { KotlinInt(int: Int32($0)) },
             helperInstalled: true,
-            support: .supported,
+            support: backend.capability(),
             batteryPresent: reading.batteryPresent,
             isCharged: reading.isCharged,
             calibrationActive: reading.calibrationActive,
             systemProtectionActive: reading.systemProtectionActive,
-            conflict: false,
+            conflict: backendState != nil && observedTarget != expectedTarget,
             errorMessage: nil,
-            observedTargetPercent: effectiveTarget(backendState?.targetPercent).map {
+            observedTargetPercent: observedTarget.map {
                 KotlinInt(int: Int32($0))
             },
             writePending: false,
@@ -304,6 +315,39 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
             }
         }
         return .success(())
+    }
+
+    /// 新设置失败时恢复上一次用户意图。首次启用失败时同时恢复系统原值。
+    private func rollbackConfigurationLocked(
+        previous: ChargeLimitRuntimeState?
+    ) -> ChargeLimitMCLFailure? {
+        if let previous {
+            do {
+                try stateStore.save(previous)
+                startTimerLocked()
+                return nil
+            } catch let failure as ChargeLimitMCLFailure {
+                return failure
+            } catch {
+                return .stateWriteFailed
+            }
+        }
+
+        stopTimerLocked()
+        let restored = backend.restore()
+        guard case .success = restored else {
+            if case .failure(let failure) = restored { return failure }
+            return .stateWriteFailed
+        }
+        do {
+            try stateStore.clear()
+        } catch let failure as ChargeLimitMCLFailure {
+            return failure
+        } catch {
+            return .stateWriteFailed
+        }
+        bypassEngaged = false
+        return nil
     }
 
     private func statusLocked() -> Result<ChargeLimitRuntimeStatus, ChargeLimitMCLFailure> {

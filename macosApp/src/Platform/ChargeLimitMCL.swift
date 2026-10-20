@@ -1,5 +1,6 @@
 import CoreFoundation
 import Foundation
+import kmpDomain
 
 /// PowerUIAgent 的 MCL 偏好域。写入这个域需要 root。
 enum ChargeLimitPreferenceDomain {
@@ -194,6 +195,7 @@ final class ChargeLimitStateStore {
 
 /// helper 使用的 MCL 后端端口。测试注入假实现，不需要 root。
 protocol ChargeLimitBackend: Sendable {
+    func capability() -> ChargeLimitSupport
     func loadState() -> Result<ChargeLimitPersistentState?, ChargeLimitMCLFailure>
     func apply(targetPercent: Int) -> Result<ChargeLimitPersistentState, ChargeLimitMCLFailure>
     func restore() -> Result<Void, ChargeLimitMCLFailure>
@@ -203,15 +205,26 @@ protocol ChargeLimitBackend: Sendable {
 final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
     private let preferences: ChargeLimitPreferenceStore
     private let stateStore: ChargeLimitStateStore
+    private let powerUI: PowerUIChargeReading
     private let lock = NSLock()
     private let allowedTargets = stride(from: 20, through: 100, by: 5).map { $0 }
 
     init(
         preferences: ChargeLimitPreferenceStore,
-        stateStore: ChargeLimitStateStore
+        stateStore: ChargeLimitStateStore,
+        powerUI: PowerUIChargeReading = SystemPowerUIChargeClient()
     ) {
         self.preferences = preferences
         self.stateStore = stateStore
+        self.powerUI = powerUI
+    }
+
+    /// 运行时探测系统接口。接口缺失或报告不支持时，策略不得写入。
+    func capability() -> ChargeLimitSupport {
+        switch powerUI.capability() {
+        case .supported: .supported
+        case .unsupported: .unsupported
+        }
     }
 
     /// 读取上次保存的策略状态。状态文件损坏时明确失败。
@@ -267,6 +280,9 @@ final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
             return .failure(.stateWriteFailed)
         }
 
+        if targetPercent == 100 {
+            _ = powerUI.disableMCL()
+        }
         preferences.writeBool(ChargeLimitPreferenceDomain.keyOptimizedChargingEnabled, value: false)
         if targetPercent < 100 {
             preferences.writeInt(ChargeLimitPreferenceDomain.keyLimitValue, value: targetPercent)
@@ -307,6 +323,7 @@ final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
         guard let state else { return .success(()) }
 
         // 先关闭 MCL，再恢复值和开关，避免短暂的错误策略组合。
+        _ = powerUI.disableMCL()
         preferences.writeInt(ChargeLimitPreferenceDomain.keyFeatureState, value: 0)
 
         restoreInt(

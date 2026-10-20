@@ -64,23 +64,26 @@ flowchart LR
 
 ## 文件位置
 
-首版建议新增以下位置。
+首版使用以下位置。已实现项保留实际路径。
 
 | 路径 | 用途 |
 | --- | --- |
 | `kmpDomain/src/com/wyz/covio/core/FileNamingModels.kt` | 配置、计划和建议模型 |
 | `kmpDomain/src/com/wyz/covio/core/FileNamingPolicy.kt` | 模板、校验和冲突规则 |
 | `kmpDomain/test/com/wyz/covio/core/FileNamingPolicyTest.kt` | 共享规则测试 |
-| `macosApp/src/AutoNaming/FileTypeProbe.swift` | 文件类型判断 |
-| `macosApp/src/AutoNaming/TextContentExtractor.swift` | 文本和代码提取 |
-| `macosApp/src/AutoNaming/PDFContentExtractor.swift` | PDF 文本和页面 |
-| `macosApp/src/AutoNaming/VisionContentExtractor.swift` | OCR 和图片预处理 |
+| `macosApp/src/AutoNaming/FileNamingExtractionModels.swift` | 提取结果、来源、质量和错误码 |
+| `macosApp/src/AutoNaming/FileNamingTypeProbe.swift` | 文件类型判断 |
+| `macosApp/src/AutoNaming/FileNamingTextExtractor.swift` | 文本和代码提取 |
+| `macosApp/src/AutoNaming/FileNamingPDFExtractor.swift` | PDF 文本、页面渲染和 OCR |
+| `macosApp/src/AutoNaming/FileNamingImageExtractor.swift` | 图片解码、缩放和 OCR |
+| `macosApp/src/AutoNaming/VisionTextRecognizer.swift` | 共享 Vision OCR |
+| `macosApp/src/AutoNaming/FileNamingContentExtractor.swift` | 提取协调器 |
 | `macosApp/src/AutoNaming/NamingModelPort.swift` | 模型端口 |
 | `macosApp/src/AutoNaming/MLXNamingModel.swift` | MLX Swift 实现 |
 | `macosApp/src/AutoNaming/LlamaNamingModel.swift` | 备选运行时 |
 | `macosApp/src/AutoNaming/RenameService.swift` | 原子重命名和撤销 |
 | `macosApp/src/AutoNaming/AutoNamingPreviewView.swift` | 预览 UI |
-| `macosApp/test/AutoNamingTests.swift` | 提取、模板和失败测试 |
+| `macosApp/test/FileNamingContentExtractorTests.swift` | 提取、OCR 和失败测试 |
 
 模型资产建议放在应用资源中，例如 `Resources/Models/Qwen3VL-2B-Instruct-4bit/`。
 模型资产不能进入 Git。

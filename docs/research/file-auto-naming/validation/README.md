@@ -17,6 +17,7 @@
 | Case 3：本地运行网络检查 | 部分通过 | [case-local-runtime-network.md](case-local-runtime-network.md) |
 | Case 4：MLX Swift 运行 | 通过 | [case-mlx-swift-runtime.md](case-mlx-swift-runtime.md) |
 | Case 5：安全预览与重命名 | 通过 | [case-safe-rename.md](case-safe-rename.md) |
+| Case 6：内置模型打包与断网运行 | 通过 | [case-packaging.md](case-packaging.md) |
 
 ## 验证目标
 
@@ -62,6 +63,7 @@
 7. Covio 已离线完成文本和图片命名。
 8. 峰值 RSS 约 2.26 GB。
 9. Covio 产品内预览、原子重命名和撤销已实现。
+10. 模型随应用内置，并在断网沙箱完成重命名与撤销。
 
 ## 成功标准
 
@@ -121,6 +123,7 @@
 | V13 | MLX Swift 本地网络检查 | 部分通过 | [case-mlx-swift-runtime.md](case-mlx-swift-runtime.md) |
 | V14 | Covio 文本和图片模型接入 | 通过 | [case-mlx-swift-runtime.md](case-mlx-swift-runtime.md) |
 | V15 | Covio 进程网络采样 | 通过 | [case-mlx-swift-runtime.md](case-mlx-swift-runtime.md) |
+| V16 | 内置模型打包与断网运行 | 通过 | [case-packaging.md](case-packaging.md) |
 
 ## 证据要求
 

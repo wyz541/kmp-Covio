@@ -65,3 +65,35 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+## MLX Swift and model runtime dependencies
+
+Covio links the following Swift packages through `macosApp/Covio.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`.
+Full license texts are in `third_party/licenses/`.
+
+| Package | Revision | License |
+| --- | --- | --- |
+| `mlx-swift-lm` | `48114eedf3c3d4a682a6b1d644cc5af5c2945d10` | MIT |
+| `mlx-swift` | `19601207e9a0de51e03ee6ec0c3c5f3784275075` | MIT |
+| `swift-transformers` | `48473106a93b2d8dfb114b82f0628ebbb71734e7` | Apache-2.0 |
+| `swift-huggingface` | `c30143a4616f3fa994ee3ab3e3464f752845c07c` | Apache-2.0 |
+| `swift-syntax` | `79e4b74a295b6eb74a8b585e3a39d29e70c1dbd1` | Apache-2.0 |
+| `swift-jinja` | `1e4d0dc69f7ec1277131fb3853808229c5991825` | Apache-2.0 |
+| `swift-crypto` | `da9d28d69ebe3894b18376c8f2395c2f37b8448f` | Apache-2.0 |
+| `swift-collections` | `35a1edcb8ebd2bfe251d587f0b69e62af28f508c` | Apache-2.0 |
+| `swift-numerics` | `0c0290ff6b24942dadb83a929ffaaa1481df04a2` | Apache-2.0 |
+| `swift-asn1` | `3b6410f7dee09eb33cdd26260c5fd47fda19b0e2` | Apache-2.0 |
+| `EventSource` | `86b5096ac59ab46e66bd1f6377c604bc1dab0bc2` | MIT |
+| `yyjson` | `8b4a38dc994a110abaec8a400615567bd996105f` | MIT |
+
+## Qwen3-VL-2B-Instruct
+
+Covio includes the fixed MLX 4-bit model conversion for local, offline file naming.
+
+- Original model: https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct
+- Converted model: https://huggingface.co/mlx-community/Qwen3-VL-2B-Instruct-4bit
+- Converted revision: `9c4f5209e57b31f4b9dfba735de3fb983739c9cc`
+- License: Apache-2.0
+- License file: `third_party/models/Qwen3-VL-2B-Instruct/LICENSE`
+- Attribution: `third_party/models/Qwen3-VL-2B-Instruct/NOTICE`
+- Fixed file manifest: `macosApp/src/AutoNaming/FileNamingModelManifest.json`

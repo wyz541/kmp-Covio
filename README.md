@@ -45,7 +45,7 @@ The current build is not a public release.
 
 0.4.2 is the last published build. It is the Compose version.
 0.5.0 is the SwiftUI version. It is not published yet.
-Build 0.5.0 locally with `bash scripts/package-macos-swift.sh`.
+Build 0.5.0 locally with the model packaging steps below.
 
 - [Covio-0.4.2.dmg](https://github.com/wises231/kmp-Covio/releases/download/v0.4.2/Covio-0.4.2.dmg)
 - [Release page](https://github.com/wises231/kmp-Covio/releases/tag/v0.4.2)
@@ -89,6 +89,7 @@ The download has this SHA-256 checksum:
 - Press Escape to clear the search. Press Escape again to collapse the Hub.
 - The navigation rail and the capsule use Liquid Glass. In System Settings, turn on Reduce motion to switch without animation.
 - The app adds the clipboard history. See the Clipboard history section.
+- The Files tab adds local offline auto naming. It supports text, PDF, images, code, mixed files, preview, safe rename, and undo.
 - The screenshot toolbar behaves as in 0.4.2. The implementation is Swift.
 - The app keeps the sleep, lid, DarkWake, helper, and LaunchAgent functions.
 - The Settings tab keeps the same six sections.
@@ -184,6 +185,57 @@ The clipboard directory is:
 Clipboard data stays on this Mac.
 Covio does not send clipboard data to the network.
 
+## Local file auto naming
+
+Open the Hub and select the Files tab.
+Select `Auto Name…` and choose one or more files.
+
+Covio extracts local content and proposes a name.
+The supported inputs are text, code, PDF, images, and mixed files.
+The app shows the original name, proposed name, evidence, confidence risk, conflict state, and per-item result.
+Covio does not rename until you select and confirm the ready items.
+
+The feature uses `Qwen3-VL-2B-Instruct-4bit` through MLX Swift.
+The model runs on this Mac.
+Covio does not call a remote AI service.
+File content does not leave the Mac.
+
+The default naming policy is under `fileNaming` in `config.json`:
+
+```json
+{
+  "fileNaming": {
+    "schemaVersion": 1,
+    "template": "{title}",
+    "maxUTF8Bytes": 240,
+    "separator": "-",
+    "lowercaseLatin": false,
+    "preserveExtension": true,
+    "dateSource": "none",
+    "conflictPolicy": "appendNumber",
+    "conflictSuffix": " ({n})",
+    "minConfidence": 0.65,
+    "requirePreview": true,
+    "allowVision": true
+  }
+}
+```
+
+The template can use `{title}` and `{category}`.
+`{date}` and `{language}` are reserved fields.
+This build leaves the reserved fields empty and blocks templates that require them.
+The template must contain `{title}`.
+The extension, preview requirement, character checks, and no-overwrite rule cannot be disabled.
+
+Covio writes the undo plan before it renames a file.
+Undo plans are stored in:
+
+```text
+~/Library/Application Support/com.wyz.covio/rename-undo
+```
+
+The model license and attribution are in `THIRD_PARTY_NOTICES.md`.
+
 ## Sleep and lid features
 
 - Sleep at the low-battery capacity threshold.
@@ -271,19 +323,42 @@ The two versions use different lock files, so both can run at the same time.
 
 ## Package
 
-```sh
-bash scripts/package-macos-swift.sh
-```
+The file naming model is built into the app.
+The model weights are not in Git.
 
-The script writes these files:
+1. Download the fixed model:
+
+   ```sh
+   python3 scripts/file_naming_model.py download build/models/Qwen3VL-2B-Instruct-4bit
+   ```
+
+2. Package the app:
+
+   ```sh
+   COVIO_FILE_NAMING_MODEL_DIR=build/models/Qwen3VL-2B-Instruct-4bit \
+     bash scripts/package-macos-swift.sh
+   ```
+
+3. Verify the signed DMG in a network-denied sandbox:
+
+   ```sh
+   bash scripts/verify-file-naming-bundle.sh dist/Covio-0.5.0.dmg
+   ```
+
+The package script writes these files:
 
 - `dist/Covio.app`
 - `dist/Covio-0.5.0.dmg`
 
-The script archives the Xcode project in the Release configuration.
+The script verifies the model manifest, file sizes, SHA-256 values, license, and NOTICE.
+The script embeds the model under `Contents/Resources/Models/Qwen3VL-2B-Instruct-4bit/`.
 The script reads the version from `APP_VERSION` and checks that the bundle carries it.
 The script checks that the bundle carries `macosApp/src/Covio.icns` and applies an ad-hoc signature.
 The script builds the DMG with `diskutil image create`.
+The script prints app and DMG byte sizes.
+
+The model adds about 1.8 GB before DMG compression.
+Use `python3 scripts/file_naming_model.py verify-manifest` to validate the fixed file list without downloading weights.
 
 The icon source is `assets/Covio.iconset`. Run `iconutil --convert icns --output macosApp/src/Covio.icns assets/Covio.iconset` after a change.
 The Xcode target copies `macosApp/src/Covio.icns` into the bundle, so every build carries the icon.
@@ -336,6 +411,8 @@ The current internal test does not complete this checklist.
 39. Switch the language to English in the rail. Confirm all text changes.
 40. Turn on Reduce motion in System Settings. Repeat step 36. Confirm the selection changes without animation.
 41. Click quit at the bottom of the rail. Confirm the app exits and the sleep state returns to the value before start.
+42. Disconnect the network. Use Auto Name on a text file and an image. Confirm both reach preview.
+43. Apply the two renames. Confirm both files change. Undo the run. Confirm both original names return.
 
 ## Privileged helper
 
@@ -399,9 +476,11 @@ The clipboard state and the clipboard images are:
 
 ## Publish an internal test release
 
-1. Run `scripts/package-macos-swift.sh`.
-2. Run `gh auth login`.
-3. Run `bash scripts/create-release.sh`.
+1. Run `scripts/package-macos-swift.sh` with the model directory.
+2. Run `bash scripts/verify-file-naming-bundle.sh dist/Covio-0.5.0.dmg`.
+3. Confirm the DMG is smaller than the GitHub Release asset limit.
+4. Run `gh auth login`.
+5. Run `bash scripts/create-release.sh`.
 
 The release tag must be a full release.
 The update checker ignores pre-release tags.

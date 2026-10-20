@@ -19,6 +19,13 @@ enum AppPaths {
 
     /// `~/Library/Application Support/com.wyz.covio`。
     static var supportDirectory: URL {
+        supportDirectory(environment: ProcessInfo.processInfo.environment)
+    }
+
+    static func supportDirectory(environment: [String: String]) -> URL {
+        if let override = environment["COVIO_SUPPORT_DIR"], !override.isEmpty {
+            return URL(fileURLWithPath: override, isDirectory: true)
+        }
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
         let root = base.first ?? URL(fileURLWithPath: NSHomeDirectory())
             .appendingPathComponent("Library/Application Support")

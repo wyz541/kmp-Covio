@@ -786,6 +786,7 @@ final class ConfigDraft {
     var clipboardCaptureHotKey: String
     var chargeLimitEnabled: Bool
     var chargeLimitPercent: Int32
+    var fileNaming: FileNamingPolicy
 
     init(_ config: AppConfig) {
         schemaVersion = config.schemaVersion
@@ -814,6 +815,7 @@ final class ConfigDraft {
         clipboardCaptureHotKey = config.clipboardCaptureHotKey
         chargeLimitEnabled = config.chargeLimitEnabled
         chargeLimitPercent = config.chargeLimitPercent
+        fileNaming = config.fileNaming
     }
 
     func build() -> AppConfig {
@@ -843,7 +845,8 @@ final class ConfigDraft {
             clipboardPasteStackHotKey: clipboardPasteStackHotKey,
             clipboardCaptureHotKey: clipboardCaptureHotKey,
             chargeLimitEnabled: chargeLimitEnabled,
-            chargeLimitPercent: chargeLimitPercent
+            chargeLimitPercent: chargeLimitPercent,
+            fileNaming: fileNaming
         )
     }
 }

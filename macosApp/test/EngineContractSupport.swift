@@ -69,7 +69,8 @@ enum AppConfigs {
             clipboardPasteStackHotKey: base.clipboardPasteStackHotKey,
             clipboardCaptureHotKey: base.clipboardCaptureHotKey,
             chargeLimitEnabled: chargeLimitEnabled ?? base.chargeLimitEnabled,
-            chargeLimitPercent: chargeLimitPercent ?? base.chargeLimitPercent
+            chargeLimitPercent: chargeLimitPercent ?? base.chargeLimitPercent,
+            fileNaming: base.fileNaming
         )
     }
 }

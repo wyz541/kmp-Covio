@@ -16,8 +16,8 @@ final class ChargeLimitHelperTests: XCTestCase {
     func testStatusReturnsThePersistedState() {
         let runtime = FakeChargeLimitRuntime()
         runtime.statusValue = ChargeLimitRuntimeStatus(
-            userLimitPercent: 55,
-            effectiveTargetPercent: 55,
+            userLimitPercent: 85,
+            effectiveTargetPercent: 85,
             chargingLatch: true,
             phase: "charging",
             bypassEngaged: false,
@@ -32,8 +32,8 @@ final class ChargeLimitHelperTests: XCTestCase {
         let reply = handler.handle(request("chargeLimitStatus"))
 
         XCTAssertEqual(reply?.result?["enabled"], "true")
-        XCTAssertEqual(reply?.result?["userLimitPercent"], "55")
-        XCTAssertEqual(reply?.result?["targetPercent"], "55")
+        XCTAssertEqual(reply?.result?["userLimitPercent"], "85")
+        XCTAssertEqual(reply?.result?["targetPercent"], "85")
         XCTAssertEqual(reply?.result?["chargingLatch"], "true")
         XCTAssertEqual(reply?.result?["phase"], "charging")
         XCTAssertEqual(reply?.result?["originalFeatureState"], "0")
@@ -45,21 +45,21 @@ final class ChargeLimitHelperTests: XCTestCase {
         let runtime = FakeChargeLimitRuntime()
         let handler = ChargeLimitHelperCommandHandler(runtime: runtime)
 
-        let reply = handler.handle(request("chargeLimitConfigure", payload: ["percent": "55"]))
+        let reply = handler.handle(request("chargeLimitConfigure", payload: ["percent": "85"]))
 
         XCTAssertEqual(reply?.ok, true)
-        XCTAssertEqual(runtime.configuredPercent, 55)
+        XCTAssertEqual(runtime.configuredPercent, 85)
     }
 
     func testConfigureReturnsAReadableFailure() {
         let runtime = FakeChargeLimitRuntime()
-        runtime.configureFailure = .preferencesSyncFailed
+        runtime.configureFailure = .readbackFailed("MCL target")
         let handler = ChargeLimitHelperCommandHandler(runtime: runtime)
 
-        let reply = handler.handle(request("chargeLimitConfigure", payload: ["percent": "55"]))
+        let reply = handler.handle(request("chargeLimitConfigure", payload: ["percent": "85"]))
 
         XCTAssertEqual(reply?.ok, false)
-        XCTAssertEqual(reply?.error, "macOS did not save the charge limit preferences")
+        XCTAssertEqual(reply?.error, "Charge limit preference readback failed: MCL target")
     }
 
     func testRestoreInvokesTheBackend() {

@@ -99,14 +99,14 @@ class VersionAndConfigTest {
             store.save(
                 AppConfig(
                     chargeLimitEnabled = true,
-                    chargeLimitPercent = 55,
+                    chargeLimitPercent = 85,
                 ),
             )
 
             val loaded = store.load()
 
             assertTrue(loaded.chargeLimitEnabled)
-            assertEquals(55, loaded.chargeLimitPercent)
+            assertEquals(85, loaded.chargeLimitPercent)
         }
 
     @Test

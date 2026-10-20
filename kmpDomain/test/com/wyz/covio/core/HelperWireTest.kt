@@ -29,7 +29,7 @@ class HelperWireTest {
     fun `an unknown protocol version is rejected`() {
         assertEquals(
             "Unsupported protocol version",
-            HelperWire.validate(request(HelperWire.COMMAND_VERSION, version = "1")),
+            HelperWire.validate(request(HelperWire.COMMAND_VERSION, version = "2")),
         )
     }
 
@@ -116,7 +116,7 @@ class HelperWireTest {
                 ),
             )
         }
-        for (percent in listOf("20", "55", "100")) {
+        for (percent in listOf("80", "85", "100")) {
             assertNull(
                 HelperWire.validate(
                     request(HelperWire.COMMAND_CHARGE_LIMIT_CONFIGURE, mapOf("percent" to percent)),
@@ -148,7 +148,7 @@ class HelperWireTest {
      */
     @Test
     fun `validation reports the first problem in a fixed order`() {
-        val everythingWrong = HelperRequest("1", "", "runShell", emptyMap())
+        val everythingWrong = HelperRequest("2", "", "runShell", emptyMap())
         assertEquals("Unsupported protocol version", HelperWire.validate(everythingWrong))
 
         val versionOk = HelperRequest(HELPER_PROTOCOL_VERSION, "", "runShell", emptyMap())
@@ -164,7 +164,7 @@ class HelperWireTest {
     fun `an empty payload is left out of the request`() {
         val line = HelperWire.encodeRequest(request(HelperWire.COMMAND_VERSION))
 
-        assertEquals("""{"version":"2","requestId":"r1","command":"version"}""", line)
+        assertEquals("""{"version":"3","requestId":"r1","command":"version"}""", line)
     }
 
     @Test
@@ -174,7 +174,7 @@ class HelperWireTest {
         )
 
         assertEquals(
-            """{"version":"2","requestId":"r1","command":"setDisableSleep","payload":{"disabled":"true"}}""",
+            """{"version":"3","requestId":"r1","command":"setDisableSleep","payload":{"disabled":"true"}}""",
             line,
         )
     }
@@ -182,7 +182,7 @@ class HelperWireTest {
     @Test
     fun `a request without a payload key decodes with an empty one`() {
         val decoded = assertNotNull(
-            HelperWire.decodeRequest("""{"version":"2","requestId":"r","command":"version"}"""),
+            HelperWire.decodeRequest("""{"version":"3","requestId":"r","command":"version"}"""),
         )
 
         assertTrue(decoded.payload.isEmpty())
@@ -191,28 +191,28 @@ class HelperWireTest {
     @Test
     fun `unknown keys are ignored on the way in and gone on the way out`() {
         val decoded = assertNotNull(
-            HelperWire.decodeRequest("""{"version":"2","requestId":"r","command":"version","future":7}"""),
+            HelperWire.decodeRequest("""{"version":"3","requestId":"r","command":"version","future":7}"""),
         )
 
-        assertEquals("""{"version":"2","requestId":"r","command":"version"}""", HelperWire.encodeRequest(decoded))
+        assertEquals("""{"version":"3","requestId":"r","command":"version"}""", HelperWire.encodeRequest(decoded))
     }
 
     @Test
     fun `a line that is not a request decodes to null`() {
         assertNull(HelperWire.decodeRequest("这不是 JSON"))
         assertNull(HelperWire.decodeRequest("{}"))
-        assertNull(HelperWire.decodeRequest("""{"version":"2","requestId":"r"}"""))
+        assertNull(HelperWire.decodeRequest("""{"version":"3","requestId":"r"}"""))
     }
 
     @Test
     fun `a successful reply leaves an empty result out`() {
-        assertEquals("""{"version":"2","requestId":"r","ok":true}""", HelperWire.encodeReply(HelperWire.success("r")))
+        assertEquals("""{"version":"3","requestId":"r","ok":true}""", HelperWire.encodeReply(HelperWire.success("r")))
     }
 
     @Test
     fun `a successful reply keeps a non empty result`() {
         assertEquals(
-            """{"version":"2","requestId":"r","ok":true,"result":{"a":"b"}}""",
+            """{"version":"3","requestId":"r","ok":true,"result":{"a":"b"}}""",
             HelperWire.encodeReply(HelperWire.success("r", mapOf("a" to "b"))),
         )
     }
@@ -220,14 +220,14 @@ class HelperWireTest {
     @Test
     fun `a failure reply carries only the message`() {
         assertEquals(
-            """{"version":"2","requestId":"r","ok":false,"error":"boom"}""",
+            """{"version":"3","requestId":"r","ok":false,"error":"boom"}""",
             HelperWire.encodeReply(HelperWire.failure("r", "boom")),
         )
     }
 
     @Test
     fun `a reply without result and error decodes with both null`() {
-        val reply = assertNotNull(HelperWire.decodeReply("""{"version":"2","requestId":"r","ok":true}"""))
+        val reply = assertNotNull(HelperWire.decodeReply("""{"version":"3","requestId":"r","ok":true}"""))
 
         assertTrue(reply.ok)
         assertNull(reply.result)
@@ -249,10 +249,10 @@ class HelperWireTest {
      */
     @Test
     fun `a quoted boolean is accepted by the lenient decoder`() {
-        val reply = assertNotNull(HelperWire.decodeReply("""{"version":"2","requestId":"r","ok":"true"}"""))
+        val reply = assertNotNull(HelperWire.decodeReply("""{"version":"3","requestId":"r","ok":"true"}"""))
 
         assertTrue(reply.ok)
-        assertEquals("""{"version":"2","requestId":"r","ok":true}""", HelperWire.encodeReply(reply))
+        assertEquals("""{"version":"3","requestId":"r","ok":true}""", HelperWire.encodeReply(reply))
     }
 
     // MARK: pmset

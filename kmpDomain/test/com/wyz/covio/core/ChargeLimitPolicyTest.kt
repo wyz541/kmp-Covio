@@ -7,8 +7,8 @@ import kotlin.test.assertTrue
 
 class ChargeLimitPolicyTest {
     private fun observation(
-        upper: Int = 50,
-        current: Int? = 44,
+        upper: Int = 85,
+        current: Int? = 79,
         adapter: Boolean = true,
         observedTarget: Int? = upper,
         enabled: Boolean = true,
@@ -41,21 +41,21 @@ class ChargeLimitPolicyTest {
     )
 
     @Test
-    fun `limits use five point steps from twenty to one hundred`() {
-        assertTrue(ChargeLimitPolicy.isValidUpperLimit(20))
-        assertTrue(ChargeLimitPolicy.isValidUpperLimit(75))
+    fun `limits use five point steps from eighty to one hundred`() {
+        assertTrue(ChargeLimitPolicy.isValidUpperLimit(80))
+        assertTrue(ChargeLimitPolicy.isValidUpperLimit(85))
         assertTrue(ChargeLimitPolicy.isValidUpperLimit(100))
-        assertFalse(ChargeLimitPolicy.isValidUpperLimit(19))
+        assertFalse(ChargeLimitPolicy.isValidUpperLimit(75))
         assertFalse(ChargeLimitPolicy.isValidUpperLimit(79))
-        assertFalse(ChargeLimitPolicy.isValidUpperLimit(80 + 1))
+        assertFalse(ChargeLimitPolicy.isValidUpperLimit(101))
         assertEquals(80, ChargeLimitPolicy.normalizeUpperLimit(79))
-        assertEquals(75, ChargeLimitPolicy.normalizeUpperLimit(75))
+        assertEquals(85, ChargeLimitPolicy.normalizeUpperLimit(85))
     }
 
     @Test
-    fun `the resume threshold is five points lower with a floor of fifteen`() {
-        assertEquals(15, ChargeLimitPolicy.resumeThreshold(20))
-        assertEquals(45, ChargeLimitPolicy.resumeThreshold(50))
+    fun `the resume threshold is five points lower with a floor of seventy five`() {
+        assertEquals(75, ChargeLimitPolicy.resumeThreshold(80))
+        assertEquals(80, ChargeLimitPolicy.resumeThreshold(85))
         assertEquals(95, ChargeLimitPolicy.resumeThreshold(100))
     }
 
@@ -108,7 +108,7 @@ class ChargeLimitPolicyTest {
     @Test
     fun `below the resume threshold starts a charging latch`() {
         val decision = ChargeLimitPolicy.evaluate(
-            observation(upper = 50, current = 44, observedTarget = 50),
+            observation(upper = 85, current = 79, observedTarget = 85),
         )
 
         assertEquals(ChargeLimitPhase.CHARGING, decision.phase)
@@ -119,7 +119,7 @@ class ChargeLimitPolicyTest {
     @Test
     fun `the charging latch continues inside the hysteresis band`() {
         val decision = ChargeLimitPolicy.evaluate(
-            observation(upper = 50, current = 47, observedTarget = 50),
+            observation(upper = 85, current = 82, observedTarget = 85),
             previous = ChargeLimitPolicyState(chargingLatch = true),
         )
 
@@ -130,54 +130,54 @@ class ChargeLimitPolicyTest {
     @Test
     fun `without a latch the band holds the current level`() {
         val decision = ChargeLimitPolicy.evaluate(
-            observation(upper = 50, current = 47, observedTarget = 47),
+            observation(upper = 85, current = 82, observedTarget = 82),
         )
 
         assertEquals(ChargeLimitPhase.SAILING, decision.phase)
-        assertEquals(47, decision.targetPercent)
+        assertEquals(82, decision.targetPercent)
         assertFalse(decision.chargingLatch)
     }
 
     @Test
     fun `at the limit the policy holds the current level`() {
         val decision = ChargeLimitPolicy.evaluate(
-            observation(upper = 50, current = 50, observedTarget = 50),
+            observation(upper = 85, current = 85, observedTarget = 85),
         )
 
         assertEquals(ChargeLimitPhase.HOLDING, decision.phase)
-        assertEquals(50, decision.targetPercent)
+        assertEquals(85, decision.targetPercent)
         assertFalse(decision.chargingLatch)
     }
 
     @Test
     fun `above the limit the policy holds without draining`() {
         val decision = ChargeLimitPolicy.evaluate(
-            observation(upper = 50, current = 64, observedTarget = 64),
+            observation(upper = 85, current = 90, observedTarget = 90),
         )
 
         assertEquals(ChargeLimitPhase.ABOVE_LIMIT, decision.phase)
-        assertEquals(64, decision.targetPercent)
+        assertEquals(90, decision.targetPercent)
         assertEquals(ChargeLimitAction.NONE, decision.action)
     }
 
     @Test
     fun `a target mismatch enters applying and requests the target`() {
         val decision = ChargeLimitPolicy.evaluate(
-            observation(upper = 50, current = 44, observedTarget = null),
+            observation(upper = 85, current = 79, observedTarget = null),
         )
 
         assertEquals(ChargeLimitPhase.APPLYING, decision.phase)
         assertEquals(ChargeLimitAction.SET_TARGET, decision.action)
-        assertEquals(50, decision.targetPercent)
+        assertEquals(85, decision.targetPercent)
     }
 
     @Test
     fun `an in-flight write keeps the card in applying`() {
         val decision = ChargeLimitPolicy.evaluate(
             observation(
-                upper = 50,
-                current = 44,
-                observedTarget = 50,
+                upper = 85,
+                current = 79,
+                observedTarget = 85,
                 writePending = true,
             ),
         )
@@ -246,10 +246,10 @@ class ChargeLimitPolicyTest {
     @Test
     fun `bypass is only exposed for a holding state`() {
         val holding = ChargeLimitPolicy.evaluate(
-            observation(upper = 50, current = 50, observedTarget = 50, bypass = true),
+            observation(upper = 85, current = 85, observedTarget = 85, bypass = true),
         )
         val charging = ChargeLimitPolicy.evaluate(
-            observation(upper = 50, current = 44, observedTarget = 50, bypass = true),
+            observation(upper = 85, current = 79, observedTarget = 85, bypass = true),
         )
 
         assertTrue(holding.bypassEngaged)

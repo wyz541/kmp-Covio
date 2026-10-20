@@ -1,89 +1,5 @@
-import CoreFoundation
 import Foundation
 import kmpDomain
-
-/// PowerUIAgent 的 MCL 偏好域。写入这个域需要 root。
-enum ChargeLimitPreferenceDomain {
-    static let domain = "com.apple.smartcharging.topoffprotection"
-    static let keyOptimizedChargingEnabled = "enabled"
-    static let keyFeatureState = "MCLFeatureState"
-    static let keyLimitValue = "mclLimitValue"
-    static let changedNotification = "com.apple.smartcharging.defaultschanged"
-}
-
-/// 根偏好读写端口。测试替换这个端口，生产实现写到 PowerUIAgent 的偏好域。
-protocol ChargeLimitPreferenceStore {
-    func readInt(_ key: String) -> Int?
-    func readBool(_ key: String) -> Bool?
-    func writeInt(_ key: String, value: Int)
-    func writeBool(_ key: String, value: Bool)
-    func remove(_ key: String)
-    func synchronize() -> Bool
-    func notifyChanged()
-}
-
-/// 生产环境的 `CFPreferences` 实现。
-final class CFPreferencesChargeLimitStore: ChargeLimitPreferenceStore {
-    private let domain = ChargeLimitPreferenceDomain.domain as CFString
-
-    func readInt(_ key: String) -> Int? {
-        (CFPreferencesCopyValue(
-            key as CFString,
-            domain,
-            kCFPreferencesCurrentUser,
-            kCFPreferencesAnyHost
-        ) as? NSNumber)?.intValue
-    }
-
-    func readBool(_ key: String) -> Bool? {
-        (CFPreferencesCopyValue(
-            key as CFString,
-            domain,
-            kCFPreferencesCurrentUser,
-            kCFPreferencesAnyHost
-        ) as? NSNumber)?.boolValue
-    }
-
-    func writeInt(_ key: String, value: Int) {
-        CFPreferencesSetValue(
-            key as CFString,
-            NSNumber(value: value),
-            domain,
-            kCFPreferencesCurrentUser,
-            kCFPreferencesAnyHost
-        )
-    }
-
-    func writeBool(_ key: String, value: Bool) {
-        CFPreferencesSetValue(
-            key as CFString,
-            NSNumber(value: value),
-            domain,
-            kCFPreferencesCurrentUser,
-            kCFPreferencesAnyHost
-        )
-    }
-
-    func remove(_ key: String) {
-        CFPreferencesSetValue(
-            key as CFString,
-            nil,
-            domain,
-            kCFPreferencesCurrentUser,
-            kCFPreferencesAnyHost
-        )
-    }
-
-    func synchronize() -> Bool {
-        CFPreferencesSynchronize(domain, kCFPreferencesCurrentUser, kCFPreferencesAnyHost)
-    }
-
-    func notifyChanged() {
-        let center = CFNotificationCenterGetDarwinNotifyCenter()
-        let name = CFNotificationName(ChargeLimitPreferenceDomain.changedNotification as CFString)
-        CFNotificationCenterPostNotification(center, name, nil, nil, true)
-    }
-}
 
 /// 第一次覆盖前的原值。`nil` 表示键原本不存在，恢复时必须删除。
 struct ChargeLimitOriginals: Codable, Equatable {
@@ -106,7 +22,6 @@ enum ChargeLimitMCLFailure: Error, Equatable, CustomStringConvertible {
     case invalidTarget(Int)
     case stateUnreadable
     case stateWriteFailed
-    case preferencesSyncFailed
     case readbackFailed(String)
 
     var description: String {
@@ -117,8 +32,6 @@ enum ChargeLimitMCLFailure: Error, Equatable, CustomStringConvertible {
             "Charge limit state is unreadable"
         case .stateWriteFailed:
             "Charge limit state could not be saved"
-        case .preferencesSyncFailed:
-            "macOS did not save the charge limit preferences"
         case .readbackFailed(let key):
             "Charge limit preference readback failed: \(key)"
         }
@@ -204,20 +117,18 @@ protocol ChargeLimitBackend: Sendable {
 
 /// MCL 后端。只做根偏好与状态文件，不接 socket，也不执行当前真机验证。
 final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
-    private let preferences: ChargeLimitPreferenceStore
     private let stateStore: ChargeLimitStateStore
     private let powerUI: PowerUIChargeReading
     private let lock = NSLock()
-    private let allowedTargets = stride(from: 20, through: 100, by: 5).map { $0 }
+    private let allowedTargets: [Int]
 
     init(
-        preferences: ChargeLimitPreferenceStore,
         stateStore: ChargeLimitStateStore,
         powerUI: PowerUIChargeReading = SystemPowerUIChargeClient()
     ) {
-        self.preferences = preferences
         self.stateStore = stateStore
         self.powerUI = powerUI
+        allowedTargets = stride(from: powerUI.minimumSupportedPercent, through: 100, by: 5).map { $0 }
     }
 
     /// 运行时探测系统接口。接口缺失或报告不支持时，策略不得写入。
@@ -231,13 +142,8 @@ final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
     /// 读取系统当前登记的目标。外部修改由策略转成冲突态，不静默覆盖。
     func observedTargetPercent() -> Int? {
         lock.withLock {
-            guard preferences.readInt(ChargeLimitPreferenceDomain.keyFeatureState) == 1,
-                  let limit = preferences.readInt(ChargeLimitPreferenceDomain.keyLimitValue),
-                  allowedTargets.contains(limit)
-            else {
-                return nil
-            }
-            return limit
+            guard powerUI.isMCLEnabled() == true else { return nil }
+            return powerUI.currentLimit()
         }
     }
 
@@ -295,31 +201,15 @@ final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
         }
 
         if targetPercent == 100 {
-            _ = powerUI.disableMCL()
-        }
-        preferences.writeBool(ChargeLimitPreferenceDomain.keyOptimizedChargingEnabled, value: false)
-        if targetPercent < 100 {
-            preferences.writeInt(ChargeLimitPreferenceDomain.keyLimitValue, value: targetPercent)
-            preferences.writeInt(ChargeLimitPreferenceDomain.keyFeatureState, value: 1)
-        } else {
-            preferences.writeInt(ChargeLimitPreferenceDomain.keyFeatureState, value: 0)
-        }
-
-        guard preferences.synchronize() else {
-            return .failure(.preferencesSyncFailed)
-        }
-        preferences.notifyChanged()
-
-        if targetPercent < 100 {
-            guard preferences.readInt(ChargeLimitPreferenceDomain.keyLimitValue) == targetPercent else {
-                return .failure(.readbackFailed(ChargeLimitPreferenceDomain.keyLimitValue))
-            }
-            guard preferences.readInt(ChargeLimitPreferenceDomain.keyFeatureState) == 1 else {
-                return .failure(.readbackFailed(ChargeLimitPreferenceDomain.keyFeatureState))
+            guard powerUI.disableMCL(), powerUI.isMCLEnabled() == false else {
+                return .failure(.readbackFailed("MCL release"))
             }
         } else {
-            guard preferences.readInt(ChargeLimitPreferenceDomain.keyFeatureState) == 0 else {
-                return .failure(.readbackFailed(ChargeLimitPreferenceDomain.keyFeatureState))
+            guard powerUI.applyLimit(targetPercent),
+                  powerUI.isMCLEnabled() == true,
+                  powerUI.currentLimit() == targetPercent
+            else {
+                return .failure(.readbackFailed("MCL target"))
             }
         }
         return .success(staged)
@@ -336,37 +226,23 @@ final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
         }
         guard let state else { return .success(()) }
 
-        // 先关闭 MCL，再恢复值和开关，避免短暂的错误策略组合。
-        _ = powerUI.disableMCL()
-        preferences.writeInt(ChargeLimitPreferenceDomain.keyFeatureState, value: 0)
-
-        restoreInt(
-            key: ChargeLimitPreferenceDomain.keyLimitValue,
-            value: state.original.limitPercent
-        )
-        restoreBool(
-            key: ChargeLimitPreferenceDomain.keyOptimizedChargingEnabled,
-            value: state.original.optimizedChargingEnabled
-        )
-        restoreInt(
-            key: ChargeLimitPreferenceDomain.keyFeatureState,
-            value: state.original.featureState
-        )
-
-        guard preferences.synchronize() else {
-            return .failure(.preferencesSyncFailed)
-        }
-        preferences.notifyChanged()
-        guard preferences.readInt(ChargeLimitPreferenceDomain.keyFeatureState) == state.original.featureState else {
-            return .failure(.readbackFailed(ChargeLimitPreferenceDomain.keyFeatureState))
-        }
-        guard preferences.readInt(ChargeLimitPreferenceDomain.keyLimitValue) == state.original.limitPercent else {
-            return .failure(.readbackFailed(ChargeLimitPreferenceDomain.keyLimitValue))
-        }
-        guard preferences.readBool(ChargeLimitPreferenceDomain.keyOptimizedChargingEnabled) ==
-            state.original.optimizedChargingEnabled
-        else {
-            return .failure(.readbackFailed(ChargeLimitPreferenceDomain.keyOptimizedChargingEnabled))
+        if state.original.featureState == 1 {
+            guard let originalLimit = state.original.limitPercent,
+                  allowedTargets.contains(originalLimit)
+            else {
+                return .failure(.readbackFailed("original MCL target"))
+            }
+            _ = powerUI.disableMCL()
+            guard powerUI.applyLimit(originalLimit),
+                  powerUI.isMCLEnabled() == true,
+                  powerUI.currentLimit() == originalLimit
+            else {
+                return .failure(.readbackFailed("original MCL target"))
+            }
+        } else {
+            guard powerUI.disableMCL(), powerUI.isMCLEnabled() == false else {
+                return .failure(.readbackFailed("MCL release"))
+            }
         }
         do {
             try stateStore.clear()
@@ -379,28 +255,11 @@ final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
     }
 
     private func captureOriginals() -> ChargeLimitOriginals {
-        ChargeLimitOriginals(
-            optimizedChargingEnabled: preferences.readBool(
-                ChargeLimitPreferenceDomain.keyOptimizedChargingEnabled
-            ),
-            featureState: preferences.readInt(ChargeLimitPreferenceDomain.keyFeatureState),
-            limitPercent: preferences.readInt(ChargeLimitPreferenceDomain.keyLimitValue)
+        let enabled = powerUI.isMCLEnabled()
+        return ChargeLimitOriginals(
+            optimizedChargingEnabled: nil,
+            featureState: enabled.map { $0 ? 1 : 0 },
+            limitPercent: enabled == true ? powerUI.currentLimit() : nil
         )
-    }
-
-    private func restoreInt(key: String, value: Int?) {
-        if let value {
-            preferences.writeInt(key, value: value)
-        } else {
-            preferences.remove(key)
-        }
-    }
-
-    private func restoreBool(key: String, value: Bool?) {
-        if let value {
-            preferences.writeBool(key, value: value)
-        } else {
-            preferences.remove(key)
-        }
     }
 }

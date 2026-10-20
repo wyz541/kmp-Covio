@@ -315,18 +315,18 @@ final class AppRuntimeTests: XCTestCase {
     func testApplyChargeLimitPersistsOnlyAfterHelperAccepts() throws {
         let created = makeRuntime(engineStarted: true, helperInstalled: true)
 
-        XCTAssertTrue(created.applyChargeLimit(55))
+        XCTAssertTrue(created.applyChargeLimit(85))
 
-        XCTAssertEqual(chargeLimitClient.setValues, [55])
+        XCTAssertEqual(chargeLimitClient.setValues, [85])
         XCTAssertTrue(created.config.chargeLimitEnabled)
-        XCTAssertEqual(created.config.chargeLimitPercent, 55)
+        XCTAssertEqual(created.config.chargeLimitPercent, 85)
         XCTAssertEqual(try savedJSON()["chargeLimitEnabled"] as? Bool, true)
-        XCTAssertEqual(try savedJSON()["chargeLimitPercent"] as? Int, 55)
+        XCTAssertEqual(try savedJSON()["chargeLimitPercent"] as? Int, 85)
     }
 
     func testRestoreChargeLimitClearsTheSavedIntent() throws {
         let created = makeRuntime(engineStarted: true, helperInstalled: true)
-        XCTAssertTrue(created.applyChargeLimit(55))
+        XCTAssertTrue(created.applyChargeLimit(85))
 
         XCTAssertTrue(created.restoreChargeLimit())
 
@@ -338,7 +338,7 @@ final class AppRuntimeTests: XCTestCase {
         let created = makeRuntime(engineStarted: true, helperInstalled: true)
         chargeLimitClient.setResult = false
 
-        XCTAssertFalse(created.applyChargeLimit(55))
+        XCTAssertFalse(created.applyChargeLimit(85))
 
         XCTAssertFalse(created.config.chargeLimitEnabled)
         XCTAssertNotNil(created.statusMessage)
@@ -366,7 +366,7 @@ final class AppRuntimeTests: XCTestCase {
 
     func testClearConfigRestoresAnActiveChargeLimitFirst() throws {
         let created = makeRuntime(engineStarted: true, helperInstalled: true)
-        XCTAssertTrue(created.applyChargeLimit(55))
+        XCTAssertTrue(created.applyChargeLimit(85))
 
         created.clearConfig()
 
@@ -376,13 +376,13 @@ final class AppRuntimeTests: XCTestCase {
 
     func testFailedChargeLimitRestorePreventsClearingConfig() throws {
         let created = makeRuntime(engineStarted: true, helperInstalled: true)
-        XCTAssertTrue(created.applyChargeLimit(55))
+        XCTAssertTrue(created.applyChargeLimit(85))
         chargeLimitClient.restoreResult = false
 
         created.clearConfig()
 
         XCTAssertTrue(created.config.chargeLimitEnabled)
-        XCTAssertEqual(created.config.chargeLimitPercent, 55)
+        XCTAssertEqual(created.config.chargeLimitPercent, 85)
         XCTAssertEqual(chargeLimitClient.restoreCalls, 1)
         XCTAssertNotNil(created.statusMessage)
     }

@@ -9,13 +9,20 @@ macOS 27 的可用方案分为两段：
 | 范围 | 可行路径 | 权限 | 结论 |
 | --- | --- | --- | --- |
 | `80%` 到 `100%` | `PowerUISmartChargeClient` 和原生 MCL | 无 root | 条件可做 |
-| `20%` 到 `79%` | root 原生偏好或独立 powerd 策略 | root helper | 暂不产品化 |
+| `20%` 到 `79%` | root 原生偏好或独立 powerd 策略 | root helper | 本机 no-go |
 | 旧系统充电键可用 | `CH0B`、`CH0C` | root helper | 条件可做，需单独矩阵 |
 | 无安全写入路径 | 无 | 无 | 不支持 |
 
 原生 MCL 是私有接口。
 它不是 Apple 公开文档 API。
 因此，“条件可做”表示需要产品接受私有接口风险。
+
+真机补充：
+
+1. `PowerUISmartChargeClient.setMCLLimit(75)` 返回 `PowerUISmartChargingErrorDomain Code=4`。
+2. 直接偏好把 `PowerUI getMCLLimit` 改成 `85`，但 `pmset -g battlimit` 仍为 `80`。
+3. `PowerUI enableMCL`、`disableMCL` 和 `setMCLLimit(85)` 成功后，`pmset` 显示 `85`。
+4. 因此，`80` 到 `100` 必须使用原生客户端。直接偏好路径不能进入产品。
 
 ## 2. 旁路供电
 
@@ -70,7 +77,7 @@ Covio 设置原生 MCL 会改写系统充电上限。
 | --- | --- | --- |
 | 首期是否支持 `20%` 到 `100%` | 否 | 安全路径只覆盖 `80%` 到 `100%` |
 | 首期是否使用原生 MCL | 条件采用 | 无 root，旁路可验证，私有接口 |
-| 首期是否支持 `20%` 到 `79%` | 否 | 需要 root 私有策略，未验证 |
+| 首期是否支持 `20%` 到 `79%` | 否 | 原生客户端拒绝，直接偏好未注册 powerd |
 | 是否写旧 SMC 键 | macOS 27 不写 | 键不存在或 entitlement 阻止 |
 | 是否写新 SMC 键 | 否 | 第三方无 entitlement |
 | 是否写 root 原生偏好 | 暂不 | 需要新 helper 和校准规避 |
@@ -105,7 +112,7 @@ Covio 设置原生 MCL 会改写系统充电上限。
 
 | 项目 | 现状 | 下一步 |
 | --- | --- | --- |
-| `20%` 到 `79%` | 技术证据存在，成熟度低 | 单独 spike |
+| `20%` 到 `79%` | 本机 no-go | 新路径需要独立 spike |
 | Apple 校准周期 | 原生状态可观察到，写入覆盖未验证 | 真机周期测试 |
 | 5% 回差 | 固件决定 | 产品接受或改用 SMC |
 | Intel MCL | 未验证 | 找 Intel Mac |

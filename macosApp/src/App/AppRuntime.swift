@@ -196,7 +196,7 @@ final class AppRuntime {
             stateListener: forwarder,
             // 引擎要求这个块跑在别的线程上。Kotlin 的函数类型不是 Sendable，
             // 用 `KotlinBox` 把「按约定跨线程」这件事写在一处。
-            wakeScanExecutor: { block in
+            wakeScanExecutor: { @Sendable block in
                 let box = KotlinBox(block)
                 DispatchQueue.global(qos: .utility).async { _ = box.value() }
             },

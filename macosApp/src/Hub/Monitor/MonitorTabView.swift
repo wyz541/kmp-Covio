@@ -1180,14 +1180,14 @@ private struct MonitorPowerChargeLimitControls: View {
                     .foregroundStyle(MacTheme.textPrimary)
                     .monospacedDigit()
                     .frame(width: 46, alignment: .leading)
-                Slider(value: $pendingLimit, in: 80...100, step: 5)
+                Slider(value: $pendingLimit, in: 20...100, step: 5)
                     .disabled(controlsDisabled)
                     .accessibilityLabel(ContractCopy.copyMonitorPowerChargeLimitTitle.text(for: language))
             }
             .frame(height: 24)
 
             HStack(spacing: 5) {
-                ForEach([80, 85, 90, 100], id: \.self) { value in
+                ForEach([50, 60, 80, 100], id: \.self) { value in
                     Button("\(value)%") {
                         pendingLimit = Double(value)
                     }

@@ -7,6 +7,7 @@ final class ChargeLimitMCLTests: XCTestCase {
     private var stateURL: URL!
     private var stateStore: ChargeLimitStateStore!
     private var powerUI: FakePowerUIChargeReading!
+    private var preferences: FakeChargeLimitPreferences!
 
     override func setUpWithError() throws {
         directory = FileManager.default.temporaryDirectory
@@ -15,6 +16,9 @@ final class ChargeLimitMCLTests: XCTestCase {
         stateURL = directory.appendingPathComponent("charge-limit/state.json")
         stateStore = ChargeLimitStateStore(url: stateURL)
         powerUI = FakePowerUIChargeReading()
+        preferences = FakeChargeLimitPreferences()
+        preferences.ints[DirectMCLPreference.keyFeatureState] = 1
+        preferences.ints[DirectMCLPreference.keyLimitValue] = 80
     }
 
     override func tearDownWithError() throws {
@@ -51,6 +55,48 @@ final class ChargeLimitMCLTests: XCTestCase {
         XCTAssertFalse(powerUI.enabled == true)
     }
 
+    func testApplyBelowEightyUsesTheDirectPreferencePath() throws {
+        preferences.onNotify = { [weak self] in
+            self?.powerUI.enabled = true
+            self?.powerUI.currentPercent = 70
+        }
+        let controller = makeController()
+
+        let result = controller.apply(targetPercent: 70)
+
+        let state = try XCTUnwrap(successState(result))
+        XCTAssertEqual(state.targetPercent, 70)
+        XCTAssertEqual(preferences.ints[DirectMCLPreference.keyLimitValue], 70)
+        XCTAssertEqual(preferences.ints[DirectMCLPreference.keyFeatureState], 1)
+        XCTAssertEqual(preferences.notifications, 1)
+        XCTAssertTrue(powerUI.appliedLimits.isEmpty)
+        XCTAssertEqual(powerUI.currentPercent, 70)
+        XCTAssertEqual(controller.observedTargetPercent(), 70)
+    }
+
+    func testDirectPathEnablesMclWhenItWasOff() {
+        powerUI.enabled = false
+        preferences.onNotify = { [weak self] in
+            self?.powerUI.enabled = true
+            self?.powerUI.currentPercent = 70
+        }
+        let controller = makeController()
+
+        XCTAssertNotNil(successState(controller.apply(targetPercent: 70)))
+        XCTAssertEqual(powerUI.appliedLimits, [80])
+        XCTAssertEqual(powerUI.currentPercent, 70)
+    }
+
+    func testDirectPathFailsWhenPowerUIKeepsTheOldTarget() {
+        let controller = makeController(directReadbackTimeout: 0.01)
+
+        let result = controller.apply(targetPercent: 70)
+
+        XCTAssertEqual(result, .failure(.readbackFailed("MCL target")))
+        XCTAssertTrue(powerUI.appliedLimits.isEmpty)
+        XCTAssertEqual(powerUI.currentPercent, 80)
+    }
+
     func testRestoreReappliesTheOriginalNativeLimit() throws {
         powerUI.enabled = true
         powerUI.currentPercent = 80
@@ -66,7 +112,28 @@ final class ChargeLimitMCLTests: XCTestCase {
         XCTAssertNil(try stateStore.load())
     }
 
+    func testRestoreReappliesTheOriginalDirectLimit() throws {
+        powerUI.enabled = true
+        powerUI.currentPercent = 70
+        preferences.ints[DirectMCLPreference.keyLimitValue] = 70
+        preferences.onNotify = { [weak self] in
+            guard let self else { return }
+            self.powerUI.enabled = true
+            self.powerUI.currentPercent = self.preferences
+                .ints[DirectMCLPreference.keyLimitValue]
+        }
+        let controller = makeController()
+        _ = controller.apply(targetPercent: 65)
+
+        XCTAssertNoThrow(try controller.restore().get())
+
+        XCTAssertEqual(powerUI.currentPercent, 70)
+        XCTAssertTrue(powerUI.appliedLimits.isEmpty)
+        XCTAssertNil(try stateStore.load())
+    }
+
     func testRestoreKeepsOriginallyDisabledMclDisabled() throws {
+        preferences.ints[DirectMCLPreference.keyFeatureState] = 0
         powerUI.enabled = false
         powerUI.currentPercent = 80
         let controller = makeController()
@@ -123,10 +190,10 @@ final class ChargeLimitMCLTests: XCTestCase {
         XCTAssertTrue(powerUI.appliedLimits.isEmpty)
     }
 
-    func testTargetsBelowEightyAreRejected() {
+    func testInvalidTargetsAreRejected() {
         let controller = makeController()
 
-        for target in [0, 75, 79, 101, 105] {
+        for target in [0, 19, 79, 101, 105] {
             XCTAssertEqual(controller.apply(targetPercent: target), .failure(.invalidTarget(target)))
         }
     }
@@ -181,8 +248,13 @@ final class ChargeLimitMCLTests: XCTestCase {
         XCTAssertFalse(SystemPowerUIChargeClient.isBypassEngaged(status: ["Timeline": []]))
     }
 
-    private func makeController() -> ChargeLimitMCLController {
-        ChargeLimitMCLController(stateStore: stateStore, powerUI: powerUI)
+    private func makeController(directReadbackTimeout: TimeInterval = 2) -> ChargeLimitMCLController {
+        ChargeLimitMCLController(
+            preferences: preferences,
+            stateStore: stateStore,
+            powerUI: powerUI,
+            directReadbackTimeout: directReadbackTimeout
+        )
     }
 
     private func successState(
@@ -190,6 +262,22 @@ final class ChargeLimitMCLTests: XCTestCase {
     ) -> ChargeLimitPersistentState? {
         guard case .success(let state) = result else { return nil }
         return state
+    }
+}
+
+private final class FakeChargeLimitPreferences: ChargeLimitPreferenceStore, @unchecked Sendable {
+    var ints: [String: Int] = [:]
+    var syncResult = true
+    var notifications = 0
+    var onNotify: (() -> Void)?
+
+    func readInt(_ key: String) -> Int? { ints[key] }
+
+    func writeInt(_ key: String, value: Int) { ints[key] = value }
+    func synchronize() -> Bool { syncResult }
+    func notifyChanged() {
+        notifications += 1
+        onNotify?()
     }
 }
 

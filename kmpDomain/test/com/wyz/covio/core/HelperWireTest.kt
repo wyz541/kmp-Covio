@@ -29,7 +29,7 @@ class HelperWireTest {
     fun `an unknown protocol version is rejected`() {
         assertEquals(
             "Unsupported protocol version",
-            HelperWire.validate(request(HelperWire.COMMAND_VERSION, version = "2")),
+            HelperWire.validate(request(HelperWire.COMMAND_VERSION, version = "3")),
         )
     }
 
@@ -116,7 +116,7 @@ class HelperWireTest {
                 ),
             )
         }
-        for (percent in listOf("80", "85", "100")) {
+        for (percent in listOf("20", "70", "80", "100")) {
             assertNull(
                 HelperWire.validate(
                     request(HelperWire.COMMAND_CHARGE_LIMIT_CONFIGURE, mapOf("percent" to percent)),
@@ -164,7 +164,7 @@ class HelperWireTest {
     fun `an empty payload is left out of the request`() {
         val line = HelperWire.encodeRequest(request(HelperWire.COMMAND_VERSION))
 
-        assertEquals("""{"version":"3","requestId":"r1","command":"version"}""", line)
+        assertEquals("""{"version":"4","requestId":"r1","command":"version"}""", line)
     }
 
     @Test
@@ -174,7 +174,7 @@ class HelperWireTest {
         )
 
         assertEquals(
-            """{"version":"3","requestId":"r1","command":"setDisableSleep","payload":{"disabled":"true"}}""",
+            """{"version":"4","requestId":"r1","command":"setDisableSleep","payload":{"disabled":"true"}}""",
             line,
         )
     }
@@ -206,13 +206,13 @@ class HelperWireTest {
 
     @Test
     fun `a successful reply leaves an empty result out`() {
-        assertEquals("""{"version":"3","requestId":"r","ok":true}""", HelperWire.encodeReply(HelperWire.success("r")))
+        assertEquals("""{"version":"4","requestId":"r","ok":true}""", HelperWire.encodeReply(HelperWire.success("r")))
     }
 
     @Test
     fun `a successful reply keeps a non empty result`() {
         assertEquals(
-            """{"version":"3","requestId":"r","ok":true,"result":{"a":"b"}}""",
+            """{"version":"4","requestId":"r","ok":true,"result":{"a":"b"}}""",
             HelperWire.encodeReply(HelperWire.success("r", mapOf("a" to "b"))),
         )
     }
@@ -220,7 +220,7 @@ class HelperWireTest {
     @Test
     fun `a failure reply carries only the message`() {
         assertEquals(
-            """{"version":"3","requestId":"r","ok":false,"error":"boom"}""",
+            """{"version":"4","requestId":"r","ok":false,"error":"boom"}""",
             HelperWire.encodeReply(HelperWire.failure("r", "boom")),
         )
     }

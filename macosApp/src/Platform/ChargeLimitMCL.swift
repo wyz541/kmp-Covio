@@ -192,8 +192,15 @@ final class ChargeLimitStateStore {
     }
 }
 
+/// helper 使用的 MCL 后端端口。测试注入假实现，不需要 root。
+protocol ChargeLimitBackend: Sendable {
+    func loadState() -> Result<ChargeLimitPersistentState?, ChargeLimitMCLFailure>
+    func apply(targetPercent: Int) -> Result<ChargeLimitPersistentState, ChargeLimitMCLFailure>
+    func restore() -> Result<Void, ChargeLimitMCLFailure>
+}
+
 /// MCL 后端。只做根偏好与状态文件，不接 socket，也不执行当前真机验证。
-final class ChargeLimitMCLController {
+final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
     private let preferences: ChargeLimitPreferenceStore
     private let stateStore: ChargeLimitStateStore
     private let lock = NSLock()

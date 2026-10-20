@@ -2,6 +2,7 @@ package com.wyz.covio.core
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -93,6 +94,50 @@ class HelperWireTest {
                 "mode=$mode 应当通过",
             )
         }
+    }
+
+    @Test
+    fun `charge limit configuration requires a five point limit`() {
+        assertEquals(
+            "Missing charge limit",
+            HelperWire.validate(request(HelperWire.COMMAND_CHARGE_LIMIT_CONFIGURE)),
+        )
+        assertEquals(
+            "Missing charge limit",
+            HelperWire.validate(
+                request(HelperWire.COMMAND_CHARGE_LIMIT_CONFIGURE, mapOf("percent" to "abc")),
+            ),
+        )
+        for (percent in listOf("19", "79", "101")) {
+            assertEquals(
+                "Invalid charge limit",
+                HelperWire.validate(
+                    request(HelperWire.COMMAND_CHARGE_LIMIT_CONFIGURE, mapOf("percent" to percent)),
+                ),
+            )
+        }
+        for (percent in listOf("20", "55", "100")) {
+            assertNull(
+                HelperWire.validate(
+                    request(HelperWire.COMMAND_CHARGE_LIMIT_CONFIGURE, mapOf("percent" to percent)),
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `charge limit status and restore need no payload`() {
+        assertNull(HelperWire.validate(request(HelperWire.COMMAND_CHARGE_LIMIT_STATUS)))
+        assertNull(HelperWire.validate(request(HelperWire.COMMAND_CHARGE_LIMIT_RESTORE)))
+    }
+
+    @Test
+    fun `only charge commands require client signature verification`() {
+        assertTrue(HelperWire.isChargeLimitCommand(HelperWire.COMMAND_CHARGE_LIMIT_STATUS))
+        assertTrue(HelperWire.isChargeLimitCommand(HelperWire.COMMAND_CHARGE_LIMIT_CONFIGURE))
+        assertTrue(HelperWire.isChargeLimitCommand(HelperWire.COMMAND_CHARGE_LIMIT_RESTORE))
+        assertFalse(HelperWire.isChargeLimitCommand(HelperWire.COMMAND_VERSION))
+        assertFalse(HelperWire.isChargeLimitCommand(HelperWire.COMMAND_SET_DISABLE_SLEEP))
     }
 
     /**
@@ -293,9 +338,16 @@ class HelperWireTest {
     // MARK: 协议值
 
     @Test
-    fun `the allow list is exactly the three commands the wire knows`() {
+    fun `the allow list is exactly the commands the wire knows`() {
         assertEquals(
-            setOf(HelperWire.COMMAND_VERSION, HelperWire.COMMAND_SET_DISABLE_SLEEP, HelperWire.COMMAND_SET_HIBERNATE_MODE),
+            setOf(
+                HelperWire.COMMAND_VERSION,
+                HelperWire.COMMAND_SET_DISABLE_SLEEP,
+                HelperWire.COMMAND_SET_HIBERNATE_MODE,
+                HelperWire.COMMAND_CHARGE_LIMIT_STATUS,
+                HelperWire.COMMAND_CHARGE_LIMIT_CONFIGURE,
+                HelperWire.COMMAND_CHARGE_LIMIT_RESTORE,
+            ),
             HELPER_ALLOWED_COMMANDS,
         )
     }

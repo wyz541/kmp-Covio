@@ -30,6 +30,9 @@ const val HELPER_DIRECTORY = "/Library/Application Support/Covio"
 /** 记录允许连接的 uid。安装时写入当前用户。 */
 const val HELPER_ALLOWED_UID_PATH = "$HELPER_DIRECTORY/allowed_uid"
 
+/** 记录允许执行充电控制命令的客户端代码签名 requirement。 */
+const val HELPER_CLIENT_REQUIREMENT_PATH = "$HELPER_DIRECTORY/client-requirement"
+
 /** 记录 helper 的版本。客户端用它判断是否需要重装。 */
 const val HELPER_VERSION_PATH = "$HELPER_DIRECTORY/version"
 
@@ -51,4 +54,11 @@ const val HELPER_LAUNCH_DAEMON_LABEL = "com.wyz.covio.helper"
  * 白名单而不是黑名单：新命令必须显式加进来，忘记加的表现是拒绝，
  * 而不是放行一条没想过的命令。
  */
-val HELPER_ALLOWED_COMMANDS: Set<String> = setOf("version", "setDisableSleep", "setHibernateMode")
+val HELPER_ALLOWED_COMMANDS: Set<String> = setOf(
+    "version",
+    "setDisableSleep",
+    "setHibernateMode",
+    "chargeLimitStatus",
+    "chargeLimitConfigure",
+    "chargeLimitRestore",
+)

@@ -19,6 +19,7 @@ enum HelperProtocol {
     static var socketPath: String { HelperContractKt.HELPER_SOCKET_PATH }
     static var helperDirectory: String { HelperContractKt.HELPER_DIRECTORY }
     static var allowedUidPath: String { HelperContractKt.HELPER_ALLOWED_UID_PATH }
+    static var clientRequirementPath: String { HelperContractKt.HELPER_CLIENT_REQUIREMENT_PATH }
     static var versionPath: String { HelperContractKt.HELPER_VERSION_PATH }
     static var appPathFile: String { HelperContractKt.HELPER_APP_PATH_FILE }
     static var logPath: String { HelperContractKt.HELPER_LOG_PATH }

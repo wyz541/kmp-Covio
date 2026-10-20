@@ -94,6 +94,31 @@ class HelperInstallScriptTest {
         assertTrue(lines.contains("chmod 0644 '$HELPER_PLIST_PATH'"))
     }
 
+    @Test
+    fun `the install script stores the client signature requirement`() {
+        val requirement = "identifier \"com.wyz.covio\" and certificate root = H\"abc\""
+        val script = HelperInstallScript.installScript(
+            executablePath,
+            uid,
+            APP_VERSION,
+            clientRequirement = requirement,
+        )
+
+        assertTrue(
+            script.contains("printf '%s\\n' '$requirement' > '$HELPER_CLIENT_REQUIREMENT_PATH'"),
+        )
+        assertTrue(script.contains("chown root:wheel '$HELPER_CLIENT_REQUIREMENT_PATH'"))
+        assertTrue(script.contains("chmod 0644 '$HELPER_CLIENT_REQUIREMENT_PATH'"))
+        assertFalse(script.contains("rm -f '$HELPER_CLIENT_REQUIREMENT_PATH'"))
+    }
+
+    @Test
+    fun `the install script removes a stale client requirement`() {
+        val script = HelperInstallScript.installScript(executablePath, uid, APP_VERSION)
+
+        assertTrue(script.contains("rm -f '$HELPER_CLIENT_REQUIREMENT_PATH'"))
+    }
+
     /** 先 bootout 再 bootstrap，否则旧版 helper 会一直占着 socket。 */
     @Test
     fun `the install script boots the old daemon out before bootstrapping`() {

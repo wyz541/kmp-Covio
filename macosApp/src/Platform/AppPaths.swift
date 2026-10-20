@@ -39,6 +39,13 @@ enum AppPaths {
         supportDirectory.appendingPathComponent("config.json")
     }
 
+    /// 电源事件历史。固定上限，原子写入。
+    static var powerHistoryFile: URL {
+        supportDirectory
+            .appendingPathComponent("Power", isDirectory: true)
+            .appendingPathComponent("history.json")
+    }
+
     /// 工作台配置。工作区顺序与首页组件都在这里。
     ///
     /// 权威在 `kmpDomain` 的 `WorkbenchStore.defaultWorkbenchPath()`，这里跟着它走。

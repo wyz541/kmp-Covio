@@ -421,17 +421,120 @@ struct PowerManagementView: View {
                     .foregroundStyle(MacTheme.textSecondary)
             }
 
-            HStack(spacing: MacTheme.space2) {
-                Image(systemName: "tray")
-                    .font(.system(size: 15))
-                    .foregroundStyle(.tertiary)
-                Text(ContractCopy.copyPowerHistoryNoEvents.text(for: language))
-                    .font(.system(size: 12))
-                    .foregroundStyle(MacTheme.textSecondary)
+            if model.recentHistory.isEmpty {
+                HStack(spacing: MacTheme.space2) {
+                    Image(systemName: "tray")
+                        .font(.system(size: 15))
+                        .foregroundStyle(.tertiary)
+                    Text(ContractCopy.copyPowerHistoryNoEvents.text(for: language))
+                        .font(.system(size: 12))
+                        .foregroundStyle(MacTheme.textSecondary)
+                }
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .center)
+                .background(
+                    MacTheme.elevated,
+                    in: RoundedRectangle(cornerRadius: MacTheme.compactRadius, style: .continuous)
+                )
+                .accessibilityElement(children: .combine)
+            } else {
+                LazyVStack(spacing: MacTheme.space1) {
+                    ForEach(model.recentHistory, id: \.id) { event in
+                        historyRow(event)
+                    }
+                }
             }
-            .frame(maxWidth: .infinity, minHeight: 44, alignment: .center)
-            .background(MacTheme.elevated, in: RoundedRectangle(cornerRadius: MacTheme.compactRadius, style: .continuous))
-            .accessibilityElement(children: .combine)
+        }
+    }
+
+    private func historyRow(_ event: PowerHistoryEvent) -> some View {
+        HStack(alignment: .center, spacing: MacTheme.space2) {
+            Text(Self.historyTime.string(
+                from: Date(timeIntervalSince1970: TimeInterval(event.atEpochSeconds))
+            ))
+            .font(.system(size: 10, weight: .medium, design: .monospaced))
+            .foregroundStyle(MacTheme.textSecondary)
+            .frame(width: 42, alignment: .leading)
+            Image(systemName: historySymbol(event.kind))
+                .font(.system(size: 11))
+                .foregroundStyle(historyColor(event.kind))
+                .frame(width: 16)
+            Text(historyTitle(event.kind))
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(MacTheme.textPrimary)
+            Spacer(minLength: MacTheme.space2)
+            if let detail = historyDetail(event) {
+                Text(detail)
+                    .font(.system(size: 10))
+                    .foregroundStyle(MacTheme.textSecondary)
+                    .lineLimit(1)
+            }
+        }
+        .padding(.horizontal, MacTheme.space2)
+        .frame(minHeight: 30)
+        .background(
+            MacTheme.elevated,
+            in: RoundedRectangle(cornerRadius: MacTheme.smallRadius, style: .continuous)
+        )
+        .accessibilityElement(children: .combine)
+    }
+
+    private func historyTitle(_ kind: PowerHistoryKind) -> String {
+        switch kind {
+        case .adapterConnected:
+            ContractCopy.copyPowerHistoryAdapterConnected.text(for: language)
+        case .adapterDisconnected:
+            ContractCopy.copyPowerHistoryAdapterDisconnected.text(for: language)
+        case .slept:
+            ContractCopy.copyPowerHistorySlept.text(for: language)
+        case .darkWake, .fullWake:
+            ContractCopy.copyPowerHistoryWoke.text(for: language)
+        case .holdStarted:
+            ContractCopy.copyPowerHistoryHoldStarted.text(for: language)
+        case .guardReleased:
+            ContractCopy.copyPowerHistoryGuardReleased.text(for: language)
+        case .externalConflict:
+            ContractCopy.copyPowerAlertExternalConflict.text(for: language)
+        case .externalConflictCleared:
+            ContractCopy.copyPowerHistoryExternalConflictCleared.text(for: language)
+        default:
+            ContractCopy.copyStateWarning.text(for: language)
+        }
+    }
+
+    private func historyDetail(_ event: PowerHistoryEvent) -> String? {
+        let type: String? = switch event.kind {
+        case .darkWake: "DarkWake"
+        case .fullWake: "Full wake"
+        default: nil
+        }
+        let detail = event.detail.trimmingCharacters(in: .whitespacesAndNewlines)
+        return switch (type, detail.isEmpty) {
+        case let (type?, false): "\(type) · \(detail)"
+        case let (type?, true): type
+        case (nil, false): detail
+        case (nil, true): nil
+        }
+    }
+
+    private func historySymbol(_ kind: PowerHistoryKind) -> String {
+        switch kind {
+        case .adapterConnected, .adapterDisconnected: "powerplug.fill"
+        case .slept: "moon.fill"
+        case .darkWake: "moon.haze.fill"
+        case .fullWake: "sun.max.fill"
+        case .holdStarted: "cup.and.saucer.fill"
+        case .guardReleased: "shield.slash.fill"
+        case .externalConflict: "exclamationmark.triangle.fill"
+        case .externalConflictCleared: "checkmark.shield.fill"
+        default: "circle.fill"
+        }
+    }
+
+    private func historyColor(_ kind: PowerHistoryKind) -> Color {
+        switch kind {
+        case .guardReleased, .externalConflict: MacTheme.warningText
+        case .fullWake, .externalConflictCleared: MacTheme.successText
+        default: MacTheme.textSecondary
         }
     }
 
@@ -582,6 +685,12 @@ struct PowerManagementView: View {
     }
 
     private static let timeCapOptions = [30, 60, 120, 240, 480, 1_440]
+
+    private static let historyTime: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
 }
 
 private struct PowerReason: Identifiable {
@@ -612,6 +721,7 @@ protocol PowerManagementModel: AnyObject {
     var hasManualSession: Bool { get }
     var sessionMode: PowerRuntime.SessionMode? { get }
     var remainingSeconds: Int64? { get }
+    var recentHistory: [PowerHistoryEvent] { get }
     var appState: AppState { get }
     var statusMessage: String? { get }
     var busy: Bool { get }
@@ -639,6 +749,7 @@ extension AppRuntime: PowerManagementModel {
     var hasManualSession: Bool { powerRuntime.hasManualSession }
     var sessionMode: PowerRuntime.SessionMode? { powerRuntime.sessionMode }
     var remainingSeconds: Int64? { powerRuntime.remainingSeconds }
+    var recentHistory: [PowerHistoryEvent] { powerRuntime.recentHistory }
 
     func startSession(mode: PowerRuntime.SessionMode, duration: PowerRuntime.SessionDuration) -> Bool {
         powerRuntime.startSession(mode: mode, duration: duration)

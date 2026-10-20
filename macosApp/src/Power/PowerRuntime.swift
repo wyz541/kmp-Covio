@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import SwiftUI
 import kmpDomain
@@ -52,10 +53,13 @@ final class PowerRuntime {
     private(set) var helperStatus: HelperStatus = .notInstalled
     private(set) var executionError: String?
     private(set) var leases: [HoldLease] = []
+    private(set) var history: [PowerHistoryEvent] = []
+    private(set) var recentHistory: [PowerHistoryEvent] = []
 
     private let engine: Engine
     private let privileged: PrivilegedOps
     private let observationSource: PowerObservationSource
+    private let historyStore: PowerHistoryStore
     private let nowEpochSeconds: () -> Int64
     private var started = false
     private var batteryGuardLatched = false
@@ -64,11 +68,21 @@ final class PowerRuntime {
     private var appliedSystem = false
     private var appliedDisplay = false
     private var appliedLid = false
+    private var historyObservers: [NSObjectProtocol] = []
+    private var historyInitialized = false
+    private var previousDecision: PowerDecision
+    private var lastConflict = false
+    private var lastWakeObservationAt: Int64?
+    private var lastWakeObservationKind: WakeKind?
+    private var lastRecordedWakeAt: Int64?
+    private var lastSleepAt: Int64?
+    private var wakeFallbackTask: Task<Void, Never>?
 
     init(
         engine: Engine,
         privileged: PrivilegedOps,
         observationSource: PowerObservationSource,
+        historyStore: PowerHistoryStore,
         config: PowerConfig,
         nowEpochSeconds: @escaping () -> Int64 = {
             Int64(Date().timeIntervalSince1970)
@@ -77,6 +91,7 @@ final class PowerRuntime {
         self.engine = engine
         self.privileged = privileged
         self.observationSource = observationSource
+        self.historyStore = historyStore
         self.config = config.normalized()
         self.nowEpochSeconds = nowEpochSeconds
         let emptyObservation = PowerObservation(
@@ -104,7 +119,7 @@ final class PowerRuntime {
             expiresAtEpochSeconds: nil,
             error: nil
         )
-        decision = PowerDecision(
+        let initialDecision = PowerDecision(
             preventUserIdleSystemSleep: false,
             preventUserIdleDisplaySleep: false,
             preventLidSleep: false,
@@ -114,6 +129,8 @@ final class PowerRuntime {
             safetyVetoes: [],
             batteryGuardLatched: false
         )
+        decision = initialDecision
+        previousDecision = initialDecision
     }
 
     var isRunning: Bool { started }
@@ -149,7 +166,13 @@ final class PowerRuntime {
 
     func start() {
         guard !started else { return }
+        let now = nowEpochSeconds()
         started = true
+        loadHistory(nowEpochSeconds: now)
+        let wake = engine.currentState.darkWake
+        lastWakeObservationAt = wake.lastAtEpochSeconds?.int64Value
+        lastWakeObservationKind = wake.lastKind
+        installHistoryObservers()
         observationSource.subscribe { [weak self] in
             Task { @MainActor in self?.refresh() }
         }
@@ -160,6 +183,12 @@ final class PowerRuntime {
         guard started else { return }
         started = false
         observationSource.stop()
+        for observer in historyObservers {
+            NSWorkspace.shared.notificationCenter.removeObserver(observer)
+        }
+        historyObservers.removeAll(keepingCapacity: true)
+        wakeFallbackTask?.cancel()
+        wakeFallbackTask = nil
         leases.removeAll(keepingCapacity: true)
         _ = engine.replacePowerLeases(leases: [])
         _ = engine.setPowerLidHold(required: false)
@@ -205,7 +234,11 @@ final class PowerRuntime {
         case .display: decision.preventUserIdleDisplaySleep
         case .lid: decision.preventLidSleep
         }
-        return executionError == nil && acted
+        let success = executionError == nil && acted
+        if success {
+            recordHistory(.holdStarted, detail: sessionModeHistoryDetail(mode), at: now)
+        }
+        return success
     }
 
     func endSession() {
@@ -216,6 +249,7 @@ final class PowerRuntime {
 
     func refresh() {
         guard started else { return }
+        let previousObservation = historyInitialized ? observation : nil
         observation = observationSource.read()
         let now = nowEpochSeconds()
         if now - lastHelperRefreshEpochSeconds >= 5 {
@@ -229,7 +263,16 @@ final class PowerRuntime {
             sleepDisabled: latestLidStatus.sleepDisabled,
             covioOwnsSleepDisabled: latestLidStatus.covioOwned
         )
+        recordObservationHistory(previous: previousObservation, at: now)
 
+        let closedLidCapReleased = leases.contains { lease in
+            lease.level == .closedLid &&
+                (lease.expiresAtEpochSeconds?.int64Value ?? Int64.max) > now &&
+                lease.createdAtEpochSeconds + Int64(config.closedLidTimeCapMinutes) * 60 <= now
+        }
+        if closedLidCapReleased {
+            recordHistory(.guardReleased, detail: "closed-lid-time-cap", at: now)
+        }
         leases.removeAll { lease in
             if let expiry = lease.expiresAtEpochSeconds, expiry.int64Value <= now { return true }
             if lease.level == .closedLid {
@@ -247,6 +290,7 @@ final class PowerRuntime {
             paused: false,
             batteryGuardLatched: batteryGuardLatched
         )
+        recordGuardHistory(nextDecision, at: now)
         if containsReleaseVeto(nextDecision.safetyVetoes) {
             leases.removeAll(keepingCapacity: true)
             nextDecision = PowerPolicy.shared.decide(
@@ -258,15 +302,173 @@ final class PowerRuntime {
                 batteryGuardLatched: batteryGuardLatched
             )
         }
+        if nextDecision.automaticRuleApplied && !previousDecision.automaticRuleApplied {
+            recordHistory(.holdStarted, detail: "automatic", at: now)
+        }
+        previousDecision = nextDecision
         decision = nextDecision
 
         apply(decision)
+        recordWakeHistory(at: now)
         if let lidError = latestLidStatus.error, !lidError.isEmpty {
             executionError = lidError
         } else if engine.currentState.lastError == nil {
             executionError = nil
         } else {
             executionError = engine.currentState.lastError
+        }
+    }
+
+    /// 由 Sleep watcher 或测试调用。系统将要睡眠时记录一条事件。
+    func recordSystemSleep() {
+        guard started else { return }
+        let now = nowEpochSeconds()
+        if let lastSleepAt, now - lastSleepAt < 5 { return }
+        lastSleepAt = now
+        recordHistory(.slept, detail: "", at: now)
+    }
+
+    private func installHistoryObservers() {
+        let center = NSWorkspace.shared.notificationCenter
+        historyObservers = [
+            center.addObserver(
+                forName: NSWorkspace.willSleepNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor in self?.recordSystemSleep() }
+            },
+            center.addObserver(
+                forName: NSWorkspace.didWakeNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor in self?.scheduleWakeFallback() }
+            },
+        ]
+    }
+
+    private func scheduleWakeFallback() {
+        guard started else { return }
+        wakeFallbackTask?.cancel()
+        let sleepAt = lastSleepAt
+        wakeFallbackTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled, let self else { return }
+            let wakeRecorded = self.lastRecordedWakeAt.map { value in
+                sleepAt.map { value > $0 } ?? true
+            } ?? false
+            if !wakeRecorded {
+                let now = self.nowEpochSeconds()
+                self.recordHistory(.fullWake, detail: "", at: now)
+                self.lastRecordedWakeAt = now
+            }
+        }
+    }
+
+    private func loadHistory(nowEpochSeconds: Int64) {
+        let state = historyStore.load(nowEpochSeconds: nowEpochSeconds)
+        history = state.events
+        recentHistory = PowerHistoryLogic.shared.recent(
+            events: state.events,
+            nowEpochSeconds: nowEpochSeconds,
+            windowSeconds: 86_400
+        )
+    }
+
+    private func recordObservationHistory(previous: PowerObservation?, at now: Int64) {
+        defer { historyInitialized = true }
+        if let previous,
+           let wasOnAdapter = adapterConnection(previous.powerState),
+           let isOnAdapter = adapterConnection(observation.powerState),
+           wasOnAdapter != isOnAdapter {
+            recordHistory(
+                wasOnAdapter ? .adapterDisconnected : .adapterConnected,
+                detail: "",
+                at: now
+            )
+        }
+        let conflict = snapshot.sleepDisabled?.boolValue == true &&
+            snapshot.covioOwnsSleepDisabled?.boolValue != true
+        if conflict && !lastConflict {
+            recordHistory(.externalConflict, detail: "", at: now)
+        } else if !conflict && lastConflict {
+            recordHistory(.externalConflictCleared, detail: "", at: now)
+        }
+        lastConflict = conflict
+    }
+
+    private func adapterConnection(_ state: PowerState) -> Bool? {
+        switch state {
+        case .charging, .charged, .acPower: true
+        case .discharging: false
+        case .unknown: nil
+        default: nil
+        }
+    }
+
+    private func recordGuardHistory(_ decision: PowerDecision, at now: Int64) {
+        let previousVetoes = previousDecision.safetyVetoes
+        for veto in decision.safetyVetoes where containsReleaseVeto([veto]) && !previousVetoes.contains(veto) {
+            recordHistory(.guardReleased, detail: vetoHistoryDetail(veto), at: now)
+        }
+    }
+
+    private func recordWakeHistory(at now: Int64) {
+        let status = engine.currentState.darkWake
+        guard let at = status.lastAtEpochSeconds?.int64Value,
+              at >= now - 5,
+              at != lastWakeObservationAt || status.lastKind != lastWakeObservationKind
+        else { return }
+        lastWakeObservationAt = at
+        lastWakeObservationKind = status.lastKind
+        switch status.lastKind {
+        case .dark:
+            recordHistory(.darkWake, detail: status.lastReason ?? "", at: at)
+            lastRecordedWakeAt = at
+        case .full:
+            recordHistory(.fullWake, detail: status.lastReason ?? "", at: at)
+            lastRecordedWakeAt = at
+        case nil:
+            break
+        default:
+            break
+        }
+    }
+
+    private func recordHistory(_ kind: PowerHistoryKind, detail: String, at epochSeconds: Int64) {
+        let event = PowerHistoryEvent(
+            id: UUID().uuidString,
+            kind: kind,
+            atEpochSeconds: epochSeconds,
+            detail: detail
+        )
+        guard let state = historyStore.append(event: event, nowEpochSeconds: epochSeconds) else {
+            return
+        }
+        history = state.events
+        recentHistory = PowerHistoryLogic.shared.recent(
+            events: state.events,
+            nowEpochSeconds: epochSeconds,
+            windowSeconds: 86_400
+        )
+    }
+
+    private func sessionModeHistoryDetail(_ mode: SessionMode) -> String {
+        switch mode {
+        case .system: "system"
+        case .display: "display"
+        case .lid: "lid"
+        }
+    }
+
+    private func vetoHistoryDetail(_ veto: SafetyVeto) -> String {
+        switch veto {
+        case .batteryFloor: "battery-floor"
+        case .thermalSerious: "thermal-serious"
+        case .thermalCritical: "thermal-critical"
+        case .lowPowerMode: "low-power-mode"
+        default: "safety-veto"
         }
     }
 

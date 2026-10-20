@@ -23,6 +23,7 @@ class EngineTest {
         assertEquals(1, reads)
         assertTrue(fixture.engine.currentState.darkWake.available)
         assertEquals(1_000L, fixture.engine.currentState.darkWake.lastAtEpochSeconds)
+        assertEquals(WakeKind.DARK, fixture.engine.currentState.darkWake.lastKind)
         assertEquals("RTC", fixture.engine.currentState.darkWake.lastReason)
         assertEquals(1, fixture.engine.currentState.darkWake.count24h)
     }

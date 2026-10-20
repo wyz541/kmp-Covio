@@ -297,6 +297,7 @@ final class FakePrivilegedOps: NSObject, PrivilegedOps {
     var installed = false
     var disableSleepResult = true
     var sleepDisabled = false
+    var covioOwned: Bool?
     var disableSleepValues: [Bool] = []
 
     func isInstalled() -> Bool { installed }
@@ -324,7 +325,7 @@ final class FakePrivilegedOps: NSObject, PrivilegedOps {
             available: installed,
             protocolVersion: installed ? HelperProtocol.protocolVersion : nil,
             sleepDisabled: KotlinBoolean(bool: sleepDisabled),
-            covioOwned: KotlinBoolean(bool: sleepDisabled),
+            covioOwned: KotlinBoolean(bool: covioOwned ?? sleepDisabled),
             activeLeaseCount: sleepDisabled ? 1 : 0,
             expiresAtEpochSeconds: sleepDisabled ? KotlinLong(longLong: Int64.max) : nil,
             error: nil

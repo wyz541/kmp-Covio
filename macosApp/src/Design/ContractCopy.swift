@@ -591,6 +591,8 @@ enum ContractCopy {
     static let copyPowerHistoryAdapterConnected = LocalizedCopy(key: "copy/power/history/adapter-connected", en: "Power adapter connected", zhHans: "已接通电源")
     /// `copy/power/history/adapter-disconnected`
     static let copyPowerHistoryAdapterDisconnected = LocalizedCopy(key: "copy/power/history/adapter-disconnected", en: "Power adapter disconnected", zhHans: "已断开电源")
+    /// `copy/power/history/external-conflict-cleared`
+    static let copyPowerHistoryExternalConflictCleared = LocalizedCopy(key: "copy/power/history/external-conflict-cleared", en: "External sleep setting recovered", zhHans: "外部睡眠设置已恢复")
     /// `copy/power/history/guard-released`
     static let copyPowerHistoryGuardReleased = LocalizedCopy(key: "copy/power/history/guard-released", en: "Heat guard released the hold", zhHans: "温度保护已释放保持唤醒")
     /// `copy/power/history/hold-started`
@@ -1111,6 +1113,7 @@ enum ContractCopy {
         copyPowerAlertThermal,
         copyPowerHistoryAdapterConnected,
         copyPowerHistoryAdapterDisconnected,
+        copyPowerHistoryExternalConflictCleared,
         copyPowerHistoryGuardReleased,
         copyPowerHistoryHoldStarted,
         copyPowerHistoryNoEvents,

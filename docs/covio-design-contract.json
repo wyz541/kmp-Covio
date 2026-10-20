@@ -5421,6 +5421,10 @@
       "en": "Heat guard released the hold",
       "zh-Hans": "温度保护已释放保持唤醒"
     },
+    "copy/power/history/external-conflict-cleared": {
+      "en": "External sleep setting recovered",
+      "zh-Hans": "外部睡眠设置已恢复"
+    },
     "copy/power/history/no-events": {
       "en": "No recent events",
       "zh-Hans": "最近没有事件"

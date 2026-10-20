@@ -65,6 +65,7 @@ final class PowerPreviewModel: PowerManagementModel {
     var hasManualSession = true
     var sessionMode: PowerRuntime.SessionMode? = .lid
     var remainingSeconds: Int64? = 2_700
+    var recentHistory: [PowerHistoryEvent] = []
     var appState: AppState = AppRuntime.initialState(enabled: true)
     var statusMessage: String?
     var busy = false
@@ -108,6 +109,27 @@ final class PowerPreviewModel: PowerManagementModel {
             safetyVetoes: [],
             batteryGuardLatched: false
         )
+        let now = Int64(Date().timeIntervalSince1970)
+        recentHistory = [
+            PowerHistoryEvent(
+                id: "preview-adapter",
+                kind: .adapterConnected,
+                atEpochSeconds: now - 60,
+                detail: ""
+            ),
+            PowerHistoryEvent(
+                id: "preview-hold",
+                kind: .holdStarted,
+                atEpochSeconds: now - 180,
+                detail: "lid"
+            ),
+            PowerHistoryEvent(
+                id: "preview-wake",
+                kind: .fullWake,
+                atEpochSeconds: now - 600,
+                detail: "UserActivity"
+            ),
+        ]
     }
 
     func setPowerEnabled(_ enabled: Bool) { powerConfig = copyPower(enabled: enabled) }

@@ -231,7 +231,7 @@ final class MonitorMetricsTests: XCTestCase {
     }
 
     func testDetailLayoutCropsFromLastPriority() {
-        let full = MonitorPowerDetailLayoutPolicy.resolve(height: 760)
+        let full = MonitorPowerDetailLayoutPolicy.resolve(height: 800)
         XCTAssertTrue(full.showsTopApps)
         XCTAssertTrue(full.showsHistory)
         XCTAssertTrue(full.showsEstimate)

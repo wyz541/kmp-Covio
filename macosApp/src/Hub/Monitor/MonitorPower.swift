@@ -362,7 +362,7 @@ struct MonitorPowerEventHistory: Equatable, Sendable {
 ///
 /// 高度不足时从 P4 向 P0 顺序隐藏。P0 始终保留。
 enum MonitorPowerDetailLayoutPolicy {
-    static let fullHeight: CGFloat = 760
+    static let fullHeight: CGFloat = 800
     static let withoutEventsHeight: CGFloat = 660
     static let withoutChargingHeight: CGFloat = 560
     static let withoutEstimateHeight: CGFloat = 430

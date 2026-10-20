@@ -14,7 +14,14 @@ enum HelperInstaller {
     /// - Parameter executablePath: 应用可执行文件的绝对路径。
     ///   它写进 plist 的 `ProgramArguments[0]`，也是 helper 进程自己的路径。
     static func install(executablePath: String, logger: (String) -> Void = { _ in }) -> Bool {
-        let script = installScript(executablePath: executablePath)
+        let requirement = HelperSignature.currentRequirement()
+        if requirement == nil {
+            logger("Cannot determine the client signature requirement; charge control will stay unavailable.")
+        }
+        let script = installScript(
+            executablePath: executablePath,
+            clientRequirement: requirement
+        )
         logger("Installing privileged helper")
         return runWithAdministrator(script)
     }
@@ -27,16 +34,18 @@ enum HelperInstaller {
 
     /// 安装脚本。可单独测试，不需要管理员权限。
     ///
-    /// 三个参数都显式传给共享层：Kotlin 的默认参数值不导出到 Swift。
+    /// 四个参数都显式传给共享层：Kotlin 的默认参数值不导出到 Swift。
     static func installScript(
         executablePath: String,
         uid: String = currentUid(),
-        version: String = ModelsKt.APP_VERSION
+        version: String = ModelsKt.APP_VERSION,
+        clientRequirement: String? = nil
     ) -> String {
         HelperInstallScript.shared.installScript(
             executablePath: executablePath,
             uid: uid,
-            version: version
+            version: version,
+            clientRequirement: clientRequirement
         )
     }
 

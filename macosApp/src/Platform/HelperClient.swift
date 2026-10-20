@@ -46,6 +46,37 @@ final class HelperClient {
         request(command: "setHibernateMode", payload: ["mode": String(mode)])?.ok == true
     }
 
+    func chargeLimitStatus() -> ChargeLimitHelperStatus? {
+        guard let reply = request(command: "chargeLimitStatus"), reply.ok,
+              let enabled = reply.result?["enabled"].flatMap(Bool.init)
+        else {
+            return nil
+        }
+        return ChargeLimitHelperStatus(
+            enabled: enabled,
+            userLimitPercent: reply.result?["userLimitPercent"].flatMap(Int.init),
+            targetPercent: reply.result?["targetPercent"].flatMap(Int.init),
+            chargingLatch: reply.result?["chargingLatch"].flatMap(Bool.init) ?? false,
+            phase: reply.result?["phase"] ?? "unknown",
+            bypassEngaged: reply.result?["bypassEngaged"].flatMap(Bool.init) ?? false,
+            originalFeatureState: reply.result?["originalFeatureState"].flatMap(Int.init),
+            originalLimitPercent: reply.result?["originalLimitPercent"].flatMap(Int.init),
+            originalOptimizedChargingEnabled: reply.result?["originalOptimizedChargingEnabled"]
+                .flatMap(Bool.init)
+        )
+    }
+
+    func setChargeLimit(percent: Int) -> Bool {
+        request(
+            command: "chargeLimitConfigure",
+            payload: ["percent": String(percent)]
+        )?.ok == true
+    }
+
+    func restoreChargeLimit() -> Bool {
+        request(command: "chargeLimitRestore")?.ok == true
+    }
+
     // MARK: - 私有
 
     private func transact(_ line: String) -> HelperReply? {
@@ -87,6 +118,19 @@ final class HelperClient {
         }
         return descriptor
     }
+}
+
+/// `HelperClient.chargeLimitStatus()` 解析后的结果。
+struct ChargeLimitHelperStatus: Equatable {
+    let enabled: Bool
+    let userLimitPercent: Int?
+    let targetPercent: Int?
+    let chargingLatch: Bool
+    let phase: String
+    let bypassEngaged: Bool
+    let originalFeatureState: Int?
+    let originalLimitPercent: Int?
+    let originalOptimizedChargingEnabled: Bool?
 }
 
 /// `sockaddr_un` 的构造与长度计算集中在这里，调用方不用碰 C 指针。

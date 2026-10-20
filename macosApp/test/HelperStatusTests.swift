@@ -95,7 +95,11 @@ final class HelperStatusTests: XCTestCase {
         let status = try XCTUnwrap(client.chargeLimitStatus())
 
         XCTAssertTrue(status.enabled)
+        XCTAssertEqual(status.userLimitPercent, 55)
         XCTAssertEqual(status.targetPercent, 55)
+        XCTAssertTrue(status.chargingLatch)
+        XCTAssertEqual(status.phase, "charging")
+        XCTAssertFalse(status.bypassEngaged)
         XCTAssertEqual(status.originalFeatureState, 0)
         XCTAssertEqual(status.originalLimitPercent, 80)
         XCTAssertEqual(helper.commands.last, "chargeLimitStatus")
@@ -196,7 +200,11 @@ private final class FakeHelper {
                     requestId: request.requestId,
                     result: [
                         "enabled": "true",
+                        "userLimitPercent": "55",
                         "targetPercent": "55",
+                        "chargingLatch": "true",
+                        "phase": "charging",
+                        "bypassEngaged": "false",
                         "originalFeatureState": "0",
                         "originalLimitPercent": "80",
                     ]

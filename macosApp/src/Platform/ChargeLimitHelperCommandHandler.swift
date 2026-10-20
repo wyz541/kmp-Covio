@@ -1,14 +1,14 @@
 import Foundation
 import kmpDomain
 
-/// 把 helper 线上命令转成 MCL 后端动作。
+/// 把 helper 线上命令转成持续策略动作。
 ///
 /// 调用方签名由 socket 层先校验。这里只做命令解析、范围检查和结果编码。
 final class ChargeLimitHelperCommandHandler: @unchecked Sendable {
-    private let backend: ChargeLimitBackend
+    private let runtime: ChargeLimitRuntimeControlling
 
-    init(backend: ChargeLimitBackend) {
-        self.backend = backend
+    init(runtime: ChargeLimitRuntimeControlling) {
+        self.runtime = runtime
     }
 
     /// 不是充电命令时返回 nil，交给现有 helper 分支处理。
@@ -32,27 +32,17 @@ final class ChargeLimitHelperCommandHandler: @unchecked Sendable {
     }
 
     private func statusReply(requestId: String) -> HelperReply {
-        switch backend.loadState() {
-        case .success(nil):
+        switch runtime.status() {
+        case .success(let status) where status.phase == "off" && status.userLimitPercent == 0:
             return HelperWire.shared.success(
                 requestId: requestId,
                 result: ["enabled": "false"]
             )
-        case .success(let state?):
-            var result = [
-                "enabled": "true",
-                "targetPercent": String(state.targetPercent),
-            ]
-            if let originalState = state.original.featureState {
-                result["originalFeatureState"] = String(originalState)
-            }
-            if let originalLimit = state.original.limitPercent {
-                result["originalLimitPercent"] = String(originalLimit)
-            }
-            if let originalOptimizedCharging = state.original.optimizedChargingEnabled {
-                result["originalOptimizedChargingEnabled"] = String(originalOptimizedCharging)
-            }
-            return HelperWire.shared.success(requestId: requestId, result: result)
+        case .success(let status):
+            return HelperWire.shared.success(
+                requestId: requestId,
+                result: resultMap(status)
+            )
         case .failure(let failure):
             return HelperWire.shared.failure(
                 requestId: requestId,
@@ -62,11 +52,11 @@ final class ChargeLimitHelperCommandHandler: @unchecked Sendable {
     }
 
     private func configureReply(requestId: String, percent: Int) -> HelperReply {
-        switch backend.apply(targetPercent: percent) {
-        case .success(let state):
+        switch runtime.configure(userLimitPercent: percent) {
+        case .success(let status):
             return HelperWire.shared.success(
                 requestId: requestId,
-                result: ["targetPercent": String(state.targetPercent)]
+                result: resultMap(status)
             )
         case .failure(let failure):
             return HelperWire.shared.failure(
@@ -77,7 +67,7 @@ final class ChargeLimitHelperCommandHandler: @unchecked Sendable {
     }
 
     private func restoreReply(requestId: String) -> HelperReply {
-        switch backend.restore() {
+        switch runtime.restore() {
         case .success:
             return HelperWire.shared.success(requestId: requestId, result: [:])
         case .failure(let failure):
@@ -86,5 +76,30 @@ final class ChargeLimitHelperCommandHandler: @unchecked Sendable {
                 message: failure.description
             )
         }
+    }
+
+    private func resultMap(_ status: ChargeLimitRuntimeStatus) -> [String: String] {
+        var result = [
+            "enabled": "true",
+            "userLimitPercent": String(status.userLimitPercent),
+            "chargingLatch": String(status.chargingLatch),
+            "phase": status.phase,
+            "bypassEngaged": String(status.bypassEngaged),
+        ]
+        if let target = status.effectiveTargetPercent {
+            result["targetPercent"] = String(target)
+        }
+        if let original = status.original {
+            if let featureState = original.featureState {
+                result["originalFeatureState"] = String(featureState)
+            }
+            if let limit = original.limitPercent {
+                result["originalLimitPercent"] = String(limit)
+            }
+            if let optimized = original.optimizedChargingEnabled {
+                result["originalOptimizedChargingEnabled"] = String(optimized)
+            }
+        }
+        return result
     }
 }

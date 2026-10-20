@@ -22,6 +22,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // LSUIElement 已经让进程成为代理应用。这里显式再设一次，防止从 Xcode 直接运行时不一致。
         NSApp.setActivationPolicy(.accessory)
 
+        if let path = ProcessInfo.processInfo.environment["COVIO_FILE_NAMING_SMOKE_PATH"],
+           !path.isEmpty
+        {
+            Task { @MainActor in
+                exit(
+                    await FileNamingSmokeVerifier.run(
+                        outputURL: URL(fileURLWithPath: path)
+                    )
+                )
+            }
+            return
+        }
+
         // 调试构建可以用环境变量换玻璃底材，便于同一次构建对照截图。
         GlassSurfaceMode.applyEnvironmentOverride()
         MacTheme.applyEnvironmentOverride()

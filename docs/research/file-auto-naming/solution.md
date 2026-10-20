@@ -91,8 +91,10 @@ flowchart LR
 | `macosApp/test/FileRenameServiceTests.swift` | 原子重命名和撤销测试 |
 | `macosApp/test/AutoNamingRuntimeTests.swift` | 预览流程和部分失败测试 |
 
-模型资产建议放在应用资源中，例如 `Resources/Models/Qwen3VL-2B-Instruct-4bit/`。
-模型资产不能进入 Git。
+模型资产放在应用资源 `Contents/Resources/Models/Qwen3VL-2B-Instruct-4bit/`。
+模型清单固定在 `macosApp/src/AutoNaming/FileNamingModelManifest.json`。
+模型资产不进入 Git。
+发布脚本要求外部模型目录，校验后内置到应用。
 
 ## 接口契约
 

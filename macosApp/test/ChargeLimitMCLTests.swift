@@ -5,6 +5,7 @@ final class ChargeLimitMCLTests: XCTestCase {
     private var directory: URL!
     private var stateURL: URL!
     private var stateStore: ChargeLimitStateStore!
+    private var powerUI: FakePowerUIChargeReading!
 
     override func setUpWithError() throws {
         directory = FileManager.default.temporaryDirectory
@@ -12,6 +13,7 @@ final class ChargeLimitMCLTests: XCTestCase {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         stateURL = directory.appendingPathComponent("charge-limit/state.json")
         stateStore = ChargeLimitStateStore(url: stateURL)
+        powerUI = FakePowerUIChargeReading()
     }
 
     override func tearDownWithError() throws {
@@ -23,7 +25,7 @@ final class ChargeLimitMCLTests: XCTestCase {
         preferences.bools[ChargeLimitPreferenceDomain.keyOptimizedChargingEnabled] = true
         preferences.ints[ChargeLimitPreferenceDomain.keyFeatureState] = 0
         preferences.ints[ChargeLimitPreferenceDomain.keyLimitValue] = 80
-        let controller = ChargeLimitMCLController(preferences: preferences, stateStore: stateStore)
+        let controller = makeController(preferences: preferences)
 
         let result = controller.apply(targetPercent: 55)
 
@@ -51,7 +53,7 @@ final class ChargeLimitMCLTests: XCTestCase {
         preferences.ints[ChargeLimitPreferenceDomain.keyFeatureState] = 0
         preferences.ints[ChargeLimitPreferenceDomain.keyLimitValue] = 80
         preferences.bools[ChargeLimitPreferenceDomain.keyOptimizedChargingEnabled] = true
-        let controller = ChargeLimitMCLController(preferences: preferences, stateStore: stateStore)
+        let controller = makeController(preferences: preferences)
 
         let result = controller.apply(targetPercent: 100)
 
@@ -65,6 +67,7 @@ final class ChargeLimitMCLTests: XCTestCase {
             ]
         )
         XCTAssertEqual(preferences.ints[ChargeLimitPreferenceDomain.keyFeatureState], 0)
+        XCTAssertEqual(powerUI.disableCalls, 1)
     }
 
     func testRestorePutsBackEveryOriginalValue() throws {
@@ -72,7 +75,7 @@ final class ChargeLimitMCLTests: XCTestCase {
         preferences.bools[ChargeLimitPreferenceDomain.keyOptimizedChargingEnabled] = true
         preferences.ints[ChargeLimitPreferenceDomain.keyFeatureState] = 0
         preferences.ints[ChargeLimitPreferenceDomain.keyLimitValue] = 80
-        let controller = ChargeLimitMCLController(preferences: preferences, stateStore: stateStore)
+        let controller = makeController(preferences: preferences)
         _ = controller.apply(targetPercent: 55)
         preferences.writeLog.removeAll()
 
@@ -93,11 +96,12 @@ final class ChargeLimitMCLTests: XCTestCase {
         XCTAssertEqual(preferences.bools[ChargeLimitPreferenceDomain.keyOptimizedChargingEnabled], true)
         XCTAssertNil(try stateStore.load())
         XCTAssertEqual(preferences.notifications, 2)
+        XCTAssertEqual(powerUI.disableCalls, 1)
     }
 
     func testRestoreRemovesKeysThatWereOriginallyAbsent() throws {
         let preferences = FakeChargeLimitPreferences()
-        let controller = ChargeLimitMCLController(preferences: preferences, stateStore: stateStore)
+        let controller = makeController(preferences: preferences)
         _ = controller.apply(targetPercent: 55)
 
         XCTAssertNoThrow(try controller.restore().get())
@@ -108,7 +112,7 @@ final class ChargeLimitMCLTests: XCTestCase {
 
     func testRestoreDoesNothingWhenNoStateExists() {
         let preferences = FakeChargeLimitPreferences()
-        let controller = ChargeLimitMCLController(preferences: preferences, stateStore: stateStore)
+        let controller = makeController(preferences: preferences)
 
         XCTAssertNoThrow(try controller.restore().get())
         XCTAssertTrue(preferences.writeLog.isEmpty)
@@ -120,7 +124,7 @@ final class ChargeLimitMCLTests: XCTestCase {
         preferences.bools[ChargeLimitPreferenceDomain.keyOptimizedChargingEnabled] = true
         preferences.ints[ChargeLimitPreferenceDomain.keyFeatureState] = 0
         preferences.ints[ChargeLimitPreferenceDomain.keyLimitValue] = 80
-        let controller = ChargeLimitMCLController(preferences: preferences, stateStore: stateStore)
+        let controller = makeController(preferences: preferences)
 
         _ = controller.apply(targetPercent: 55)
         let result = controller.apply(targetPercent: 60)
@@ -134,7 +138,7 @@ final class ChargeLimitMCLTests: XCTestCase {
     func testSyncFailureLeavesTheStateFileForRetry() {
         let preferences = FakeChargeLimitPreferences()
         preferences.syncResult = false
-        let controller = ChargeLimitMCLController(preferences: preferences, stateStore: stateStore)
+        let controller = makeController(preferences: preferences)
 
         let result = controller.apply(targetPercent: 55)
 
@@ -153,7 +157,7 @@ final class ChargeLimitMCLTests: XCTestCase {
         )
         try Data("not-json".utf8).write(to: stateURL)
         let preferences = FakeChargeLimitPreferences()
-        let controller = ChargeLimitMCLController(preferences: preferences, stateStore: stateStore)
+        let controller = makeController(preferences: preferences)
 
         XCTAssertEqual(controller.apply(targetPercent: 55), .failure(.stateUnreadable))
         XCTAssertTrue(preferences.writeLog.isEmpty)
@@ -161,7 +165,7 @@ final class ChargeLimitMCLTests: XCTestCase {
 
     func testInvalidTargetsAreRejected() {
         let preferences = FakeChargeLimitPreferences()
-        let controller = ChargeLimitMCLController(preferences: preferences, stateStore: stateStore)
+        let controller = makeController(preferences: preferences)
 
         for target in [0, 19, 79, 101, 105] {
             XCTAssertEqual(controller.apply(targetPercent: target), .failure(.invalidTarget(target)))
@@ -170,7 +174,7 @@ final class ChargeLimitMCLTests: XCTestCase {
 
     func testStateFileIsRootReadWriteOnly() throws {
         let preferences = FakeChargeLimitPreferences()
-        let controller = ChargeLimitMCLController(preferences: preferences, stateStore: stateStore)
+        let controller = makeController(preferences: preferences)
 
         _ = controller.apply(targetPercent: 55)
 
@@ -179,11 +183,66 @@ final class ChargeLimitMCLTests: XCTestCase {
         XCTAssertEqual(permissions.intValue & 0o777, 0o600)
     }
 
+    func testCapabilityComesFromPowerUIProbe() {
+        let controller = makeController(preferences: FakeChargeLimitPreferences())
+
+        powerUI.capabilityValue = .supported
+        XCTAssertEqual(controller.capability(), .supported)
+
+        powerUI.capabilityValue = .unsupported
+        XCTAssertEqual(controller.capability(), .unsupported)
+    }
+
+    func testBypassStateUsesOnlyTheLatestTimelineEvent() {
+        let ended: [String: Any] = [
+            "Timeline": [
+                ["date": "20", "event": "BypassEngaged"],
+                ["date": "30", "event": "Engaged"],
+            ],
+        ]
+        XCTAssertFalse(SystemPowerUIChargeClient.isBypassEngaged(status: ended))
+
+        let active: [String: Any] = [
+            "Timeline": [
+                ["date": "20", "event": "Engaged"],
+                ["date": "30", "event": "BypassEngaged"],
+                ["date": "40", "event": "EligibleForIdle"],
+            ],
+        ]
+        XCTAssertTrue(SystemPowerUIChargeClient.isBypassEngaged(status: active))
+        XCTAssertFalse(SystemPowerUIChargeClient.isBypassEngaged(status: ["Timeline": []]))
+    }
+
+    private func makeController(
+        preferences: FakeChargeLimitPreferences
+    ) -> ChargeLimitMCLController {
+        ChargeLimitMCLController(
+            preferences: preferences,
+            stateStore: stateStore,
+            powerUI: powerUI
+        )
+    }
+
     private func successState(
         _ result: Result<ChargeLimitPersistentState, ChargeLimitMCLFailure>
     ) -> ChargeLimitPersistentState? {
         guard case .success(let state) = result else { return nil }
         return state
+    }
+}
+
+private final class FakePowerUIChargeReading: PowerUIChargeReading, @unchecked Sendable {
+    var capabilityValue: PowerUICapability = .supported
+    var bypass = false
+    var disableResult = true
+    var disableCalls = 0
+
+    func capability() -> PowerUICapability { capabilityValue }
+    func bypassEngaged() -> Bool { bypass }
+
+    func disableMCL() -> Bool {
+        disableCalls += 1
+        return disableResult
     }
 }
 

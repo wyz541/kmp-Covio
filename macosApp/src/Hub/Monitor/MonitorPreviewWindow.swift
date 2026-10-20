@@ -124,6 +124,7 @@ enum MonitorPowerDetailRenderer {
             history: powerHistory,
             language: .simplifiedChinese,
             reduceMotion: false,
+            runtime: nil,
             onOpenApp: { _ in },
             onClose: {}
         )

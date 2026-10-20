@@ -231,28 +231,29 @@ final class MonitorMetricsTests: XCTestCase {
     }
 
     func testDetailLayoutCropsFromLastPriority() {
-        let full = MonitorPowerDetailLayoutPolicy.resolve(height: 620)
+        let full = MonitorPowerDetailLayoutPolicy.resolve(height: 760)
         XCTAssertTrue(full.showsTopApps)
         XCTAssertTrue(full.showsHistory)
         XCTAssertTrue(full.showsEstimate)
         XCTAssertTrue(full.showsCharging)
         XCTAssertTrue(full.showsEvents)
 
-        let noEvents = MonitorPowerDetailLayoutPolicy.resolve(height: 500)
+        let noEvents = MonitorPowerDetailLayoutPolicy.resolve(height: 680)
         XCTAssertTrue(noEvents.showsTopApps)
+        XCTAssertTrue(noEvents.showsEstimate)
         XCTAssertTrue(noEvents.showsCharging)
         XCTAssertFalse(noEvents.showsEvents)
 
-        let noCharging = MonitorPowerDetailLayoutPolicy.resolve(height: 420)
+        let noCharging = MonitorPowerDetailLayoutPolicy.resolve(height: 600)
         XCTAssertTrue(noCharging.showsEstimate)
         XCTAssertFalse(noCharging.showsCharging)
         XCTAssertFalse(noCharging.showsEvents)
 
-        let noEstimate = MonitorPowerDetailLayoutPolicy.resolve(height: 330)
+        let noEstimate = MonitorPowerDetailLayoutPolicy.resolve(height: 450)
         XCTAssertTrue(noEstimate.showsHistory)
         XCTAssertFalse(noEstimate.showsEstimate)
 
-        let onlyTopApps = MonitorPowerDetailLayoutPolicy.resolve(height: 180)
+        let onlyTopApps = MonitorPowerDetailLayoutPolicy.resolve(height: 250)
         XCTAssertTrue(onlyTopApps.showsTopApps)
         XCTAssertFalse(onlyTopApps.showsHistory)
     }

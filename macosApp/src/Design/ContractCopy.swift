@@ -357,6 +357,48 @@ enum ContractCopy {
     static let copyMonitorPerCore = LocalizedCopy(key: "copy/monitor/per-core", en: "Per core", zhHans: "每核")
     /// `copy/monitor/power/average/draw`
     static let copyMonitorPowerAverageDraw = LocalizedCopy(key: "copy/monitor/power/average/draw", en: "Average power", zhHans: "平均功耗")
+    /// `copy/monitor/power/charge-limit/apply`
+    static let copyMonitorPowerChargeLimitApply = LocalizedCopy(key: "copy/monitor/power/charge-limit/apply", en: "Apply limit", zhHans: "应用上限")
+    /// `copy/monitor/power/charge-limit/applying`
+    static let copyMonitorPowerChargeLimitApplying = LocalizedCopy(key: "copy/monitor/power/charge-limit/applying", en: "Applying charge limit", zhHans: "正在应用充电上限")
+    /// `copy/monitor/power/charge-limit/current-charge`
+    static let copyMonitorPowerChargeLimitCurrentCharge = LocalizedCopy(key: "copy/monitor/power/charge-limit/current-charge", en: "Current charge", zhHans: "当前电量")
+    /// `copy/monitor/power/charge-limit/current-target`
+    static let copyMonitorPowerChargeLimitCurrentTarget = LocalizedCopy(key: "copy/monitor/power/charge-limit/current-target", en: "Current target", zhHans: "当前目标")
+    /// `copy/monitor/power/charge-limit/enable`
+    static let copyMonitorPowerChargeLimitEnable = LocalizedCopy(key: "copy/monitor/power/charge-limit/enable", en: "Enable limit", zhHans: "启用上限")
+    /// `copy/monitor/power/charge-limit/failed`
+    static let copyMonitorPowerChargeLimitFailed = LocalizedCopy(key: "copy/monitor/power/charge-limit/failed", en: "Charge limit did not apply", zhHans: "充电上限未生效")
+    /// `copy/monitor/power/charge-limit/helper-required`
+    static let copyMonitorPowerChargeLimitHelperRequired = LocalizedCopy(key: "copy/monitor/power/charge-limit/helper-required", en: "Install or repair the helper", zhHans: "请安装或修复 helper")
+    /// `copy/monitor/power/charge-limit/restore`
+    static let copyMonitorPowerChargeLimitRestore = LocalizedCopy(key: "copy/monitor/power/charge-limit/restore", en: "Restore system default", zhHans: "恢复系统默认")
+    /// `copy/monitor/power/charge-limit/resume-at`
+    static let copyMonitorPowerChargeLimitResumeAt = LocalizedCopy(key: "copy/monitor/power/charge-limit/resume-at", en: "Resume charging at", zhHans: "恢复充电阈值")
+    /// `copy/monitor/power/charge-limit/state/above-limit`
+    static let copyMonitorPowerChargeLimitStateAboveLimit = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/above-limit", en: "Above limit", zhHans: "高于上限")
+    /// `copy/monitor/power/charge-limit/state/bypass`
+    static let copyMonitorPowerChargeLimitStateBypass = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/bypass", en: "Bypass power", zhHans: "旁路供电")
+    /// `copy/monitor/power/charge-limit/state/calibration`
+    static let copyMonitorPowerChargeLimitStateCalibration = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/calibration", en: "Calibration in progress", zhHans: "校准中")
+    /// `copy/monitor/power/charge-limit/state/conflict`
+    static let copyMonitorPowerChargeLimitStateConflict = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/conflict", en: "System policy conflict", zhHans: "系统策略冲突")
+    /// `copy/monitor/power/charge-limit/state/error`
+    static let copyMonitorPowerChargeLimitStateError = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/error", en: "Charge limit error", zhHans: "充电上限错误")
+    /// `copy/monitor/power/charge-limit/state/holding`
+    static let copyMonitorPowerChargeLimitStateHolding = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/holding", en: "Charging paused", zhHans: "已暂停充电")
+    /// `copy/monitor/power/charge-limit/state/protection`
+    static let copyMonitorPowerChargeLimitStateProtection = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/protection", en: "System protection", zhHans: "系统保护中")
+    /// `copy/monitor/power/charge-limit/state/sailing`
+    static let copyMonitorPowerChargeLimitStateSailing = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/sailing", en: "Holding current level", zhHans: "保持当前电量")
+    /// `copy/monitor/power/charge-limit/state/system`
+    static let copyMonitorPowerChargeLimitStateSystem = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/system", en: "macOS controls the charge limit", zhHans: "macOS 控制充电上限")
+    /// `copy/monitor/power/charge-limit/state/unplugged`
+    static let copyMonitorPowerChargeLimitStateUnplugged = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/unplugged", en: "Connect the power adapter", zhHans: "请接通电源适配器")
+    /// `copy/monitor/power/charge-limit/title`
+    static let copyMonitorPowerChargeLimitTitle = LocalizedCopy(key: "copy/monitor/power/charge-limit/title", en: "Charge limit", zhHans: "充电上限")
+    /// `copy/monitor/power/charge-limit/unsupported`
+    static let copyMonitorPowerChargeLimitUnsupported = LocalizedCopy(key: "copy/monitor/power/charge-limit/unsupported", en: "Charge limit is unavailable", zhHans: "当前设备不支持充电上限")
     /// `copy/monitor/power/charge/health`
     static let copyMonitorPowerChargeHealth = LocalizedCopy(key: "copy/monitor/power/charge/health", en: "Battery health", zhHans: "电池健康度")
     /// `copy/monitor/power/charge/power`
@@ -948,6 +990,27 @@ enum ContractCopy {
         copyMonitorNetworkUpload,
         copyMonitorPerCore,
         copyMonitorPowerAverageDraw,
+        copyMonitorPowerChargeLimitApply,
+        copyMonitorPowerChargeLimitApplying,
+        copyMonitorPowerChargeLimitCurrentCharge,
+        copyMonitorPowerChargeLimitCurrentTarget,
+        copyMonitorPowerChargeLimitEnable,
+        copyMonitorPowerChargeLimitFailed,
+        copyMonitorPowerChargeLimitHelperRequired,
+        copyMonitorPowerChargeLimitRestore,
+        copyMonitorPowerChargeLimitResumeAt,
+        copyMonitorPowerChargeLimitStateAboveLimit,
+        copyMonitorPowerChargeLimitStateBypass,
+        copyMonitorPowerChargeLimitStateCalibration,
+        copyMonitorPowerChargeLimitStateConflict,
+        copyMonitorPowerChargeLimitStateError,
+        copyMonitorPowerChargeLimitStateHolding,
+        copyMonitorPowerChargeLimitStateProtection,
+        copyMonitorPowerChargeLimitStateSailing,
+        copyMonitorPowerChargeLimitStateSystem,
+        copyMonitorPowerChargeLimitStateUnplugged,
+        copyMonitorPowerChargeLimitTitle,
+        copyMonitorPowerChargeLimitUnsupported,
         copyMonitorPowerChargeHealth,
         copyMonitorPowerChargePower,
         copyMonitorPowerChargeTimeToFull,

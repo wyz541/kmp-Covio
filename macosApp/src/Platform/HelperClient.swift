@@ -9,7 +9,7 @@ import kmpDomain
 /// 对外语义一致：超时或失败返回 nil，不抛异常。
 ///
 /// 线上格式与校验在共享层的 `HelperWire`，两端的客户端发同样的字节。
-final class HelperClient {
+final class HelperClient: @unchecked Sendable {
     /// helper 的 socket 路径。`PrivilegedOps` 用它判断「装没装」，
     /// 测试也用它指向一个临时的假 helper。
     let socketPath: String
@@ -120,8 +120,17 @@ final class HelperClient {
     }
 }
 
+/// 充电上限 helper 客户端端口。测试替换这个端口，避免连接真实 helper。
+protocol ChargeLimitClientProtocol: Sendable {
+    func chargeLimitStatus() -> ChargeLimitHelperStatus?
+    func setChargeLimit(percent: Int) -> Bool
+    func restoreChargeLimit() -> Bool
+}
+
+extension HelperClient: ChargeLimitClientProtocol {}
+
 /// `HelperClient.chargeLimitStatus()` 解析后的结果。
-struct ChargeLimitHelperStatus: Equatable {
+struct ChargeLimitHelperStatus: Equatable, Sendable {
     let enabled: Bool
     let userLimitPercent: Int?
     let targetPercent: Int?

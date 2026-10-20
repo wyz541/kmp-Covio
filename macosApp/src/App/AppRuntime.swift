@@ -22,6 +22,8 @@ final class AppRuntime {
     private(set) var config: AppConfig
     /// 特权 helper 的状态。
     private(set) var helperStatus: HelperStatus = .notInstalled
+    /// helper 当前执行的充电上限状态。
+    private(set) var chargeLimitStatus: ChargeLimitHelperStatus?
     /// 一次性提示。界面读完应调用 `clearStatus`。
     private(set) var statusMessage: String?
     /// 有耗时操作在跑。界面据此禁用按钮。
@@ -56,6 +58,7 @@ final class AppRuntime {
     private let sleepWatcher: SleepWatcher
     private let wakeLogReader: WakeLogReader
     private let privileged: PrivilegedOps
+    private let chargeLimitClient: any ChargeLimitClientProtocol
     private let loginItem: LoginItem
     private let notifier: Notifier
     private let updateChecker: UpdateChecker
@@ -86,6 +89,7 @@ final class AppRuntime {
         sleepWatcher: SleepWatcher = MacSleepWatcher(),
         wakeLogReader: WakeLogReader = PmsetWakeLogReader(),
         privileged: PrivilegedOps? = nil,
+        chargeLimitClient: any ChargeLimitClientProtocol = HelperClient(),
         loginItem: LoginItem = MacLoginItem(),
         notifier: Notifier? = nil,
         updateChecker: UpdateChecker = GithubUpdateChecker(),
@@ -105,6 +109,7 @@ final class AppRuntime {
         self.sleepWatcher = sleepWatcher
         self.wakeLogReader = wakeLogReader
         self.privileged = privileged ?? MacPrivilegedOps(logger: resolvedLogger)
+        self.chargeLimitClient = chargeLimitClient
         self.loginItem = loginItem
         self.notificationGate = NotificationGate()
         self.notifier = notifier ?? MacNotifier(logger: resolvedLogger) { [gate = notificationGate] in
@@ -217,6 +222,7 @@ final class AppRuntime {
         logger.info(message: "Covio \(ModelsKt.APP_VERSION) starting")
 
         helperStatus = privileged.status()
+        reconcileChargeLimit()
         syncHibernateMode()
         syncLoginItem()
         engine.start()
@@ -393,6 +399,9 @@ final class AppRuntime {
     ///
     /// **警告：** 会删掉用户全部设置。界面必须先确认。
     func clearConfig() {
+        if config.chargeLimitEnabled, !restoreChargeLimit() {
+            return
+        }
         let defaults = ConfigStore.companion.defaults()
         configStore.save(config: defaults)
         config = defaults
@@ -425,6 +434,7 @@ final class AppRuntime {
         Task { @MainActor in
             let removed = privileged.uninstall()
             helperStatus = .notInstalled
+            chargeLimitStatus = nil
             _ = engine.setLidSleepAvailable(available: true)
             syncState()
             busy = false
@@ -450,6 +460,95 @@ final class AppRuntime {
         syncState()
         if status == .installed {
             _ = engine.updateConfig(newConfig: config)
+            reconcileChargeLimit()
+        }
+    }
+
+    // MARK: - 充电上限
+
+    func refreshChargeLimitStatus() {
+        guard helperStatus == .installed else {
+            chargeLimitStatus = nil
+            return
+        }
+        chargeLimitStatus = chargeLimitClient.chargeLimitStatus()
+    }
+
+    /// 详情浮层使用。把同步 socket 请求移出主线程。
+    func refreshChargeLimitStatusInBackground() {
+        guard helperStatus == .installed else {
+            chargeLimitStatus = nil
+            return
+        }
+        let client = chargeLimitClient
+        Task { @MainActor [weak self] in
+            let status = await Task.detached { client.chargeLimitStatus() }.value
+            guard !Task.isCancelled else { return }
+            self?.chargeLimitStatus = status
+        }
+    }
+
+    /// 设置上限并保存本机配置。helper 失败时不写配置。
+    @discardableResult
+    func applyChargeLimit(_ percent: Int) -> Bool {
+        guard helperStatus == .installed else {
+            statusMessage = ContractCopy.copyStatusItemHelperError.text(for: language)
+            return false
+        }
+        guard chargeLimitClient.setChargeLimit(percent: percent) else {
+            statusMessage = ContractCopy.copyToastError.text(for: language)
+            refreshChargeLimitStatus()
+            return false
+        }
+        let saved = updateConfigDraft {
+            $0.chargeLimitEnabled = true
+            $0.chargeLimitPercent = Int32(percent)
+        }
+        guard saved else {
+            _ = chargeLimitClient.restoreChargeLimit()
+            refreshChargeLimitStatus()
+            return false
+        }
+        refreshChargeLimitStatus()
+        return true
+    }
+
+    /// 恢复 macOS 系统策略。helper 恢复失败时保留配置。
+    @discardableResult
+    func restoreChargeLimit() -> Bool {
+        guard helperStatus == .installed else {
+            statusMessage = ContractCopy.copyStatusItemHelperError.text(for: language)
+            return false
+        }
+        guard chargeLimitClient.restoreChargeLimit() else {
+            statusMessage = ContractCopy.copyToastError.text(for: language)
+            refreshChargeLimitStatus()
+            return false
+        }
+        _ = updateConfigDraft {
+            $0.chargeLimitEnabled = false
+        }
+        refreshChargeLimitStatus()
+        return true
+    }
+
+    /// 启动后让配置与 helper 状态对齐。
+    private func reconcileChargeLimit() {
+        guard helperStatus == .installed else {
+            chargeLimitStatus = nil
+            return
+        }
+        let status = chargeLimitClient.chargeLimitStatus()
+        chargeLimitStatus = status
+        if config.chargeLimitEnabled {
+            let desired = Int(config.chargeLimitPercent)
+            if status?.enabled != true || status?.userLimitPercent != desired {
+                _ = chargeLimitClient.setChargeLimit(percent: desired)
+                chargeLimitStatus = chargeLimitClient.chargeLimitStatus()
+            }
+        } else if status?.enabled == true {
+            _ = chargeLimitClient.restoreChargeLimit()
+            chargeLimitStatus = chargeLimitClient.chargeLimitStatus()
         }
     }
 

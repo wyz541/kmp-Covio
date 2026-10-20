@@ -111,6 +111,19 @@ struct NamingModelMetrics: Sendable, Equatable {
     let peakResidentBytes: UInt64
 }
 
+/// 模型结果的可信度由本地规则计算。图片送入 VLM 后至少达到中等可信度。
+enum NamingModelConfidence {
+    static func mlx(quality: FileNamingExtractionQuality, usedVision: Bool) -> Double {
+        let base: Double
+        switch quality {
+        case .high: base = 0.86
+        case .medium: base = 0.76
+        case .low: base = 0.55
+        }
+        return usedVision ? max(base, 0.72) : base
+    }
+}
+
 /// 模型语义字段。此结构没有日期、语言、置信度、扩展名或路径字段。
 struct NamingModelResponse: Sendable, Equatable {
     let candidateId: String
@@ -138,6 +151,13 @@ struct NamingModelResponse: Sendable, Equatable {
 protocol NamingModelPort: Sendable {
     var identifier: String { get }
 
+    func preheat() async throws -> NamingModelMetrics
+    func generate(_ request: NamingModelRequest) async throws -> NamingModelResponse
+    func cancel() async
+    func release() async
+}
+
+protocol NamingModelServing: Sendable {
     func preheat() async throws -> NamingModelMetrics
     func generate(_ request: NamingModelRequest) async throws -> NamingModelResponse
     func cancel() async
@@ -207,6 +227,8 @@ actor NamingModelCoordinator {
         await fallback.release()
     }
 }
+
+extension NamingModelCoordinator: NamingModelServing {}
 
 /// 模型不可用时的本地降级。它只从已提取内容里取标题，不补造日期和语言。
 struct HeuristicNamingModel: NamingModelPort {

@@ -69,6 +69,7 @@ Covio 当前是 macOS 26、Apple Silicon 应用。
 | [validation/case-mlx-swift-build.md](validation/case-mlx-swift-build.md) | MLX Swift 构建与 Xcode 路径 |
 | [validation/case-local-runtime-network.md](validation/case-local-runtime-network.md) | 本地运行网络检查 |
 | [validation/case-mlx-swift-runtime.md](validation/case-mlx-swift-runtime.md) | MLX Swift 文本、图片和网络结果 |
+| [validation/case-safe-rename.md](validation/case-safe-rename.md) | 预览、原子重命名和撤销结果 |
 
 ## 证据链阅读顺序
 

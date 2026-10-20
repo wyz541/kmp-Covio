@@ -133,6 +133,12 @@ final class NamingModelPortTests: XCTestCase {
         XCTAssertEqual(response.primaryErrorCode, .timeout)
     }
 
+    func testVisionResultReachesDefaultConfidenceThreshold() {
+        XCTAssertLessThan(NamingModelConfidence.mlx(quality: .low, usedVision: false), 0.65)
+        XCTAssertGreaterThanOrEqual(NamingModelConfidence.mlx(quality: .low, usedVision: true), 0.65)
+        XCTAssertEqual(NamingModelConfidence.mlx(quality: .high, usedVision: true), 0.86)
+    }
+
     func testBundledConfigurationUsesEnvironmentOverride() throws {
         let expected = FileManager.default.temporaryDirectory
             .appendingPathComponent("covio-model-\(UUID().uuidString)", isDirectory: true)

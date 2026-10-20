@@ -303,7 +303,12 @@ struct HubTabContent: View {
             case .clipboard:
                 ClipboardHeadingActions(clipboard: runtime.clipboard, language: language)
             case .files:
-                FilesHeadingActions(workspace: runtime.workspace, language: language)
+                FilesHeadingActions(
+                    workspace: runtime.workspace,
+                    autoNaming: runtime.autoNaming,
+                    policy: runtime.config.fileNaming,
+                    language: language
+                )
             default:
                 EmptyView()
             }
@@ -325,7 +330,12 @@ struct HubTabContent: View {
         } else if let runtime, tab == .clipboard {
             ClipboardTabView(clipboard: runtime.clipboard, runtime: runtime)
         } else if let runtime, tab == .files {
-            FilesTabView(workspace: runtime.workspace, language: language)
+            FilesTabView(
+                workspace: runtime.workspace,
+                autoNaming: runtime.autoNaming,
+                policy: runtime.config.fileNaming,
+                language: language
+            )
         } else {
             HubPlaceholderView(
                 tab: tab,

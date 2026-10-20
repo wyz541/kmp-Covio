@@ -242,7 +242,10 @@ actor MLXNamingModel: NamingModelPort {
                 title: decoded.title,
                 category: decoded.category
             )
-            let confidence = Self.confidence(for: request.quality)
+            let confidence = NamingModelConfidence.mlx(
+                quality: request.quality,
+                usedVision: !imageData.isEmpty
+            )
             var warnings = Set<NamingModelWarning>()
             if request.warnings.contains(.truncatedInput) {
                 warnings.insert(.truncatedInput)
@@ -280,14 +283,6 @@ actor MLXNamingModel: NamingModelPort {
             throw NamingModelError(.generationFailed, detail: "Image data could not be decoded")
         }
         return .ciImage(ciImage)
-    }
-
-    private static func confidence(for quality: FileNamingExtractionQuality) -> Double {
-        switch quality {
-        case .high: 0.86
-        case .medium: 0.76
-        case .low: 0.55
-        }
     }
 
     private static func validateModelDirectory(_ directory: URL) throws {

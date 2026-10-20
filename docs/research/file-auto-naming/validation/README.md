@@ -16,6 +16,7 @@
 | Case 2：MLX Swift 构建 | 通过 | [case-mlx-swift-build.md](case-mlx-swift-build.md) |
 | Case 3：本地运行网络检查 | 部分通过 | [case-local-runtime-network.md](case-local-runtime-network.md) |
 | Case 4：MLX Swift 运行 | 通过 | [case-mlx-swift-runtime.md](case-mlx-swift-runtime.md) |
+| Case 5：安全预览与重命名 | 通过 | [case-safe-rename.md](case-safe-rename.md) |
 
 ## 验证目标
 
@@ -60,7 +61,7 @@
 6. MLX Swift 已通过 Xcode 构建路径。
 7. Covio 已离线完成文本和图片命名。
 8. 峰值 RSS 约 2.26 GB。
-9. Covio 产品内重命名尚未实现。
+9. Covio 产品内预览、原子重命名和撤销已实现。
 
 ## 成功标准
 
@@ -112,8 +113,8 @@
 | V05 | MLX Swift 构建 | 通过 | [case-mlx-swift-build.md](case-mlx-swift-build.md) |
 | V06 | 本地运行网络检查 | 部分通过 | [case-local-runtime-network.md](case-local-runtime-network.md) |
 | V07 | 提示注入防护 | 失败 | [case-local-model-smoke.md](case-local-model-smoke.md) |
-| V08 | 原子重命名与冲突 | 尚未执行 | 待创建 |
-| V09 | 撤销和外部修改 | 尚未执行 | 待创建 |
+| V08 | 原子重命名与冲突 | 通过 | [case-safe-rename.md](case-safe-rename.md) |
+| V09 | 撤销和外部修改 | 通过 | [case-safe-rename.md](case-safe-rename.md) |
 | V10 | Covio 真机验收 | 尚未执行 | 待创建 |
 | V11 | MLX Swift 文本运行 | 通过 | [case-mlx-swift-runtime.md](case-mlx-swift-runtime.md) |
 | V12 | MLX Swift 图片运行 | 通过 | [case-mlx-swift-runtime.md](case-mlx-swift-runtime.md) |

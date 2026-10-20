@@ -358,6 +358,9 @@ The configuration is:
 ~/Library/Application Support/com.wyz.covio/config.json
 ```
 
+`fileNaming` is optional. Old configuration files get the default naming policy.
+The policy always preserves the original extension and requires a preview.
+
 The log is:
 
 ```text

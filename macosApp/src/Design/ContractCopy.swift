@@ -13,6 +13,74 @@ enum ContractCopy {
     static let copyAppName = LocalizedCopy(key: "copy/app/name", en: "Covio", zhHans: "Covio")
     /// `copy/app/tagline`
     static let copyAppTagline = LocalizedCopy(key: "copy/app/tagline", en: "Keep your Mac awake when it matters.", zhHans: "在需要时保持 Mac 唤醒。")
+    /// `copy/auto-naming/action/apply`
+    static let copyAutoNamingActionApply = LocalizedCopy(key: "copy/auto-naming/action/apply", en: "Rename Selected", zhHans: "重命名所选")
+    /// `copy/auto-naming/action/auto-name`
+    static let copyAutoNamingActionAutoName = LocalizedCopy(key: "copy/auto-naming/action/auto-name", en: "Auto Name…", zhHans: "自动命名…")
+    /// `copy/auto-naming/action/cancel`
+    static let copyAutoNamingActionCancel = LocalizedCopy(key: "copy/auto-naming/action/cancel", en: "Cancel", zhHans: "取消")
+    /// `copy/auto-naming/action/close`
+    static let copyAutoNamingActionClose = LocalizedCopy(key: "copy/auto-naming/action/close", en: "Close", zhHans: "关闭")
+    /// `copy/auto-naming/action/select`
+    static let copyAutoNamingActionSelect = LocalizedCopy(key: "copy/auto-naming/action/select", en: "Include this file", zhHans: "选择这个文件")
+    /// `copy/auto-naming/action/undo`
+    static let copyAutoNamingActionUndo = LocalizedCopy(key: "copy/auto-naming/action/undo", en: "Undo Renames", zhHans: "撤销重命名")
+    /// `copy/auto-naming/error/analysis`
+    static let copyAutoNamingErrorAnalysis = LocalizedCopy(key: "copy/auto-naming/error/analysis", en: "Auto naming could not finish. No files were changed.", zhHans: "自动命名未完成。文件没有改动。")
+    /// `copy/auto-naming/error/rename`
+    static let copyAutoNamingErrorRename = LocalizedCopy(key: "copy/auto-naming/error/rename", en: "The rename run failed. No file was overwritten.", zhHans: "重命名失败。没有文件被覆盖。")
+    /// `copy/auto-naming/error/undo`
+    static let copyAutoNamingErrorUndo = LocalizedCopy(key: "copy/auto-naming/error/undo", en: "Undo could not finish. No file was overwritten.", zhHans: "撤销未完成。没有文件被覆盖。")
+    /// `copy/auto-naming/label/evidence`
+    static let copyAutoNamingLabelEvidence = LocalizedCopy(key: "copy/auto-naming/label/evidence", en: "Evidence", zhHans: "依据")
+    /// `copy/auto-naming/label/original`
+    static let copyAutoNamingLabelOriginal = LocalizedCopy(key: "copy/auto-naming/label/original", en: "Current name", zhHans: "当前名称")
+    /// `copy/auto-naming/label/target`
+    static let copyAutoNamingLabelTarget = LocalizedCopy(key: "copy/auto-naming/label/target", en: "Proposed name", zhHans: "建议名称")
+    /// `copy/auto-naming/label/warnings`
+    static let copyAutoNamingLabelWarnings = LocalizedCopy(key: "copy/auto-naming/label/warnings", en: "Warnings", zhHans: "警告")
+    /// `copy/auto-naming/notice/applied`
+    static let copyAutoNamingNoticeApplied = LocalizedCopy(key: "copy/auto-naming/notice/applied", en: "Selected files were renamed.", zhHans: "所选文件已重命名。")
+    /// `copy/auto-naming/notice/cancelled`
+    static let copyAutoNamingNoticeCancelled = LocalizedCopy(key: "copy/auto-naming/notice/cancelled", en: "Auto naming canceled.", zhHans: "已取消自动命名。")
+    /// `copy/auto-naming/notice/no-files`
+    static let copyAutoNamingNoticeNoFiles = LocalizedCopy(key: "copy/auto-naming/notice/no-files", en: "Choose at least one file.", zhHans: "请选择至少一个文件。")
+    /// `copy/auto-naming/notice/no-results`
+    static let copyAutoNamingNoticeNoResults = LocalizedCopy(key: "copy/auto-naming/notice/no-results", en: "No file could be analyzed.", zhHans: "没有可分析的文件。")
+    /// `copy/auto-naming/notice/no-selection`
+    static let copyAutoNamingNoticeNoSelection = LocalizedCopy(key: "copy/auto-naming/notice/no-selection", en: "Select at least one ready file.", zhHans: "请选择至少一个可重命名文件。")
+    /// `copy/auto-naming/notice/partial-failure`
+    static let copyAutoNamingNoticePartialFailure = LocalizedCopy(key: "copy/auto-naming/notice/partial-failure", en: "Some files were renamed. Review the failed items.", zhHans: "部分文件已重命名。请检查失败条目。")
+    /// `copy/auto-naming/notice/partial-undo`
+    static let copyAutoNamingNoticePartialUndo = LocalizedCopy(key: "copy/auto-naming/notice/partial-undo", en: "Some files were restored. Review the failed items.", zhHans: "部分文件已恢复。请检查失败条目。")
+    /// `copy/auto-naming/notice/undone`
+    static let copyAutoNamingNoticeUndone = LocalizedCopy(key: "copy/auto-naming/notice/undone", en: "The last rename run was undone.", zhHans: "已撤销上次重命名。")
+    /// `copy/auto-naming/risk/conflict`
+    static let copyAutoNamingRiskConflict = LocalizedCopy(key: "copy/auto-naming/risk/conflict", en: "Name conflict", zhHans: "名称冲突")
+    /// `copy/auto-naming/risk/fallback`
+    static let copyAutoNamingRiskFallback = LocalizedCopy(key: "copy/auto-naming/risk/fallback", en: "Fallback title", zhHans: "回退标题")
+    /// `copy/auto-naming/risk/low-confidence`
+    static let copyAutoNamingRiskLowConfidence = LocalizedCopy(key: "copy/auto-naming/risk/low-confidence", en: "Low confidence", zhHans: "低可信")
+    /// `copy/auto-naming/risk/mixed`
+    static let copyAutoNamingRiskMixed = LocalizedCopy(key: "copy/auto-naming/risk/mixed", en: "Mixed content", zhHans: "混合内容")
+    /// `copy/auto-naming/risk/scanned`
+    static let copyAutoNamingRiskScanned = LocalizedCopy(key: "copy/auto-naming/risk/scanned", en: "Scanned document", zhHans: "扫描件")
+    /// `copy/auto-naming/risk/truncated`
+    static let copyAutoNamingRiskTruncated = LocalizedCopy(key: "copy/auto-naming/risk/truncated", en: "Input truncated", zhHans: "输入已截断")
+    /// `copy/auto-naming/status/blocked`
+    static let copyAutoNamingStatusBlocked = LocalizedCopy(key: "copy/auto-naming/status/blocked", en: "Blocked", zhHans: "已阻止")
+    /// `copy/auto-naming/status/failed`
+    static let copyAutoNamingStatusFailed = LocalizedCopy(key: "copy/auto-naming/status/failed", en: "Failed", zhHans: "失败")
+    /// `copy/auto-naming/status/ready`
+    static let copyAutoNamingStatusReady = LocalizedCopy(key: "copy/auto-naming/status/ready", en: "Ready", zhHans: "可重命名")
+    /// `copy/auto-naming/status/renamed`
+    static let copyAutoNamingStatusRenamed = LocalizedCopy(key: "copy/auto-naming/status/renamed", en: "Renamed", zhHans: "已重命名")
+    /// `copy/auto-naming/status/undone`
+    static let copyAutoNamingStatusUndone = LocalizedCopy(key: "copy/auto-naming/status/undone", en: "Undone", zhHans: "已撤销")
+    /// `copy/auto-naming/subtitle`
+    static let copyAutoNamingSubtitle = LocalizedCopy(key: "copy/auto-naming/subtitle", en: "Files stay in their original folders. Review every proposed name before applying.", zhHans: "文件留在原目录。应用前请检查每个建议名称。")
+    /// `copy/auto-naming/title`
+    static let copyAutoNamingTitle = LocalizedCopy(key: "copy/auto-naming/title", en: "Review Auto Names", zhHans: "检查自动命名")
     /// `copy/battery/capacity-threshold`
     static let copyBatteryCapacityThreshold = LocalizedCopy(key: "copy/battery/capacity-threshold", en: "Capacity threshold", zhHans: "容量阈值")
     /// `copy/battery/enabled`
@@ -818,6 +886,40 @@ enum ContractCopy {
     static let all: [LocalizedCopy] = [
         copyAppName,
         copyAppTagline,
+        copyAutoNamingActionApply,
+        copyAutoNamingActionAutoName,
+        copyAutoNamingActionCancel,
+        copyAutoNamingActionClose,
+        copyAutoNamingActionSelect,
+        copyAutoNamingActionUndo,
+        copyAutoNamingErrorAnalysis,
+        copyAutoNamingErrorRename,
+        copyAutoNamingErrorUndo,
+        copyAutoNamingLabelEvidence,
+        copyAutoNamingLabelOriginal,
+        copyAutoNamingLabelTarget,
+        copyAutoNamingLabelWarnings,
+        copyAutoNamingNoticeApplied,
+        copyAutoNamingNoticeCancelled,
+        copyAutoNamingNoticeNoFiles,
+        copyAutoNamingNoticeNoResults,
+        copyAutoNamingNoticeNoSelection,
+        copyAutoNamingNoticePartialFailure,
+        copyAutoNamingNoticePartialUndo,
+        copyAutoNamingNoticeUndone,
+        copyAutoNamingRiskConflict,
+        copyAutoNamingRiskFallback,
+        copyAutoNamingRiskLowConfidence,
+        copyAutoNamingRiskMixed,
+        copyAutoNamingRiskScanned,
+        copyAutoNamingRiskTruncated,
+        copyAutoNamingStatusBlocked,
+        copyAutoNamingStatusFailed,
+        copyAutoNamingStatusReady,
+        copyAutoNamingStatusRenamed,
+        copyAutoNamingStatusUndone,
+        copyAutoNamingSubtitle,
+        copyAutoNamingTitle,
         copyBatteryCapacityThreshold,
         copyBatteryEnabled,
         copyBatteryTimeThreshold,

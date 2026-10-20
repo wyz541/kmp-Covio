@@ -45,6 +45,9 @@ final class AppRuntime {
     /// 共享文件工作区。Hub 的文件页签读它。
     let workspace: WorkspaceRuntime
 
+    /// 文件自动命名。Hub 的文件页签读它。
+    let autoNaming: AutoNamingRuntime
+
     private let configStore: ConfigStore
     /// 挂帘读配置的中间人。理由见 `ShelfBridge`。
     private let shelfBridge: ShelfBridge
@@ -95,7 +98,8 @@ final class AppRuntime {
         updateChecker: UpdateChecker = GithubUpdateChecker(),
         shelf: ShelfRuntime? = nil,
         clipboard: ClipboardRuntime? = nil,
-        workspace: WorkspaceRuntime? = nil
+        workspace: WorkspaceRuntime? = nil,
+        autoNaming: AutoNamingRuntime? = nil
     ) {
         let resolvedLogger = logger ?? FileAppLogger()
         let resolvedStore = configStore ?? ConfigStore.companion.create(path: AppPaths.configFile.path)
@@ -178,6 +182,7 @@ final class AppRuntime {
 
         // 工作区没有配置依赖，也没有要交出去的闭包。直接建。
         self.workspace = workspace ?? WorkspaceRuntime()
+        self.autoNaming = autoNaming ?? AutoNamingRuntime()
 
         self.engine = Engine(
             initialConfig: loaded,

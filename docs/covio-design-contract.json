@@ -4052,6 +4052,142 @@
       "en": "Update available",
       "zh-Hans": "有可用更新"
     },
+    "copy/auto-naming/action/apply": {
+      "en": "Rename Selected",
+      "zh-Hans": "重命名所选"
+    },
+    "copy/auto-naming/action/auto-name": {
+      "en": "Auto Name…",
+      "zh-Hans": "自动命名…"
+    },
+    "copy/auto-naming/action/cancel": {
+      "en": "Cancel",
+      "zh-Hans": "取消"
+    },
+    "copy/auto-naming/action/close": {
+      "en": "Close",
+      "zh-Hans": "关闭"
+    },
+    "copy/auto-naming/action/select": {
+      "en": "Include this file",
+      "zh-Hans": "选择这个文件"
+    },
+    "copy/auto-naming/action/undo": {
+      "en": "Undo Renames",
+      "zh-Hans": "撤销重命名"
+    },
+    "copy/auto-naming/error/analysis": {
+      "en": "Auto naming could not finish. No files were changed.",
+      "zh-Hans": "自动命名未完成。文件没有改动。"
+    },
+    "copy/auto-naming/error/rename": {
+      "en": "The rename run failed. No file was overwritten.",
+      "zh-Hans": "重命名失败。没有文件被覆盖。"
+    },
+    "copy/auto-naming/error/undo": {
+      "en": "Undo could not finish. No file was overwritten.",
+      "zh-Hans": "撤销未完成。没有文件被覆盖。"
+    },
+    "copy/auto-naming/label/evidence": {
+      "en": "Evidence",
+      "zh-Hans": "依据"
+    },
+    "copy/auto-naming/label/original": {
+      "en": "Current name",
+      "zh-Hans": "当前名称"
+    },
+    "copy/auto-naming/label/target": {
+      "en": "Proposed name",
+      "zh-Hans": "建议名称"
+    },
+    "copy/auto-naming/label/warnings": {
+      "en": "Warnings",
+      "zh-Hans": "警告"
+    },
+    "copy/auto-naming/notice/applied": {
+      "en": "Selected files were renamed.",
+      "zh-Hans": "所选文件已重命名。"
+    },
+    "copy/auto-naming/notice/cancelled": {
+      "en": "Auto naming canceled.",
+      "zh-Hans": "已取消自动命名。"
+    },
+    "copy/auto-naming/notice/no-files": {
+      "en": "Choose at least one file.",
+      "zh-Hans": "请选择至少一个文件。"
+    },
+    "copy/auto-naming/notice/no-results": {
+      "en": "No file could be analyzed.",
+      "zh-Hans": "没有可分析的文件。"
+    },
+    "copy/auto-naming/notice/no-selection": {
+      "en": "Select at least one ready file.",
+      "zh-Hans": "请选择至少一个可重命名文件。"
+    },
+    "copy/auto-naming/notice/partial-failure": {
+      "en": "Some files were renamed. Review the failed items.",
+      "zh-Hans": "部分文件已重命名。请检查失败条目。"
+    },
+    "copy/auto-naming/notice/partial-undo": {
+      "en": "Some files were restored. Review the failed items.",
+      "zh-Hans": "部分文件已恢复。请检查失败条目。"
+    },
+    "copy/auto-naming/notice/undone": {
+      "en": "The last rename run was undone.",
+      "zh-Hans": "已撤销上次重命名。"
+    },
+    "copy/auto-naming/risk/conflict": {
+      "en": "Name conflict",
+      "zh-Hans": "名称冲突"
+    },
+    "copy/auto-naming/risk/fallback": {
+      "en": "Fallback title",
+      "zh-Hans": "回退标题"
+    },
+    "copy/auto-naming/risk/low-confidence": {
+      "en": "Low confidence",
+      "zh-Hans": "低可信"
+    },
+    "copy/auto-naming/risk/mixed": {
+      "en": "Mixed content",
+      "zh-Hans": "混合内容"
+    },
+    "copy/auto-naming/risk/scanned": {
+      "en": "Scanned document",
+      "zh-Hans": "扫描件"
+    },
+    "copy/auto-naming/risk/truncated": {
+      "en": "Input truncated",
+      "zh-Hans": "输入已截断"
+    },
+    "copy/auto-naming/status/blocked": {
+      "en": "Blocked",
+      "zh-Hans": "已阻止"
+    },
+    "copy/auto-naming/status/failed": {
+      "en": "Failed",
+      "zh-Hans": "失败"
+    },
+    "copy/auto-naming/status/ready": {
+      "en": "Ready",
+      "zh-Hans": "可重命名"
+    },
+    "copy/auto-naming/status/renamed": {
+      "en": "Renamed",
+      "zh-Hans": "已重命名"
+    },
+    "copy/auto-naming/status/undone": {
+      "en": "Undone",
+      "zh-Hans": "已撤销"
+    },
+    "copy/auto-naming/subtitle": {
+      "en": "Files stay in their original folders. Review every proposed name before applying.",
+      "zh-Hans": "文件留在原目录。应用前请检查每个建议名称。"
+    },
+    "copy/auto-naming/title": {
+      "en": "Review Auto Names",
+      "zh-Hans": "检查自动命名"
+    },
     "copy/general/check-updates": {
       "en": "Check for updates",
       "zh-Hans": "检查更新"

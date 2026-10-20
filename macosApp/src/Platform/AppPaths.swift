@@ -38,6 +38,11 @@ enum AppPaths {
         supportDirectory.appendingPathComponent("workbench.json")
     }
 
+    /// 文件重命名的撤销计划。每条计划在改名之前写入。
+    static var renameUndoDirectory: URL {
+        supportDirectory.appendingPathComponent("rename-undo", isDirectory: true)
+    }
+
     /// SwiftUI 版的单实例锁文件。
     static var lockFile: URL {
         supportDirectory.appendingPathComponent(swiftUILockFileName)

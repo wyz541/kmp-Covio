@@ -66,7 +66,7 @@ Covio 当前是 macOS 26、Apple Silicon 应用。
 | [evidence.md](evidence.md) | 固定证据、命令、结果和限制 |
 | [validation/README.md](validation/README.md) | 验证矩阵、风险和清理要求 |
 | [validation/case-local-model-smoke.md](validation/case-local-model-smoke.md) | 本地模型质量、耗时和内存 |
-| [validation/case-mlx-swift-build.md](validation/case-mlx-swift-build.md) | MLX Swift 构建阻塞 |
+| [validation/case-mlx-swift-build.md](validation/case-mlx-swift-build.md) | MLX Swift 构建与 Xcode 路径 |
 | [validation/case-local-runtime-network.md](validation/case-local-runtime-network.md) | 本地运行网络检查 |
 | [validation/case-mlx-swift-runtime.md](validation/case-mlx-swift-runtime.md) | MLX Swift 文本、图片和网络结果 |
 

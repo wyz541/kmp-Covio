@@ -2,8 +2,8 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档状态 | 部分通过 |
-| 执行时间 | 2026-10-20 |
+| 文档状态 | 通过 |
+| 执行时间 | 2026-10-20 至 2026-10-21 |
 | 环境 | macOS 27.0.1，arm64，64 GiB |
 | 模型 | `mlx-community/Qwen3-VL-2B-Instruct-4bit` |
 | 运行器 | MLX Swift，`mlx-swift-lm` revision `48114eedf3c3d4a682a6b1d644cc5af5c2945d10` |
@@ -28,6 +28,8 @@
 | 模型目录 | 本地路径 |
 | 文本模型 | Qwen3-VL 2B 4 bit |
 | 图像模型 | 同一 VLM |
+| Covio 接口 | `NamingModelPort` |
+| Covio 运行时 | `MLXNamingModel` |
 | 合成样例 | 通过 |
 | 用户私有数据 | 未使用 |
 
@@ -132,13 +134,79 @@ MODEL_DIR="$MODEL_DIR" "$BUILT/NamingBench" \
 错误码：无。  
 备注：这是一次采样，不是完整网络审计。
 
+### V14：Covio 工程集成
+
+前置条件：
+
+1. `macosApp` 已接入固定 revision 的 `mlx-swift-lm`。
+2. `COVIO_FILE_NAMING_MODEL_DIR` 指向本地模型目录。
+3. 模型目录不进入 Git。
+
+命令：
+
+```bash
+COVIO_FILE_NAMING_MODEL_DIR="$MODEL_DIR" \
+  bash scripts/test-file-naming-model.sh
+```
+
+实际结果：
+
+| 指标 | 值 |
+| --- | --- |
+| 模型文件 SHA-256 | `4750d95a2162829e127a94e83ac350d498d02070aab216c4687da48804a06ffb` |
+| 模型加载 | `2,084.9` ms |
+| 预热 | `14,411.5` ms |
+| 文本热生成 | `1,667.9` ms |
+| 图片热生成 | `2,591.7` ms |
+| 文本输入 | `192` tokens |
+| 文本输出 | `28` tokens |
+| 图片输入 | `1,116` tokens |
+| 图片输出 | `16` tokens |
+| 峰值 RSS | `2,260,172,800` bytes |
+| 文本结果 | `2026年第四季度产品预算评审` / `文档` |
+| 图片结果 | `差旅报销单` / `财务` |
+
+说明：
+
+1. 预热包含首次 Metal 内核加载和 JSON Schema 编译。
+2. 文本和图片结果都通过 `GuidedGenerationLoop` 返回合法 JSON。
+3. 生成结果只含 `title` 和 `category`。
+4. 日期、语言、置信度和路径不由模型生成。
+5. 模型目录和结果文件只存在于任务临时工作区。
+
+### V15：Covio 进程网络采样
+
+前置条件：V14 运行期间，每秒定位 `task-176` 的 Covio 测试宿主。
+
+命令：
+
+```bash
+lsof -nP -a -p "$PID" -i
+```
+
+实际结果：
+
+```text
+observed_process=1
+network_sample=no_rows
+```
+
+说明：
+
+1. 采样覆盖整个测试宿主进程生命周期。
+2. 模型通过本地目录加载，没有传入下载器。
+3. 这是一次采样，不是完整的全系统网络审计。
+4. 正式安装包验收仍由 #178 和 #179 完成。
+
 ## 结果汇总
 
 | 测试 | 状态 | 结论 |
 | --- | --- | --- |
 | V11 | 通过 | 文本热生成和内存符合目标 |
 | V12 | 通过 | 图片热生成和内存符合目标 |
-| V13 | 部分通过 | 本地模型路径未观察到网络 |
+| V13 | 部分通过 | 原 CLI 网络采样未观察到 socket |
+| V14 | 通过 | Covio 文本和图片都返回合法字段 |
+| V15 | 通过 | Covio 测试宿主未观察到网络 socket |
 
 ## 清理记录
 

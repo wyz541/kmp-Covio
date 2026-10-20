@@ -2,7 +2,7 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档状态 | 部分通过 |
+| 文档状态 | 通过 |
 | 执行时间 | 2026-10-20 |
 | 环境 | macOS 27.0.1，arm64，Xcode 27.1 |
 | 依赖 | `mlx-swift-lm` commit `48114eedf3c3d4a682a6b1d644cc5af5c2945d10` |
@@ -103,6 +103,24 @@ BUILD SUCCEEDED
 
 错误码：无。
 
+### Covio 工程复验
+
+执行时间：2026-10-21。
+
+依赖固定为 revision `48114eedf3c3d4a682a6b1d644cc5af5c2945d10`。
+
+依赖锁定文件位于 `macosApp/Covio.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`。
+
+构建和测试命令都使用 `-skipMacroValidation` 与 `-skipPackagePluginValidation`。
+
+实际结果：
+
+1. CocoaPods 不参与此集成。
+2. Xcode 成功编译 MLX、XGrammar 和宏目标。
+3. Xcode 成功构建 Covio 应用目标。
+4. Xcode 成功运行 Covio XCTest。
+5. 直接 SwiftPM 仍需单独验证 Metal shim 修复。
+
 ## 结果汇总
 
 | 项目 | 结果 |
@@ -112,14 +130,14 @@ BUILD SUCCEEDED
 | 直接 SwiftPM | 失败 |
 | Xcode Swift Package | 通过 |
 | Metal 文件编译 | 通过 |
-| Covio 工程集成 | 未执行 |
+| Covio 工程集成 | 通过 |
 
 ## 清理记录
 
 1. Metal Toolchain 保持安装。
-2. 没有修改 Covio 工程。
-3. 临时包和 DerivedData 在任务临时目录。
-4. 构建缓存将在任务结束时删除。
+2. V14 已修改 Covio Xcode 工程并写入依赖锁定文件。
+3. 模型和测试结果在任务临时工作区。
+4. 临时包、模型和 DerivedData 在任务结束时删除。
 
 ## 更新规则
 

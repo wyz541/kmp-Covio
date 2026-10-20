@@ -148,6 +148,8 @@ private final class FakeChargeLimitBackend: ChargeLimitBackend, @unchecked Senda
     var restoreCalled = false
     var restoreFailure: ChargeLimitMCLFailure?
 
+    func capability() -> ChargeLimitSupport { .supported }
+
     func loadState() -> Result<ChargeLimitPersistentState?, ChargeLimitMCLFailure> {
         if let loadFailure { return .failure(loadFailure) }
         return .success(loadedState)

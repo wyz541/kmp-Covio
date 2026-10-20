@@ -114,6 +114,8 @@ class ConfigStore(
             clipboardEnabled = bool("clipboardEnabled", defaults.clipboardEnabled),
             clipboardPasteStackHotKey = string("clipboardPasteStackHotKey", defaults.clipboardPasteStackHotKey),
             clipboardCaptureHotKey = string("clipboardCaptureHotKey", defaults.clipboardCaptureHotKey),
+            chargeLimitEnabled = bool("chargeLimitEnabled", defaults.chargeLimitEnabled),
+            chargeLimitPercent = int("chargeLimitPercent", defaults.chargeLimitPercent),
         ).normalized()
     }
 
@@ -138,7 +140,7 @@ class ConfigStore(
         /**
          * 本版默认配置，等价于 `AppConfig()`。
          *
-         * Swift 侧调用 `AppConfig()` 要写全 21 个参数，默认值又抄不过去。
+         * Swift 侧调用 `AppConfig()` 要写全全部参数，默认值又抄不过去。
          * 清除配置时从这一个入口取默认值。
          */
         fun defaults(): AppConfig = AppConfig()

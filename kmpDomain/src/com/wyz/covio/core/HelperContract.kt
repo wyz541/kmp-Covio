@@ -19,7 +19,7 @@ package com.wyz.covio.core
 const val HELPER_ARGUMENT = "--helper"
 
 /** 客户端与服务端协商的协议版本。改协议时必须同时改这里。 */
-const val HELPER_PROTOCOL_VERSION = "1"
+const val HELPER_PROTOCOL_VERSION = "2"
 
 /** helper 监听的 Unix 域 socket。 */
 const val HELPER_SOCKET_PATH = "/Library/Application Support/Covio/helper.sock"

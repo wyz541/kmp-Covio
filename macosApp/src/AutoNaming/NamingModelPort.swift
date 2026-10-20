@@ -350,6 +350,16 @@ enum NamingModelOutputValidator {
         guard title.count <= 80, category.count <= 40 else {
             throw NamingModelError(.malformedOutput, detail: "Field length exceeds the schema limit")
         }
+        let lowercased = "\(title) \(category)".lowercased()
+        let schemaLeak = lowercased.contains("字素")
+            || lowercased.contains("grapheme")
+            || lowercased.contains("json schema")
+            || lowercased.contains("1 到 80")
+            || lowercased.contains("1 to 80")
+            || (lowercased.contains("title") && lowercased.contains("category"))
+        guard !schemaLeak else {
+            throw NamingModelError(.malformedOutput, detail: "Output repeats schema instructions")
+        }
         let unsafe = CharacterSet.controlCharacters
             .union(CharacterSet(charactersIn: "/\\"))
         guard title.rangeOfCharacter(from: unsafe) == nil,

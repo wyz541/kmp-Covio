@@ -279,6 +279,7 @@ private struct AutoNamingPreviewRow: View {
             case .conflict: ContractCopy.copyAutoNamingRiskConflict.text(for: language)
             case .fallbackModel: ContractCopy.copyAutoNamingRiskFallback.text(for: language)
             case .truncatedInput: ContractCopy.copyAutoNamingRiskTruncated.text(for: language)
+            case .promptInjection: ContractCopy.copyAutoNamingRiskPromptInjection.text(for: language)
             case .fileChanged: ContractCopy.copyAutoNamingStatusFailed.text(for: language)
             }
         }

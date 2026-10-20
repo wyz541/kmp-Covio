@@ -10,8 +10,9 @@
 > The SwiftUI host uses Liquid Glass, and the Hub has a new layout.
 > macOS 14 and macOS 15 are no longer supported. The 0.4.2 text below still says macOS 12.
 >
-> Release notes must say the build passed real-Mac acceptance.
-> That checklist has not run yet, so this text is not rewritten.
+> File naming passed the 12-sample matrix on a 64 GB Apple Silicon Mac.
+> Exact 8 GB hardware validation is tracked by #185.
+> The full product checklist has not run yet, so this text is not rewritten.
 > The pending items are in `docs/adr/adr-0001-macos-ui-swiftui.md`, section 未决事项.
 
 ## What 0.5.0 will change

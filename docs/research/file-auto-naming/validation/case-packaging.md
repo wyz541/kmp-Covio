@@ -67,13 +67,13 @@ COVIO_FILE_NAMING_MODEL_DIR=build/models/Qwen3VL-2B-Instruct-4bit \
 
 | 产物 | 字节数 |
 | --- | --- |
-| `dist/Covio.app` | 1,830,481,920 |
-| `dist/Covio-0.5.0.dmg` | 1,537,709,056 |
+| `dist/Covio.app` | 1,830,531,072 |
+| `dist/Covio-0.5.0.dmg` | 1,537,739,776 |
 
 DMG SHA-256：
 
 ```text
-570f4e888c58e31a987b83fbc477f71bfcd30551de1f435f2183dfbf48b371d7
+d07c5fc1fad2219f4c41b0207836676ae6d2ca4c4d8291e6b8557649c64d5587
 ```
 
 GitHub Release 单文件门槛是 2,147,483,648 bytes。

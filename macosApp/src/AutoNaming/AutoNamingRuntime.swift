@@ -32,6 +32,7 @@ enum AutoNamingRisk: String, Sendable, Hashable {
     case conflict
     case fallbackModel
     case truncatedInput
+    case promptInjection
     case fileChanged
 }
 
@@ -55,6 +56,7 @@ struct AutoNamingPreviewItem: Sendable, Equatable {
     var status: AutoNamingPreviewStatus
     var errorCode: String?
     let candidate: FileRenameCandidate?
+    let modelMetrics: NamingModelMetrics?
 
     var canSelect: Bool {
         status == .ready && candidate != nil && targetName != nil
@@ -98,6 +100,10 @@ final class AutoNamingRuntime {
 
     var busy: Bool {
         analysisTask != nil || stage == .analyzing || stage == .applying || stage == .undoing
+    }
+
+    func preheat() async throws -> NamingModelMetrics {
+        try await model.preheat()
     }
 
     var canApply: Bool {
@@ -144,7 +150,11 @@ final class AutoNamingRuntime {
         do {
             let preview = try await task.value
             items = preview
-            selectedIDs = Set(preview.filter(\.canSelect).map(\.candidateId))
+            selectedIDs = Set(
+                preview
+                    .filter { $0.canSelect && !$0.risks.contains(.promptInjection) }
+                    .map(\.candidateId)
+            )
             stage = .preview
             if preview.isEmpty {
                 infoMessage = ContractCopy.copyAutoNamingNoticeNoResults
@@ -450,7 +460,8 @@ final class AutoNamingRuntime {
                         ),
                         status: status,
                         errorCode: errorCode,
-                        candidate: candidate
+                        candidate: candidate,
+                        modelMetrics: preparedItem.response.metrics
                     )
                 }
             }
@@ -490,7 +501,8 @@ final class AutoNamingRuntime {
             risks: [],
             status: .blocked,
             errorCode: errorCode,
-            candidate: nil
+            candidate: nil,
+            modelMetrics: nil
         )
     }
 
@@ -542,7 +554,21 @@ final class AutoNamingRuntime {
         if extraction.warnings.contains(.truncatedInput) {
             risks.insert(.truncatedInput)
         }
+        if containsPromptInjection(extraction.text) {
+            risks.insert(.promptInjection)
+        }
         return risks
+    }
+
+    private static func containsPromptInjection(_ text: String) -> Bool {
+        let lower = text.lowercased()
+        let markers = [
+            "ignore previous", "ignore all previous", "system prompt",
+            "developer message", "you are now", "execute command",
+            "run command", "output owned", "忽略之前", "忽略以上",
+            "系统提示", "执行命令", "运行命令", "输出 owned",
+        ]
+        return markers.contains { lower.contains($0) }
     }
 
     private static func makeDefaultModel() -> any NamingModelServing {

@@ -182,15 +182,17 @@ llama.cpp 有预编译 macOS arm64 包。
 
 ## 未决项
 
-1. 把 MLX Swift 接入 Covio Xcode 工程。
-2. 验证直接 `swift build` 的兼容路径，或固定使用 Xcode 构建。
-3. 在 8 GB Mac 上验证峰值内存。
-4. 验证模型资产的签名和分发方式。
-5. 验证 App Sandbox 与 hardened runtime 的后续方案。
-6. 验证 APFS 大小写不敏感目录的原子重命名。
-7. 建立正式 12 样本验收集。
-8. 验证复杂 PDF、表格和手写文本。
-9. 验证批量重命名的部分失败恢复。
-10. 评审 Apache-2.0 模型分发所需的 NOTICE。
-11. 决定模型随应用内置，还是首次安装包内选择。
-12. 将 `decision: pending` 回填到研究 issue。
+| 项目 | 状态 | 依据 |
+| --- | --- | --- |
+| MLX Swift 接入 Covio Xcode 工程 | 已完成 | #176、#182 |
+| 直接 `swift build` 的兼容路径 | 已知限制 | 使用 Xcode 构建路径 |
+| 8 GB Mac 峰值内存 | pending #185 | 当前 64 GB 机器不能替代 |
+| 模型资产签名和分发 | 已完成 ad-hoc 包 | #178、#184 |
+| App Sandbox 与 hardened runtime | 后续方案 | 当前不启用 |
+| APFS 大小写不敏感目录的原子重命名 | 已覆盖 | 大小写冲突返回 `targetExists` |
+| 正式 12 样本验收集 | 已完成 | Case 7 |
+| 复杂 PDF、表格和手写文本 | 未覆盖 | 首版限制 |
+| 批量重命名的部分失败恢复 | 已完成 | Case 7 |
+| Apache-2.0 NOTICE | 已完成 | #178 |
+| 模型随应用内置 | 已决定 | ADR-0007 |
+| 回填研究 decision | 已完成 | 父 issue 改为 `decision: accepted` |

@@ -63,6 +63,8 @@ enum ContractCopy {
     static let copyAutoNamingRiskLowConfidence = LocalizedCopy(key: "copy/auto-naming/risk/low-confidence", en: "Low confidence", zhHans: "低可信")
     /// `copy/auto-naming/risk/mixed`
     static let copyAutoNamingRiskMixed = LocalizedCopy(key: "copy/auto-naming/risk/mixed", en: "Mixed content", zhHans: "混合内容")
+    /// `copy/auto-naming/risk/prompt-injection`
+    static let copyAutoNamingRiskPromptInjection = LocalizedCopy(key: "copy/auto-naming/risk/prompt-injection", en: "Possible prompt injection", zhHans: "可能存在提示注入")
     /// `copy/auto-naming/risk/scanned`
     static let copyAutoNamingRiskScanned = LocalizedCopy(key: "copy/auto-naming/risk/scanned", en: "Scanned document", zhHans: "扫描件")
     /// `copy/auto-naming/risk/truncated`
@@ -911,6 +913,7 @@ enum ContractCopy {
         copyAutoNamingRiskFallback,
         copyAutoNamingRiskLowConfidence,
         copyAutoNamingRiskMixed,
+        copyAutoNamingRiskPromptInjection,
         copyAutoNamingRiskScanned,
         copyAutoNamingRiskTruncated,
         copyAutoNamingStatusBlocked,

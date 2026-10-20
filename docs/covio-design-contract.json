@@ -4152,6 +4152,10 @@
       "en": "Mixed content",
       "zh-Hans": "混合内容"
     },
+    "copy/auto-naming/risk/prompt-injection": {
+      "en": "Possible prompt injection",
+      "zh-Hans": "可能存在提示注入"
+    },
     "copy/auto-naming/risk/scanned": {
       "en": "Scanned document",
       "zh-Hans": "扫描件"

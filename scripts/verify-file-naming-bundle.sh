@@ -76,18 +76,26 @@ done
 
 RESULT="$TEMP/result.json"
 NETWORK_LOG="$TEMP/network.log"
+FULL_ACCEPTANCE="${COVIO_FILE_NAMING_ACCEPTANCE:-0}"
+if [[ "$FULL_ACCEPTANCE" == "1" ]]; then
+  RESULT_ENV="COVIO_FILE_NAMING_ACCEPTANCE_PATH=$RESULT"
+  TIMEOUT_SECONDS=600
+else
+  RESULT_ENV="COVIO_FILE_NAMING_SMOKE_PATH=$RESULT"
+  TIMEOUT_SECONDS=240
+fi
 : > "$NETWORK_LOG"
 env -i \
   HOME="$TEMP/home" \
   TMPDIR="$TEMP/tmp" \
   PATH=/usr/bin:/bin:/usr/sbin:/sbin \
   COVIO_SUPPORT_DIR="$TEMP/support" \
-  COVIO_FILE_NAMING_SMOKE_PATH="$RESULT" \
+  "$RESULT_ENV" \
   /usr/bin/sandbox-exec -p '(version 1)(allow default)(deny network*)' \
   "$INSTALLED/Contents/MacOS/Covio" &
 PID=$!
 
-for _ in $(seq 1 240); do
+for _ in $(seq 1 "$TIMEOUT_SECONDS"); do
   state="$(ps -p "$PID" -o stat= 2>/dev/null | tr -d ' ' || true)"
   if [[ -z "$state" || "$state" == Z* ]]; then
     break
@@ -120,18 +128,27 @@ if [[ "$RUN_RESULT" -ne 0 || ! -f "$RESULT" ]]; then
   exit 1
 fi
 
-python3 - "$RESULT" <<'PY'
+python3 - "$RESULT" "$FULL_ACCEPTANCE" <<'PY'
 import json
 import pathlib
 import sys
 result = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+full = sys.argv[2] == "1"
 if result.get("ok") is not True:
-    raise SystemExit(f"smoke result is not ok: {result}")
-if result.get("renamed") != 2 or result.get("undoSucceeded") != 2:
-    raise SystemExit(f"unexpected rename counts: {result}")
-items = result.get("items")
-if not isinstance(items, list) or len(items) != 2:
-    raise SystemExit(f"unexpected item list: {items}")
+    raise SystemExit(f"bundle result is not ok: {result}")
+if full:
+    corpus = result.get("corpus")
+    thresholds = result.get("thresholds")
+    if not isinstance(corpus, list) or len(corpus) != 12:
+        raise SystemExit(f"unexpected corpus: {corpus}")
+    if not isinstance(thresholds, dict) or not all(thresholds.values()):
+        raise SystemExit(f"acceptance threshold failed: {thresholds}")
+else:
+    if result.get("renamed") != 2 or result.get("undoSucceeded") != 2:
+        raise SystemExit(f"unexpected rename counts: {result}")
+    items = result.get("items")
+    if not isinstance(items, list) or len(items) != 2:
+        raise SystemExit(f"unexpected item list: {items}")
 print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
 PY
 

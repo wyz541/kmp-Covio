@@ -54,7 +54,11 @@ final class HelperClient {
         }
         return ChargeLimitHelperStatus(
             enabled: enabled,
+            userLimitPercent: reply.result?["userLimitPercent"].flatMap(Int.init),
             targetPercent: reply.result?["targetPercent"].flatMap(Int.init),
+            chargingLatch: reply.result?["chargingLatch"].flatMap(Bool.init) ?? false,
+            phase: reply.result?["phase"] ?? "unknown",
+            bypassEngaged: reply.result?["bypassEngaged"].flatMap(Bool.init) ?? false,
             originalFeatureState: reply.result?["originalFeatureState"].flatMap(Int.init),
             originalLimitPercent: reply.result?["originalLimitPercent"].flatMap(Int.init),
             originalOptimizedChargingEnabled: reply.result?["originalOptimizedChargingEnabled"]
@@ -119,7 +123,11 @@ final class HelperClient {
 /// `HelperClient.chargeLimitStatus()` 解析后的结果。
 struct ChargeLimitHelperStatus: Equatable {
     let enabled: Bool
+    let userLimitPercent: Int?
     let targetPercent: Int?
+    let chargingLatch: Bool
+    let phase: String
+    let bypassEngaged: Bool
     let originalFeatureState: Int?
     let originalLimitPercent: Int?
     let originalOptimizedChargingEnabled: Bool?

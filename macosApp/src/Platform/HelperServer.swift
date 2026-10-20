@@ -10,7 +10,7 @@ import kmpDomain
 /// 套接字是 OS 调用，所以这一层在两端各有一份，这是规范允许的重复。
 enum HelperServer {
     private static let peerAuthorizer: HelperPeerAuthorizing = CodeSignaturePeerAuthorizer()
-    private static let chargeLimitHandler = ChargeLimitHelperCommandHandler(
+    private static let chargeLimitRuntime = ChargeLimitRuntimeController(
         backend: ChargeLimitMCLController(
             preferences: CFPreferencesChargeLimitStore(),
             stateStore: ChargeLimitStateStore(
@@ -18,12 +18,42 @@ enum HelperServer {
                     .appendingPathComponent("charge-limit")
                     .appendingPathComponent("state.json")
             )
+        ),
+        powerReader: MacChargeLimitPowerReader(),
+        stateStore: ChargeLimitRuntimeStateStore(
+            url: URL(fileURLWithPath: HelperProtocol.helperDirectory)
+                .appendingPathComponent("charge-limit")
+                .appendingPathComponent("runtime.json")
         )
+    )
+    private static let chargeLimitHandler = ChargeLimitHelperCommandHandler(
+        runtime: chargeLimitRuntime
     )
 
     /// 阻塞运行，直到进程被信号终止。返回进程退出码。
     static func run() -> Int32 {
         let log = HelperLog()
+        if case .failure(let failure) = chargeLimitRuntime.resumeOnStartup() {
+            log.error("Charge limit runtime failed to resume: \(failure)")
+        }
+        var terminationSources: [DispatchSourceSignal] = []
+        for number in [SIGTERM, SIGINT] {
+            signal(number, SIG_IGN)
+            let source = DispatchSource.makeSignalSource(signal: number, queue: .global())
+            source.setEventHandler {
+                let restored: Bool
+                if case .success = chargeLimitRuntime.restore() {
+                    restored = true
+                } else {
+                    restored = false
+                    log.error("Charge limit restore failed during helper termination")
+                }
+                exit(restored ? 0 : 1)
+            }
+            source.resume()
+            terminationSources.append(source)
+        }
+        defer { terminationSources.forEach { $0.cancel() } }
         do {
             try serve(log: log)
             return 0

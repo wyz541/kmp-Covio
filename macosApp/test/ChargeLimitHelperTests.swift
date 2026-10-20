@@ -5,7 +5,7 @@ import kmpDomain
 
 final class ChargeLimitHelperTests: XCTestCase {
     func testStatusReturnsDisabledWhenNoStateExists() {
-        let handler = ChargeLimitHelperCommandHandler(backend: FakeChargeLimitBackend())
+        let handler = ChargeLimitHelperCommandHandler(runtime: FakeChargeLimitRuntime())
 
         let reply = handler.handle(request("chargeLimitStatus"))
 
@@ -14,40 +14,47 @@ final class ChargeLimitHelperTests: XCTestCase {
     }
 
     func testStatusReturnsThePersistedState() {
-        let backend = FakeChargeLimitBackend()
-        backend.loadedState = ChargeLimitPersistentState(
-            targetPercent: 55,
+        let runtime = FakeChargeLimitRuntime()
+        runtime.statusValue = ChargeLimitRuntimeStatus(
+            userLimitPercent: 55,
+            effectiveTargetPercent: 55,
+            chargingLatch: true,
+            phase: "charging",
+            bypassEngaged: false,
             original: ChargeLimitOriginals(
                 optimizedChargingEnabled: true,
                 featureState: 0,
                 limitPercent: 80
             )
         )
-        let handler = ChargeLimitHelperCommandHandler(backend: backend)
+        let handler = ChargeLimitHelperCommandHandler(runtime: runtime)
 
         let reply = handler.handle(request("chargeLimitStatus"))
 
         XCTAssertEqual(reply?.result?["enabled"], "true")
+        XCTAssertEqual(reply?.result?["userLimitPercent"], "55")
         XCTAssertEqual(reply?.result?["targetPercent"], "55")
+        XCTAssertEqual(reply?.result?["chargingLatch"], "true")
+        XCTAssertEqual(reply?.result?["phase"], "charging")
         XCTAssertEqual(reply?.result?["originalFeatureState"], "0")
         XCTAssertEqual(reply?.result?["originalLimitPercent"], "80")
         XCTAssertEqual(reply?.result?["originalOptimizedChargingEnabled"], "true")
     }
 
     func testConfigurePassesTheTargetToTheBackend() {
-        let backend = FakeChargeLimitBackend()
-        let handler = ChargeLimitHelperCommandHandler(backend: backend)
+        let runtime = FakeChargeLimitRuntime()
+        let handler = ChargeLimitHelperCommandHandler(runtime: runtime)
 
         let reply = handler.handle(request("chargeLimitConfigure", payload: ["percent": "55"]))
 
         XCTAssertEqual(reply?.ok, true)
-        XCTAssertEqual(backend.appliedPercent, 55)
+        XCTAssertEqual(runtime.configuredPercent, 55)
     }
 
     func testConfigureReturnsAReadableFailure() {
-        let backend = FakeChargeLimitBackend()
-        backend.applyFailure = .preferencesSyncFailed
-        let handler = ChargeLimitHelperCommandHandler(backend: backend)
+        let runtime = FakeChargeLimitRuntime()
+        runtime.configureFailure = .preferencesSyncFailed
+        let handler = ChargeLimitHelperCommandHandler(runtime: runtime)
 
         let reply = handler.handle(request("chargeLimitConfigure", payload: ["percent": "55"]))
 
@@ -56,17 +63,17 @@ final class ChargeLimitHelperTests: XCTestCase {
     }
 
     func testRestoreInvokesTheBackend() {
-        let backend = FakeChargeLimitBackend()
-        let handler = ChargeLimitHelperCommandHandler(backend: backend)
+        let runtime = FakeChargeLimitRuntime()
+        let handler = ChargeLimitHelperCommandHandler(runtime: runtime)
 
         let reply = handler.handle(request("chargeLimitRestore"))
 
         XCTAssertEqual(reply?.ok, true)
-        XCTAssertTrue(backend.restoreCalled)
+        XCTAssertTrue(runtime.restoreCalled)
     }
 
     func testNonChargeCommandsAreLeftToTheExistingHelper() {
-        let handler = ChargeLimitHelperCommandHandler(backend: FakeChargeLimitBackend())
+        let handler = ChargeLimitHelperCommandHandler(runtime: FakeChargeLimitRuntime())
 
         XCTAssertNil(handler.handle(request("version")))
     }
@@ -140,34 +147,32 @@ final class ChargeLimitHelperTests: XCTestCase {
     }
 }
 
-private final class FakeChargeLimitBackend: ChargeLimitBackend, @unchecked Sendable {
-    var loadedState: ChargeLimitPersistentState?
-    var loadFailure: ChargeLimitMCLFailure?
-    var applyFailure: ChargeLimitMCLFailure?
-    var appliedPercent: Int?
+private final class FakeChargeLimitRuntime: ChargeLimitRuntimeControlling, @unchecked Sendable {
+    var statusValue: ChargeLimitRuntimeStatus?
+    var statusFailure: ChargeLimitMCLFailure?
+    var configuredPercent: Int?
+    var configureFailure: ChargeLimitMCLFailure?
     var restoreCalled = false
     var restoreFailure: ChargeLimitMCLFailure?
 
-    func capability() -> ChargeLimitSupport { .supported }
-
-    func loadState() -> Result<ChargeLimitPersistentState?, ChargeLimitMCLFailure> {
-        if let loadFailure { return .failure(loadFailure) }
-        return .success(loadedState)
-    }
-
-    func apply(targetPercent: Int) -> Result<ChargeLimitPersistentState, ChargeLimitMCLFailure> {
-        appliedPercent = targetPercent
-        if let applyFailure { return .failure(applyFailure) }
+    func status() -> Result<ChargeLimitRuntimeStatus, ChargeLimitMCLFailure> {
+        if let statusFailure { return .failure(statusFailure) }
         return .success(
-            ChargeLimitPersistentState(
-                targetPercent: targetPercent,
-                original: ChargeLimitOriginals(
-                    optimizedChargingEnabled: nil,
-                    featureState: nil,
-                    limitPercent: nil
-                )
+            statusValue ?? ChargeLimitRuntimeStatus(
+                userLimitPercent: 0,
+                effectiveTargetPercent: nil,
+                chargingLatch: false,
+                phase: "off",
+                bypassEngaged: false,
+                original: nil
             )
         )
+    }
+
+    func configure(userLimitPercent: Int) -> Result<ChargeLimitRuntimeStatus, ChargeLimitMCLFailure> {
+        configuredPercent = userLimitPercent
+        if let configureFailure { return .failure(configureFailure) }
+        return status()
     }
 
     func restore() -> Result<Void, ChargeLimitMCLFailure> {

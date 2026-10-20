@@ -196,6 +196,7 @@ final class ChargeLimitStateStore {
 /// helper 使用的 MCL 后端端口。测试注入假实现，不需要 root。
 protocol ChargeLimitBackend: Sendable {
     func capability() -> ChargeLimitSupport
+    func observedTargetPercent() -> Int?
     func loadState() -> Result<ChargeLimitPersistentState?, ChargeLimitMCLFailure>
     func apply(targetPercent: Int) -> Result<ChargeLimitPersistentState, ChargeLimitMCLFailure>
     func restore() -> Result<Void, ChargeLimitMCLFailure>
@@ -224,6 +225,19 @@ final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
         switch powerUI.capability() {
         case .supported: .supported
         case .unsupported: .unsupported
+        }
+    }
+
+    /// 读取系统当前登记的目标。外部修改由策略转成冲突态，不静默覆盖。
+    func observedTargetPercent() -> Int? {
+        lock.withLock {
+            guard preferences.readInt(ChargeLimitPreferenceDomain.keyFeatureState) == 1,
+                  let limit = preferences.readInt(ChargeLimitPreferenceDomain.keyLimitValue),
+                  allowedTargets.contains(limit)
+            else {
+                return nil
+            }
+            return limit
         }
     }
 

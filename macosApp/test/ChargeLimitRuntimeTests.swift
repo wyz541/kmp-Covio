@@ -1,4 +1,5 @@
 import XCTest
+import kmpDomain
 @testable import Covio
 
 final class ChargeLimitRuntimeTests: XCTestCase {
@@ -24,7 +25,8 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         let runtime = makeRuntime(backend: backend, reader: reader)
         defer { _ = runtime.restore() }
 
-        let configured = try runtime.configure(userLimitPercent: 50).get()
+        _ = try runtime.configure(userLimitPercent: 50).get()
+        let configured = try runtime.evaluateNow().get()
         let settled = try runtime.evaluateNow().get()
 
         XCTAssertEqual(configured.userLimitPercent, 50)
@@ -105,6 +107,84 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         XCTAssertTrue(backend.appliedTargets.isEmpty)
     }
 
+    func testUnsupportedDeviceDoesNotWrite() throws {
+        let backend = FakeChargeLimitBackend()
+        backend.capabilityValue = .unsupported
+        let runtime = makeRuntime(
+            backend: backend,
+            reader: FakeChargeLimitPowerReader(reading: reading(current: 50))
+        )
+        defer { _ = runtime.restore() }
+
+        XCTAssertEqual(try runtime.configure(userLimitPercent: 50).get().phase, "unsupported")
+        XCTAssertTrue(backend.appliedTargets.isEmpty)
+    }
+
+    func testFailedFirstConfigurationRollsBackTheRuntimeState() throws {
+        let backend = FakeChargeLimitBackend()
+        backend.applyFailure = .readbackFailed("target")
+        let runtime = makeRuntime(
+            backend: backend,
+            reader: FakeChargeLimitPowerReader(reading: reading(current: 44))
+        )
+
+        XCTAssertEqual(
+            runtime.configure(userLimitPercent: 50),
+            .failure(.readbackFailed("target"))
+        )
+        XCTAssertNil(try stateStore.load())
+        XCTAssertTrue(backend.restoreCalled)
+        XCTAssertEqual(try runtime.status().get().phase, "off")
+    }
+
+    func testFailedLimitChangeKeepsThePreviousIntent() throws {
+        let backend = FakeChargeLimitBackend()
+        let runtime = makeRuntime(
+            backend: backend,
+            reader: FakeChargeLimitPowerReader(reading: reading(current: 44))
+        )
+        defer { _ = runtime.restore() }
+        _ = try runtime.configure(userLimitPercent: 50).get()
+
+        backend.applyFailure = .readbackFailed("target")
+        XCTAssertEqual(
+            runtime.configure(userLimitPercent: 60),
+            .failure(.readbackFailed("target"))
+        )
+        XCTAssertEqual(try stateStore.load()?.userLimitPercent, 50)
+    }
+
+    func testExternalTargetChangeStopsWritesAndReportsConflict() throws {
+        let backend = FakeChargeLimitBackend()
+        let runtime = makeRuntime(
+            backend: backend,
+            reader: FakeChargeLimitPowerReader(reading: reading(current: 44))
+        )
+        defer { _ = runtime.restore() }
+        _ = try runtime.configure(userLimitPercent: 50).get()
+
+        backend.observedTargetOverride = 80
+        let conflicted = try runtime.evaluateNow().get()
+
+        XCTAssertEqual(conflicted.phase, "conflict")
+        XCTAssertEqual(backend.appliedTargets, [50])
+    }
+
+    func testBypassEvidenceIsExposedWhileHolding() throws {
+        let backend = FakeChargeLimitBackend()
+        let reader = FakeChargeLimitPowerReader(
+            reading: reading(current: 50, bypassEngaged: true)
+        )
+        let runtime = makeRuntime(backend: backend, reader: reader)
+        defer { _ = runtime.restore() }
+
+        _ = try runtime.configure(userLimitPercent: 50).get()
+        let configured = try runtime.evaluateNow().get()
+
+        XCTAssertEqual(configured.phase, "holding")
+        XCTAssertTrue(configured.bypassEngaged)
+    }
+
     func testResumeOnStartupReappliesThePolicy() throws {
         try stateStore.save(
             ChargeLimitRuntimeState(
@@ -165,7 +245,8 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         adapter: Bool = true,
         charged: Bool = false,
         calibrationActive: Bool = false,
-        protectionActive: Bool = false
+        protectionActive: Bool = false,
+        bypassEngaged: Bool = false
     ) -> ChargeLimitPowerReading {
         ChargeLimitPowerReading(
             adapterConnected: adapter,
@@ -174,7 +255,7 @@ final class ChargeLimitRuntimeTests: XCTestCase {
             isCharged: charged,
             calibrationActive: calibrationActive,
             systemProtectionActive: protectionActive,
-            bypassEngaged: false
+            bypassEngaged: bypassEngaged
         )
     }
 }
@@ -193,6 +274,16 @@ private final class FakeChargeLimitBackend: ChargeLimitBackend, @unchecked Senda
     var state: ChargeLimitPersistentState?
     var appliedTargets: [Int] = []
     var restoreCalled = false
+    var capabilityValue: ChargeLimitSupport = .supported
+    var applyFailure: ChargeLimitMCLFailure?
+    var observedTargetOverride: Int?
+
+    func capability() -> ChargeLimitSupport { capabilityValue }
+    func observedTargetPercent() -> Int? {
+        if let observedTargetOverride { return observedTargetOverride }
+        guard let target = state?.targetPercent, target < 100 else { return nil }
+        return target
+    }
 
     func loadState() -> Result<ChargeLimitPersistentState?, ChargeLimitMCLFailure> {
         .success(state)
@@ -200,6 +291,7 @@ private final class FakeChargeLimitBackend: ChargeLimitBackend, @unchecked Senda
 
     func apply(targetPercent: Int) -> Result<ChargeLimitPersistentState, ChargeLimitMCLFailure> {
         appliedTargets.append(targetPercent)
+        if let applyFailure { return .failure(applyFailure) }
         let updated = ChargeLimitPersistentState(
             targetPercent: targetPercent,
             original: state?.original ?? ChargeLimitOriginals(

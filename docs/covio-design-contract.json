@@ -4197,8 +4197,8 @@
       "zh-Hans": "监控"
     },
     "copy/hub/tab/devices/summary": {
-      "en": "Live CPU, GPU, memory, disk, network, and battery metrics.",
-      "zh-Hans": "CPU、GPU、内存、磁盘、网络和电池的实时指标。"
+      "en": "Live CPU, GPU, memory, disk, network, and power metrics.",
+      "zh-Hans": "CPU、GPU、内存、磁盘、网络和电源的实时指标。"
     },
     "copy/hub/tab/files": {
       "en": "Files",
@@ -4361,8 +4361,8 @@
       "zh-Hans": "网络"
     },
     "copy/monitor/title/battery": {
-      "en": "Battery",
-      "zh-Hans": "电池"
+      "en": "Power",
+      "zh-Hans": "电源"
     },
     "copy/monitor/live": {
       "en": "Live",
@@ -4463,6 +4463,126 @@
     "copy/monitor/battery/source": {
       "en": "Source",
       "zh-Hans": "电源"
+    },
+    "copy/monitor/power/state/battery": {
+      "en": "On battery",
+      "zh-Hans": "电池供电"
+    },
+    "copy/monitor/power/state/connected": {
+      "en": "Power connected",
+      "zh-Hans": "已接通电源"
+    },
+    "copy/monitor/power/temperature": {
+      "en": "Temperature",
+      "zh-Hans": "温度"
+    },
+    "copy/monitor/power/draw": {
+      "en": "Power draw",
+      "zh-Hans": "功耗"
+    },
+    "copy/monitor/power/remaining": {
+      "en": "Estimated time",
+      "zh-Hans": "预计可使用"
+    },
+    "copy/monitor/power/top-apps": {
+      "en": "Top energy · 1 hour",
+      "zh-Hans": "耗电 Top3 · 近 1 小时"
+    },
+    "copy/monitor/power/no-data": {
+      "en": "No data",
+      "zh-Hans": "暂无数据"
+    },
+    "copy/monitor/power/no-battery": {
+      "en": "No battery",
+      "zh-Hans": "无电池设备"
+    },
+    "copy/monitor/power/low-battery": {
+      "en": "Low battery",
+      "zh-Hans": "电量低"
+    },
+    "copy/monitor/power/critical-battery": {
+      "en": "Battery critical",
+      "zh-Hans": "电量极低"
+    },
+    "copy/monitor/power/high-temperature": {
+      "en": "Battery hot",
+      "zh-Hans": "电池温度高"
+    },
+    "copy/monitor/power/read-failed": {
+      "en": "Some readings unavailable",
+      "zh-Hans": "部分读数不可用"
+    },
+    "copy/monitor/power/trend/title": {
+      "en": "Recent trend",
+      "zh-Hans": "近期趋势"
+    },
+    "copy/monitor/power/trend/window": {
+      "en": "Last 1 min",
+      "zh-Hans": "近 1 分钟"
+    },
+    "copy/monitor/power/details/expand": {
+      "en": "Show details",
+      "zh-Hans": "展开详情"
+    },
+    "copy/monitor/power/details/collapse": {
+      "en": "Hide details",
+      "zh-Hans": "收起详情"
+    },
+    "copy/monitor/power/details/title": {
+      "en": "Power details",
+      "zh-Hans": "电源详情"
+    },
+    "copy/monitor/power/details/close": {
+      "en": "Close power details",
+      "zh-Hans": "关闭电源详情"
+    },
+    "copy/monitor/power/history/title": {
+      "en": "Power and temperature · 30 min",
+      "zh-Hans": "功耗与温度 · 近 30 分钟"
+    },
+    "copy/monitor/power/history/accumulating": {
+      "en": "Collecting data",
+      "zh-Hans": "数据积累中"
+    },
+    "copy/monitor/power/estimate/basis": {
+      "en": "Based on recent average power",
+      "zh-Hans": "按近期平均功耗估算"
+    },
+    "copy/monitor/power/average/draw": {
+      "en": "Average power",
+      "zh-Hans": "平均功耗"
+    },
+    "copy/monitor/power/charge/title": {
+      "en": "Charging information",
+      "zh-Hans": "充电信息"
+    },
+    "copy/monitor/power/charge/power": {
+      "en": "Charging power",
+      "zh-Hans": "充电功率"
+    },
+    "copy/monitor/power/charge/time-to-full": {
+      "en": "Time to full",
+      "zh-Hans": "预计充满"
+    },
+    "copy/monitor/power/charge/health": {
+      "en": "Battery health",
+      "zh-Hans": "电池健康度"
+    },
+    "copy/monitor/power/events/title": {
+      "en": "Power events · 24 h",
+      "zh-Hans": "供电事件 · 近 24 小时"
+    },
+    "copy/monitor/power/events/connected": {
+      "en": "Adapter connected",
+      "zh-Hans": "已接通电源"
+    },
+    "copy/monitor/power/events/disconnected": {
+      "en": "Adapter disconnected",
+      "zh-Hans": "已断开电源"
+    },
+    "copy/monitor/power/events/fully-charged": {
+      "en": "Fully charged",
+      "zh-Hans": "已充满"
     },
     "copy/monitor/state/charging": {
       "en": "Charging",

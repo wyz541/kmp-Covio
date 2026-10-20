@@ -33,6 +33,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             return
         }
+        if let path = ProcessInfo.processInfo.environment["COVIO_MONITOR_DETAIL_RENDER"], !path.isEmpty {
+            Task { @MainActor in
+                exit(await MonitorPowerDetailRenderer.render(to: path) ? 0 : 1)
+            }
+            return
+        }
         if ProcessInfo.processInfo.environment["COVIO_MONITOR_PREVIEW"] == "1" {
             NSApp.setActivationPolicy(.regular)
             let preview = MonitorPreviewWindowController()

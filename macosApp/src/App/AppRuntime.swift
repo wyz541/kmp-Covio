@@ -685,6 +685,8 @@ final class ConfigDraft {
     var clipboardEnabled: Bool
     var clipboardPasteStackHotKey: String
     var clipboardCaptureHotKey: String
+    var chargeLimitEnabled: Bool
+    var chargeLimitPercent: Int32
 
     init(_ config: AppConfig) {
         schemaVersion = config.schemaVersion
@@ -711,6 +713,8 @@ final class ConfigDraft {
         clipboardEnabled = config.clipboardEnabled
         clipboardPasteStackHotKey = config.clipboardPasteStackHotKey
         clipboardCaptureHotKey = config.clipboardCaptureHotKey
+        chargeLimitEnabled = config.chargeLimitEnabled
+        chargeLimitPercent = config.chargeLimitPercent
     }
 
     func build() -> AppConfig {
@@ -738,7 +742,9 @@ final class ConfigDraft {
             shelfSoundsEnabled: shelfSoundsEnabled,
             clipboardEnabled: clipboardEnabled,
             clipboardPasteStackHotKey: clipboardPasteStackHotKey,
-            clipboardCaptureHotKey: clipboardCaptureHotKey
+            clipboardCaptureHotKey: clipboardCaptureHotKey,
+            chargeLimitEnabled: chargeLimitEnabled,
+            chargeLimitPercent: chargeLimitPercent
         )
     }
 }

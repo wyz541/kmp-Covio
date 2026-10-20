@@ -180,3 +180,7 @@ helper 缺失时显示“请安装或修复 helper”。
 充电上限详情：
 
 ![充电上限详情](previews/158-monitor-power-detail-charge-limit.png)
+
+深色充电上限详情：
+
+![深色充电上限详情](previews/158-monitor-power-detail-charge-limit-dark.png)

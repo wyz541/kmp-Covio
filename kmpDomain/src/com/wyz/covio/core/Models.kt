@@ -41,6 +41,7 @@ data class AppConfig(
     @SerialName("clipboardEnabled") val clipboardEnabled: Boolean = true,
     @SerialName("clipboardPasteStackHotKey") val clipboardPasteStackHotKey: String = DEFAULT_PASTE_STACK_HOT_KEY,
     @SerialName("clipboardCaptureHotKey") val clipboardCaptureHotKey: String = DEFAULT_CAPTURE_HOT_KEY,
+    @SerialName("power") val power: PowerConfig = PowerConfig(),
 ) {
     fun normalized(): AppConfig = copy(
         schemaVersion = 3,
@@ -51,6 +52,7 @@ data class AppConfig(
         hibernateMode = hibernateMode?.takeIf { it in SUPPORTED_HIBERNATE_MODES },
         clipboardPasteStackHotKey = normalizeHotKeyBinding(clipboardPasteStackHotKey, DEFAULT_PASTE_STACK_HOT_KEY),
         clipboardCaptureHotKey = normalizeHotKeyBinding(clipboardCaptureHotKey, DEFAULT_CAPTURE_HOT_KEY),
+        power = power.normalized(),
     )
 }
 

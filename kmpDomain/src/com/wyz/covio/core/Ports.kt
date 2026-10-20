@@ -10,6 +10,18 @@ interface PowerSource {
     fun stop()
 }
 
+/**
+ * 电源策略需要的系统观察端口。
+ *
+ * 本端口不读取 helper 状态。
+ * 上层把结果与 helper 状态组装为 [PowerSnapshot]。
+ */
+interface PowerObservationSource {
+    fun read(): PowerObservation
+    fun subscribe(listener: () -> Unit)
+    fun stop()
+}
+
 interface LidSensor {
     fun read(): LidState
     fun subscribe(listener: (LidState) -> Unit)

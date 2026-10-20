@@ -61,6 +61,8 @@ xcodebuild \
   -scheme "$SCHEME" \
   -configuration "$CONFIGURATION" \
   -derivedDataPath "$DERIVED_DATA" \
+  -skipMacroValidation \
+  -skipPackagePluginValidation \
   -archivePath "$ARCHIVE" \
   -destination 'generic/platform=macOS' \
   ARCHS=arm64 \

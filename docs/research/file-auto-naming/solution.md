@@ -78,12 +78,15 @@ flowchart LR
 | `macosApp/src/AutoNaming/FileNamingImageExtractor.swift` | 图片解码、缩放和 OCR |
 | `macosApp/src/AutoNaming/VisionTextRecognizer.swift` | 共享 Vision OCR |
 | `macosApp/src/AutoNaming/FileNamingContentExtractor.swift` | 提取协调器 |
-| `macosApp/src/AutoNaming/NamingModelPort.swift` | 模型端口 |
-| `macosApp/src/AutoNaming/MLXNamingModel.swift` | MLX Swift 实现 |
+| `macosApp/src/AutoNaming/NamingModelPort.swift` | 模型端口、超时、取消和回退 |
+| `macosApp/src/AutoNaming/MLXNamingModel.swift` | 本地 MLX Swift 实现 |
 | `macosApp/src/AutoNaming/LlamaNamingModel.swift` | 备选运行时 |
 | `macosApp/src/AutoNaming/RenameService.swift` | 原子重命名和撤销 |
 | `macosApp/src/AutoNaming/AutoNamingPreviewView.swift` | 预览 UI |
 | `macosApp/test/FileNamingContentExtractorTests.swift` | 提取、OCR 和失败测试 |
+| `macosApp/test/NamingModelPortTests.swift` | 模型契约、超时、回退和字段测试 |
+| `macosApp/test/MLXNamingModelIntegrationTests.swift` | 本地文本和图片真实模型测试 |
+| `scripts/test-file-naming-model.sh` | Xcode 本地模型验收入口 |
 
 模型资产建议放在应用资源中，例如 `Resources/Models/Qwen3VL-2B-Instruct-4bit/`。
 模型资产不能进入 Git。

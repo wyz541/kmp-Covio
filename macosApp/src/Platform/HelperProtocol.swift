@@ -21,6 +21,10 @@ enum HelperProtocol {
     static var allowedUidPath: String { HelperContractKt.HELPER_ALLOWED_UID_PATH }
     static var versionPath: String { HelperContractKt.HELPER_VERSION_PATH }
     static var appPathFile: String { HelperContractKt.HELPER_APP_PATH_FILE }
+    static var sleepOwnerPath: String { HelperContractKt.HELPER_SLEEP_OWNER_PATH }
+    static var sleepOwnerValue: String { HelperContractKt.HELPER_SLEEP_OWNER_VALUE }
+    static var leaseDurationSeconds: Int64 { HelperContractKt.HELPER_LEASE_DURATION_SECONDS }
+    static var leaseRenewSeconds: Int64 { HelperContractKt.HELPER_LEASE_RENEW_SECONDS }
     static var logPath: String { HelperContractKt.HELPER_LOG_PATH }
     static var plistPath: String { HelperContractKt.HELPER_PLIST_PATH }
     static var launchDaemonLabel: String { HelperContractKt.HELPER_LAUNCH_DAEMON_LABEL }

@@ -152,6 +152,20 @@ data class HoldLeaseSnapshot(
         get() = actualPrevention == IdleSleepPrevention.SYSTEM_AND_DISPLAY
 }
 
+/** helper 的合盖租约与系统状态。 */
+data class LidLeaseStatus(
+    val available: Boolean = false,
+    val protocolVersion: String? = null,
+    val sleepDisabled: Boolean? = null,
+    val covioOwned: Boolean? = null,
+    val activeLeaseCount: Int = 0,
+    val expiresAtEpochSeconds: Long? = null,
+    val error: String? = null,
+) {
+    val leaseActive: Boolean
+        get() = activeLeaseCount > 0 && covioOwned == true
+}
+
 /** 阻止保持唤醒的原因。安全原因优先于用户强制模式。 */
 enum class SafetyVeto {
     POWER_DISABLED,

@@ -23,6 +23,8 @@ enum HelperServer {
     }
 
     private static func serve(log: HelperLog) throws {
+        let leaseCoordinator = HelperLeaseCoordinator(log: log)
+        leaseCoordinator.restoreStaleState()
         try prepareSocketFile()
 
         let serverSocket = socket(AF_UNIX, SOCK_STREAM, 0)
@@ -47,7 +49,7 @@ enum HelperServer {
             // 被信号打断时 accept 返回负数，继续等下一个连接。
             guard client >= 0 else { continue }
             DispatchQueue.global().async {
-                handleClient(client, log: log)
+                handleClient(client, log: log, leaseCoordinator: leaseCoordinator)
             }
         }
     }
@@ -66,7 +68,11 @@ enum HelperServer {
     ///
     /// 协议部分（解码、校验、回复构造、pmset 参数）全部在共享层，
     /// 这里只做三件宿主才能做的事：看 uid、跑进程、写回包。
-    static func handleClient(_ client: Int32, log: HelperLog) {
+    static func handleClient(
+        _ client: Int32,
+        log: HelperLog,
+        leaseCoordinator: HelperLeaseCoordinator
+    ) {
         defer { close(client) }
         do {
             guard let peerUid = peerUid(of: client) else {
@@ -106,6 +112,8 @@ enum HelperServer {
                 reply = runPmset(requestId: request.requestId, arguments: arguments)
             } else if request.command == HelperWire.shared.COMMAND_VERSION {
                 reply = HelperWire.shared.versionReply(requestId: request.requestId)
+            } else if let leaseReply = leaseCoordinator.handle(request) {
+                reply = leaseReply
             } else {
                 // 白名单外的命令在校验那一步就被拒绝了，这里只是兜底。
                 reply = HelperWire.shared.failure(requestId: request.requestId, message: "Command is not allowed")

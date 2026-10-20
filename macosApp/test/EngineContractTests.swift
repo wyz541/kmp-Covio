@@ -452,6 +452,7 @@ final class EngineContractTests: XCTestCase {
     /// 对应 `sleep now temporarily restores restrictions and wake restores them`。
     func testSleepNowTemporarilyRestoresRestrictionsAndWakeRestoresThem() {
         let fixture = Fixture()
+        fixture.privileged.installed = true
         fixture.power.value = BatteryStatus(percent: 90, state: .charging, remainingSeconds: nil)
         fixture.engine.start()
         fixture.engine.setIdleSleepAvailable(available: false)
@@ -466,6 +467,23 @@ final class EngineContractTests: XCTestCase {
         fixture.watcher.wake()
         XCTAssertFalse(fixture.engine.currentState.idleSleepAvailable)
         XCTAssertFalse(fixture.engine.currentState.lidSleepAvailable)
+    }
+
+    /// 对应 `helper lease expiry updates lid availability`。
+    func testHelperLeaseExpiryUpdatesLidAvailability() {
+        var now: Int64 = 1_000
+        let fixture = Fixture(clock: { now })
+        fixture.privileged.installed = true
+        fixture.engine.start()
+        _ = fixture.engine.setLidSleepAvailable(available: false)
+        XCTAssertFalse(fixture.engine.currentState.lidSleepAvailable)
+
+        fixture.privileged.sleepDisabled = false
+        now += 5_000
+        fixture.engine.tick(nowMillis: now)
+
+        XCTAssertTrue(fixture.engine.currentState.lidSleepAvailable)
+        XCTAssertEqual(fixture.engine.currentState.lidLeaseStatus.activeLeaseCount, 0)
     }
 
     /// 对应 `cancel timer restores lid availability`。

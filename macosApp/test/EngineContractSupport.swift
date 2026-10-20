@@ -259,6 +259,7 @@ final class FakeSleepWatcher: NSObject, SleepWatcher {
 final class FakePrivilegedOps: NSObject, PrivilegedOps {
     var installed = false
     var disableSleepResult = true
+    var sleepDisabled = false
     var disableSleepValues: [Bool] = []
 
     func isInstalled() -> Bool { installed }
@@ -277,7 +278,20 @@ final class FakePrivilegedOps: NSObject, PrivilegedOps {
 
     func setDisableSleep(disabled: Bool) -> Bool {
         disableSleepValues.append(disabled)
+        if disableSleepResult { sleepDisabled = disabled }
         return disableSleepResult
+    }
+
+    func lidLeaseStatus() -> LidLeaseStatus {
+        LidLeaseStatus(
+            available: installed,
+            protocolVersion: installed ? HelperProtocol.protocolVersion : nil,
+            sleepDisabled: KotlinBoolean(bool: sleepDisabled),
+            covioOwned: KotlinBoolean(bool: sleepDisabled),
+            activeLeaseCount: sleepDisabled ? 1 : 0,
+            expiresAtEpochSeconds: sleepDisabled ? KotlinLong(longLong: Int64.max) : nil,
+            error: nil
+        )
     }
 }
 

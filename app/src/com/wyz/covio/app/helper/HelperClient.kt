@@ -18,7 +18,12 @@ import java.util.UUID
 class HelperClient(
     private val socketPath: Path = Path.of(HelperProtocol.SOCKET_PATH),
 ) {
-    fun request(command: String, payload: Map<String, String> = emptyMap(), timeoutMillis: Int = 2_000): HelperReply? {
+    fun request(
+        command: String,
+        payload: Map<String, String> = emptyMap(),
+        timeoutMillis: Int = 2_000,
+        protocolVersion: String = HelperProtocol.PROTOCOL_VERSION,
+    ): HelperReply? {
         if (!Files.exists(socketPath) || timeoutMillis <= 0) return null
         return runCatching {
             val deadline = System.nanoTime() + timeoutMillis.toLong() * 1_000_000L
@@ -33,7 +38,7 @@ class HelperClient(
 
                     val line = HelperProtocol.encodeRequest(
                         HelperRequest(
-                            version = HelperProtocol.PROTOCOL_VERSION,
+                            version = protocolVersion,
                             requestId = UUID.randomUUID().toString(),
                             command = command,
                             payload = payload,
@@ -46,10 +51,34 @@ class HelperClient(
         }.getOrNull()
     }
 
-    fun version(): String? = request("version")?.takeIf { it.ok }?.result?.get("version")
+    /// 用 v1 探测旧 helper。新版 helper 保留这一条只读兼容路径。
+    fun version(): String? = request("version", protocolVersion = "1")
+        ?.takeIf { it.ok }
+        ?.result
+        ?.get("version")
 
-    fun setDisableSleep(disabled: Boolean): Boolean =
-        request("setDisableSleep", mapOf("disabled" to disabled.toString()))?.ok == true
+    fun acquireLidLease(leaseId: String, externalDisplayCount: Int): HelperReply? =
+        request(
+            "lidLeaseAcquire",
+            mapOf(
+                "leaseId" to leaseId,
+                "externalDisplayCount" to externalDisplayCount.toString(),
+            ),
+        )
+
+    fun renewLidLease(leaseId: String, externalDisplayCount: Int): HelperReply? =
+        request(
+            "lidLeaseRenew",
+            mapOf(
+                "leaseId" to leaseId,
+                "externalDisplayCount" to externalDisplayCount.toString(),
+            ),
+        )
+
+    fun releaseLidLease(leaseId: String): HelperReply? =
+        request("lidLeaseRelease", mapOf("leaseId" to leaseId))
+
+    fun lidLeaseStatus(): HelperReply? = request("lidLeaseStatus")
 
     fun setHibernateMode(mode: Int): Boolean =
         request("setHibernateMode", mapOf("mode" to mode.toString()))?.ok == true

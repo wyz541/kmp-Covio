@@ -13,8 +13,8 @@ class HelperProtocolTest {
         val request = HelperRequest(
             version = HelperProtocol.PROTOCOL_VERSION,
             requestId = "abc",
-            command = "setDisableSleep",
-            payload = mapOf("disabled" to "true"),
+            command = "lidLeaseAcquire",
+            payload = mapOf("leaseId" to "lease", "externalDisplayCount" to "0"),
         )
         val decoded = HelperProtocol.decodeRequest(HelperProtocol.encodeRequest(request))
         assertEquals(request, decoded)
@@ -29,13 +29,13 @@ class HelperProtocolTest {
     }
 
     @Test
-    fun `protocol rejects invalid disable sleep values`() {
+    fun `protocol rejects lease requests without a valid id`() {
         val error = HelperProtocol.validate(
             HelperRequest(
                 HelperProtocol.PROTOCOL_VERSION,
                 "abc",
-                "setDisableSleep",
-                mapOf("disabled" to "yes"),
+                "lidLeaseAcquire",
+                mapOf("leaseId" to " ", "externalDisplayCount" to "0"),
             ),
         )
         assertNotNull(error)

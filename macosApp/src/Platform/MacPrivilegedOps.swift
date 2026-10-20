@@ -14,15 +14,29 @@ final class MacPrivilegedOps: NSObject, PrivilegedOps {
     private let logger: AppLogger
     private let executablePath: String
     private let client: HelperClient
+    private let externalDisplayCount: () -> Int?
+    private let leaseId = UUID().uuidString
+    private let stateLock = NSLock()
+    private let leaseOperationLock = NSLock()
+    private let localStatusCacheLock = NSLock()
+    private var leaseActive = false
+    private var renewTimer: DispatchSourceTimer?
+    private var localSleepDisabled: Bool?
+    private var localSleepDisabledReadAt: TimeInterval?
 
     init(
         logger: AppLogger,
         executablePath: String = Bundle.main.executablePath ?? "",
-        client: HelperClient = HelperClient()
+        client: HelperClient = HelperClient(),
+        externalDisplayCount: @escaping () -> Int? = {
+            MacPowerObservationSource.readExternalDisplayCount()
+        }
     ) {
         self.logger = logger
         self.executablePath = executablePath
         self.client = client
+        self.externalDisplayCount = externalDisplayCount
+        super.init()
     }
 
     /// 「已安装」的判据是 socket 文件存在，不是 LaunchDaemon 在跑。
@@ -33,8 +47,10 @@ final class MacPrivilegedOps: NSObject, PrivilegedOps {
 
     func status() -> HelperStatus {
         guard isInstalled() else { return .notInstalled }
-        guard let version = helperVersion() else { return .error }
-        return version == ModelsKt.APP_VERSION ? .installed : .outdated
+        guard let info = client.versionInfo() else { return .error }
+        let sameVersion = info.version == ModelsKt.APP_VERSION
+        let sameProtocol = info.protocolVersion == HelperProtocol.protocolVersion
+        return sameVersion && sameProtocol ? .installed : .outdated
     }
 
     func helperVersion() -> String? {
@@ -58,11 +74,127 @@ final class MacPrivilegedOps: NSObject, PrivilegedOps {
     }
 
     func setDisableSleep(disabled: Bool) -> Bool {
-        guard client.setDisableSleep(disabled: disabled) else {
-            logger.warn(message: "Privileged helper did not accept setDisableSleep(\(disabled))", error: nil)
+        if disabled {
+            guard let externalDisplays = externalDisplayCount() else {
+                logger.warn(message: "Cannot read external display count", error: nil)
+                return false
+            }
+            leaseOperationLock.lock()
+            defer { leaseOperationLock.unlock() }
+            let status = client.acquireLidLease(
+                leaseId: leaseId,
+                externalDisplayCount: externalDisplays
+            )
+            guard status.leaseActive, status.sleepDisabled?.boolValue == true else {
+                logger.warn(
+                    message: "Privileged helper did not acquire the lid lease: \(status.error ?? "unknown error")",
+                    error: nil
+                )
+                return false
+            }
+            stateLock.withLock { leaseActive = true }
+            startRenewTimer()
+            return true
+        }
+
+        stopRenewTimer()
+        leaseOperationLock.lock()
+        defer { leaseOperationLock.unlock() }
+        stateLock.withLock { leaseActive = false }
+        let status = client.releaseLidLease(leaseId: leaseId)
+        guard status.error == nil, status.sleepDisabled?.boolValue != true else {
+            logger.warn(
+                message: "Privileged helper did not release the lid lease: \(status.error ?? "SleepDisabled remains set")",
+                error: nil
+            )
             return false
         }
         return true
+    }
+
+    func lidLeaseStatus() -> LidLeaseStatus {
+        let remote = client.lidLeaseStatus()
+        guard remote.sleepDisabled == nil, let local = cachedLocalSleepDisabled() else {
+            return remote
+        }
+        return LidLeaseStatus(
+            available: remote.available,
+            protocolVersion: remote.protocolVersion,
+            sleepDisabled: KotlinBoolean(bool: local),
+            covioOwned: nil,
+            activeLeaseCount: remote.activeLeaseCount,
+            expiresAtEpochSeconds: remote.expiresAtEpochSeconds,
+            error: remote.error
+        )
+    }
+
+    private func cachedLocalSleepDisabled() -> Bool? {
+        localStatusCacheLock.lock()
+        if let readAt = localSleepDisabledReadAt,
+           Date().timeIntervalSince1970 - readAt < 30 {
+            let cached = localSleepDisabled
+            localStatusCacheLock.unlock()
+            return cached
+        }
+        localStatusCacheLock.unlock()
+
+        let actual = PmsetReader.sleepDisabled()
+        localStatusCacheLock.lock()
+        localSleepDisabled = actual
+        localSleepDisabledReadAt = Date().timeIntervalSince1970
+        localStatusCacheLock.unlock()
+        return actual
+    }
+
+    private func startRenewTimer() {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+        guard renewTimer == nil else { return }
+        let timer = DispatchSource.makeTimerSource(queue: .global(qos: .utility))
+        timer.schedule(
+            deadline: .now() + .seconds(Int(HelperProtocol.leaseRenewSeconds)),
+            repeating: .seconds(Int(HelperProtocol.leaseRenewSeconds)),
+            leeway: .seconds(2)
+        )
+        timer.setEventHandler { [weak self] in self?.renewLease() }
+        renewTimer = timer
+        timer.resume()
+    }
+
+    private func stopRenewTimer() {
+        stateLock.lock()
+        let timer = renewTimer
+        renewTimer = nil
+        stateLock.unlock()
+        timer?.cancel()
+    }
+
+    private func renewLease() {
+        leaseOperationLock.lock()
+        defer { leaseOperationLock.unlock() }
+        guard stateLock.withLock({ leaseActive }) else { return }
+        guard let externalDisplays = externalDisplayCount() else {
+            logger.warn(message: "Cannot renew lid lease: external display count is unknown", error: nil)
+            return
+        }
+        let status = client.renewLidLease(
+            leaseId: leaseId,
+            externalDisplayCount: externalDisplays
+        )
+        if status.leaseActive, status.sleepDisabled?.boolValue == true {
+            return
+        }
+        logger.warn(
+            message: "Cannot renew lid lease: \(status.error ?? "helper state is not active")",
+            error: nil
+        )
+    }
+
+    deinit {
+        stopRenewTimer()
+        if stateLock.withLock({ leaseActive }) {
+            _ = client.releaseLidLease(leaseId: leaseId)
+        }
     }
 
     func hibernateMode() -> KotlinInt? {
@@ -90,6 +222,12 @@ enum PmsetReader {
         guard let text = readConfiguration(timeout: timeout) else { return nil }
         guard let mode = PmsetConfigParser.shared.hibernateMode(text: text) else { return nil }
         return Int(mode.int32Value)
+    }
+
+    /// 读当前 `disablesleep`。helper 协议不兼容时由客户端做只读兜底。
+    static func sleepDisabled(timeout: TimeInterval = 5) -> Bool? {
+        guard let text = readConfiguration(timeout: timeout) else { return nil }
+        return PmsetConfigParser.shared.sleepDisabled(text: text)?.boolValue
     }
 
     /// 跑 `pmset -g` 并返回全部输出。命令失败或超时返回 nil。

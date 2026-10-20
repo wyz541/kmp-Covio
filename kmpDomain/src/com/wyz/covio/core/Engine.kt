@@ -42,6 +42,7 @@ class Engine(
     private var lastWakeEvent: WakeEvent? = null
     private var wakeScanScheduled = false
     private var cachedWakeLog: WakeLogCache? = null
+    private var lastLidLeaseStatusAtMillis: Long? = null
     private val holdLeases = HoldLeaseManager(sleepController, clock)
 
     val currentState: AppState get() = lock.withLock { state }
@@ -172,6 +173,11 @@ class Engine(
             }
         }
 
+        val leaseStatusChanged = refreshLidLeaseStatusIfDue(nowMillis)
+        if (leaseStatusChanged && currentState.enabled) {
+            reconcilePolicy()
+        }
+
         val snapshot = currentState
         if (snapshot.enabled && !snapshot.lidSleepAvailable && snapshot.idleSleepAvailable) {
             val timeout = sleepController.systemIdleSleepTimeoutSeconds()
@@ -274,6 +280,7 @@ class Engine(
                 if (available) lidCancelAtMillis = null
             }
         }
+        if (success) refreshLidLeaseStatus()
         publish()
         return success
     }
@@ -455,6 +462,32 @@ class Engine(
             it <= snapshot.lowTimeRemainingMinutes.toLong() * 60L
         } ?: false
         return lowCapacity || lowRemaining
+    }
+
+    private fun refreshLidLeaseStatusIfDue(nowMillis: Long): Boolean {
+        val last = lock.withLock { lastLidLeaseStatusAtMillis }
+        if (last != null && nowMillis - last < LID_LEASE_STATUS_REFRESH_MILLIS) return false
+        lock.withLock { lastLidLeaseStatusAtMillis = nowMillis }
+        return refreshLidLeaseStatus()
+    }
+
+    private fun refreshLidLeaseStatus(): Boolean {
+        val status = runCatching { privileged.lidLeaseStatus() }
+            .getOrElse {
+                LidLeaseStatus(
+                    available = false,
+                    error = it.message ?: "Cannot read lid lease status",
+                )
+            }
+        return lock.withLock {
+            val available = status.sleepDisabled != true
+            val changed = state.lidLeaseStatus != status || state.lidSleepAvailable != available
+            state = state.copy(
+                lidLeaseStatus = status,
+                lidSleepAvailable = available,
+            )
+            changed
+        }
     }
 
     private fun applyChargingIdleRule(active: Boolean): Boolean {
@@ -746,6 +779,7 @@ class Engine(
 
     companion object {
         private const val WAKE_LOG_CACHE_MILLIS = 60_000L
+        private const val LID_LEASE_STATUS_REFRESH_MILLIS = 5_000L
         private const val IDLE_MANUAL_LEASE_ID = "idle/manual"
         private const val IDLE_TIMER_LEASE_ID = "idle/timer"
         private const val IDLE_CHARGING_RULE_LEASE_ID = "idle/rule/charging"

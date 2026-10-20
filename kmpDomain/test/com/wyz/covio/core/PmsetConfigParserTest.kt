@@ -70,6 +70,19 @@ class PmsetConfigParserTest {
     }
 
     @Test
+    fun `disablesleep reads both known values`() {
+        assertEquals(true, PmsetConfigParser.sleepDisabled(" disablesleep         1\n"))
+        assertEquals(false, PmsetConfigParser.sleepDisabled(" disablesleep         0"))
+    }
+
+    @Test
+    fun `a missing or invalid disablesleep value is null`() {
+        assertEquals(null, PmsetConfigParser.sleepDisabled(" sleep                10\n"))
+        assertEquals(null, PmsetConfigParser.sleepDisabled(" disablesleep         yes\n"))
+        assertEquals(null, PmsetConfigParser.sleepDisabled(null))
+    }
+
+    @Test
     fun `a line without a trailing newline still matches`() {
         assertEquals(120L, PmsetConfigParser.sleepTimeoutSeconds(" sleep                2"))
     }

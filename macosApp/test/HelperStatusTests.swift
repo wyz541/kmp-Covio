@@ -33,7 +33,8 @@ final class HelperStatusTests: XCTestCase {
         MacPrivilegedOps(
             logger: SilentLogger(),
             executablePath: "/tmp/Covio",
-            client: HelperClient(socketPath: socketPath, timeoutMillis: 1_000)
+            client: HelperClient(socketPath: socketPath, timeoutMillis: 1_000),
+            externalDisplayCount: { 0 }
         )
     }
 
@@ -42,9 +43,13 @@ final class HelperStatusTests: XCTestCase {
         XCTAssertFalse(ops().isInstalled())
     }
 
-    /// helper 应答的版本与本版一致 → 已安装。
-    func testMatchingVersionMeansInstalled() throws {
-        let helper = try FakeHelper(socketPath: socketPath, version: ModelsKt.APP_VERSION)
+    /// helper 应答的版本与协议都匹配 → 已安装。
+    func testMatchingVersionAndProtocolMeansInstalled() throws {
+        let helper = try FakeHelper(
+            socketPath: socketPath,
+            version: ModelsKt.APP_VERSION,
+            protocolVersion: HelperProtocol.protocolVersion
+        )
         defer { helper.stop() }
 
         XCTAssertEqual(ops().status(), .installed)
@@ -52,14 +57,30 @@ final class HelperStatusTests: XCTestCase {
         XCTAssertEqual(ops().helperVersion(), ModelsKt.APP_VERSION)
     }
 
-    /// helper 能应答但版本不同 → OUTDATED。界面据此提示重装。
-    func testDifferentVersionMeansOutdated() throws {
-        let helper = try FakeHelper(socketPath: socketPath, version: "0.0.1")
+    /// helper 能应答但协议不同 → OUTDATED。界面据此提示重装。
+    func testDifferentProtocolMeansOutdated() throws {
+        let helper = try FakeHelper(
+            socketPath: socketPath,
+            version: ModelsKt.APP_VERSION,
+            protocolVersion: "1"
+        )
         defer { helper.stop() }
 
         XCTAssertEqual(ops().status(), .outdated)
         XCTAssertTrue(ops().isInstalled(), "socket 在，所以算已安装")
-        XCTAssertEqual(ops().helperVersion(), "0.0.1")
+        XCTAssertEqual(ops().helperVersion(), ModelsKt.APP_VERSION)
+    }
+
+    /// 旧 helper 缺少协议字段 → OUTDATED，即使应用版本相同。
+    func testMissingProtocolMeansOutdated() throws {
+        let helper = try FakeHelper(
+            socketPath: socketPath,
+            version: ModelsKt.APP_VERSION,
+            protocolVersion: nil
+        )
+        defer { helper.stop() }
+
+        XCTAssertEqual(ops().status(), .outdated)
     }
 
     /// socket 文件在但没有进程监听 → ERROR，不是 OUTDATED。
@@ -73,17 +94,21 @@ final class HelperStatusTests: XCTestCase {
         XCTAssertEqual(ops().status(), .error)
     }
 
-    /// `setDisableSleep` 只在 helper 明确回 ok 时返回 true。
-    func testSetDisableSleepRequiresAnOkReply() throws {
-        let helper = try FakeHelper(socketPath: socketPath, version: ModelsKt.APP_VERSION)
+    /// 合盖保持只在 helper 确认租约与真实状态时返回 true。
+    func testLidLeaseRequiresAnActiveOkReply() throws {
+        let helper = try FakeHelper(
+            socketPath: socketPath,
+            version: ModelsKt.APP_VERSION,
+            protocolVersion: HelperProtocol.protocolVersion
+        )
         defer { helper.stop() }
 
         XCTAssertTrue(ops().setDisableSleep(disabled: true))
-        XCTAssertTrue(helper.commands.contains("setDisableSleep"))
+        XCTAssertTrue(helper.commands.contains(HelperWire.shared.COMMAND_LID_LEASE_ACQUIRE))
     }
 
-    /// helper 不在时不发请求，直接失败。
-    func testSetDisableSleepFailsWithoutAHelper() {
+    /// helper 不在时不发租约请求，直接失败。
+    func testLidLeaseFailsWithoutAHelper() {
         XCTAssertFalse(ops().setDisableSleep(disabled: true))
     }
 }
@@ -100,7 +125,11 @@ private final class FakeHelper {
     /// 收到的命令，按顺序。
     var commands: [String] { port.commands }
 
-    init(socketPath: String, version: String) throws {
+    init(
+        socketPath: String,
+        version: String,
+        protocolVersion: String? = HelperProtocol.protocolVersion
+    ) throws {
         // 全程用局部变量。在 `thread` 赋值前读 `descriptor` 或 `port`
         // 等于读 `self`，Swift 不允许，闭包捕获更不行。
         // 三个存储属性留到最后一并赋值。
@@ -125,6 +154,7 @@ private final class FakeHelper {
 
         let state = FakeHelperState()
         state.version = version
+        state.protocolVersion = protocolVersion
 
         descriptor = fd
         port = state
@@ -159,9 +189,30 @@ private final class FakeHelper {
             // `result` 必须显式传：Kotlin 的默认参数值不导出到 Swift。
             let reply: HelperReply
             if request.command == HelperWire.shared.COMMAND_VERSION {
+                var result = ["version": port.version]
+                if let protocolVersion = port.protocolVersion {
+                    result["protocolVersion"] = protocolVersion
+                }
                 reply = HelperWire.shared.success(
                     requestId: request.requestId,
-                    result: ["version": port.version]
+                    result: result
+                )
+            } else if request.command == HelperWire.shared.COMMAND_LID_LEASE_ACQUIRE
+                || request.command == HelperWire.shared.COMMAND_LID_LEASE_RENEW {
+                reply = HelperWire.shared.leaseStatusReply(
+                    requestId: request.requestId,
+                    sleepDisabled: KotlinBoolean(bool: true),
+                    covioOwned: KotlinBoolean(bool: true),
+                    activeLeaseCount: 1,
+                    expiresAtEpochSeconds: KotlinLong(longLong: 1_000)
+                )
+            } else if request.command == HelperWire.shared.COMMAND_LID_LEASE_RELEASE {
+                reply = HelperWire.shared.leaseStatusReply(
+                    requestId: request.requestId,
+                    sleepDisabled: KotlinBoolean(bool: false),
+                    covioOwned: KotlinBoolean(bool: false),
+                    activeLeaseCount: 0,
+                    expiresAtEpochSeconds: nil
                 )
             } else {
                 reply = HelperWire.shared.success(requestId: request.requestId, result: [:])
@@ -175,12 +226,18 @@ private final class FakeHelper {
 private final class FakeHelperState: @unchecked Sendable {
     private let lock = NSLock()
     private var versionStorage = ""
+    private var protocolVersionStorage: String?
     private var commandsStorage: [String] = []
     private var stoppedStorage = false
 
     var version: String {
         get { lock.withLock { versionStorage } }
         set { lock.withLock { versionStorage = newValue } }
+    }
+
+    var protocolVersion: String? {
+        get { lock.withLock { protocolVersionStorage } }
+        set { lock.withLock { protocolVersionStorage = newValue } }
     }
 
     var commands: [String] { lock.withLock { commandsStorage } }

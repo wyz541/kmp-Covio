@@ -29,55 +29,39 @@
       "name": "关掉睡眠",
       "line": "{\"version\":\"1\",\"requestId\":\"r4\",\"command\":\"setDisableSleep\",\"payload\":{\"disabled\":\"true\"}}",
       "decode": "ok",
-      "validate": null,
-      "pmsetArguments": [
-        "-a",
-        "disablesleep",
-        "1"
-      ],
+      "validate": "Protocol version 2 required",
+      "pmsetArguments": null,
       "reencoded": "{\"version\":\"1\",\"requestId\":\"r4\",\"command\":\"setDisableSleep\",\"payload\":{\"disabled\":\"true\"}}"
     },
     {
       "name": "打开睡眠",
       "line": "{\"version\":\"1\",\"requestId\":\"r5\",\"command\":\"setDisableSleep\",\"payload\":{\"disabled\":\"false\"}}",
       "decode": "ok",
-      "validate": null,
-      "pmsetArguments": [
-        "-a",
-        "disablesleep",
-        "0"
-      ],
+      "validate": "Protocol version 2 required",
+      "pmsetArguments": null,
       "reencoded": "{\"version\":\"1\",\"requestId\":\"r5\",\"command\":\"setDisableSleep\",\"payload\":{\"disabled\":\"false\"}}"
     },
     {
       "name": "disabled 只认 true 与 false",
       "line": "{\"version\":\"1\",\"requestId\":\"r6\",\"command\":\"setDisableSleep\",\"payload\":{\"disabled\":\"1\"}}",
       "decode": "ok",
-      "validate": "Invalid disabled value",
-      "pmsetArguments": [
-        "-a",
-        "disablesleep",
-        "0"
-      ],
+      "validate": "Protocol version 2 required",
+      "pmsetArguments": null,
       "reencoded": "{\"version\":\"1\",\"requestId\":\"r6\",\"command\":\"setDisableSleep\",\"payload\":{\"disabled\":\"1\"}}"
     },
     {
       "name": "disabled 整个键不在",
       "line": "{\"version\":\"1\",\"requestId\":\"r7\",\"command\":\"setDisableSleep\",\"payload\":{}}",
       "decode": "ok",
-      "validate": "Missing disabled value",
-      "pmsetArguments": [
-        "-a",
-        "disablesleep",
-        "0"
-      ],
+      "validate": "Protocol version 2 required",
+      "pmsetArguments": null,
       "reencoded": "{\"version\":\"1\",\"requestId\":\"r7\",\"command\":\"setDisableSleep\"}"
     },
     {
       "name": "设置 25 号休眠模式",
       "line": "{\"version\":\"1\",\"requestId\":\"r8\",\"command\":\"setHibernateMode\",\"payload\":{\"mode\":\"25\"}}",
       "decode": "ok",
-      "validate": null,
+      "validate": "Protocol version 2 required",
       "pmsetArguments": [
         "-a",
         "hibernatemode",
@@ -89,7 +73,7 @@
       "name": "产品不支持的休眠模式",
       "line": "{\"version\":\"1\",\"requestId\":\"r9\",\"command\":\"setHibernateMode\",\"payload\":{\"mode\":\"2\"}}",
       "decode": "ok",
-      "validate": "Invalid hibernate mode",
+      "validate": "Protocol version 2 required",
       "pmsetArguments": [
         "-a",
         "hibernatemode",
@@ -101,7 +85,7 @@
       "name": "休眠模式不是数字",
       "line": "{\"version\":\"1\",\"requestId\":\"r10\",\"command\":\"setHibernateMode\",\"payload\":{\"mode\":\"abc\"}}",
       "decode": "ok",
-      "validate": "Missing hibernate mode",
+      "validate": "Protocol version 2 required",
       "pmsetArguments": null,
       "reencoded": "{\"version\":\"1\",\"requestId\":\"r10\",\"command\":\"setHibernateMode\",\"payload\":{\"mode\":\"abc\"}}"
     },
@@ -131,19 +115,19 @@
     },
     {
       "name": "协议版本不是 1",
-      "line": "{\"version\":\"2\",\"requestId\":\"r14\",\"command\":\"version\"}",
+      "line": "{\"version\":\"3\",\"requestId\":\"r13\",\"command\":\"version\"}",
       "decode": "ok",
-      "validate": "Unsupported protocol version",
+      "validate": "Protocol version 2 required",
       "pmsetArguments": null,
-      "reencoded": "{\"version\":\"2\",\"requestId\":\"r14\",\"command\":\"version\"}"
+      "reencoded": "{\"version\":\"3\",\"requestId\":\"r13\",\"command\":\"version\"}"
     },
     {
       "name": "白名单外的命令",
-      "line": "{\"version\":\"1\",\"requestId\":\"r15\",\"command\":\"runShell\",\"payload\":{\"text\":\"hello\"}}",
+      "line": "{\"version\":\"2\",\"requestId\":\"r15\",\"command\":\"runShell\",\"payload\":{\"text\":\"hello\"}}",
       "decode": "ok",
       "validate": "Command is not allowed",
       "pmsetArguments": null,
-      "reencoded": "{\"version\":\"1\",\"requestId\":\"r15\",\"command\":\"runShell\",\"payload\":{\"text\":\"hello\"}}"
+      "reencoded": "{\"version\":\"2\",\"requestId\":\"r15\",\"command\":\"runShell\",\"payload\":{\"text\":\"hello\"}}"
     },
     {
       "name": "不认识的字段被忽略",
@@ -152,6 +136,46 @@
       "validate": null,
       "pmsetArguments": null,
       "reencoded": "{\"version\":\"1\",\"requestId\":\"r16\",\"command\":\"version\"}"
+    },
+    {
+      "name": "helper v2 acquire lid lease",
+      "line": "{\"version\":\"2\",\"requestId\":\"r20\",\"command\":\"lidLeaseAcquire\",\"payload\":{\"leaseId\":\"lease-a\",\"externalDisplayCount\":\"0\"}}",
+      "decode": "ok",
+      "validate": null,
+      "pmsetArguments": null,
+      "reencoded": "{\"version\":\"2\",\"requestId\":\"r20\",\"command\":\"lidLeaseAcquire\",\"payload\":{\"leaseId\":\"lease-a\",\"externalDisplayCount\":\"0\"}}"
+    },
+    {
+      "name": "helper v2 renew lid lease",
+      "line": "{\"version\":\"2\",\"requestId\":\"r21\",\"command\":\"lidLeaseRenew\",\"payload\":{\"leaseId\":\"lease-a\",\"externalDisplayCount\":\"1\"}}",
+      "decode": "ok",
+      "validate": null,
+      "pmsetArguments": null,
+      "reencoded": "{\"version\":\"2\",\"requestId\":\"r21\",\"command\":\"lidLeaseRenew\",\"payload\":{\"leaseId\":\"lease-a\",\"externalDisplayCount\":\"1\"}}"
+    },
+    {
+      "name": "lease id cannot be blank",
+      "line": "{\"version\":\"2\",\"requestId\":\"r22\",\"command\":\"lidLeaseAcquire\",\"payload\":{\"leaseId\":\" \",\"externalDisplayCount\":\"0\"}}",
+      "decode": "ok",
+      "validate": "Invalid leaseId",
+      "pmsetArguments": null,
+      "reencoded": "{\"version\":\"2\",\"requestId\":\"r22\",\"command\":\"lidLeaseAcquire\",\"payload\":{\"leaseId\":\" \",\"externalDisplayCount\":\"0\"}}"
+    },
+    {
+      "name": "lease release needs only lease id",
+      "line": "{\"version\":\"2\",\"requestId\":\"r23\",\"command\":\"lidLeaseRelease\",\"payload\":{\"leaseId\":\"lease-a\"}}",
+      "decode": "ok",
+      "validate": null,
+      "pmsetArguments": null,
+      "reencoded": "{\"version\":\"2\",\"requestId\":\"r23\",\"command\":\"lidLeaseRelease\",\"payload\":{\"leaseId\":\"lease-a\"}}"
+    },
+    {
+      "name": "lease status has no payload",
+      "line": "{\"version\":\"2\",\"requestId\":\"r24\",\"command\":\"lidLeaseStatus\"}",
+      "decode": "ok",
+      "validate": null,
+      "pmsetArguments": null,
+      "reencoded": "{\"version\":\"2\",\"requestId\":\"r24\",\"command\":\"lidLeaseStatus\"}"
     },
     {
       "name": "不是 JSON",
@@ -240,7 +264,7 @@
       "call": "success",
       "requestId": "r",
       "result": null,
-      "expected": "{\"version\":\"1\",\"requestId\":\"r\",\"ok\":true}"
+      "expected": "{\"version\":\"2\",\"requestId\":\"r\",\"ok\":true}"
     },
     {
       "name": "成功回复写出非空 result",
@@ -249,14 +273,14 @@
       "result": {
         "a": "b"
       },
-      "expected": "{\"version\":\"1\",\"requestId\":\"r\",\"ok\":true,\"result\":{\"a\":\"b\"}}"
+      "expected": "{\"version\":\"2\",\"requestId\":\"r\",\"ok\":true,\"result\":{\"a\":\"b\"}}"
     },
     {
       "name": "失败回复只写 error",
       "call": "failure",
       "requestId": "r",
       "message": "boom",
-      "expected": "{\"version\":\"1\",\"requestId\":\"r\",\"ok\":false,\"error\":\"boom\"}"
+      "expected": "{\"version\":\"2\",\"requestId\":\"r\",\"ok\":false,\"error\":\"boom\"}"
     },
     {
       "name": "pmset 成功",
@@ -264,7 +288,7 @@
       "requestId": "r",
       "exitCode": 0,
       "output": "",
-      "expected": "{\"version\":\"1\",\"requestId\":\"r\",\"ok\":true}"
+      "expected": "{\"version\":\"2\",\"requestId\":\"r\",\"ok\":true}"
     },
     {
       "name": "pmset 失败：输出当文案，首尾空白去掉",
@@ -272,7 +296,7 @@
       "requestId": "r",
       "exitCode": 1,
       "output": "pmset: bad\n",
-      "expected": "{\"version\":\"1\",\"requestId\":\"r\",\"ok\":false,\"error\":\"pmset: bad\"}"
+      "expected": "{\"version\":\"2\",\"requestId\":\"r\",\"ok\":false,\"error\":\"pmset: bad\"}"
     },
     {
       "name": "pmset 失败：没有输出时用退出码拼一句",
@@ -280,7 +304,7 @@
       "requestId": "r",
       "exitCode": 3,
       "output": "  \n",
-      "expected": "{\"version\":\"1\",\"requestId\":\"r\",\"ok\":false,\"error\":\"pmset exited with 3\"}"
+      "expected": "{\"version\":\"2\",\"requestId\":\"r\",\"ok\":false,\"error\":\"pmset exited with 3\"}"
     }
   ]
 }

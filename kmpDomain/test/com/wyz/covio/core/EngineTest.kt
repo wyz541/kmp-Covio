@@ -479,6 +479,7 @@ class EngineTest {
     @Test
     fun `sleep now temporarily restores restrictions and wake restores them`() {
         val fixture = Fixture()
+        fixture.privileged.installed = true
         fixture.power.value = BatteryStatus(90, PowerState.CHARGING, null)
         fixture.engine.start()
         fixture.engine.setIdleSleepAvailable(false)
@@ -493,6 +494,24 @@ class EngineTest {
         fixture.watcher.wake()
         assertFalse(fixture.engine.currentState.idleSleepAvailable)
         assertFalse(fixture.engine.currentState.lidSleepAvailable)
+    }
+
+    @Test
+    fun `helper lease expiry updates lid availability`() {
+        var now = 1_000L
+        val fixture = Fixture(clock = { now })
+        fixture.privileged.installed = true
+        fixture.engine.start()
+        fixture.engine.setLidSleepAvailable(false)
+        assertFalse(fixture.engine.currentState.lidSleepAvailable)
+
+        // helper 的租约过期后回读为 false。
+        fixture.privileged.sleepDisabled = false
+        now += 5_000L
+        fixture.engine.tick(now)
+
+        assertTrue(fixture.engine.currentState.lidSleepAvailable)
+        assertEquals(0, fixture.engine.currentState.lidLeaseStatus.activeLeaseCount)
     }
 
     @Test
@@ -619,6 +638,7 @@ private class FakeSleepWatcher : SleepWatcher {
 private class FakePrivilegedOps : PrivilegedOps {
     var installed = false
     var disableSleepResult = true
+    var sleepDisabled = false
     val disableSleepValues = mutableListOf<Boolean>()
     override fun isInstalled() = installed
     override fun status() = if (installed) HelperStatus.INSTALLED else HelperStatus.NOT_INSTALLED
@@ -629,8 +649,17 @@ private class FakePrivilegedOps : PrivilegedOps {
     override fun setHibernateMode(mode: Int) = true
     override fun setDisableSleep(disabled: Boolean): Boolean {
         disableSleepValues += disabled
+        if (disableSleepResult) sleepDisabled = disabled
         return disableSleepResult
     }
+    override fun lidLeaseStatus() = LidLeaseStatus(
+        available = installed,
+        protocolVersion = if (installed) HELPER_PROTOCOL_VERSION else null,
+        sleepDisabled = sleepDisabled,
+        covioOwned = sleepDisabled,
+        activeLeaseCount = if (sleepDisabled) 1 else 0,
+        expiresAtEpochSeconds = if (sleepDisabled) Long.MAX_VALUE else null,
+    )
 }
 
 private class MemoryLogger : AppLogger {

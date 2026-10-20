@@ -30,6 +30,9 @@ object HelperWire {
     const val COMMAND_VERSION = "version"
     const val COMMAND_SET_DISABLE_SLEEP = "setDisableSleep"
     const val COMMAND_SET_HIBERNATE_MODE = "setHibernateMode"
+    const val COMMAND_CHARGE_LIMIT_STATUS = "chargeLimitStatus"
+    const val COMMAND_CHARGE_LIMIT_CONFIGURE = "chargeLimitConfigure"
+    const val COMMAND_CHARGE_LIMIT_RESTORE = "chargeLimitRestore"
 
     /**
      * 线上 JSON 的形状。
@@ -100,8 +103,17 @@ object HelperWire {
             val mode = request.payload["mode"]?.toIntOrNull() ?: return "Missing hibernate mode"
             if (mode !in SUPPORTED_HIBERNATE_MODES) return "Invalid hibernate mode"
         }
+        if (request.command == COMMAND_CHARGE_LIMIT_CONFIGURE) {
+            val percent = request.payload["percent"]?.toIntOrNull() ?: return "Missing charge limit"
+            if (!ChargeLimitPolicy.isValidUpperLimit(percent)) return "Invalid charge limit"
+        }
         return null
     }
+
+    /** 充电控制命令需要调用方代码签名，不能只靠已安装用户的 uid。 */
+    fun isChargeLimitCommand(command: String): Boolean = command == COMMAND_CHARGE_LIMIT_STATUS ||
+        command == COMMAND_CHARGE_LIMIT_CONFIGURE ||
+        command == COMMAND_CHARGE_LIMIT_RESTORE
 
     // MARK: pmset 调用
 

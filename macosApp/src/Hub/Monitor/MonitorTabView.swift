@@ -6,20 +6,26 @@ import SwiftUI
 /// `.task`，采样器随之停止。
 struct MonitorTabView: View {
     let language: AppLanguage
+    let powerModel: (any PowerManagementModel)?
     private let runsSampling: Bool
 
+    @State private var section: MonitorSection = .overview
     @State private var snapshot: MonitorSnapshot
     @State private var history: MonitorHistory
     @State private var sampler = MonitorSampler()
 
     init(
         language: AppLanguage,
+        powerModel: (any PowerManagementModel)? = nil,
         initialSnapshot: MonitorSnapshot = .empty,
         initialHistory: MonitorHistory = MonitorHistory(),
-        runsSampling: Bool = true
+        runsSampling: Bool = true,
+        startsInPower: Bool = false
     ) {
         self.language = language
+        self.powerModel = powerModel
         self.runsSampling = runsSampling
+        _section = State(initialValue: startsInPower ? .power : .overview)
         _snapshot = State(initialValue: initialSnapshot)
         _history = State(initialValue: initialHistory)
     }
@@ -31,22 +37,51 @@ struct MonitorTabView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: MacTheme.space2) {
-            statusRow
-            LazyVGrid(columns: columns, spacing: MacTheme.space3) {
-                cpuCard
-                gpuCard
-                memoryCard
-                diskCard
-                networkCard
-                if snapshot.battery != nil {
-                    batteryCard
-                }
+            toolbarRow
+            if section == .power, let powerModel {
+                PowerManagementView(model: powerModel)
+            } else {
+                overview
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .task {
             guard runsSampling else { return }
             await runSamples()
+        }
+    }
+
+    @ViewBuilder
+    private var toolbarRow: some View {
+        HStack(spacing: MacTheme.space2) {
+            statusRow
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if powerModel != nil {
+                Picker(ContractCopy.copyHubPowerTitle.text(for: language), selection: $section) {
+                    Text(ContractCopy.copyHubPowerSegmentOverview.text(for: language))
+                        .tag(MonitorSection.overview)
+                    Text(ContractCopy.copyHubPowerSegmentPower.text(for: language))
+                        .tag(MonitorSection.power)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 152)
+                .accessibilityLabel(ContractCopy.copyHubPowerTitle.text(for: language))
+            }
+        }
+        .frame(height: HubMetrics.monitorToolbarHeight)
+    }
+
+    private var overview: some View {
+        LazyVGrid(columns: columns, spacing: MacTheme.space3) {
+            cpuCard
+            gpuCard
+            memoryCard
+            diskCard
+            networkCard
+            if snapshot.battery != nil {
+                batteryCard
+            }
         }
     }
 
@@ -257,6 +292,11 @@ struct MonitorTabView: View {
         case .unknown: ContractCopy.copyMonitorStateUnknown.text(for: language)
         }
     }
+}
+
+private enum MonitorSection {
+    case overview
+    case power
 }
 
 // MARK: - 卡片种类

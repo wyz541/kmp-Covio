@@ -43,13 +43,17 @@ final class AppRuntime {
     /// 共享文件工作区。Hub 的文件页签读它。
     let workspace: WorkspaceRuntime
 
+    /// 电源管理面的真实运行时。
+    let powerRuntime: PowerRuntime
+
     private let configStore: ConfigStore
     /// 挂帘读配置的中间人。理由见 `ShelfBridge`。
     private let shelfBridge: ShelfBridge
     /// 剪切板回报错误的中间人。理由见 `ClipboardBridge`。
     private let clipboardBridge: ClipboardBridge
     private let engine: Engine
-    private let power: PowerSource
+    private let powerSource: PowerSource
+    private let powerObservationSource: PowerObservationSource
     private let lid: LidSensor
     private let idle: IdleSensor
     private let sleepController: SleepController
@@ -89,6 +93,7 @@ final class AppRuntime {
         loginItem: LoginItem = MacLoginItem(),
         notifier: Notifier? = nil,
         updateChecker: UpdateChecker = GithubUpdateChecker(),
+        powerObservation: PowerObservationSource? = nil,
         shelf: ShelfRuntime? = nil,
         clipboard: ClipboardRuntime? = nil,
         workspace: WorkspaceRuntime? = nil
@@ -96,15 +101,19 @@ final class AppRuntime {
         let resolvedLogger = logger ?? FileAppLogger()
         let resolvedStore = configStore ?? ConfigStore.companion.create(path: AppPaths.configFile.path)
 
+        let resolvedPrivileged = privileged ?? MacPrivilegedOps(logger: resolvedLogger)
+        let resolvedPowerObservation = powerObservation ?? MacPowerObservationSource()
+
         self.logger = resolvedLogger
         self.configStore = resolvedStore
-        self.power = power
+        self.powerSource = power
+        self.powerObservationSource = resolvedPowerObservation
         self.lid = lid
         self.idle = idle
         self.sleepController = sleepController
         self.sleepWatcher = sleepWatcher
         self.wakeLogReader = wakeLogReader
-        self.privileged = privileged ?? MacPrivilegedOps(logger: resolvedLogger)
+        self.privileged = resolvedPrivileged
         self.loginItem = loginItem
         self.notificationGate = NotificationGate()
         self.notifier = notifier ?? MacNotifier(logger: resolvedLogger) { [gate = notificationGate] in
@@ -174,14 +183,14 @@ final class AppRuntime {
         // 工作区没有配置依赖，也没有要交出去的闭包。直接建。
         self.workspace = workspace ?? WorkspaceRuntime()
 
-        self.engine = Engine(
+        let engine = Engine(
             initialConfig: loaded,
             power: power,
             lid: lid,
             idle: idle,
             sleepController: sleepController,
             sleepWatcher: sleepWatcher,
-            privileged: self.privileged,
+            privileged: resolvedPrivileged,
             logger: resolvedLogger,
             wakeLogReader: wakeLogReader,
             // 下面这三个闭包由引擎在后台唤醒扫描线程上调用。
@@ -203,6 +212,13 @@ final class AppRuntime {
             wakeRetryCount: 3,
             wakeCacheNowMillis: { @Sendable in KotlinLong(longLong: AppRuntime.nowMillis()) }
         )
+        self.engine = engine
+        self.powerRuntime = PowerRuntime(
+            engine: engine,
+            privileged: resolvedPrivileged,
+            observationSource: resolvedPowerObservation,
+            config: loaded.power
+        )
 
         forwarder.handler = { @Sendable [weak self] state in
             MainActor.assumeIsolated { self?.appState = state }
@@ -220,6 +236,7 @@ final class AppRuntime {
         syncHibernateMode()
         syncLoginItem()
         engine.start()
+        powerRuntime.start()
         syncState()
 
         // 挂帘的错误要显示在 Hub 上，出口在这里接。
@@ -268,11 +285,13 @@ final class AppRuntime {
         updateTimer = nil
         shelf.stop()
         clipboard.stop()
+        powerRuntime.stop()
         engine.stop()
     }
 
     private func tick() {
         engine.tick(nowMillis: AppRuntime.nowMillis())
+        powerRuntime.refresh()
         ticks += 1
         syncState()
         if ticks % Self.helperRefreshTicks == 0 {
@@ -304,6 +323,50 @@ final class AppRuntime {
 
     func setDisableIdleWhileCharging(_ enabled: Bool) {
         write { $0.disableIdleSleepInCharging = enabled }
+    }
+
+    func setPowerEnabled(_ enabled: Bool) {
+        updatePower { copyPower($0, enabled: enabled) }
+    }
+
+    func setPowerKeepAwakeOnAdapter(_ enabled: Bool) {
+        updatePower { copyPower($0, keepAwakeOnAdapter: enabled) }
+    }
+
+    func setPowerKeepAwakeOnBattery(_ enabled: Bool) {
+        updatePower { copyPower($0, keepAwakeOnBattery: enabled) }
+    }
+
+    func setPowerAllowClosedLid(_ enabled: Bool) {
+        guard enabled ? powerRuntime.helperStatus == .installed : true else { return }
+        updatePower { copyPower($0, allowClosedLid: enabled) }
+    }
+
+    func setPowerPauseClosedLidWithExternalDisplay(_ enabled: Bool) {
+        updatePower { copyPower($0, pauseClosedLidWithExternalDisplay: enabled) }
+    }
+
+    func setPowerBatteryFloor(_ percent: Int) {
+        let floor = min(max(percent, 0), 95)
+        updatePower {
+            copyPower(
+                $0,
+                batteryFloorPercent: Int32(floor),
+                batteryFloorRecoveryPercent: Int32(min(floor + 5, 100))
+            )
+        }
+    }
+
+    func setPowerYieldOnLowPowerMode(_ enabled: Bool) {
+        updatePower { copyPower($0, yieldOnLowPowerMode: enabled) }
+    }
+
+    func setPowerHeatGuard(_ enabled: Bool) {
+        updatePower { copyPower($0, heatGuardEnabled: enabled) }
+    }
+
+    func setPowerClosedLidTimeCapMinutes(_ minutes: Int) {
+        updatePower { copyPower($0, closedLidTimeCapMinutes: Int32(min(max(minutes, 30), 1_440))) }
     }
 
     /// 打开前先确认 helper 在。helper 不在时它改不了 `pmset`，界面会显示成功但实际没生效。
@@ -398,6 +461,7 @@ final class AppRuntime {
         config = defaults
         shelfBridge.config = defaults
         _ = engine.updateConfig(newConfig: defaults)
+        powerRuntime.updateConfig(defaults.power)
         syncState()
         shelf.applyConfiguration()
         statusMessage = ContractCopy.copyDialogResetTitle.text(for: language)
@@ -426,6 +490,7 @@ final class AppRuntime {
             let removed = privileged.uninstall()
             helperStatus = .notInstalled
             _ = engine.setLidSleepAvailable(available: true)
+            powerRuntime.refreshHelperStatusNow()
             syncState()
             busy = false
             let entry = removed ? ContractCopy.copyOverviewHelperMissing : ContractCopy.copyToastError
@@ -445,12 +510,16 @@ final class AppRuntime {
                 status = privileged.status()
             }
         }
-        guard helperStatus != status else { return }
+        guard helperStatus != status else {
+            powerRuntime.refreshHelperStatusNow()
+            return
+        }
         helperStatus = status
         syncState()
         if status == .installed {
             _ = engine.updateConfig(newConfig: config)
         }
+        powerRuntime.refreshHelperStatusNow()
     }
 
     private func lidPolicyAvailable() -> Bool {
@@ -562,8 +631,42 @@ final class AppRuntime {
             configStore.save(config: previous)
             _ = engine.updateConfig(newConfig: previous)
         }
+        powerRuntime.updateConfig(config.power)
         syncState()
         return success
+    }
+
+    private func updatePower(_ change: (PowerConfig) -> PowerConfig) {
+        write { $0.power = change($0.power).normalized() }
+    }
+
+    private func copyPower(
+        _ value: PowerConfig,
+        enabled: Bool? = nil,
+        keepAwakeOnAdapter: Bool? = nil,
+        keepAwakeOnBattery: Bool? = nil,
+        allowClosedLid: Bool? = nil,
+        pauseClosedLidWithExternalDisplay: Bool? = nil,
+        batteryFloorPercent: Int32? = nil,
+        batteryFloorRecoveryPercent: Int32? = nil,
+        yieldOnLowPowerMode: Bool? = nil,
+        heatGuardEnabled: Bool? = nil,
+        closedLidTimeCapMinutes: Int32? = nil
+    ) -> PowerConfig {
+        PowerConfig(
+            enabled: enabled ?? value.enabled,
+            keepAwakeOnAdapter: keepAwakeOnAdapter ?? value.keepAwakeOnAdapter,
+            keepAwakeOnBattery: keepAwakeOnBattery ?? value.keepAwakeOnBattery,
+            allowClosedLid: allowClosedLid ?? value.allowClosedLid,
+            pauseClosedLidWithExternalDisplay: pauseClosedLidWithExternalDisplay
+                ?? value.pauseClosedLidWithExternalDisplay,
+            batteryFloorPercent: batteryFloorPercent ?? value.batteryFloorPercent,
+            batteryFloorRecoveryPercent: batteryFloorRecoveryPercent
+                ?? value.batteryFloorRecoveryPercent,
+            yieldOnLowPowerMode: yieldOnLowPowerMode ?? value.yieldOnLowPowerMode,
+            heatGuardEnabled: heatGuardEnabled ?? value.heatGuardEnabled,
+            closedLidTimeCapMinutes: closedLidTimeCapMinutes ?? value.closedLidTimeCapMinutes
+        )
     }
 
     /// 把引擎状态读回来，并补上 helper 状态。

@@ -40,6 +40,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             preview.showWindow(nil)
             return
         }
+        if ProcessInfo.processInfo.environment["COVIO_POWER_PREVIEW"] == "1" {
+            NSApp.setActivationPolicy(.regular)
+            let preview = MonitorPreviewWindowController(
+                startsInPower: true,
+                powerModel: PowerPreviewModel()
+            )
+            monitorPreview = preview
+            preview.showWindow(nil)
+            return
+        }
         #endif
 
         // 测试进程不是真实实例，不参与单实例仲裁。

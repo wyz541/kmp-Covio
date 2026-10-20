@@ -313,7 +313,7 @@ struct HubTabContent: View {
     @ViewBuilder
     private func body(width: CGFloat) -> some View {
         if tab == .devices {
-            MonitorTabView(language: language)
+            MonitorTabView(language: language, powerModel: runtime)
         } else if let runtime, tab == .settings {
             SettingsTabView(runtime: runtime, section: chrome.settingsSection, chrome: chrome)
         } else if let runtime, tab == .screenshots {

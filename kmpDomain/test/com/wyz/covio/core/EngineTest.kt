@@ -497,6 +497,43 @@ class EngineTest {
     }
 
     @Test
+    fun `power policy leases do not replace a manual idle hold`() {
+        val fixture = Fixture()
+        fixture.engine.start()
+        fixture.engine.setIdleSleepAvailable(false)
+
+        fixture.engine.replacePowerLeases(
+            listOf(
+                HoldLease(
+                    id = "power",
+                    level = HoldLeaseLevel.SYSTEM_AND_DISPLAY,
+                    source = HoldLeaseSource.AGENT,
+                    createdAtEpochSeconds = 1,
+                ),
+            ),
+        )
+        assertFalse(fixture.engine.currentState.idleSleepAvailable)
+        fixture.engine.replacePowerLeases(emptyList())
+
+        assertFalse(fixture.engine.currentState.idleSleepAvailable)
+        assertEquals(IdleSleepPrevention.SYSTEM, fixture.engine.currentState.idleSleepPrevention)
+    }
+
+    @Test
+    fun `power lid hold does not clear a manual lid hold`() {
+        val fixture = Fixture()
+        fixture.privileged.installed = true
+        fixture.engine.start()
+        fixture.engine.setManualLidSleepAvailable(false)
+        assertFalse(fixture.engine.currentState.lidSleepAvailable)
+
+        fixture.engine.setPowerLidHold(true)
+        fixture.engine.setPowerLidHold(false)
+
+        assertFalse(fixture.engine.currentState.lidSleepAvailable)
+    }
+
+    @Test
     fun `helper lease expiry updates lid availability`() {
         var now = 1_000L
         val fixture = Fixture(clock = { now })

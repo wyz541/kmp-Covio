@@ -41,6 +41,22 @@ class HoldLeaseManagerTest {
     }
 
     @Test
+    fun `replace source keeps leases owned by other sources`() {
+        val controller = FakeAssertionController()
+        val manager = HoldLeaseManager(controller, clock = { NOW_MILLIS })
+        manager.upsert(lease(HoldLeaseLevel.SYSTEM, id = "manual", source = HoldLeaseSource.MANUAL))
+        manager.replaceSource(
+            HoldLeaseSource.AGENT,
+            listOf(lease(HoldLeaseLevel.SYSTEM_AND_DISPLAY, id = "agent", source = HoldLeaseSource.MANUAL)),
+        )
+
+        val snapshot = manager.replaceSource(HoldLeaseSource.AGENT, emptyList())
+
+        assertEquals(listOf("manual"), snapshot.leases.map { it.id })
+        assertEquals(IdleSleepPrevention.SYSTEM, snapshot.actualPrevention)
+    }
+
+    @Test
     fun `expired timer does not clear a manual lease`() {
         val controller = FakeAssertionController()
         val manager = HoldLeaseManager(controller, clock = { NOW_MILLIS })

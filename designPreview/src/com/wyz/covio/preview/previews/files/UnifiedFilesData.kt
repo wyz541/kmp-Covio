@@ -60,14 +60,6 @@ internal val demoFiles: List<DemoFile> = listOf(
         detail = "首页布局",
     ),
     DemoFile(
-        id = "shot-3",
-        name = "截屏 2026-10-20 09.15.png",
-        kind = DemoFileKind.SCREENSHOT,
-        availability = DemoAvailability.LOCAL,
-        meta = "640 KB · 昨天 09:15",
-        detail = "错误状态",
-    ),
-    DemoFile(
         id = "text-1",
         name = "发布说明草稿.txt",
         kind = DemoFileKind.TEXT,
@@ -83,14 +75,6 @@ internal val demoFiles: List<DemoFile> = listOf(
         availability = DemoAvailability.LOCAL,
         meta = "6.4 MB · 今天 11:20",
         detail = "设计合同",
-    ),
-    DemoFile(
-        id = "zip-1",
-        name = "covio-preview-build.zip",
-        kind = DemoFileKind.ARCHIVE,
-        availability = DemoAvailability.LOCAL,
-        meta = "42.8 MB · 昨天 18:06",
-        detail = "ZIP 归档",
     ),
     DemoFile(
         id = "image-remote",
@@ -215,4 +199,37 @@ internal fun DemoFile.menuActions(): List<String> = buildList {
     if (kind != DemoFileKind.SCREENSHOT && availability == DemoAvailability.LOCAL) add("在访达中显示")
     if (availability == DemoAvailability.LOCAL && kind != DemoFileKind.SCREENSHOT) add(if (pinned) "取消置顶" else "置顶")
     add("删除")
+}
+
+/** 检查器里的动作顺序。主操作排第一。 */
+internal fun DemoFile.inspectorActions(): List<String> = when (availability) {
+    DemoAvailability.FETCHING -> listOf("取消传输")
+    DemoAvailability.REMOTE -> listOf("下载", "删除")
+    DemoAvailability.FAILED -> listOf("重试", "删除")
+    DemoAvailability.UNAVAILABLE -> listOf("删除")
+    DemoAvailability.LOCAL -> when (kind) {
+        DemoFileKind.SCREENSHOT -> listOf("打开", "复制", "标注", "存入工作区", "删除")
+        DemoFileKind.TEXT -> listOf("打开", "复制正文", "在访达中显示", if (pinned) "取消置顶" else "置顶", "删除")
+        else -> listOf("打开", "复制", "在访达中显示", if (pinned) "取消置顶" else "置顶", "删除")
+    }
+}
+
+/** 检查器里的类型名。 */
+internal fun DemoFile.typeLabel(): String = when (kind) {
+    DemoFileKind.SCREENSHOT -> "截图"
+    DemoFileKind.IMAGE -> "图片"
+    DemoFileKind.TEXT -> "文本"
+    DemoFileKind.PDF -> "PDF"
+    DemoFileKind.AUDIO -> "音频"
+    DemoFileKind.ARCHIVE -> "归档"
+    DemoFileKind.VIDEO -> "视频"
+}
+
+/** 检查器里的可用状态。 */
+internal fun DemoFile.availabilityLabel(): String = when (availability) {
+    DemoAvailability.LOCAL -> "本机可用"
+    DemoAvailability.REMOTE -> "在另一台设备"
+    DemoAvailability.FETCHING -> "正在取回"
+    DemoAvailability.FAILED -> "传输失败"
+    DemoAvailability.UNAVAILABLE -> "内容不可用"
 }

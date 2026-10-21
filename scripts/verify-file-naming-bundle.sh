@@ -77,6 +77,11 @@ done
 RESULT="$TEMP/result.json"
 NETWORK_LOG="$TEMP/network.log"
 FULL_ACCEPTANCE="${COVIO_FILE_NAMING_ACCEPTANCE:-0}"
+MEMORY_THRESHOLD="${COVIO_FILE_NAMING_ACCEPTANCE_MIN_MEMORY_BYTES:-8589934592}"
+if ! [[ "$MEMORY_THRESHOLD" =~ ^[0-9]+$ ]]; then
+  printf 'COVIO_FILE_NAMING_ACCEPTANCE_MIN_MEMORY_BYTES must be an integer.\n' >&2
+  exit 1
+fi
 if [[ "$FULL_ACCEPTANCE" == "1" ]]; then
   RESULT_ENV="COVIO_FILE_NAMING_ACCEPTANCE_PATH=$RESULT"
   TIMEOUT_SECONDS=600
@@ -90,6 +95,7 @@ env -i \
   TMPDIR="$TEMP/tmp" \
   PATH=/usr/bin:/bin:/usr/sbin:/sbin \
   COVIO_SUPPORT_DIR="$TEMP/support" \
+  COVIO_FILE_NAMING_ACCEPTANCE_MIN_MEMORY_BYTES="$MEMORY_THRESHOLD" \
   "$RESULT_ENV" \
   /usr/bin/sandbox-exec -p '(version 1)(allow default)(deny network*)' \
   "$INSTALLED/Contents/MacOS/Covio" &

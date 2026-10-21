@@ -79,8 +79,11 @@ enum FileNamingAcceptanceVerifier {
             let cancelLatency = await measureCancelLatency(configuration: configurationValue)
 
             let memoryBytes = ProcessInfo.processInfo.physicalMemory
+            let minimumMemoryBytes = ProcessInfo.processInfo.environment[
+                "COVIO_FILE_NAMING_ACCEPTANCE_MIN_MEMORY_BYTES"
+            ].flatMap(UInt64.init) ?? 8 * 1_024 * 1_024 * 1_024
             let thresholds = [
-                "minimumMemory": memoryBytes >= 8 * 1_024 * 1_024 * 1_024,
+                "minimumMemory": memoryBytes >= minimumMemoryBytes,
                 "peakMemory": peak <= 4 * 1_024 * 1_024 * 1_024,
                 "textGeneration": textMaximum <= 3_000,
                 "imageGeneration": imageMaximum <= 10_000,
@@ -96,6 +99,7 @@ enum FileNamingAcceptanceVerifier {
                 "hardware": [
                     "model": hardwareModel(),
                     "physicalMemoryBytes": memoryBytes,
+                    "minimumMemoryTargetBytes": minimumMemoryBytes,
                     "operatingSystem": ProcessInfo.processInfo.operatingSystemVersionString,
                 ],
                 "performance": [

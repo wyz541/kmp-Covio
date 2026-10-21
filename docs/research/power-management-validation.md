@@ -3,7 +3,8 @@
 ## 结论
 
 Apple Silicon 开发机已完成只读系统观察、构建、自动化测试和浅色/深色窗口检查。
-特权 helper 安装与 `pmset disablesleep` 写入需要管理员确认，当前未执行。
+helper v2 已经通过一次管理员提示安装并验证在线。
+真实合盖、睡眠、唤醒和 `pmset disablesleep` 写入尚未执行。
 
 ## 环境
 
@@ -12,6 +13,7 @@ Apple Silicon 开发机已完成只读系统观察、构建、自动化测试和
 | 硬件 | MacBook Pro，Apple M1 Max |
 | 内存 | 64 GB |
 | macOS | `27.0.1 (26A434)` |
+| helper | `0.5.0`，协议 `2` |
 | 当前供电 | AC Power |
 | 电池 | 内置电池，80%，未充电 |
 | 系统 `SleepDisabled` | `0` |
@@ -22,7 +24,7 @@ Apple Silicon 开发机已完成只读系统观察、构建、自动化测试和
 | --- | --- | --- | --- |
 | 构建 | 执行 `bash scripts/test-all.sh` | 通过；KMP 417 项，app 模块 26 项，macOS XCTest 551 项 | 本地测试日志 |
 | 电源观察 | 读取 `pmset -g` 与 `pmset -g batt` | 适配器、电池和睡眠状态可读 | 验证记录 |
-| 合盖权限边界 | 检查 helper 与管理员权限 | 现值来自其他实例；无免密管理员权限 | `launchctl print` 与 `sudo -n` |
+| helper v2 安装 | 一次 macOS 管理员提示 | 安装完成，LaunchDaemon 在线，`SleepDisabled=0` | `verify-helper-cutover.sh verify` |
 | 浅色布局 | 打开 Power 预览 | 内容可读，页面可滚动 | 窗口截图 |
 | 深色布局 | 打开 Power 预览 | 内容可读，页面可滚动 | 窗口截图 |
 | 无历史 | 使用空历史快照 | 显示真实空状态 | 自动化测试 |
@@ -46,11 +48,10 @@ Apple Silicon 开发机已完成只读系统观察、构建、自动化测试和
 
 ![Power history dark](../design/previews/155-power-history-dark.png)
 
-## 待管理员确认
+## 待真实睡眠测试
 
 | 场景 | 操作前条件 | 必须观察 |
 | --- | --- | --- |
-| helper v2 安装 | 用户明确允许管理员授权 | 版本为 v2，旧租约被清理，Covio 之外的 `SleepDisabled` 不变 |
 | 合盖保持唤醒 | 接电，外接屏为空，helper v2 可用 | 合盖后保持唤醒，租约到期后恢复睡眠 |
 | 合盖超时 | 合盖会话达到上限 | 租约释放，页面显示护栏触发 |
 | 外接屏冲突 | 合盖会话期间接入外接屏 | 续租失败，合盖租约立即释放 |
@@ -64,7 +65,6 @@ Apple Silicon 开发机已完成只读系统观察、构建、自动化测试和
 ## 风险
 
 1. `pmset disablesleep` 是系统级持久状态。
-2. helper 当前由其他工作树实例运行，本任务不得替换或停止该实例。
-3. 合盖测试需要真实睡眠与唤醒，不能由单元测试代替。
-4. 热状态无法稳定注入到真实硬件。
-5. App Store 分发仍未决定。
+2. 合盖测试需要真实睡眠与唤醒，不能由单元测试代替。
+3. 热状态无法稳定注入到真实硬件。
+4. App Store 分发仍未决定。

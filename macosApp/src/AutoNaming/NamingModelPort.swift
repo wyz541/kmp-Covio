@@ -91,11 +91,12 @@ struct NamingModelRequest: Sendable, Equatable {
     }
 
     init(extraction: FileNamingExtraction, allowVision: Bool) {
+        let useImage = allowVision && !extraction.canUseOCRTextWithoutImage
         self.init(
             candidateId: extraction.candidateId,
             kind: extraction.kind,
             text: extraction.text,
-            images: allowVision ? extraction.images : [],
+            images: useImage ? extraction.images : [],
             quality: extraction.quality,
             warnings: extraction.warnings
         )

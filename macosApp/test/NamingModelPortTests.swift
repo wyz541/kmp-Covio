@@ -150,6 +150,48 @@ final class NamingModelPortTests: XCTestCase {
         XCTAssertEqual(NamingModelConfidence.mlx(quality: .high, usedVision: true), 0.86)
     }
 
+    func testOCRBackedImageSkipsVisionPixels() {
+        let request = NamingModelRequest(
+            extraction: extraction(
+                kind: .image,
+                text: "差旅报销单 金额 128 元 用途 离线文件命名调研",
+                sources: [.imageOCR, .imagePixels, .fileMetadata],
+                quality: .high
+            ),
+            allowVision: true
+        )
+
+        XCTAssertTrue(request.images.isEmpty)
+    }
+
+    func testImageWithoutUsableOCRKeepsVisionPixels() {
+        let request = NamingModelRequest(
+            extraction: extraction(
+                kind: .image,
+                text: "",
+                sources: [.imagePixels, .fileMetadata],
+                quality: .low
+            ),
+            allowVision: true
+        )
+
+        XCTAssertEqual(request.images.count, 1)
+    }
+
+    func testDisabledVisionDropsImagePixelsEvenWithoutOCR() {
+        let request = NamingModelRequest(
+            extraction: extraction(
+                kind: .image,
+                text: "",
+                sources: [.imagePixels, .fileMetadata],
+                quality: .low
+            ),
+            allowVision: false
+        )
+
+        XCTAssertTrue(request.images.isEmpty)
+    }
+
     func testBundledConfigurationUsesEnvironmentOverride() throws {
         let expected = FileManager.default.temporaryDirectory
             .appendingPathComponent("covio-model-\(UUID().uuidString)", isDirectory: true)
@@ -162,6 +204,31 @@ final class NamingModelPortTests: XCTestCase {
         XCTAssertEqual(configuration.modelDirectory.path, expected.path)
         XCTAssertEqual(configuration.maxInputTokens, 4_096)
         XCTAssertEqual(configuration.maxOutputTokens, 160)
+    }
+
+    private func extraction(
+        kind: FileNamingContentKind,
+        text: String,
+        sources: Set<FileNamingExtractionSource>,
+        quality: FileNamingExtractionQuality
+    ) -> FileNamingExtraction {
+        FileNamingExtraction(
+            candidateId: "request",
+            fileURL: URL(fileURLWithPath: "/tmp/input"),
+            kind: kind,
+            text: text,
+            images: [
+                FileNamingExtractedImage(
+                    data: Data([1, 2, 3]),
+                    mimeType: "image/png",
+                    pixelWidth: 1,
+                    pixelHeight: 1
+                ),
+            ],
+            sources: sources,
+            quality: quality,
+            warnings: []
+        )
     }
 }
 

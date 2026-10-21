@@ -3,21 +3,8 @@ title: 组件图鉴
 description: 按组件查看定义、功能、状态、无障碍要求和真机实例。
 ---
 
-import IndexCard from '../../../components/guide/IndexCard.astro';
+import ComponentCatalog from '../../../components/guide/ComponentCatalog.astro';
 
 组件页是说明书的检索层。每个组件只保留一个权威目录，章节通过链接引用组件。
 
-<div class="guide-index-grid">
-  <IndexCard
-    index="01"
-    title="电源管理工作区"
-    description="查看真实 Mac 截图、当前供电、保持唤醒和自动规则。"
-    href="/components/power-management/"
-    meta="预览样张"
-  />
-</div>
-
-<div class="guide-index-note">
-  <strong>索引生成</strong>
-  <p>内容模型完成后，索引会从设计合同的 24 个组件自动生成。</p>
-</div>
+<ComponentCatalog />

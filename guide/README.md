@@ -16,6 +16,30 @@ npm run dev
 - 组件图鉴：`/components/`
 - 组件样张：`/components/power-management/`
 
+## 组件内容模型
+
+组件目录格式：
+
+```text
+src/content/docs/components/<id>/
+├── index.mdx
+└── evidence/
+```
+
+新增组件页后，从 `pending.json` 删除对应 ID。
+高层组件不在设计合同中，登记到 `extensions.json`。
+检查内容模型：
+
+```sh
+npm run check:model
+```
+
+检查完整覆盖：
+
+```sh
+npm run check:contract:complete
+```
+
 ## 构建
 
 ```sh

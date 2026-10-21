@@ -18,6 +18,8 @@ fi
 cd "$ROOT"
 bash "$ROOT/scripts/setup-local-signing.sh"
 mkdir -p "$(dirname "$RESULT_PATH")" "$ROOT/build"
+printf '%s\n' "$MODEL_DIR" > "$ROOT/build/agent-tool-model-path.txt"
+printf '%s\n' "$RESULT_PATH" > "$ROOT/build/agent-tool-results-path.txt"
 
 xcodebuild \
   -project "$ROOT/macosApp/Covio.xcodeproj" \

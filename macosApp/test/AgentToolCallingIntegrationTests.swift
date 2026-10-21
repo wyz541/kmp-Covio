@@ -32,8 +32,10 @@ final class AgentToolCallingIntegrationTests: XCTestCase {
     }
 
     func testLocalToolCallingMatrix() async throws {
-        let modelPath = ProcessInfo.processInfo.environment["COVIO_FILE_NAMING_MODEL_DIR"]
-        guard let modelPath, !modelPath.isEmpty else {
+        guard let modelPath = Self.testValue(
+            environmentKey: "COVIO_FILE_NAMING_MODEL_DIR",
+            fileName: "agent-tool-model-path.txt"
+        ) else {
             throw XCTSkip("Set COVIO_FILE_NAMING_MODEL_DIR")
         }
 
@@ -124,7 +126,10 @@ final class AgentToolCallingIntegrationTests: XCTestCase {
             withJSONObject: payload,
             options: [.prettyPrinted, .sortedKeys]
         )
-        let resultPath = ProcessInfo.processInfo.environment["COVIO_AGENT_TOOL_RESULTS_PATH"]
+        let resultPath = Self.testValue(
+            environmentKey: "COVIO_AGENT_TOOL_RESULTS_PATH",
+            fileName: "agent-tool-results-path.txt"
+        )
             ?? "build/agent-tool-results.json"
         let resultURL = URL(fileURLWithPath: resultPath)
         try FileManager.default.createDirectory(
@@ -135,6 +140,21 @@ final class AgentToolCallingIntegrationTests: XCTestCase {
         print("COVIO_AGENT_TOOL_RESULTS\n\(String(decoding: data, as: UTF8.self))")
         XCTAssertEqual(unsafeViolations, 0)
         XCTAssertGreaterThanOrEqual(matchedCount, 29)
+    }
+
+    private static func testValue(environmentKey: String, fileName: String) -> String? {
+        if let value = ProcessInfo.processInfo.environment[environmentKey], !value.isEmpty {
+            return value
+        }
+        let repositoryRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let pointer = repositoryRoot.appendingPathComponent("build", isDirectory: true)
+            .appendingPathComponent(fileName)
+        guard let value = try? String(contentsOf: pointer, encoding: .utf8) else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     private actor StringBuilder {

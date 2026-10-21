@@ -314,6 +314,16 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
                 return .failure(failure)
             }
         }
+        if backendState == nil,
+           decision.action == .none,
+           let target = decision.targetPercent?.int32Value {
+            switch backend.apply(targetPercent: Int(target)) {
+            case .success:
+                return .success(())
+            case .failure(let failure):
+                return .failure(failure)
+            }
+        }
         return .success(())
     }
 

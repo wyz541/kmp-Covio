@@ -187,7 +187,7 @@ final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
     private let stateStore: ChargeLimitStateStore
     private let powerUI: PowerUIChargeReading
     private let lock = NSLock()
-    private let allowedTargets: [Int]
+    private let supportedTargetPercent = 20...100
     private let powerUIMinimum = 80
     private let directReadbackTimeout: TimeInterval
 
@@ -201,7 +201,6 @@ final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
         self.stateStore = stateStore
         self.powerUI = powerUI
         self.directReadbackTimeout = max(0, directReadbackTimeout)
-        allowedTargets = stride(from: 20, through: 100, by: 5).map { $0 }
     }
 
     /// 运行时探测系统接口。接口缺失或报告不支持时，策略不得写入。
@@ -249,7 +248,7 @@ final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
     }
 
     private func applyLocked(targetPercent: Int) -> Result<ChargeLimitPersistentState, ChargeLimitMCLFailure> {
-        guard allowedTargets.contains(targetPercent) else {
+        guard supportedTargetPercent.contains(targetPercent) else {
             return .failure(.invalidTarget(targetPercent))
         }
 
@@ -312,7 +311,7 @@ final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
             }
         } else if state.original.featureState == 1,
                   let originalLimit = state.original.limitPercent,
-                  allowedTargets.contains(originalLimit) {
+                  supportedTargetPercent.contains(originalLimit) {
             guard applyDirect(originalLimit) else {
                 return .failure(.readbackFailed("original MCL target"))
             }

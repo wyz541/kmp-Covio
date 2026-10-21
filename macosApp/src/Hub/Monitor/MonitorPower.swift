@@ -495,7 +495,7 @@ enum MonitorPowerFormat {
         hasBattery: Bool
     ) -> MonitorSnapshot.Power.Supply {
         if adapterConnected {
-            return hasBattery && (isCharging || !isCharged) ? .charging : .adapter
+            return hasBattery && isCharging ? .charging : .adapter
         }
         return hasBattery ? .battery : .unknown
     }

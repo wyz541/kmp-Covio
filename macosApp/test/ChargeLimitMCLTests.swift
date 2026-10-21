@@ -87,6 +87,19 @@ final class ChargeLimitMCLTests: XCTestCase {
         XCTAssertEqual(powerUI.currentPercent, 70)
     }
 
+    func testApplyAcceptsTheCurrentLevelBetweenFivePointSteps() throws {
+        powerUI.enabled = true
+        powerUI.currentPercent = 76
+        let controller = makeController()
+
+        let result = controller.apply(targetPercent: 76)
+
+        let state = try XCTUnwrap(successState(result))
+        XCTAssertEqual(state.targetPercent, 76)
+        XCTAssertEqual(preferences.ints[DirectMCLPreference.keyLimitValue], 76)
+        XCTAssertEqual(powerUI.currentPercent, 76)
+    }
+
     func testDirectPathFailsWhenPowerUIKeepsTheOldTarget() {
         let controller = makeController(directReadbackTimeout: 0.01)
 
@@ -193,7 +206,7 @@ final class ChargeLimitMCLTests: XCTestCase {
     func testInvalidTargetsAreRejected() {
         let controller = makeController()
 
-        for target in [0, 19, 79, 101, 105] {
+        for target in [0, 19, 101, 105] {
             XCTAssertEqual(controller.apply(targetPercent: target), .failure(.invalidTarget(target)))
         }
     }

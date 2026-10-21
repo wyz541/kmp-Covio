@@ -17,7 +17,11 @@ Apple Silicon 内建屏能否在合盖后保持点亮，并设置为最低亮度
 
 ## 结论
 
-当前约束下不支持。
+当前 Covio 约束下不支持公开 API 路径。
+
+GitHub 审计发现了一条可行的私有 API 路径：`disablesleep` 保持系统运行，再用 `DisplayServicesSetBrightness(0)` 把面板压暗，同时保留 framebuffer。
+该路径违反当前 ADR 的私有 API 约束，且视觉上主要等于黑屏，不是可见的最低亮度画面。
+完整仓库对比见 `github-lid-brightness.md`。
 
 Covio 支持“合盖保持运行，内建屏关闭”。
 Covio 不支持“合盖保持运行，内建屏点亮并降到最低亮度”。
@@ -40,6 +44,7 @@ Covio 不支持“合盖保持运行，内建屏点亮并降到最低亮度”�
 
 ## 关联证据
 
+- GitHub 仓库审计：`github-lid-brightness.md`。
 - `docs/research/lid-sleep-control/evidence.md` 的 `E-02`。
 - Xcode 27 SDK 的 `IOPMLib.h`。
 - Xcode 27 SDK 的 `IOGraphicsLib.h`。

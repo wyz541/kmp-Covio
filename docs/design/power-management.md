@@ -124,7 +124,8 @@ stateDiagram-v2
 7. 页面支持页内滚动，内容不因固定高度而裁切。
 8. 合盖关屏模式会在合盖后请求显示器睡眠。
 9. 内建屏最低亮度模式由 #191 调研，结论为当前约束下不支持。
-   证据见 `docs/research/lid-display-minimum-brightness.md`。
+   公开 API 路径证据见 `docs/research/lid-display-minimum-brightness.md`。
+   GitHub 私有 API 方案审计见 `docs/research/github-lid-brightness.md`。
 8. 最近活动显示最近 24 小时的真实事件。
 9. 历史文件最多保留 200 条事件和 7 天。
 

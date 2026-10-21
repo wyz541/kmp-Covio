@@ -703,3 +703,39 @@ header.header {
     transition: none;
   }
 }
+
+
+.guide-catalog-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 2rem 0 1rem;
+}
+
+.guide-catalog-summary > div {
+  padding: 1rem;
+  border: 1px solid var(--covio-line);
+  border-radius: 1rem;
+  background: var(--covio-card);
+}
+
+.guide-catalog-summary strong {
+  display: block;
+  color: var(--covio-brand);
+  font-family: var(--sl-font-mono);
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  line-height: 1;
+}
+
+.guide-catalog-summary span {
+  display: block;
+  margin-top: 0.5rem;
+  color: var(--sl-color-gray-3);
+  font-size: var(--sl-font-size-sm);
+}
+
+@media (max-width: 42rem) {
+  .guide-catalog-summary {
+    grid-template-columns: 1fr;
+  }
+}

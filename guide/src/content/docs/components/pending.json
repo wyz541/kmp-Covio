@@ -1,0 +1,28 @@
+{
+  "components": [
+    "alert",
+    "badge",
+    "bento-grid",
+    "button",
+    "card",
+    "clothespin",
+    "dialog",
+    "material",
+    "number-field",
+    "page-title",
+    "popover",
+    "screenshot-card",
+    "segmented",
+    "setting-row",
+    "switch",
+    "tab-bar",
+    "toast",
+    "toolbar",
+    "tray-icon",
+    "tray-menu",
+    "tray-menu-item",
+    "widget-card",
+    "window-bar",
+    "window-shell"
+  ]
+}

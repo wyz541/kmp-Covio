@@ -3,6 +3,18 @@ import { docsLoader, i18nLoader } from '@astrojs/starlight/loaders';
 import { docsSchema, i18nSchema } from '@astrojs/starlight/schema';
 import { z } from 'astro/zod';
 
+const capabilitySchema = z.object({
+  id: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  title: z.string().min(1),
+  description: z.string().min(1),
+});
+
+const implementationSchema = z.object({
+  swift: z.array(z.string().min(1)).default([]),
+  kmp: z.array(z.string().min(1)).default([]),
+  notes: z.string().min(1).optional(),
+});
+
 const evidenceSchema = ({ image }: { image: () => z.ZodType }) =>
   z.object({
     id: z.string().min(1),
@@ -28,20 +40,26 @@ export const collections = {
           component: z
             .object({
               id: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
-              kind: z.enum(['surface', 'control', 'indicator', 'navigation', 'dialog', 'card']),
-              status: z.enum(['preview', 'stable', 'deprecated']),
+              kind: z.enum([
+                'shell',
+                'surface',
+                'navigation',
+                'control',
+                'container',
+                'feedback',
+                'indicator',
+                'menu',
+                'content',
+                'decoration',
+              ]),
+              status: z.enum(['draft', 'preview', 'stable', 'deprecated']),
               definition: z.string().min(1),
-              capabilities: z
-                .array(
-                  z.object({
-                    id: z.string().min(1),
-                    title: z.string().min(1),
-                    description: z.string().min(1),
-                  })
-                )
-                .min(1),
+              capabilities: z.array(capabilitySchema).min(1),
               states: z.array(z.string().min(1)).min(1),
               platforms: z.array(z.string().min(1)).min(1),
+              accessibilityRules: z.array(z.string().min(1)).default([]),
+              implementation: implementationSchema.optional(),
+              related: z.array(z.string().min(1)).default([]),
             })
             .optional(),
           evidence: z.array(evidenceSchema({ image })).default([]),

@@ -13,12 +13,22 @@ const data = Astro.locals.starlightRoute.entry.data as {
 
 const component = data.component;
 const kindLabels: Record<string, string> = {
+  shell: '外壳',
   surface: '界面区域',
+  navigation: '导航',
   control: '操作控件',
+  container: '容器',
+  feedback: '反馈',
   indicator: '状态指示',
-  navigation: '导航入口',
-  dialog: '对话窗口',
-  card: '内容卡片',
+  menu: '菜单',
+  content: '内容',
+  decoration: '装饰',
+};
+const statusLabels: Record<string, string> = {
+  draft: '草稿',
+  preview: '预览',
+  stable: '稳定',
+  deprecated: '已弃用',
 };
 ---
 
@@ -27,7 +37,7 @@ const kindLabels: Record<string, string> = {
     <div class="component-facts__meta">
       <div><span>组件 ID</span><strong>{component.id}</strong></div>
       <div><span>类型</span><strong>{kindLabels[component.kind] ?? component.kind}</strong></div>
-      <div><span>状态</span><strong>{component.status === 'preview' ? '预览' : component.status}</strong></div>
+      <div><span>状态</span><strong>{statusLabels[component.status] ?? component.status}</strong></div>
       <div><span>平台</span><strong>{component.platforms.join('、')}</strong></div>
     </div>
 

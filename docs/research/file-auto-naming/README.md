@@ -72,6 +72,7 @@ Covio 当前是 macOS 26、Apple Silicon 应用。
 | [validation/case-safe-rename.md](validation/case-safe-rename.md) | 预览、原子重命名和撤销结果 |
 | [validation/case-packaging.md](validation/case-packaging.md) | 内置模型、许可证和断网安装结果 |
 | [validation/case-real-mac-acceptance.md](validation/case-real-mac-acceptance.md) | 真实 Mac 12 样本、性能和恢复结果 |
+| [validation/case-constrained-mac-acceptance.md](validation/case-constrained-mac-acceptance.md) | 7 GB Apple Silicon 低内存验收结果 |
 
 ## 证据链阅读顺序
 

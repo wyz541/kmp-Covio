@@ -126,7 +126,7 @@ MiniCPM-V 使用 Apache-2.0。
 
 | 项目 | 状态 | 确认方法 |
 | --- | --- | --- |
-| 8 GB Apple Silicon Mac 真机验收 | pending #185 | 运行 12 样本矩阵并记录峰值内存 |
+| 低内存 Apple Silicon 验收 | 通过 #185 | 7 GB M1 虚拟 Mac 完成 12 样本矩阵 |
 | CoreML/ANE 结构化输出和 8 GB 兼容性 | 未开始 | 独立 Research issue |
 | MiniCPM-V 1B 的 Swift 运行时适配 | 未开始 | 独立 Research issue |
 | M1 和 M5 的图片回归 | 未开始 | 固定 runtime revision 后跑图片矩阵 |

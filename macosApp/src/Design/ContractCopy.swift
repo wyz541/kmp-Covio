@@ -655,6 +655,10 @@ enum ContractCopy {
     static let copyPowerSessionInactive = LocalizedCopy(key: "copy/power/session/inactive", en: "Off", zhHans: "关闭")
     /// `copy/power/session/lid`
     static let copyPowerSessionLid = LocalizedCopy(key: "copy/power/session/lid", en: "Closed lid", zhHans: "合盖运行")
+    /// `copy/power/session/lid-display-off`
+    static let copyPowerSessionLidDisplayOff = LocalizedCopy(key: "copy/power/session/lid-display-off", en: "Closed lid, screen off", zhHans: "合盖关屏")
+    /// `copy/power/session/lid-display-off-hint`
+    static let copyPowerSessionLidDisplayOffHint = LocalizedCopy(key: "copy/power/session/lid-display-off-hint", en: "The Mac stays awake. Covio turns the display off after the lid closes.", zhHans: "Mac 保持运行，Covio 在合盖后关闭屏幕。")
     /// `copy/power/session/none`
     static let copyPowerSessionNone = LocalizedCopy(key: "copy/power/session/none", en: "No keep-awake session is active.", zhHans: "当前没有保持唤醒会话。")
     /// `copy/power/session/reason-adapter`
@@ -1145,6 +1149,8 @@ enum ContractCopy {
         copyPowerSessionExpires,
         copyPowerSessionInactive,
         copyPowerSessionLid,
+        copyPowerSessionLidDisplayOff,
+        copyPowerSessionLidDisplayOffHint,
         copyPowerSessionNone,
         copyPowerSessionReasonAdapter,
         copyPowerSessionReasonLid,

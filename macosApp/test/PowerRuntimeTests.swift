@@ -192,6 +192,21 @@ final class PowerRuntimeTests: XCTestCase {
         XCTAssertEqual(fixture.engine.currentState.idleSleepPrevention, .system)
     }
 
+    func testClosedLidPowerSessionTurnsDisplayOffAfterTheLidCloses() {
+        fixture.privileged.installed = true
+        observation.value = makeObservation(powerState: .acPower, batteryPercent: 80, hasBattery: true)
+        runtime = makeRuntime(config: makeConfig())
+        runtime.start()
+
+        XCTAssertTrue(runtime.startSession(mode: .lid, duration: .oneHour))
+        XCTAssertTrue(fixture.privileged.sleepDisabled)
+
+        fixture.lid.emit(.closed)
+
+        XCTAssertEqual(fixture.sleep.displayCalls, 1)
+        XCTAssertEqual(fixture.sleep.sleepCalls, 0)
+    }
+
     func testClosedLidSessionRefusesWhenHelperIsMissing() {
         observation.value = makeObservation(powerState: .acPower, batteryPercent: 80, hasBattery: true)
         runtime = makeRuntime(config: makeConfig())

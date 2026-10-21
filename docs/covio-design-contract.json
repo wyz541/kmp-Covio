@@ -5305,6 +5305,14 @@
       "en": "Closed lid",
       "zh-Hans": "合盖运行"
     },
+    "copy/power/session/lid-display-off": {
+      "en": "Closed lid, screen off",
+      "zh-Hans": "合盖关屏"
+    },
+    "copy/power/session/lid-display-off-hint": {
+      "en": "The Mac stays awake. Covio turns the display off after the lid closes.",
+      "zh-Hans": "Mac 保持运行，Covio 在合盖后关闭屏幕。"
+    },
     "copy/power/session/start": {
       "en": "Start",
       "zh-Hans": "开始"

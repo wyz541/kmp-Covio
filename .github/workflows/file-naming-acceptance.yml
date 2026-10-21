@@ -19,7 +19,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 60
     env:
-      COVIO_FILE_NAMING_MODEL_DIR: ${{ runner.temp }}/file-naming-model
+      COVIO_FILE_NAMING_MODEL_DIR: ${{ github.workspace }}/build/file-naming-model
       COVIO_FILE_NAMING_ACCEPTANCE_MIN_MEMORY_BYTES: "7516192768"
     steps:
       - uses: actions/checkout@v4

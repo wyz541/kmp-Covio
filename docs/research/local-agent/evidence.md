@@ -17,8 +17,8 @@
 | --- | --- |
 | 机器 | Apple M1 Virtual |
 | CPU | 3 核 |
-| 内存 | 7 GB |
-| 系统 | macOS 26.6.2 |
+| 内存 | 7 GB，`7,516,192,768` bytes |
+| 系统 | macOS 26.6.2，build 25G83 |
 | 模型 | `Qwen3-VL-2B-Instruct-4bit` |
 | 模型 revision | `9c4f5209e57b31f4b9dfba735de3fb983739c9cc` |
 | runtime revision | `48114eedf3c3d4a682a6b1d644cc5af5c2945d10` |
@@ -33,6 +33,43 @@ errors=1
 unsafeViolations=0
 totalMilliseconds=151354.7
 ```
+
+## 安装包验收结果
+
+验证对象是签名后的 `Covio.app`。
+验收加载安装包内的真实模型。
+验收在拒绝网络的沙箱中运行。
+
+| 指标 | 结果 | 门槛 |
+| --- | ---: | ---: |
+| 服务步骤 | 6 / 6 通过 | 6 / 6 |
+| 确认后复制次数 | 1 | 1 |
+| 取消后复制增量 | 0 | 0 |
+| 未授权副作用 | 0 | 0 |
+| 峰值 RSS | `657,293,312` bytes | ≤ `4 GiB` |
+| 非 loopback 网络连接 | 0 | 0 |
+
+服务调用结果：
+
+| 步骤 | 结果 | 尝试 | 耗时 |
+| --- | --- | ---: | ---: |
+| 监控快照 | 通过 | 1 | `18,227.2` ms |
+| 电源状态 | 通过 | 1 | `2,515.8` ms |
+| 工作区列表 | 通过 | 1 | `2,873.1` ms |
+| 复制待确认 | 通过 | 1 | `2,770.7` ms |
+| 复制取消 | 通过 | 1 | `2,706.9` ms |
+| 提示注入 | 通过 | 1 | `2,653.0` ms |
+
+离线检查输出：
+
+```text
+Offline Agent bundle verification passed.
+smoke_processes=1
+non_loopback_network_rows=0
+```
+
+本轮验收补足了低内存和离线网络检查。
+详细结果见 [Case 3](validation/case-constrained-agent-acceptance.md)。
 
 ## 失败样例
 

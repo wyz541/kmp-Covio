@@ -23,6 +23,7 @@
 | 合盖睡眠控制与权限边界 | 初稿，可评审 | [README.md](lid-sleep-control/README.md) |
 | 硬件信息监听能力 | 第一版已落地 | [README.md](hardware-monitoring-capability/README.md) |
 | 电池充电控制能力 | 初稿，可评审 | [README.md](battery-charge-control/README.md) |
+| 离线本地服务 Agent | 第一版已落地，验收通过 | [README.md](local-agent/README.md) |
 | 研发工作流的调研依据 | 单文件，不建主题目录 | [workflow-research.md](workflow-research.md) |
 
 ## 归档规则

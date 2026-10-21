@@ -136,6 +136,8 @@ tool call -> validate -> pending -> confirm -> execute once -> audit
 - [x] 非法工具名和参数被拒绝。
 - [x] 提示注入不触发写操作。
 - [x] 设计预览完成。
+- [x] 7 GB Apple Silicon 完成安装包验收。
+- [x] 运行时没有非 loopback 网络连接。
 
 ## 实施计划
 
@@ -145,7 +147,7 @@ tool call -> validate -> pending -> confirm -> execute once -> audit
 | 2 | 服务边界研究 | 完成 |
 | 3 | Agent 页签和聊天页 | 完成 |
 | 4 | 服务 registry 和确认 | 完成 |
-| 5 | 低内存验收 | 待 #206 |
+| 5 | 低内存验收 | 完成，#206 通过 |
 
 ## 回滚条件
 
@@ -156,6 +158,6 @@ tool call -> validate -> pending -> confirm -> execute once -> audit
 
 ## 产品化条件
 
-1. #206 通过。
-2. 设计预览通过评审。
-3. `bash scripts/test-all.sh` 通过。
+1. [x] #206 通过。
+2. [x] 设计预览通过评审。
+3. [x] `bash scripts/test-all.sh` 通过。

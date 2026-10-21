@@ -18,11 +18,12 @@ Covio 已有本地 `Qwen3-VL-2B-Instruct-4bit`、监控、截图、剪贴板、�
 
 ## 过程
 
-本次工作分三步：
+本次工作分四步：
 
 1. 用 30 个请求测试模型的工具选择。
 2. 比较进程内 registry、Unix socket、本地 HTTP 和 MCP。
 3. 实现 Agent 页签、服务白名单、确认和审计模型。
+4. 在 7 GB Apple Silicon 虚拟 Mac 运行安装包验收。
 
 详见 [evidence.md](evidence.md) 和 [validation/README.md](validation/README.md)。
 
@@ -32,6 +33,9 @@ Covio 已有本地 `Qwen3-VL-2B-Instruct-4bit`、监控、截图、剪贴板、�
 未授权副作用为 0。  
 模型不能单独执行工具。  
 服务协议采用进程内 typed registry。  
+7 GB Apple Silicon 验收通过。
+峰值 RSS 为 `657,293,312` bytes。
+非 loopback 网络连接为 0。
 详见 [conclusion.md](conclusion.md) 和 [evidence.md](evidence.md)。
 
 ## 预期
@@ -64,6 +68,7 @@ Agent 提供普通对话和受控本地服务。
 | [validation/README.md](validation/README.md) | 验证矩阵和清理要求 |
 | [validation/case-tool-calling.md](validation/case-tool-calling.md) | 30 个工具调用样本 |
 | [validation/case-service-boundary.md](validation/case-service-boundary.md) | 服务协议和权限比较 |
+| [validation/case-constrained-agent-acceptance.md](validation/case-constrained-agent-acceptance.md) | 7 GB Apple Silicon 安装包验收 |
 
 ## 证据链阅读顺序
 

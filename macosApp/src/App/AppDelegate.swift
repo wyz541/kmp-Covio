@@ -72,6 +72,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             preview.showWindow(nil)
             return
         }
+        if let path = ProcessInfo.processInfo.environment["COVIO_AGENT_RENDER"], !path.isEmpty {
+            Task { @MainActor in
+                exit(await AgentPreviewRenderer.render(to: path) ? 0 : 1)
+            }
+            return
+        }
         #endif
 
         // 测试进程不是真实实例，不参与单实例仲裁。

@@ -48,6 +48,9 @@ final class AppRuntime {
     /// 文件自动命名。Hub 的文件页签读它。
     let autoNaming: AutoNamingRuntime
 
+    /// 离线本地服务 Agent。Hub 的 Agent 页签读它。
+    let agent: AgentChatRuntime
+
     private let configStore: ConfigStore
     /// 挂帘读配置的中间人。理由见 `ShelfBridge`。
     private let shelfBridge: ShelfBridge
@@ -145,7 +148,7 @@ final class AppRuntime {
         let bridge = ShelfBridge(config: loaded)
         self.shelfBridge = bridge
         let shelfStore = ShelfStoreClient()
-        self.shelf = shelf ?? ShelfRuntime(
+        let resolvedShelf = shelf ?? ShelfRuntime(
             store: shelfStore,
             takeover: ScreenshotTakeoverController(
                 store: MacScreenshotPreferenceStore(),
@@ -160,11 +163,12 @@ final class AppRuntime {
             ),
             report: { entry in bridge.report?(entry) }
         )
+        self.shelf = resolvedShelf
 
         // 剪切板同样要先建好中间人。开关与快捷键都读配置。
         let clipboardBridge = ClipboardBridge()
         self.clipboardBridge = clipboardBridge
-        self.clipboard = clipboard ?? ClipboardRuntime(
+        let resolvedClipboard = clipboard ?? ClipboardRuntime(
             store: ClipboardStore.companion.create(path: AppPaths.clipboardFile.path),
             imageDirectory: AppPaths.clipboardDirectory,
             environment: ClipboardEnvironment(
@@ -179,10 +183,36 @@ final class AppRuntime {
             ),
             bridge: clipboardBridge
         )
+        self.clipboard = resolvedClipboard
 
         // 工作区没有配置依赖，也没有要交出去的闭包。直接建。
-        self.workspace = workspace ?? WorkspaceRuntime()
+        let resolvedWorkspace = workspace ?? WorkspaceRuntime()
+        self.workspace = resolvedWorkspace
         self.autoNaming = autoNaming ?? AutoNamingRuntime()
+
+        let resourceRoot = Bundle.main.resourceURL ?? Bundle.main.bundleURL
+        let agentModelConfiguration = NamingModelConfiguration.bundled(
+            resourceDirectory: resourceRoot,
+            environment: ProcessInfo.processInfo.environment
+        ) ?? NamingModelConfiguration(
+            modelDirectory: resourceRoot
+                .appendingPathComponent("Models", isDirectory: true)
+                .appendingPathComponent("Qwen3VL-2B-Instruct-4bit", isDirectory: true)
+        )
+        let agentGateway = AgentServiceGateway(
+            handlers: AgentAppServices.handlers(
+                shelf: resolvedShelf,
+                clipboard: resolvedClipboard,
+                workspace: resolvedWorkspace
+            )
+        )
+        self.agent = AgentChatRuntime(
+            model: LocalAgentModel(
+                modelDirectory: agentModelConfiguration.modelDirectory,
+                gateway: agentGateway
+            ),
+            gateway: agentGateway
+        )
 
         self.engine = Engine(
             initialConfig: loaded,

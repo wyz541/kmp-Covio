@@ -3,7 +3,7 @@
   "metadata": {
     "name": "Covio Product Design Contract",
     "status": "native-source-verified",
-    "updatedAt": "2026-10-15",
+    "updatedAt": "2026-10-21",
     "authority": "docs/covio-design-contract.json",
     "visualProjection": {
       "fileName": "Covio — Product Design · macOS 27",
@@ -92,8 +92,13 @@
       },
       {
         "area": "Native-only interface copy",
-        "difference": "The macOS host needs copy that no delivery page carries: the six hub tab names and their summaries, the top shelf window title and its errors, and the whole clipboard group. These entries have no Figma node. The values are the strings the SwiftUI host ships, taken verbatim, so adding them changes no visible text. They live here because the contract is the single source that every host reads copy from.",
+        "difference": "The macOS host needs copy that no delivery page carries: the seven built-in hub tab names and their summaries, the top shelf window title and its errors, and the whole clipboard group. These entries have no Figma node. The values are the strings the SwiftUI host ships, taken verbatim, so adding them changes no visible text. They live here because the contract is the single source that every host reads copy from.",
         "status": "accepted-native-copy-addition"
+      },
+      {
+        "area": "Agent hub tab",
+        "difference": "The offline Agent tab and chat interface have no Figma delivery page. The tab copy, local-service labels and confirmation copy live in the design contract. Light and dark previews are stored as 207-agent-tab-light-1.png and 207-agent-tab-dark-1.png.",
+        "status": "accepted-native-preview"
       },
       {
         "area": "Hub navigation rail",
@@ -3820,6 +3825,90 @@
     }
   },
   "copy": {
+    "copy/agent/action-cancelled": {
+      "en": "Local action cancelled.",
+      "zh-Hans": "本地操作已取消。"
+    },
+    "copy/agent/action-completed": {
+      "en": "Local action completed.",
+      "zh-Hans": "本地操作已完成。"
+    },
+    "copy/agent/action-failed": {
+      "en": "Local action failed.",
+      "zh-Hans": "本地操作失败。"
+    },
+    "copy/agent/cancel": {
+      "en": "Cancel",
+      "zh-Hans": "取消"
+    },
+    "copy/agent/clear": {
+      "en": "New chat",
+      "zh-Hans": "新对话"
+    },
+    "copy/agent/confirm": {
+      "en": "Allow",
+      "zh-Hans": "允许"
+    },
+    "copy/agent/confirm-body": {
+      "en": "The agent will run this local service after your confirmation.",
+      "zh-Hans": "确认后 Agent 将执行此本地服务。"
+    },
+    "copy/agent/confirm-title": {
+      "en": "Allow local action?",
+      "zh-Hans": "允许本地操作？"
+    },
+    "copy/agent/copy-characters": {
+      "en": "Copy %d characters to the clipboard.",
+      "zh-Hans": "复制 %d 个字符到剪贴板。"
+    },
+    "copy/agent/empty-body": {
+      "en": "It can check monitor, power, workspace, screenshots, and clipboard metadata. Side effects need confirmation.",
+      "zh-Hans": "可查询监控、电源、工作区、截图和剪贴板元数据。有副作用的操作需要确认。"
+    },
+    "copy/agent/empty-response": {
+      "en": "No response.",
+      "zh-Hans": "没有返回内容。"
+    },
+    "copy/agent/empty-title": {
+      "en": "Ask the local agent",
+      "zh-Hans": "询问本地 Agent"
+    },
+    "copy/agent/error": {
+      "en": "The local agent could not complete this request.",
+      "zh-Hans": "本地 Agent 无法完成此请求。"
+    },
+    "copy/agent/name": {
+      "en": "Covio Agent",
+      "zh-Hans": "Covio Agent"
+    },
+    "copy/agent/offline": {
+      "en": "Local only",
+      "zh-Hans": "仅本地"
+    },
+    "copy/agent/placeholder": {
+      "en": "Ask about this Mac or your workspace",
+      "zh-Hans": "询问这台 Mac 或工作区"
+    },
+    "copy/agent/send": {
+      "en": "Send",
+      "zh-Hans": "发送"
+    },
+    "copy/agent/stopped": {
+      "en": "Stopped.",
+      "zh-Hans": "已停止。"
+    },
+    "copy/agent/stop": {
+      "en": "Stop",
+      "zh-Hans": "停止"
+    },
+    "copy/agent/thinking": {
+      "en": "Using local services…",
+      "zh-Hans": "正在使用本地服务…"
+    },
+    "copy/agent/you": {
+      "en": "You",
+      "zh-Hans": "你"
+    },
     "copy/app/name": {
       "en": "Covio",
       "zh-Hans": "Covio"
@@ -4475,6 +4564,14 @@
     "copy/hub/tab/board/summary": {
       "en": "A custom workspace with just the widget grid.",
       "zh-Hans": "自建工作区，只有组件网格。"
+    },
+    "copy/hub/tab/agent": {
+      "en": "Agent",
+      "zh-Hans": "助手"
+    },
+    "copy/hub/tab/agent/summary": {
+      "en": "Chat with the offline local agent and its local services.",
+      "zh-Hans": "与离线本地 Agent 对话并使用本地服务。"
     },
     "copy/hub/update/up-to-date": {
       "en": "Covio is up to date.",

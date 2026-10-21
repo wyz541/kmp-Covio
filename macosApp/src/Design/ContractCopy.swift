@@ -9,6 +9,48 @@ import Foundation
 /// 键名就是合同里的键路径。`DesignContractTests` 逐条比对，
 /// 所以这里的值不能手改。
 enum ContractCopy {
+    /// `copy/agent/action-cancelled`
+    static let copyAgentActionCancelled = LocalizedCopy(key: "copy/agent/action-cancelled", en: "Local action cancelled.", zhHans: "本地操作已取消。")
+    /// `copy/agent/action-completed`
+    static let copyAgentActionCompleted = LocalizedCopy(key: "copy/agent/action-completed", en: "Local action completed.", zhHans: "本地操作已完成。")
+    /// `copy/agent/action-failed`
+    static let copyAgentActionFailed = LocalizedCopy(key: "copy/agent/action-failed", en: "Local action failed.", zhHans: "本地操作失败。")
+    /// `copy/agent/cancel`
+    static let copyAgentCancel = LocalizedCopy(key: "copy/agent/cancel", en: "Cancel", zhHans: "取消")
+    /// `copy/agent/clear`
+    static let copyAgentClear = LocalizedCopy(key: "copy/agent/clear", en: "New chat", zhHans: "新对话")
+    /// `copy/agent/confirm`
+    static let copyAgentConfirm = LocalizedCopy(key: "copy/agent/confirm", en: "Allow", zhHans: "允许")
+    /// `copy/agent/confirm-body`
+    static let copyAgentConfirmBody = LocalizedCopy(key: "copy/agent/confirm-body", en: "The agent will run this local service after your confirmation.", zhHans: "确认后 Agent 将执行此本地服务。")
+    /// `copy/agent/confirm-title`
+    static let copyAgentConfirmTitle = LocalizedCopy(key: "copy/agent/confirm-title", en: "Allow local action?", zhHans: "允许本地操作？")
+    /// `copy/agent/copy-characters`
+    static let copyAgentCopyCharacters = LocalizedCopy(key: "copy/agent/copy-characters", en: "Copy %d characters to the clipboard.", zhHans: "复制 %d 个字符到剪贴板。")
+    /// `copy/agent/empty-body`
+    static let copyAgentEmptyBody = LocalizedCopy(key: "copy/agent/empty-body", en: "It can check monitor, power, workspace, screenshots, and clipboard metadata. Side effects need confirmation.", zhHans: "可查询监控、电源、工作区、截图和剪贴板元数据。有副作用的操作需要确认。")
+    /// `copy/agent/empty-response`
+    static let copyAgentEmptyResponse = LocalizedCopy(key: "copy/agent/empty-response", en: "No response.", zhHans: "没有返回内容。")
+    /// `copy/agent/empty-title`
+    static let copyAgentEmptyTitle = LocalizedCopy(key: "copy/agent/empty-title", en: "Ask the local agent", zhHans: "询问本地 Agent")
+    /// `copy/agent/error`
+    static let copyAgentError = LocalizedCopy(key: "copy/agent/error", en: "The local agent could not complete this request.", zhHans: "本地 Agent 无法完成此请求。")
+    /// `copy/agent/name`
+    static let copyAgentName = LocalizedCopy(key: "copy/agent/name", en: "Covio Agent", zhHans: "Covio Agent")
+    /// `copy/agent/offline`
+    static let copyAgentOffline = LocalizedCopy(key: "copy/agent/offline", en: "Local only", zhHans: "仅本地")
+    /// `copy/agent/placeholder`
+    static let copyAgentPlaceholder = LocalizedCopy(key: "copy/agent/placeholder", en: "Ask about this Mac or your workspace", zhHans: "询问这台 Mac 或工作区")
+    /// `copy/agent/send`
+    static let copyAgentSend = LocalizedCopy(key: "copy/agent/send", en: "Send", zhHans: "发送")
+    /// `copy/agent/stop`
+    static let copyAgentStop = LocalizedCopy(key: "copy/agent/stop", en: "Stop", zhHans: "停止")
+    /// `copy/agent/stopped`
+    static let copyAgentStopped = LocalizedCopy(key: "copy/agent/stopped", en: "Stopped.", zhHans: "已停止。")
+    /// `copy/agent/thinking`
+    static let copyAgentThinking = LocalizedCopy(key: "copy/agent/thinking", en: "Using local services…", zhHans: "正在使用本地服务…")
+    /// `copy/agent/you`
+    static let copyAgentYou = LocalizedCopy(key: "copy/agent/you", en: "You", zhHans: "你")
     /// `copy/app/name`
     static let copyAppName = LocalizedCopy(key: "copy/app/name", en: "Covio", zhHans: "Covio")
     /// `copy/app/tagline`
@@ -285,6 +327,10 @@ enum ContractCopy {
     static let copyHubLogView = LocalizedCopy(key: "copy/hub/log/view", en: "View Log", zhHans: "查看日志")
     /// `copy/hub/placeholder-notice`
     static let copyHubPlaceholderNotice = LocalizedCopy(key: "copy/hub/placeholder-notice", en: "This tab is a placeholder. Content lands in a later phase.", zhHans: "本页签是占位。内容在后续阶段落地。")
+    /// `copy/hub/tab/agent`
+    static let copyHubTabAgent = LocalizedCopy(key: "copy/hub/tab/agent", en: "Agent", zhHans: "助手")
+    /// `copy/hub/tab/agent/summary`
+    static let copyHubTabAgentSummary = LocalizedCopy(key: "copy/hub/tab/agent/summary", en: "Chat with the offline local agent and its local services.", zhHans: "与离线本地 Agent 对话并使用本地服务。")
     /// `copy/hub/tab/board`
     static let copyHubTabBoard = LocalizedCopy(key: "copy/hub/tab/board", en: "Custom", zhHans: "自建")
     /// `copy/hub/tab/board/summary`
@@ -886,6 +932,27 @@ enum ContractCopy {
 
     /// 全部条目。供测试遍历。
     static let all: [LocalizedCopy] = [
+        copyAgentActionCancelled,
+        copyAgentActionCompleted,
+        copyAgentActionFailed,
+        copyAgentCancel,
+        copyAgentClear,
+        copyAgentConfirm,
+        copyAgentConfirmBody,
+        copyAgentConfirmTitle,
+        copyAgentCopyCharacters,
+        copyAgentEmptyBody,
+        copyAgentEmptyResponse,
+        copyAgentEmptyTitle,
+        copyAgentError,
+        copyAgentName,
+        copyAgentOffline,
+        copyAgentPlaceholder,
+        copyAgentSend,
+        copyAgentStop,
+        copyAgentStopped,
+        copyAgentThinking,
+        copyAgentYou,
         copyAppName,
         copyAppTagline,
         copyAutoNamingActionApply,
@@ -1024,6 +1091,8 @@ enum ContractCopy {
         copyHubLogExport,
         copyHubLogView,
         copyHubPlaceholderNotice,
+        copyHubTabAgent,
+        copyHubTabAgentSummary,
         copyHubTabBoard,
         copyHubTabBoardSummary,
         copyHubTabClipboard,

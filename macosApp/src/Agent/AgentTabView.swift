@@ -1,0 +1,259 @@
+import SwiftUI
+import kmpDomain
+
+struct AgentTabView: View {
+    @Bindable var agent: AgentChatRuntime
+    let language: AppLanguage
+
+    @State private var draft = ""
+    @FocusState private var inputFocused: Bool
+
+    var body: some View {
+        VStack(spacing: MacTheme.space2) {
+            transcript
+            if let pending = agent.pendingAction {
+                confirmationCard(pending)
+            }
+            composer
+            if let error = agent.errorText {
+                Text(error)
+                    .font(.system(size: 11))
+                    .foregroundStyle(MacTheme.errorText)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityLabel(error)
+            }
+        }
+        .frame(height: HubMetrics.agentBodyHeight, alignment: .top)
+        .onAppear { agent.language = language }
+        .onChange(of: language) { _, next in agent.language = next }
+    }
+
+    private var transcript: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: MacTheme.space2) {
+                    localBadge
+                    if agent.messages.isEmpty {
+                        emptyState
+                    } else {
+                        ForEach(agent.messages) { message in
+                            messageView(message)
+                        }
+                        if agent.stage == .thinking {
+                            thinkingRow
+                        }
+                        Color.clear.frame(height: 1).id(Self.bottomID)
+                    }
+                }
+                .padding(MacTheme.space3)
+            }
+            .background(
+                MacTheme.material,
+                in: RoundedRectangle(cornerRadius: HubMetrics.bentoCardRadius, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: HubMetrics.bentoCardRadius, style: .continuous)
+                    .strokeBorder(MacTheme.divider, lineWidth: 1)
+            )
+            .glassSurface(cornerRadius: HubMetrics.bentoCardRadius)
+            .onChange(of: agent.messages.count) { _, _ in
+                withAnimation(.easeOut(duration: 0.16)) {
+                    proxy.scrollTo(Self.bottomID, anchor: .bottom)
+                }
+            }
+            .onChange(of: agent.messages.last?.text) { _, _ in
+                proxy.scrollTo(Self.bottomID, anchor: .bottom)
+            }
+        }
+        .frame(height: HubMetrics.agentTranscriptHeight)
+    }
+
+    private var localBadge: some View {
+        HStack(spacing: MacTheme.space1) {
+            Circle()
+                .fill(MacTheme.successText)
+                .frame(width: 6, height: 6)
+            Text(ContractCopy.copyAgentOffline.text(for: language))
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(MacTheme.textSecondary)
+            Spacer(minLength: 0)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var emptyState: some View {
+        VStack(alignment: .leading, spacing: MacTheme.space2) {
+            Text(ContractCopy.copyAgentEmptyTitle.text(for: language))
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(MacTheme.textPrimary)
+            Text(ContractCopy.copyAgentEmptyBody.text(for: language))
+                .font(.system(size: 12))
+                .foregroundStyle(MacTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, MacTheme.space4)
+    }
+
+    private func messageView(_ message: AgentChatMessage) -> some View {
+        HStack {
+            if message.role == .user { Spacer(minLength: 80) }
+            VStack(alignment: .leading, spacing: MacTheme.space1) {
+                Text(roleName(message.role))
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(MacTheme.textSecondary)
+                Text(message.text)
+                    .font(.system(size: 12))
+                    .foregroundStyle(message.role == .service ? MacTheme.textSecondary : MacTheme.textPrimary)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityLabel(message.text)
+            }
+            .padding(.horizontal, MacTheme.space3)
+            .padding(.vertical, MacTheme.space2)
+            .background(
+                bubbleColor(message.role),
+                in: RoundedRectangle(cornerRadius: MacTheme.cardRadius, style: .continuous)
+            )
+            if message.role != .user { Spacer(minLength: 80) }
+        }
+        .frame(maxWidth: .infinity, alignment: message.role == .user ? .trailing : .leading)
+    }
+
+    private var thinkingRow: some View {
+        HStack(spacing: MacTheme.space1) {
+            ProgressView()
+                .controlSize(.small)
+            Text(ContractCopy.copyAgentThinking.text(for: language))
+                .font(.system(size: 11))
+                .foregroundStyle(MacTheme.textSecondary)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func confirmationCard(_ pending: AgentPendingAction) -> some View {
+        HStack(spacing: MacTheme.space3) {
+            VStack(alignment: .leading, spacing: MacTheme.space1) {
+                Text(ContractCopy.copyAgentConfirmTitle.text(for: language))
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(MacTheme.textPrimary)
+                Text(pendingSummary(pending))
+                    .font(.system(size: 11))
+                    .foregroundStyle(MacTheme.textSecondary)
+                Text(ContractCopy.copyAgentConfirmBody.text(for: language))
+                    .font(.system(size: 10))
+                    .foregroundStyle(MacTheme.textSecondary)
+            }
+            Spacer(minLength: MacTheme.space2)
+            Button(ContractCopy.copyAgentCancel.text(for: language)) {
+                agent.cancelPendingAction()
+            }
+            .buttonStyle(.plain)
+            Button(ContractCopy.copyAgentConfirm.text(for: language)) {
+                agent.confirmPendingAction()
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(MacTheme.accent)
+        }
+        .padding(MacTheme.space3)
+        .background(
+            MacTheme.elevated,
+            in: RoundedRectangle(cornerRadius: MacTheme.cardRadius, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: MacTheme.cardRadius, style: .continuous)
+                .strokeBorder(MacTheme.warningText.opacity(0.45), lineWidth: 1)
+        )
+        .accessibilityElement(children: .contain)
+    }
+
+    private var composer: some View {
+        HStack(spacing: MacTheme.space2) {
+            TextField(
+                ContractCopy.copyAgentPlaceholder.text(for: language),
+                text: $draft,
+                axis: .vertical
+            )
+            .lineLimit(1...3)
+            .textFieldStyle(.plain)
+            .font(.system(size: 12))
+            .focused($inputFocused)
+            .onSubmit(send)
+            .disabled(agent.isBusy || agent.pendingAction != nil)
+            .padding(.horizontal, MacTheme.space3)
+            .frame(minHeight: HubMetrics.agentComposerHeight)
+            .background(
+                MacTheme.elevated,
+                in: RoundedRectangle(cornerRadius: MacTheme.controlRadius, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: MacTheme.controlRadius, style: .continuous)
+                    .strokeBorder(MacTheme.divider, lineWidth: 1)
+            )
+
+            if agent.isBusy {
+                Button(ContractCopy.copyAgentStop.text(for: language)) {
+                    agent.stop()
+                }
+                .buttonStyle(.bordered)
+                .accessibilityHint(ContractCopy.copyAgentStop.text(for: language))
+            } else {
+                Button(ContractCopy.copyAgentSend.text(for: language), action: send)
+                    .buttonStyle(.borderedProminent)
+                    .tint(MacTheme.accent)
+                    .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || agent.pendingAction != nil)
+            }
+        }
+    }
+
+    private func send() {
+        let value = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return }
+        draft = ""
+        agent.send(value)
+        inputFocused = true
+    }
+
+    private func roleName(_ role: AgentChatRole) -> String {
+        switch role {
+        case .user: ContractCopy.copyAgentYou.text(for: language)
+        case .assistant: ContractCopy.copyAgentName.text(for: language)
+        case .service: ContractCopy.copyAgentOffline.text(for: language)
+        }
+    }
+
+    private func bubbleColor(_ role: AgentChatRole) -> Color {
+        switch role {
+        case .user: MacTheme.accent.opacity(0.18)
+        case .assistant: Color.primary.opacity(0.07)
+        case .service: MacTheme.successText.opacity(0.10)
+        }
+    }
+
+    private func pendingSummary(_ pending: AgentPendingAction) -> String {
+        if let count = pending.characterCount {
+            return String(
+                format: ContractCopy.copyAgentCopyCharacters.text(for: language),
+                count
+            )
+        }
+        return pending.summary
+    }
+
+    private static let bottomID = "agent-bottom"
+}
+
+struct AgentHeadingActions: View {
+    let agent: AgentChatRuntime
+    let language: AppLanguage
+
+    var body: some View {
+        Button(ContractCopy.copyAgentClear.text(for: language)) {
+            agent.clear()
+        }
+        .buttonStyle(.plain)
+        .font(.system(size: 11, weight: .medium))
+        .disabled(agent.isBusy || agent.messages.isEmpty)
+        .accessibilityLabel(ContractCopy.copyAgentClear.text(for: language))
+    }
+}

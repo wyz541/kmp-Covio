@@ -309,6 +309,8 @@ struct HubTabContent: View {
                     policy: runtime.config.fileNaming,
                     language: language
                 )
+            case .agent:
+                AgentHeadingActions(agent: runtime.agent, language: language)
             default:
                 EmptyView()
             }
@@ -336,6 +338,8 @@ struct HubTabContent: View {
                 policy: runtime.config.fileNaming,
                 language: language
             )
+        } else if let runtime, tab == .agent {
+            AgentTabView(agent: runtime.agent, language: language)
         } else {
             HubPlaceholderView(
                 tab: tab,

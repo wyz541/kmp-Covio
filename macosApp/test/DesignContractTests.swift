@@ -49,7 +49,7 @@ final class DesignContractTests: XCTestCase {
 
         XCTAssertEqual(
             HubTab.allCases.map(\.rawValue),
-            ["now", "clipboard", "files", "screenshots", "devices", "settings", "board"]
+            ["now", "agent", "clipboard", "files", "screenshots", "devices", "settings", "board"]
         )
     }
 

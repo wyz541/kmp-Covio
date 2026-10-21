@@ -49,7 +49,7 @@ jobs:
           set -o pipefail
           COVIO_FILE_NAMING_ACCEPTANCE=1 \
             bash scripts/verify-file-naming-bundle.sh dist/Covio.app \
-            | tee "$RUNNER_TEMP/file-naming-acceptance.log"
+            2>&1 | tee "$RUNNER_TEMP/file-naming-acceptance.log"
 
       - name: Upload the acceptance log
         if: always()

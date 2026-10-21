@@ -26,6 +26,7 @@ helper v2 已经通过一次管理员提示安装并验证在线。
 | 电源观察 | 读取 `pmset -g` 与 `pmset -g batt` | 适配器、电池和睡眠状态可读 | 验证记录 |
 | helper v2 安装 | 一次 macOS 管理员提示 | 安装完成，LaunchDaemon 在线，`SleepDisabled=0` | `verify-helper-cutover.sh verify` |
 | 合盖租约写入 | 获取、续租、释放租约 | `SleepDisabled` 从 `0` 变为 `1`，释放后回到 `0` | 真实 helper 测试 |
+| 合盖保持运行 | 真实合盖，持续续租约 `75` 秒 | `AppleClamshellState=Yes`，续租 6 次，启动时间未变化，释放后恢复 `SleepDisabled=0` | 真实 helper 测试 |
 | 键名兼容 | macOS 27 输出 `SleepDisabled` | KMP 两个平台通过 | `PmsetConfigParserTest` |
 | 浅色布局 | 打开 Power 预览 | 内容可读，页面可滚动 | 窗口截图 |
 | 深色布局 | 打开 Power 预览 | 内容可读，页面可滚动 | 窗口截图 |
@@ -54,7 +55,7 @@ helper v2 已经通过一次管理员提示安装并验证在线。
 
 | 场景 | 操作前条件 | 必须观察 |
 | --- | --- | --- |
-| 合盖保持唤醒 | 接电，外接屏为空，helper v2 可用 | 合盖后保持唤醒，租约到期后恢复睡眠 |
+| 开盖恢复 | 合盖租约释放后打开屏幕 | Mac 正常渲染并继续运行 |
 | 合盖超时 | 合盖会话达到上限 | 租约释放，页面显示护栏触发 |
 | 外接屏冲突 | 合盖会话期间接入外接屏 | 续租失败，合盖租约立即释放 |
 | 崩溃恢复 | 合盖租约有效时结束进程 | 最长 60 秒后恢复睡眠 |

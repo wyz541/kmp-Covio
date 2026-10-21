@@ -605,3 +605,101 @@ header.header {
     transition: none;
   }
 }
+
+
+.guide-index-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1rem;
+  margin: 2rem 0;
+}
+
+.guide-index-card {
+  position: relative;
+  display: flex;
+  min-height: 16rem;
+  flex-direction: column;
+  padding: 1.35rem;
+  overflow: hidden;
+  border: 1px solid var(--covio-line);
+  border-radius: 1.25rem;
+  background: var(--covio-card);
+  color: inherit;
+  text-decoration: none;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.guide-index-card::after {
+  position: absolute;
+  right: -3.5rem;
+  bottom: -4.5rem;
+  width: 11rem;
+  height: 11rem;
+  border-radius: 50%;
+  background: var(--sl-color-accent-low);
+  content: "";
+}
+
+.guide-index-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--covio-brand);
+  box-shadow: var(--covio-shadow);
+}
+
+.guide-index-card__top {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  color: var(--covio-brand);
+  font-family: var(--sl-font-mono);
+  font-size: 0.75rem;
+}
+
+.guide-index-card__top small {
+  color: var(--sl-color-gray-3);
+  font-family: var(--sl-font);
+}
+
+.guide-index-card h2 {
+  max-width: 12ch;
+  margin: 2.6rem 0 0.75rem;
+  font-family: "Songti SC", "STSong", ui-serif, serif;
+  font-size: clamp(1.7rem, 3vw, 2.5rem);
+  line-height: 1.15;
+}
+
+.guide-index-card p {
+  max-width: 25rem;
+  margin: 0;
+  color: var(--sl-color-gray-2);
+}
+
+.guide-index-card__arrow {
+  margin-top: auto;
+  padding-top: 2rem;
+  font-size: 1.5rem;
+}
+
+.guide-index-note {
+  margin: 2rem 0 4rem;
+  padding: 1rem 1.2rem;
+  border-left: 3px solid var(--covio-brand);
+  background: color-mix(in srgb, var(--sl-color-accent-low) 48%, transparent);
+}
+
+.guide-index-note strong {
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.guide-index-note p {
+  margin: 0;
+  color: var(--sl-color-gray-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guide-index-card {
+    transition: none;
+  }
+}

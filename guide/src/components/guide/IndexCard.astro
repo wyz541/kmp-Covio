@@ -1,0 +1,21 @@
+---
+interface Props {
+  index: string;
+  title: string;
+  description: string;
+  href: string;
+  meta?: string;
+}
+
+const { index, title, description, href, meta } = Astro.props;
+---
+
+<a class="guide-index-card" href={href}>
+  <div class="guide-index-card__top">
+    <span>{index}</span>
+    {meta && <small>{meta}</small>}
+  </div>
+  <h2>{title}</h2>
+  <p>{description}</p>
+  <span class="guide-index-card__arrow" aria-hidden="true">→</span>
+</a>

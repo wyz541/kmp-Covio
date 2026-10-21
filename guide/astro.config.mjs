@@ -3,6 +3,7 @@ import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 
 export default defineConfig({
+  site: 'https://wyz541.github.io',
   integrations: [
     starlight({
       title: 'Covio 项目说明书',
@@ -26,11 +27,17 @@ export default defineConfig({
         },
         {
           label: '产品地图',
-          items: [{ label: 'Covio 是什么', slug: 'chapters/what-is-covio' }],
+          items: [
+            { label: '章节总览', slug: 'chapters' },
+            { label: 'Covio 是什么', slug: 'chapters/what-is-covio' },
+          ],
         },
         {
-          label: '组件样张',
-          items: [{ label: '电源管理工作区', slug: 'components/power-management' }],
+          label: '组件图鉴',
+          items: [
+            { label: '组件总览', slug: 'components' },
+            { label: '电源管理工作区', slug: 'components/power-management' },
+          ],
         },
       ],
     }),

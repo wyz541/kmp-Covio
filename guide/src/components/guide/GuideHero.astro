@@ -1,0 +1,30 @@
+---
+import { Image } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+
+interface Props {
+  mark: ImageMetadata;
+}
+
+const { mark } = Astro.props;
+---
+
+<section class="guide-hero" aria-labelledby="guide-title">
+  <div class="guide-hero__copy">
+    <p class="guide-eyebrow">Covio field guide · 真机观察手册</p>
+    <h1 id="guide-title">看懂 Covio 的<br />每个界面、<br />状态和取舍。</h1>
+    <p class="guide-hero__lead">
+      从产品地图进入，再按组件查定义、功能、状态和无障碍要求。每一条结论都指向可核对的内容和真机实例。
+    </p>
+    <div class="guide-hero__actions">
+      <a class="guide-button guide-button--primary" href="/chapters/what-is-covio/">开始阅读</a>
+      <a class="guide-button" href="/components/power-management/">查看组件样张</a>
+    </div>
+    <p class="guide-hero__note"><span aria-hidden="true">●</span> 当前为内部 web 预览，不是最终发布版本。</p>
+  </div>
+  <div class="guide-hero__mark" aria-hidden="true">
+    <span class="guide-hero__orbit"></span>
+    <Image src={mark} alt="" width={220} height={220} loading="eager" />
+    <span class="guide-hero__tag">01</span>
+  </div>
+</section>

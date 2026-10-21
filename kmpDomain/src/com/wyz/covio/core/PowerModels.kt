@@ -94,7 +94,7 @@ enum class HoldLeaseSource {
  *
  * [SYSTEM] 只阻止系统因空闲睡眠。
  * [SYSTEM_AND_DISPLAY] 同时阻止系统与显示器进入空闲睡眠。
- * [CLOSED_LID] 在前两者上增加合盖保持唤醒请求。
+ * [CLOSED_LID] 增加合盖保持唤醒请求，但不阻止显示器进入空闲睡眠。
  */
 enum class HoldLeaseLevel {
     SYSTEM,
@@ -248,15 +248,23 @@ object PowerPolicy {
             null
         }
         val usableLeases = activeLeases.filterNot { it.level == HoldLeaseLevel.CLOSED_LID && lidVeto != null }
-        val appliedLease = usableLeases.maxByOrNull { it.level.ordinal }
+        val hasClosedLidLease = usableLeases.any { it.level == HoldLeaseLevel.CLOSED_LID }
+        val hasDisplayLease = usableLeases.any { it.level == HoldLeaseLevel.SYSTEM_AND_DISPLAY }
+        val appliedLevel = when {
+            hasClosedLidLease -> HoldLeaseLevel.CLOSED_LID
+            hasDisplayLease -> HoldLeaseLevel.SYSTEM_AND_DISPLAY
+            usableLeases.isNotEmpty() -> HoldLeaseLevel.SYSTEM
+            else -> null
+        }
         val vetoes = buildList {
             if (capReached) add(SafetyVeto.CLOSED_LID_TIME_CAP)
             if (lidVeto != null) add(lidVeto)
         }
 
-        if (appliedLease != null) {
+        if (appliedLevel != null) {
             return decisionFor(
-                level = appliedLease.level,
+                level = appliedLevel,
+                displaySleepPrevention = hasDisplayLease,
                 activeLeaseIds = activeLeases.map { it.id }.filter { it.isNotBlank() }.distinct(),
                 automaticRuleApplied = false,
                 safetyVetoes = vetoes,
@@ -373,13 +381,14 @@ object PowerPolicy {
 
     private fun decisionFor(
         level: HoldLeaseLevel,
+        displaySleepPrevention: Boolean = level == HoldLeaseLevel.SYSTEM_AND_DISPLAY,
         activeLeaseIds: List<String>,
         automaticRuleApplied: Boolean,
         safetyVetoes: List<SafetyVeto>,
         batteryGuardLatched: Boolean,
     ): PowerDecision = PowerDecision(
         preventUserIdleSystemSleep = true,
-        preventUserIdleDisplaySleep = level != HoldLeaseLevel.SYSTEM,
+        preventUserIdleDisplaySleep = displaySleepPrevention,
         preventLidSleep = level == HoldLeaseLevel.CLOSED_LID,
         appliedLeaseLevel = if (automaticRuleApplied) null else level,
         activeLeaseIds = activeLeaseIds,

@@ -101,7 +101,7 @@ final class PowerPreviewModel: PowerManagementModel {
         )
         decision = PowerDecision(
             preventUserIdleSystemSleep: true,
-            preventUserIdleDisplaySleep: true,
+            preventUserIdleDisplaySleep: false,
             preventLidSleep: true,
             appliedLeaseLevel: .closedLid,
             activeLeaseIds: ["power/session/preview"],
@@ -153,7 +153,7 @@ final class PowerPreviewModel: PowerManagementModel {
         }
         decision = PowerDecision(
             preventUserIdleSystemSleep: true,
-            preventUserIdleDisplaySleep: level != .system,
+            preventUserIdleDisplaySleep: level == .systemAndDisplay,
             preventLidSleep: level == .closedLid,
             appliedLeaseLevel: level,
             activeLeaseIds: ["power/session/preview"],

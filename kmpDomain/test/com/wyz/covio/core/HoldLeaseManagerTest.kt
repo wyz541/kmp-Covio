@@ -141,11 +141,24 @@ class HoldLeaseManagerTest {
     }
 
     @Test
-    fun `closed lid lease maps to the display assertion in this layer`() {
+    fun `closed lid lease maps to the system assertion in this layer`() {
         val controller = FakeAssertionController()
         val manager = HoldLeaseManager(controller, clock = { NOW_MILLIS })
 
         val snapshot = manager.upsert(lease(HoldLeaseLevel.CLOSED_LID))
+
+        assertEquals(IdleSleepPrevention.SYSTEM, snapshot.desiredPrevention)
+        assertEquals(IdleSleepPrevention.SYSTEM, snapshot.actualPrevention)
+    }
+
+    @Test
+    fun `closed lid lease does not remove a display lease`() {
+        val controller = FakeAssertionController()
+        val manager = HoldLeaseManager(controller, clock = { NOW_MILLIS })
+        manager.upsert(lease(HoldLeaseLevel.SYSTEM_AND_DISPLAY, id = "display"))
+        manager.upsert(lease(HoldLeaseLevel.CLOSED_LID, id = "lid"))
+
+        val snapshot = manager.currentSnapshot()
 
         assertEquals(IdleSleepPrevention.SYSTEM_AND_DISPLAY, snapshot.desiredPrevention)
         assertEquals(IdleSleepPrevention.SYSTEM_AND_DISPLAY, snapshot.actualPrevention)

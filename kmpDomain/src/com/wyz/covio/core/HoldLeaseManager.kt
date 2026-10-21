@@ -152,11 +152,12 @@ class HoldLeaseManager(
 
     private fun desiredPreventionLocked(): IdleSleepPrevention {
         if (suspended) return IdleSleepPrevention.NONE
-        val highest = leases.values.maxByOrNull { it.level.ordinal } ?: return IdleSleepPrevention.NONE
-        return when (highest.level) {
-            HoldLeaseLevel.SYSTEM -> IdleSleepPrevention.SYSTEM
-            HoldLeaseLevel.SYSTEM_AND_DISPLAY, HoldLeaseLevel.CLOSED_LID ->
-                IdleSleepPrevention.SYSTEM_AND_DISPLAY
+        val levels = leases.values.map { it.level }
+        return when {
+            levels.any { it == HoldLeaseLevel.SYSTEM_AND_DISPLAY } -> IdleSleepPrevention.SYSTEM_AND_DISPLAY
+            levels.any { it == HoldLeaseLevel.SYSTEM || it == HoldLeaseLevel.CLOSED_LID } ->
+                IdleSleepPrevention.SYSTEM
+            else -> IdleSleepPrevention.NONE
         }
     }
 

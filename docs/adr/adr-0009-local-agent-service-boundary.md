@@ -54,6 +54,20 @@ Agent 需要访问监控、电源、工作区、截图和剪贴板等本地服�
 - 工具结果包含敏感内容。缓解：结果字段白名单。
 - helper 权限扩大。缓解：helper 不接入通用 registry。
 
+## 验收
+
+| 项目 | 结果 |
+| --- | --- |
+| 环境 | Apple M1 Virtual，3 核，`7,516,192,768` bytes |
+| 安装包验收 | 通过，#206 |
+| 峰值 RSS | `657,293,312` bytes |
+| 非 loopback 网络连接 | 0 |
+| 确认后复制 | 1 次 |
+| 取消后复制 | 0 次 |
+| 未授权副作用 | 0 |
+
+详细结果见 [Case 3](../research/local-agent/validation/case-constrained-agent-acceptance.md)。
+
 ## 备选方案
 
 ### Unix domain socket
@@ -77,7 +91,6 @@ Agent 需要访问监控、电源、工作区、截图和剪贴板等本地服�
 
 | 项目 | 状态 | 确认方法 |
 | --- | --- | --- |
-| 低内存 Agent 验收 | pending #206 | 7 GB M1 运行器 |
 | 第三方 MCP 适配 | 后续 | 单独 Research |
 | 文件命名服务接入 | 后续 | 单独 Feature |
 
@@ -85,4 +98,5 @@ Agent 需要访问监控、电源、工作区、截图和剪贴板等本地服�
 
 - [研究索引](../research/local-agent/README.md)
 - [工具矩阵](https://github.com/wyz541/kmp-Covio/actions/runs/39552460336)
+- [7 GB 安装包验收](https://github.com/wyz541/kmp-Covio/actions/runs/39585450321)
 - [服务方案](../research/local-agent/solution.md)

@@ -462,6 +462,7 @@ class PowerPolicyTest {
         yieldOnLowPowerMode: Boolean = true,
         heatGuardEnabled: Boolean = true,
         closedLidTimeCapMinutes: Int = 240,
+        closedLidZeroBrightness: Boolean = false,
     ): PowerConfig = PowerConfig(
         enabled = enabled,
         keepAwakeOnAdapter = keepAwakeOnAdapter,
@@ -471,6 +472,7 @@ class PowerPolicyTest {
         yieldOnLowPowerMode = yieldOnLowPowerMode,
         heatGuardEnabled = heatGuardEnabled,
         closedLidTimeCapMinutes = closedLidTimeCapMinutes,
+        closedLidZeroBrightness = closedLidZeroBrightness,
     )
 
     private fun baseSnapshot(): PowerSnapshot = PowerSnapshot(

@@ -134,7 +134,8 @@ final class ConfigCompatibilityTests: XCTestCase {
             batteryFloorRecoveryPercent: 30,
             yieldOnLowPowerMode: false,
             heatGuardEnabled: false,
-            closedLidTimeCapMinutes: 90
+            closedLidTimeCapMinutes: 90,
+            closedLidZeroBrightness: true
         )
         let store = store()
         store.save(config: AppConfigs.make(power: power))
@@ -150,6 +151,7 @@ final class ConfigCompatibilityTests: XCTestCase {
         XCTAssertFalse(loaded.yieldOnLowPowerMode)
         XCTAssertFalse(loaded.heatGuardEnabled)
         XCTAssertEqual(loaded.closedLidTimeCapMinutes, 90)
+        XCTAssertTrue(loaded.closedLidZeroBrightness)
     }
 
     /// 保存时先读回现有 JSON 再合并，所以本版不认识的键会留下。

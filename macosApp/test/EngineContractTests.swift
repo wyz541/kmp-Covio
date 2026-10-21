@@ -371,6 +371,19 @@ final class EngineContractTests: XCTestCase {
         XCTAssertEqual(fixture.sleep.sleepCalls, 0)
     }
 
+    func testExperimentalDisplayPathCanSuppressThePublicLidDisplayOff() {
+        let fixture = Fixture(config: AppConfigs.make(lidSleepImmediateOnClose: false))
+        fixture.power.value = BatteryStatus(percent: 80, state: .charging, remainingSeconds: nil)
+        fixture.engine.start()
+        _ = fixture.engine.setLidSleepAvailable(available: false)
+        fixture.engine.setPowerLidDisplayOffEnabled(enabled: false)
+
+        fixture.lid.emit(.closed)
+
+        XCTAssertEqual(fixture.sleep.displayCalls, 0)
+        XCTAssertEqual(fixture.sleep.sleepCalls, 0)
+    }
+
     /// 对应 `idle compensation sleeps after system timeout`。
     func testIdleCompensationSleepsAfterSystemTimeout() {
         let fixture = Fixture(config: AppConfigs.make(lidSleepImmediateOnClose: false))

@@ -9,6 +9,8 @@ final class PowerRuntimeTests: XCTestCase {
     private var runtime: PowerRuntime!
     private var historyDirectory: URL!
     private var historyStore: PowerHistoryStore!
+    private var brightnessBackend: FakeClosedLidBrightnessBackend!
+    private var brightnessStore: FakeClosedLidBrightnessRecoveryStore!
 
     override func setUp() {
         super.setUp()
@@ -18,6 +20,8 @@ final class PowerRuntimeTests: XCTestCase {
         historyStore = PowerHistoryStore.companion.create(
             path: historyDirectory.appendingPathComponent("history.json").path
         )
+        brightnessBackend = FakeClosedLidBrightnessBackend(brightness: 0.6)
+        brightnessStore = FakeClosedLidBrightnessRecoveryStore()
         fixture = Fixture()
         fixture.privileged.installed = false
         fixture.engine.start()
@@ -35,6 +39,8 @@ final class PowerRuntimeTests: XCTestCase {
         }
         historyDirectory = nil
         historyStore = nil
+        brightnessBackend = nil
+        brightnessStore = nil
         super.tearDown()
     }
 
@@ -217,6 +223,59 @@ final class PowerRuntimeTests: XCTestCase {
         XCTAssertFalse(runtime.hasManualSession)
     }
 
+    func testExperimentalClosedLidPathOwnsBrightnessAndSuppressesPublicDisplayOff() {
+        fixture.privileged.installed = true
+        observation.value = makeObservation(powerState: .acPower, batteryPercent: 80, hasBattery: true)
+        runtime = makeRuntime(config: makeConfig(closedLidZeroBrightness: true))
+        runtime.start()
+
+        XCTAssertTrue(runtime.startSession(mode: .lid, duration: .oneHour))
+        fixture.lid.emit(.closed)
+        observation.value = makeObservation(
+            powerState: .acPower,
+            batteryPercent: 80,
+            hasBattery: true,
+            lidState: .closed
+        )
+        runtime.refresh()
+
+        XCTAssertEqual(brightnessBackend.brightness, 0)
+        XCTAssertEqual(runtime.closedLidZeroBrightnessPhase, .active)
+        XCTAssertEqual(fixture.sleep.displayCalls, 0)
+
+        observation.value = makeObservation(powerState: .acPower, batteryPercent: 80, hasBattery: true)
+        runtime.refresh()
+
+        XCTAssertEqual(brightnessBackend.brightness, 0.6, accuracy: 0.001)
+        XCTAssertEqual(runtime.closedLidZeroBrightnessPhase, .ready)
+        XCTAssertNil(brightnessStore.record)
+    }
+
+    func testExperimentalBrightnessFailureFallsBackToPublicDisplayOff() {
+        fixture.privileged.installed = true
+        brightnessBackend.failingSetValues = [0]
+        observation.value = makeObservation(powerState: .acPower, batteryPercent: 80, hasBattery: true)
+        runtime = makeRuntime(config: makeConfig(closedLidZeroBrightness: true))
+        runtime.start()
+
+        XCTAssertTrue(runtime.startSession(mode: .lid, duration: .oneHour))
+        fixture.lid.emit(.closed)
+        observation.value = makeObservation(
+            powerState: .acPower,
+            batteryPercent: 80,
+            hasBattery: true,
+            lidState: .closed
+        )
+        runtime.refresh()
+
+        XCTAssertEqual(runtime.closedLidZeroBrightnessPhase, .failed)
+        XCTAssertEqual(brightnessBackend.brightness, 0.6, accuracy: 0.001)
+        XCTAssertEqual(fixture.sleep.displayCalls, 1)
+
+        runtime.refresh()
+        XCTAssertEqual(fixture.sleep.displayCalls, 1)
+    }
+
     func testCriticalThermalStateReleasesEveryPowerLease() {
         observation.value = makeObservation(powerState: .acPower, batteryPercent: 80, hasBattery: true)
         runtime = makeRuntime(config: makeConfig(keepAwakeOnAdapter: true))
@@ -257,6 +316,8 @@ final class PowerRuntimeTests: XCTestCase {
         config: PowerConfig,
         fixture: Fixture? = nil,
         observationSource: FakePowerObservationSource? = nil,
+        brightnessBackend: FakeClosedLidBrightnessBackend? = nil,
+        brightnessStore: FakeClosedLidBrightnessRecoveryStore? = nil,
         nowEpochSeconds: @escaping () -> Int64 = { 1_000 }
     ) -> PowerRuntime {
         PowerRuntime(
@@ -265,6 +326,8 @@ final class PowerRuntimeTests: XCTestCase {
             observationSource: observationSource ?? observation,
             historyStore: historyStore,
             config: config,
+            closedLidBrightnessBackend: brightnessBackend ?? self.brightnessBackend,
+            closedLidBrightnessStore: brightnessStore ?? self.brightnessStore,
             nowEpochSeconds: nowEpochSeconds
         )
     }
@@ -273,14 +336,15 @@ final class PowerRuntimeTests: XCTestCase {
         powerState: PowerState,
         batteryPercent: Int,
         hasBattery: Bool,
-        thermalState: ThermalState = .nominal
+        thermalState: ThermalState = .nominal,
+        lidState: LidState = .open
     ) -> PowerObservation {
         PowerObservation(
             batteryPercent: KotlinInt(int: Int32(batteryPercent)),
             hasBattery: KotlinBoolean(bool: hasBattery),
             powerState: powerState,
             externalDisplayCount: KotlinInt(int: 0),
-            lidState: .open,
+            lidState: lidState,
             thermalState: thermalState,
             lowPowerModeEnabled: KotlinBoolean(bool: false)
         )
@@ -296,7 +360,8 @@ final class PowerRuntimeTests: XCTestCase {
         batteryFloorRecoveryPercent: Int32 = 20,
         yieldOnLowPowerMode: Bool = true,
         heatGuardEnabled: Bool = true,
-        closedLidTimeCapMinutes: Int32 = 240
+        closedLidTimeCapMinutes: Int32 = 240,
+        closedLidZeroBrightness: Bool = false
     ) -> PowerConfig {
         PowerConfig(
             enabled: enabled,
@@ -308,7 +373,8 @@ final class PowerRuntimeTests: XCTestCase {
             batteryFloorRecoveryPercent: batteryFloorRecoveryPercent,
             yieldOnLowPowerMode: yieldOnLowPowerMode,
             heatGuardEnabled: heatGuardEnabled,
-            closedLidTimeCapMinutes: closedLidTimeCapMinutes
+            closedLidTimeCapMinutes: closedLidTimeCapMinutes,
+            closedLidZeroBrightness: closedLidZeroBrightness
         )
     }
 }

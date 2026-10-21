@@ -55,11 +55,15 @@ final class PowerRuntime {
     private(set) var leases: [HoldLease] = []
     private(set) var history: [PowerHistoryEvent] = []
     private(set) var recentHistory: [PowerHistoryEvent] = []
+    private(set) var closedLidZeroBrightnessPhase: ClosedLidZeroBrightnessPhase = .disabled
+    private(set) var closedLidZeroBrightnessAvailability: ClosedLidBrightnessAvailability
+    private(set) var closedLidZeroBrightnessError: String?
 
     private let engine: Engine
     private let privileged: PrivilegedOps
     private let observationSource: PowerObservationSource
     private let historyStore: PowerHistoryStore
+    private let closedLidBrightnessController: ClosedLidZeroBrightnessController
     private let nowEpochSeconds: () -> Int64
     private var started = false
     private var batteryGuardLatched = false
@@ -77,6 +81,7 @@ final class PowerRuntime {
     private var lastRecordedWakeAt: Int64?
     private var lastSleepAt: Int64?
     private var wakeFallbackTask: Task<Void, Never>?
+    private var appliedPowerLidDisplayOff = true
 
     init(
         engine: Engine,
@@ -84,6 +89,8 @@ final class PowerRuntime {
         observationSource: PowerObservationSource,
         historyStore: PowerHistoryStore,
         config: PowerConfig,
+        closedLidBrightnessBackend: ClosedLidBrightnessBackend? = nil,
+        closedLidBrightnessStore: ClosedLidBrightnessRecoveryStoring? = nil,
         nowEpochSeconds: @escaping () -> Int64 = {
             Int64(Date().timeIntervalSince1970)
         }
@@ -92,6 +99,15 @@ final class PowerRuntime {
         self.privileged = privileged
         self.observationSource = observationSource
         self.historyStore = historyStore
+        let brightnessController = ClosedLidZeroBrightnessController(
+            backend: closedLidBrightnessBackend ?? DisplayServicesBrightnessBackend(),
+            store: closedLidBrightnessStore ?? JSONClosedLidBrightnessRecoveryStore(
+                fileURL: AppPaths.closedLidBrightnessRecoveryFile
+            ),
+            nowEpochSeconds: nowEpochSeconds
+        )
+        self.closedLidBrightnessController = brightnessController
+        closedLidZeroBrightnessAvailability = brightnessController.availability
         self.config = config.normalized()
         self.nowEpochSeconds = nowEpochSeconds
         let emptyObservation = PowerObservation(
@@ -182,6 +198,11 @@ final class PowerRuntime {
     func stop() {
         guard started else { return }
         started = false
+        closedLidBrightnessController.stop()
+        closedLidZeroBrightnessPhase = closedLidBrightnessController.phase
+        closedLidZeroBrightnessError = closedLidBrightnessController.lastError
+        appliedPowerLidDisplayOff = true
+        engine.setPowerLidDisplayOffEnabled(enabled: true)
         observationSource.stop()
         for observer in historyObservers {
             NSWorkspace.shared.notificationCenter.removeObserver(observer)
@@ -309,6 +330,7 @@ final class PowerRuntime {
         decision = nextDecision
 
         apply(decision)
+        applyClosedLidZeroBrightness(decision: nextDecision)
         recordWakeHistory(at: now)
         if let lidError = latestLidStatus.error, !lidError.isEmpty {
             executionError = lidError
@@ -316,6 +338,11 @@ final class PowerRuntime {
             executionError = nil
         } else {
             executionError = engine.currentState.lastError
+        }
+        if config.closedLidZeroBrightness,
+           closedLidZeroBrightnessPhase == .failed,
+           let error = closedLidZeroBrightnessError {
+            executionError = error
         }
     }
 
@@ -474,6 +501,41 @@ final class PowerRuntime {
 
     private var manualSessionLease: HoldLease? {
         leases.first { $0.source == .manual && $0.reason == Self.sessionReason }
+    }
+
+    private func applyClosedLidZeroBrightness(decision: PowerDecision) {
+        let wantsPrivatePath = config.closedLidZeroBrightness && decision.preventLidSleep
+        let externalDisplayCount = observation.externalDisplayCount?.intValue
+        let canOwnDisplay = wantsPrivatePath &&
+            closedLidZeroBrightnessAvailability.isAvailable &&
+            externalDisplayCount == 0 &&
+            closedLidBrightnessController.phase != .failed
+        let previouslyOwnedDisplay = !appliedPowerLidDisplayOff
+        let shouldEnablePublicDisplayOff = !canOwnDisplay
+
+        if appliedPowerLidDisplayOff != shouldEnablePublicDisplayOff {
+            appliedPowerLidDisplayOff = shouldEnablePublicDisplayOff
+            engine.setPowerLidDisplayOffEnabled(enabled: shouldEnablePublicDisplayOff)
+        }
+
+        let evaluation = closedLidBrightnessController.evaluate(
+            enabled: config.closedLidZeroBrightness,
+            sessionActive: decision.preventLidSleep,
+            lidState: observation.lidState,
+            externalDisplayCount: externalDisplayCount
+        )
+        closedLidZeroBrightnessPhase = closedLidBrightnessController.phase
+        closedLidZeroBrightnessError = closedLidBrightnessController.lastError
+
+        if evaluation.fallbackToPublicDisplayOff {
+            if !appliedPowerLidDisplayOff {
+                appliedPowerLidDisplayOff = true
+                engine.setPowerLidDisplayOffEnabled(enabled: true)
+            }
+            if previouslyOwnedDisplay && observation.lidState == .closed {
+                engine.displaySleepNow()
+            }
+        }
     }
 
     private func apply(_ decision: PowerDecision) {

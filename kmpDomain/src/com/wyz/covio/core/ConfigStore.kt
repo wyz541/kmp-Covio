@@ -147,6 +147,10 @@ class ConfigStore(
                     "closedLidTimeCapMinutes",
                     powerDefaults.closedLidTimeCapMinutes,
                 ),
+                closedLidZeroBrightness = powerBool(
+                    "closedLidZeroBrightness",
+                    powerDefaults.closedLidZeroBrightness,
+                ),
             ),
         ).normalized()
     }

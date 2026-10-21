@@ -62,6 +62,9 @@ final class PowerPreviewModel: PowerManagementModel {
     var decision: PowerDecision
     var helperStatus: HelperStatus = .installed
     var executionError: String?
+    var closedLidZeroBrightnessPhase: ClosedLidZeroBrightnessPhase = .ready
+    var closedLidZeroBrightnessAvailability: ClosedLidBrightnessAvailability = .available
+    var closedLidZeroBrightnessError: String?
     var hasManualSession = true
     var sessionMode: PowerRuntime.SessionMode? = .lid
     var remainingSeconds: Int64? = 2_700
@@ -81,7 +84,8 @@ final class PowerPreviewModel: PowerManagementModel {
             batteryFloorRecoveryPercent: 20,
             yieldOnLowPowerMode: true,
             heatGuardEnabled: true,
-            closedLidTimeCapMinutes: 240
+            closedLidTimeCapMinutes: 240,
+            closedLidZeroBrightness: false
         )
         let sampleObservation = PowerObservation(
             batteryPercent: KotlinInt(int: 84),
@@ -136,6 +140,10 @@ final class PowerPreviewModel: PowerManagementModel {
     func setPowerKeepAwakeOnAdapter(_ enabled: Bool) { powerConfig = copyPower(adapter: enabled) }
     func setPowerKeepAwakeOnBattery(_ enabled: Bool) { powerConfig = copyPower(battery: enabled) }
     func setPowerAllowClosedLid(_ enabled: Bool) { powerConfig = copyPower(lid: enabled) }
+    func setPowerClosedLidZeroBrightness(_ enabled: Bool) {
+        powerConfig = copyPower(zeroBrightness: enabled)
+        closedLidZeroBrightnessPhase = enabled ? .ready : .disabled
+    }
     func setPowerPauseClosedLidWithExternalDisplay(_ enabled: Bool) { powerConfig = copyPower(external: enabled) }
     func setPowerYieldOnLowPowerMode(_ enabled: Bool) { powerConfig = copyPower(lowPower: enabled) }
     func setPowerHeatGuard(_ enabled: Bool) { powerConfig = copyPower(heat: enabled) }
@@ -194,7 +202,8 @@ final class PowerPreviewModel: PowerManagementModel {
         lowPower: Bool? = nil,
         heat: Bool? = nil,
         floor: Int32? = nil,
-        cap: Int32? = nil
+        cap: Int32? = nil,
+        zeroBrightness: Bool? = nil
     ) -> PowerConfig {
         PowerConfig(
             enabled: enabled ?? powerConfig.enabled,
@@ -206,7 +215,8 @@ final class PowerPreviewModel: PowerManagementModel {
             batteryFloorRecoveryPercent: min((floor ?? powerConfig.batteryFloorPercent) + 5, 100),
             yieldOnLowPowerMode: lowPower ?? powerConfig.yieldOnLowPowerMode,
             heatGuardEnabled: heat ?? powerConfig.heatGuardEnabled,
-            closedLidTimeCapMinutes: cap ?? powerConfig.closedLidTimeCapMinutes
+            closedLidTimeCapMinutes: cap ?? powerConfig.closedLidTimeCapMinutes,
+            closedLidZeroBrightness: zeroBrightness ?? powerConfig.closedLidZeroBrightness
         )
     }
 }

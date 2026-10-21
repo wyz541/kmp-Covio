@@ -95,6 +95,8 @@ final class AppRuntime {
         updateChecker: UpdateChecker = GithubUpdateChecker(),
         powerObservation: PowerObservationSource? = nil,
         powerHistoryStore: PowerHistoryStore? = nil,
+        closedLidBrightnessBackend: ClosedLidBrightnessBackend? = nil,
+        closedLidBrightnessStore: ClosedLidBrightnessRecoveryStoring? = nil,
         shelf: ShelfRuntime? = nil,
         clipboard: ClipboardRuntime? = nil,
         workspace: WorkspaceRuntime? = nil
@@ -222,7 +224,9 @@ final class AppRuntime {
             privileged: resolvedPrivileged,
             observationSource: resolvedPowerObservation,
             historyStore: resolvedPowerHistory,
-            config: loaded.power
+            config: loaded.power,
+            closedLidBrightnessBackend: closedLidBrightnessBackend,
+            closedLidBrightnessStore: closedLidBrightnessStore
         )
 
         forwarder.handler = { @Sendable [weak self] state in
@@ -372,6 +376,15 @@ final class AppRuntime {
 
     func setPowerClosedLidTimeCapMinutes(_ minutes: Int) {
         updatePower { copyPower($0, closedLidTimeCapMinutes: Int32(min(max(minutes, 30), 1_440))) }
+    }
+
+    func setPowerClosedLidZeroBrightness(_ enabled: Bool) {
+        if enabled {
+            guard powerRuntime.helperStatus == .installed,
+                  powerRuntime.closedLidZeroBrightnessAvailability.isAvailable
+            else { return }
+        }
+        updatePower { copyPower($0, closedLidZeroBrightness: enabled) }
     }
 
     /// 打开前先确认 helper 在。helper 不在时它改不了 `pmset`，界面会显示成功但实际没生效。
@@ -656,7 +669,8 @@ final class AppRuntime {
         batteryFloorRecoveryPercent: Int32? = nil,
         yieldOnLowPowerMode: Bool? = nil,
         heatGuardEnabled: Bool? = nil,
-        closedLidTimeCapMinutes: Int32? = nil
+        closedLidTimeCapMinutes: Int32? = nil,
+        closedLidZeroBrightness: Bool? = nil
     ) -> PowerConfig {
         PowerConfig(
             enabled: enabled ?? value.enabled,
@@ -670,7 +684,8 @@ final class AppRuntime {
                 ?? value.batteryFloorRecoveryPercent,
             yieldOnLowPowerMode: yieldOnLowPowerMode ?? value.yieldOnLowPowerMode,
             heatGuardEnabled: heatGuardEnabled ?? value.heatGuardEnabled,
-            closedLidTimeCapMinutes: closedLidTimeCapMinutes ?? value.closedLidTimeCapMinutes
+            closedLidTimeCapMinutes: closedLidTimeCapMinutes ?? value.closedLidTimeCapMinutes,
+            closedLidZeroBrightness: closedLidZeroBrightness ?? value.closedLidZeroBrightness
         )
     }
 

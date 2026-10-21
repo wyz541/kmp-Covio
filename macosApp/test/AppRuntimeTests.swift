@@ -39,7 +39,11 @@ final class AppRuntimeTests: XCTestCase {
     /// helper 装没装要在构造前定好：`start()` 只在第一次调用时读状态，
     /// 之后再改假端口就晚了。
     @discardableResult
-    private func makeRuntime(engineStarted: Bool = false, helperInstalled: Bool = false) -> AppRuntime {
+    private func makeRuntime(
+        engineStarted: Bool = false,
+        helperInstalled: Bool = false,
+        brightnessBackend: FakeClosedLidBrightnessBackend = FakeClosedLidBrightnessBackend(brightness: 0.6)
+    ) -> AppRuntime {
         privileged = FakePrivilegedOps()
         privileged.installed = helperInstalled
         powerObservation = FakePowerObservationSource()
@@ -62,6 +66,8 @@ final class AppRuntimeTests: XCTestCase {
             powerHistoryStore: PowerHistoryStore.companion.create(
                 path: directory.appendingPathComponent("power-history.json").path
             ),
+            closedLidBrightnessBackend: brightnessBackend,
+            closedLidBrightnessStore: FakeClosedLidBrightnessRecoveryStore(),
             shelf: makeShelf(),
             workspace: makeWorkspace()
         )
@@ -154,6 +160,30 @@ final class AppRuntimeTests: XCTestCase {
 
         XCTAssertFalse(created.welcomeVisible)
         XCTAssertEqual(try savedJSON()["firstRun"] as? Bool, false)
+    }
+
+    func testExperimentalZeroBrightnessSettingIsPersisted() throws {
+        let created = makeRuntime(engineStarted: true, helperInstalled: true)
+
+        created.setPowerClosedLidZeroBrightness(true)
+
+        XCTAssertTrue(created.config.power.closedLidZeroBrightness)
+        let power = try XCTUnwrap(savedJSON()["power"] as? [String: Any])
+        XCTAssertEqual(power["closedLidZeroBrightness"] as? Bool, true)
+    }
+
+    func testUnavailableExperimentalBrightnessCannotBeEnabled() {
+        let unavailable = FakeClosedLidBrightnessBackend(brightness: 0.6)
+        unavailable.availability = .unavailable("unmeasured macOS")
+        let created = makeRuntime(
+            engineStarted: true,
+            helperInstalled: true,
+            brightnessBackend: unavailable
+        )
+
+        created.setPowerClosedLidZeroBrightness(true)
+
+        XCTAssertFalse(created.config.power.closedLidZeroBrightness)
     }
 
     // MARK: - 数值字段的边界

@@ -93,7 +93,11 @@ final class MacPowerObservationSource: NSObject, PowerObservationSource, @unchec
         lock.lock()
         let callback = stopped ? nil : listener
         lock.unlock()
-        callback?()
+        guard let callback else { return }
+        let box = KotlinBox(callback)
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated { box.value() }
+        }
     }
 
     private static func removeObservers(_ observers: [NSObjectProtocol]) {

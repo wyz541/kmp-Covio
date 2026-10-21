@@ -50,6 +50,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             preview.showWindow(nil)
             return
         }
+        if ProcessInfo.processInfo.environment["COVIO_POWER_LIVE_PREVIEW"] == "1" {
+            // Hardware-only Power checks need the real runtime and a visible
+            // window. The normal app path remains the menu-bar shell.
+            NSApp.setActivationPolicy(.regular)
+            AppPaths.ensureSupportDirectory()
+            let runtime = AppRuntime()
+            self.runtime = runtime
+            runtime.start()
+            let preview = MonitorPreviewWindowController(
+                startsInPower: true,
+                powerModel: runtime
+            )
+            monitorPreview = preview
+            preview.showWindow(nil)
+            return
+        }
         #endif
 
         // 测试进程不是真实实例，不参与单实例仲裁。

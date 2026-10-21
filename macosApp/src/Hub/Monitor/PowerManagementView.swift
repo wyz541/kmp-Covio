@@ -165,7 +165,7 @@ struct PowerManagementView: View {
             .accessibilityLabel(ContractCopy.copyPowerSectionSession.text(for: language))
 
             if sessionMode == .lid {
-                MacStatusLine(text: ContractCopy.copyPowerSessionLidDisplayOffHint.text(for: language))
+                MacStatusLine(text: lidSessionHint)
             }
 
             HStack(spacing: MacTheme.space2) {
@@ -343,6 +343,33 @@ struct PowerManagementView: View {
                 ),
                 isEnabled: model.helperStatus == .installed || !model.powerConfig.allowClosedLid
             )
+            ruleRow(
+                title: ContractCopy.copyPowerRulesClosedLidZeroBrightness.text(for: language),
+                isOn: Binding(
+                    get: { model.powerConfig.closedLidZeroBrightness },
+                    set: { model.setPowerClosedLidZeroBrightness($0) }
+                ),
+                isEnabled: model.powerConfig.closedLidZeroBrightness ||
+                    (model.helperStatus == .installed &&
+                        model.closedLidZeroBrightnessAvailability.isAvailable)
+            )
+            Text(
+                model.closedLidZeroBrightnessAvailability.isAvailable
+                    ? ContractCopy.copyPowerRulesClosedLidZeroBrightnessHint.text(for: language)
+                    : ContractCopy.copyPowerRulesClosedLidZeroBrightnessUnavailable.text(for: language)
+            )
+            .font(.system(size: 10))
+            .foregroundStyle(MacTheme.textSecondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.leading, MacTheme.space2)
+            if model.powerConfig.closedLidZeroBrightness,
+               model.closedLidZeroBrightnessPhase == .failed,
+               let error = model.closedLidZeroBrightnessError {
+                MacAlert(
+                    message: "\(ContractCopy.copyPowerRulesClosedLidZeroBrightnessFailed.text(for: language)) \(error)",
+                    kind: .warning
+                )
+            }
             ruleRow(
                 title: ContractCopy.copyPowerRulesExternalDisplay.text(for: language),
                 isOn: Binding(
@@ -645,8 +672,20 @@ struct PowerManagementView: View {
         switch mode {
         case .system: ContractCopy.copyPowerSessionSystem.text(for: language)
         case .display: ContractCopy.copyPowerSessionDisplay.text(for: language)
-        case .lid: ContractCopy.copyPowerSessionLidDisplayOff.text(for: language)
+        case .lid:
+            model.powerConfig.closedLidZeroBrightness &&
+                model.closedLidZeroBrightnessAvailability.isAvailable
+                ? ContractCopy.copyPowerSessionLidZeroBrightness.text(for: language)
+                : ContractCopy.copyPowerSessionLidDisplayOff.text(for: language)
         }
+    }
+
+    private var lidSessionHint: String {
+        if model.powerConfig.closedLidZeroBrightness,
+           model.closedLidZeroBrightnessAvailability.isAvailable {
+            return ContractCopy.copyPowerRulesClosedLidZeroBrightnessHint.text(for: language)
+        }
+        return ContractCopy.copyPowerSessionLidDisplayOffHint.text(for: language)
     }
 
     private func durationTitle(_ duration: PowerRuntime.SessionDuration) -> String {
@@ -726,6 +765,9 @@ protocol PowerManagementModel: AnyObject {
     var sessionMode: PowerRuntime.SessionMode? { get }
     var remainingSeconds: Int64? { get }
     var recentHistory: [PowerHistoryEvent] { get }
+    var closedLidZeroBrightnessPhase: ClosedLidZeroBrightnessPhase { get }
+    var closedLidZeroBrightnessAvailability: ClosedLidBrightnessAvailability { get }
+    var closedLidZeroBrightnessError: String? { get }
     var appState: AppState { get }
     var statusMessage: String? { get }
     var busy: Bool { get }
@@ -734,6 +776,7 @@ protocol PowerManagementModel: AnyObject {
     func setPowerKeepAwakeOnAdapter(_ enabled: Bool)
     func setPowerKeepAwakeOnBattery(_ enabled: Bool)
     func setPowerAllowClosedLid(_ enabled: Bool)
+    func setPowerClosedLidZeroBrightness(_ enabled: Bool)
     func setPowerPauseClosedLidWithExternalDisplay(_ enabled: Bool)
     func setPowerYieldOnLowPowerMode(_ enabled: Bool)
     func setPowerHeatGuard(_ enabled: Bool)
@@ -754,6 +797,13 @@ extension AppRuntime: PowerManagementModel {
     var sessionMode: PowerRuntime.SessionMode? { powerRuntime.sessionMode }
     var remainingSeconds: Int64? { powerRuntime.remainingSeconds }
     var recentHistory: [PowerHistoryEvent] { powerRuntime.recentHistory }
+    var closedLidZeroBrightnessPhase: ClosedLidZeroBrightnessPhase {
+        powerRuntime.closedLidZeroBrightnessPhase
+    }
+    var closedLidZeroBrightnessAvailability: ClosedLidBrightnessAvailability {
+        powerRuntime.closedLidZeroBrightnessAvailability
+    }
+    var closedLidZeroBrightnessError: String? { powerRuntime.closedLidZeroBrightnessError }
 
     func startSession(mode: PowerRuntime.SessionMode, duration: PowerRuntime.SessionDuration) -> Bool {
         powerRuntime.startSession(mode: mode, duration: duration)

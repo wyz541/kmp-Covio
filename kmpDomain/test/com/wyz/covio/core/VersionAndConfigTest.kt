@@ -282,6 +282,7 @@ class VersionAndConfigTest {
                     "yieldOnLowPowerMode": false,
                     "heatGuardEnabled": false,
                     "closedLidTimeCapMinutes": 90,
+                    "closedLidZeroBrightness": true,
                     "futureNestedKey": {"keep": true}
                   }
                 }
@@ -300,6 +301,7 @@ class VersionAndConfigTest {
             assertFalse(loaded.power.yieldOnLowPowerMode)
             assertFalse(loaded.power.heatGuardEnabled)
             assertEquals(90, loaded.power.closedLidTimeCapMinutes)
+            assertTrue(loaded.power.closedLidZeroBrightness)
 
             store.save(loaded)
             val text = path.readText()
@@ -316,6 +318,7 @@ class VersionAndConfigTest {
 
             assertEquals(PowerConfig.defaults().enabled, loaded.power.enabled)
             assertEquals(25, loaded.power.batteryFloorPercent)
+            assertFalse(loaded.power.closedLidZeroBrightness)
         }
 
     /// 默认路径必须与 0.4.2 完全一致，否则老用户的设置会丢。

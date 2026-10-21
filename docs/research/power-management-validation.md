@@ -22,9 +22,11 @@ helper v2 已经通过一次管理员提示安装并验证在线。
 
 | 场景 | 步骤 | 结果 | 证据 |
 | --- | --- | --- | --- |
-| 构建 | 执行 `bash scripts/test-all.sh` | 通过；KMP 417 项，app 模块 26 项，macOS XCTest 551 项 | 本地测试日志 |
+| 构建 | 执行 `bash scripts/test-all.sh` | 通过；KMP 418 项，app 模块 26 项，macOS XCTest 551 项 | 本地测试日志 |
 | 电源观察 | 读取 `pmset -g` 与 `pmset -g batt` | 适配器、电池和睡眠状态可读 | 验证记录 |
 | helper v2 安装 | 一次 macOS 管理员提示 | 安装完成，LaunchDaemon 在线，`SleepDisabled=0` | `verify-helper-cutover.sh verify` |
+| 合盖租约写入 | 获取、续租、释放租约 | `SleepDisabled` 从 `0` 变为 `1`，释放后回到 `0` | 真实 helper 测试 |
+| 键名兼容 | macOS 27 输出 `SleepDisabled` | KMP 两个平台通过 | `PmsetConfigParserTest` |
 | 浅色布局 | 打开 Power 预览 | 内容可读，页面可滚动 | 窗口截图 |
 | 深色布局 | 打开 Power 预览 | 内容可读，页面可滚动 | 窗口截图 |
 | 无历史 | 使用空历史快照 | 显示真实空状态 | 自动化测试 |
@@ -48,7 +50,7 @@ helper v2 已经通过一次管理员提示安装并验证在线。
 
 ![Power history dark](../design/previews/155-power-history-dark.png)
 
-## 待真实睡眠测试
+## 待真实合盖与睡眠测试
 
 | 场景 | 操作前条件 | 必须观察 |
 | --- | --- | --- |

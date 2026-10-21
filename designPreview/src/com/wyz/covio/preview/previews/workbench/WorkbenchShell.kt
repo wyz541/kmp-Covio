@@ -239,6 +239,7 @@ internal fun TabBar(
     query: String,
     editing: Boolean,
     pageAction: String,
+    searchPlaceholder: String = "搜索工作区与设置",
     onQueryChange: (String) -> Unit,
     onHome: () -> Unit,
     onSelect: (String) -> Unit,
@@ -260,7 +261,12 @@ internal fun TabBar(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         HomeEntry(selected = homeSelected, onClick = onHome)
-        SearchField(query = query, onQueryChange = onQueryChange, enabled = !editing)
+        SearchField(
+            query = query,
+            placeholder = searchPlaceholder,
+            onQueryChange = onQueryChange,
+            enabled = !editing,
+        )
 
         Box(Modifier.weight(1f)) {
             Box(Modifier.horizontalScroll(rememberScrollState())) {
@@ -329,7 +335,12 @@ private fun HomeEntry(selected: Boolean, onClick: () -> Unit) {
 
 /** 搜索入口。F3：输入即过滤。按 Escape 先清空。 */
 @Composable
-private fun SearchField(query: String, onQueryChange: (String) -> Unit, enabled: Boolean) {
+private fun SearchField(
+    query: String,
+    placeholder: String,
+    onQueryChange: (String) -> Unit,
+    enabled: Boolean,
+) {
     Box(
         modifier = Modifier
             .height(Tokens.tabHeight.dp)
@@ -345,7 +356,7 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit, enabled:
             Spacer(Modifier.width(5.dp))
             Box(Modifier.weight(1f)) {
                 if (query.isEmpty()) {
-                    Text("搜索工作区与设置", color = Tokens.textSecondary, fontSize = 12.sp)
+                    Text(placeholder, color = Tokens.textSecondary, fontSize = 12.sp)
                 }
                 if (enabled) {
                     BasicTextField(

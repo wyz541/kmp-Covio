@@ -2,6 +2,7 @@ package com.wyz.covio.preview
 
 import androidx.compose.runtime.Composable
 import com.wyz.covio.preview.previews.workbench.GlassWorkbenchPreview
+import com.wyz.covio.preview.previews.files.UnifiedFilesPreview
 import com.wyz.covio.preview.previews.workbench.WorkbenchPreview
 
 /**
@@ -40,5 +41,11 @@ val previews: List<Preview> = listOf(
         covers = "面板外壳照控制中心：两块独立玻璃板，中间露出桌面，板间没有投影。",
         issue = 118,
         content = { GlassWorkbenchPreview() },
+    ),
+    Preview(
+        title = "统一文件区",
+        covers = "唯一焦点位加安静文件格；用更少控件承载截图、文本、文件和传输状态。",
+        issue = 201,
+        content = { UnifiedFilesPreview() },
     ),
 )

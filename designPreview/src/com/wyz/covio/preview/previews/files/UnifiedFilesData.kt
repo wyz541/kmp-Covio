@@ -158,17 +158,6 @@ internal fun DemoFile.statusText(): String = when (availability) {
     DemoAvailability.UNAVAILABLE -> "内容不可用"
 }
 
-/** 卡片右上的类型或状态标记。 */
-internal fun DemoFile.badgeText(): String = when {
-    availability == DemoAvailability.FAILED -> "失败"
-    availability == DemoAvailability.FETCHING -> "传输中"
-    availability == DemoAvailability.REMOTE -> "远端"
-    availability == DemoAvailability.UNAVAILABLE -> "不可用"
-    kind == DemoFileKind.SCREENSHOT -> "截图"
-    kind == DemoFileKind.TEXT -> "文本"
-    else -> kind.name
-}
-
 /** 悬停动作。最多两个。 */
 internal fun DemoFile.quickActions(): List<String> = when (availability) {
     DemoAvailability.FETCHING -> listOf("取消")
@@ -223,13 +212,4 @@ internal fun DemoFile.typeLabel(): String = when (kind) {
     DemoFileKind.AUDIO -> "音频"
     DemoFileKind.ARCHIVE -> "归档"
     DemoFileKind.VIDEO -> "视频"
-}
-
-/** 检查器里的可用状态。 */
-internal fun DemoFile.availabilityLabel(): String = when (availability) {
-    DemoAvailability.LOCAL -> "本机可用"
-    DemoAvailability.REMOTE -> "在另一台设备"
-    DemoAvailability.FETCHING -> "正在取回"
-    DemoAvailability.FAILED -> "传输失败"
-    DemoAvailability.UNAVAILABLE -> "内容不可用"
 }

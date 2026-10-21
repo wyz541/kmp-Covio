@@ -74,18 +74,21 @@ import kotlinx.coroutines.delay
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
-private val cardGap = 14.dp
-private val cardHeight = 176.dp
-private val inspectorGap = 20.dp
-private val inspectorTotalWidth = 304.dp
+private val heroHeight = 176.dp
+private val quietTileHeight = 146.dp
+private val stageGap = 16.dp
+private val quietGap = 14.dp
+private val quietColumns = 4
 
 /**
  * 统一文件区预览。
  *
- * 第二版用三个层次建立 Covio 自己的文件工作台：
- * 1. 一个最近焦点卡。
- * 2. 密集的标准卡片网格。
- * 3. 右侧检查器与键盘操作提示。
+ * 第三版只保留一个详细焦点位：
+ * 1. 顶部只有筛选菜单、数量和加入按钮。
+ * 2. 一个当前焦点卡显示详细信息和动作。
+ * 3. 其余条目退到安静的格子中。
+ *
+ * 点击任一格子，该条目进入焦点位。删除检查器与重复元数据。
  *
  * | 锚点 | 画面 |
  * | --- | --- |
@@ -308,16 +311,22 @@ private fun FilesPage(
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        FilesHeader(
-            activeTransfers = demoFiles.count { it.availability == DemoAvailability.FETCHING || it.availability == DemoAvailability.REMOTE },
-            onAction = onAction,
-        )
-        FilterBar(filter = filter, onFilter = onFilter)
+        if (demoState == DemoState.NORMAL) {
+            UtilityBar(
+                filter = filter,
+                itemCount = files.size,
+                activeTransfers = demoFiles.count {
+                    it.availability == DemoAvailability.FETCHING || it.availability == DemoAvailability.REMOTE
+                },
+                onFilter = onFilter,
+                onAction = onAction,
+            )
+        }
 
         when {
             demoState == DemoState.EMPTY -> EmptyFiles(onAction)
             demoState == DemoState.NO_MATCH || files.isEmpty() -> NoMatch(onClearFilters)
-            selectedFile != null -> FileWorkspace(
+            selectedFile != null -> FocusStage(
                 files = files,
                 selected = selectedFile,
                 onSelect = { selectedFileId = it },
@@ -328,41 +337,87 @@ private fun FilesPage(
 }
 
 @Composable
-private fun FilesHeader(activeTransfers: Int, onAction: (String) -> Unit) {
+private fun UtilityBar(
+    filter: FileFilter,
+    itemCount: Int,
+    activeTransfers: Int,
+    onFilter: (FileFilter) -> Unit,
+    onAction: (String) -> Unit,
+) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = Modifier.fillMaxWidth().height(28.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text("文件", color = Tokens.textPrimary, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-            Text(
-                "最近使用的截图、文本和文件，都停在这里。",
-                color = Tokens.textSecondary,
-                fontSize = 10.5.sp,
-            )
+        FilterMenu(filter = filter, onFilter = onFilter)
+        Text("$itemCount 项", color = Tokens.textSecondary, fontSize = 9.sp)
+        if (activeTransfers > 0) {
+            Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(5.dp).clip(CircleShape).background(Tokens.actionFill))
+                Text("$activeTransfers 进行中", color = Tokens.textSecondary, fontSize = 9.sp)
+            }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (activeTransfers > 0) LiveIndicator(activeTransfers)
-            MiniToolbarButton("＋") { onAction("打开加入菜单") }
-            MiniToolbarButton("⋯") { onAction("打开文件区更多菜单") }
-        }
+        Spacer(Modifier.weight(1f))
+        MiniToolbarButton("＋") { onAction("打开加入菜单") }
     }
 }
 
 @Composable
-private fun LiveIndicator(count: Int) {
-    Row(
-        Modifier
-            .height(26.dp)
-            .clip(RoundedCornerShape(7.dp))
-            .background(Color(0x0F0A84FF))
-            .padding(horizontal = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(Modifier.size(6.dp).clip(CircleShape).background(Tokens.actionFill))
-        Text("$count 进行中", color = Tokens.textSecondary, fontSize = 9.sp, fontWeight = FontWeight.Medium)
+private fun FilterMenu(filter: FileFilter, onFilter: (FileFilter) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        Row(
+            Modifier
+                .height(28.dp)
+                .clip(RoundedCornerShape(7.dp))
+                .background(Color(0x12000000))
+                .clickable { expanded = true }
+                .padding(horizontal = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(filter.label, color = Tokens.textPrimary, fontSize = 10.sp, fontWeight = FontWeight.Medium)
+            Text("⌄", color = Tokens.textSecondary, fontSize = 9.sp)
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.width(158.dp),
+            shape = RoundedCornerShape(9.dp),
+            containerColor = Color(0xF7FFFFFF),
+            shadowElevation = 8.dp,
+            border = BorderStroke(1.dp, Tokens.divider.copy(alpha = 0.75f)),
+        ) {
+            FileFilter.entries.forEach { item ->
+                DropdownMenuItem(
+                    modifier = Modifier.height(30.dp),
+                    contentPadding = PaddingValues(horizontal = 10.dp),
+                    text = {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                item.label,
+                                color = Tokens.textPrimary,
+                                fontSize = 11.sp,
+                                fontWeight = if (item == filter) FontWeight.Medium else FontWeight.Normal,
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text(filterCount(item).toString(), color = Tokens.textSecondary, fontSize = 9.sp)
+                                Text(if (item == filter) "✓" else "", color = Tokens.actionFill, fontSize = 10.sp)
+                            }
+                        }
+                    },
+                    onClick = {
+                        expanded = false
+                        onFilter(item)
+                    },
+                    colors = MenuDefaults.itemColors(textColor = Tokens.textPrimary),
+                )
+            }
+        }
     }
 }
 
@@ -376,261 +431,101 @@ private fun MiniToolbarButton(label: String, onClick: () -> Unit) {
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(label, color = Tokens.textPrimary, fontSize = if (label == "⋯") 14.sp else 15.sp)
+        Text(label, color = Tokens.textPrimary, fontSize = 15.sp)
     }
 }
 
 @Composable
-private fun FilterBar(filter: FileFilter, onFilter: (FileFilter) -> Unit) {
-    Row(
-        Modifier
-            .clip(RoundedCornerShape(9.dp))
-            .background(Color(0x12000000))
-            .padding(2.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        FileFilter.entries.forEach { item ->
-            FilterSegment(
-                label = item.label,
-                count = filterCount(item),
-                selected = item == filter,
-                onClick = { onFilter(item) },
-            )
-        }
-    }
-}
-
-@Composable
-private fun FilterSegment(label: String, count: Int, selected: Boolean, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .height(26.dp)
-            .clip(RoundedCornerShape(7.dp))
-            .then(if (selected) Modifier.shadow(2.dp, RoundedCornerShape(7.dp)) else Modifier)
-            .background(if (selected) Color(0xF5FFFFFF) else Color.Transparent)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 9.dp),
-        horizontalArrangement = Arrangement.spacedBy(5.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            label,
-            color = if (selected) Tokens.textPrimary else Tokens.textSecondary,
-            fontSize = 10.sp,
-            fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
-        )
-        Text(
-            count.toString(),
-            color = if (selected) Tokens.textSecondary else Tokens.disabledText,
-            fontSize = 8.5.sp,
-        )
-    }
-}
-
-@Composable
-private fun FileWorkspace(
+private fun FocusStage(
     files: List<DemoFile>,
     selected: DemoFile,
     onSelect: (String) -> Unit,
     onAction: (String) -> Unit,
 ) {
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val showInspector = maxWidth >= 820.dp
-        val columns = 3
-        val gridWidth = if (showInspector) maxWidth - inspectorTotalWidth else maxWidth
-        val cardWidth = (gridWidth - cardGap * (columns - 1)) / columns
-        val rows = gridRowCount(files.size, columns)
-        val gridHeight = cardHeight * rows + cardGap * (rows - 1).coerceAtLeast(0)
-        val inspectorHeight = maxOf(gridHeight, 520.dp)
-        val inspectorWidth = maxWidth - gridWidth - inspectorGap * 2 - 1.dp
-
-        Row(horizontalArrangement = Arrangement.spacedBy(inspectorGap), verticalAlignment = Alignment.Top) {
-            FileGrid(
-                files = files,
-                columns = columns,
-                cardWidth = cardWidth,
-                width = gridWidth,
-                selectedId = selected.id,
-                onSelect = onSelect,
-                onAction = onAction,
-            )
-            if (showInspector) {
-                Box(
-                    Modifier
-                        .width(1.dp)
-                        .height(inspectorHeight)
-                        .background(Tokens.divider.copy(alpha = 0.72f)),
-                )
-                Inspector(
-                    file = selected,
-                    modifier = Modifier.width(inspectorWidth).height(inspectorHeight),
-                    onAction = onAction,
-                )
-            }
-        }
-    }
-}
-
-private fun gridRowCount(count: Int, columns: Int): Int {
-    if (count <= 0) return 0
-    val firstRowStandards = (count - 1).coerceAtMost(columns - 2).coerceAtLeast(0)
-    val remaining = count - 1 - firstRowStandards
-    val remainingRows = if (remaining == 0) 0 else ceil(remaining.toDouble() / columns).toInt()
-    return 1 + remainingRows
-}
-
-@Composable
-private fun FileGrid(
-    files: List<DemoFile>,
-    columns: Int,
-    cardWidth: Dp,
-    width: Dp,
-    selectedId: String?,
-    onSelect: (String) -> Unit,
-    onAction: (String) -> Unit,
-) {
-    val hero = files.first()
-    val firstRowStandards = files.drop(1).take(columns - 2)
-    val remaining = files.drop(1 + firstRowStandards.size)
-    val heroWidth = cardWidth * 2 + cardGap
-
-    Column(Modifier.width(width), verticalArrangement = Arrangement.spacedBy(cardGap)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(cardGap)) {
-            FocusCard(
-                file = hero,
-                width = heroWidth,
-                selected = hero.id == selectedId,
-                onSelect = { onSelect(hero.id) },
-                onAction = onAction,
-            )
-            firstRowStandards.forEach { file ->
-                StandardCard(
-                    file = file,
-                    width = cardWidth,
-                    selected = file.id == selectedId,
-                    onSelect = { onSelect(file.id) },
-                    onAction = onAction,
-                )
-            }
-        }
-        remaining.chunked(columns).forEach { rowFiles ->
-            Row(horizontalArrangement = Arrangement.spacedBy(cardGap)) {
-                rowFiles.forEach { file ->
-                    StandardCard(
-                        file = file,
-                        width = cardWidth,
-                        selected = file.id == selectedId,
-                        onSelect = { onSelect(file.id) },
-                        onAction = onAction,
-                    )
-                }
-            }
+    val remaining = files.filterNot { it.id == selected.id }
+    Column(verticalArrangement = Arrangement.spacedBy(stageGap)) {
+        HeroCard(file = selected, onAction = onAction)
+        if (remaining.isNotEmpty()) {
+            QuietGrid(files = remaining, onSelect = onSelect, onAction = onAction)
         }
     }
 }
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-private fun FocusCard(
-    file: DemoFile,
-    width: Dp,
-    selected: Boolean,
-    onSelect: () -> Unit,
-    onAction: (String) -> Unit,
-) {
+private fun HeroCard(file: DemoFile, onAction: (String) -> Unit) {
+    var menuOpen by remember { mutableStateOf(false) }
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
-    var menuOpen by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(12.dp)
+    val actions = file.inspectorActions().filterNot { it == "删除" }.take(3)
 
     Box {
-        Box(
+        Row(
             Modifier
-                .width(width)
-                .height(cardHeight)
+                .fillMaxWidth()
+                .height(heroHeight)
                 .clip(shape)
-                .background(if (hovered) Color(0xF4FFFFFF) else Color(0xE8FFFFFF))
-                .border(
-                    BorderStroke(
-                        if (selected) 1.4.dp else 0.6.dp,
-                        if (selected) Tokens.actionFill.copy(alpha = 0.9f) else Tokens.divider.copy(alpha = 0.65f),
-                    ),
-                    shape,
-                )
+                .background(if (hovered) Color(0xD9FFFFFF) else Color(0xC7FFFFFF))
+                .border(0.7.dp, Tokens.divider.copy(alpha = 0.68f), shape)
                 .hoverable(interaction)
-                .combinedClickable(onClick = onSelect, onDoubleClick = { onAction("打开：${file.name}") })
+                .combinedClickable(onClick = { }, onDoubleClick = { onAction("打开：${file.name}") })
                 .onPointerEvent(PointerEventType.Press) { event ->
                     if (event.buttons.isSecondaryPressed) menuOpen = true
                 },
         ) {
-            Row(Modifier.fillMaxSize()) {
-                Box(Modifier.weight(0.46f).fillMaxHeight()) {
-                    FilePreview(file)
-                    StatusOverlay(file)
-                    Badge(file, Modifier.align(Alignment.TopEnd))
-                }
-                Column(
-                    Modifier
-                        .weight(0.54f)
-                        .fillMaxHeight()
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
+            Box(Modifier.weight(0.43f).fillMaxHeight()) {
+                FilePreview(file)
+                StatusOverlay(file)
+                if (file.pinned) PinBadge(Modifier.align(Alignment.TopStart))
+            }
+            Column(
+                Modifier
+                    .weight(0.57f)
+                    .fillMaxHeight()
+                    .padding(horizontal = 17.dp, vertical = 14.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.size(5.dp).clip(CircleShape).background(Tokens.actionFill))
-                            Text("最近", color = Tokens.textSecondary, fontSize = 8.5.sp, fontWeight = FontWeight.Medium)
-                        }
-                        Text(
-                            "•••",
-                            color = Tokens.textSecondary,
-                            fontSize = 10.sp,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(5.dp))
-                                .clickable { menuOpen = true }
-                                .padding(horizontal = 5.dp, vertical = 2.dp),
+                    Text(file.typeLabel(), color = Tokens.textSecondary, fontSize = 9.sp, fontWeight = FontWeight.Medium)
+                    Text(
+                        "⋯",
+                        color = Tokens.textSecondary,
+                        fontSize = 13.sp,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(5.dp))
+                            .clickable { menuOpen = true }
+                            .padding(horizontal = 6.dp, vertical = 1.dp),
+                    )
+                }
+                Spacer(Modifier.height(5.dp))
+                Text(
+                    file.name,
+                    color = Tokens.textPrimary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    lineHeight = 17.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text("${file.origin}  ·  ${file.meta}", color = Tokens.textSecondary, fontSize = 9.5.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Spacer(Modifier.weight(1f))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    actions.forEachIndexed { index, action ->
+                        MiniAction(
+                            label = action,
+                            primary = index == 0,
+                            onClick = { onAction("$action：${file.name}") },
                         )
                     }
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        file.name,
-                        color = Tokens.textPrimary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        lineHeight = 15.sp,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(file.meta, color = Tokens.textSecondary, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Spacer(Modifier.weight(1f))
-                    Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                        file.quickActions().take(2).forEachIndexed { index, action ->
-                            MiniAction(
-                                label = action,
-                                primary = index == 0,
-                                onClick = { onAction("$action：${file.name}") },
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(7.dp))
-                    Text("↵ 打开   ⌘C 复制   Space 预览", color = Tokens.disabledText, fontSize = 8.sp)
                 }
+                Spacer(Modifier.height(7.dp))
+                Text("↵ 打开   ⌘C 复制   ⌘⌫ 删除", color = Tokens.disabledText, fontSize = 8.sp)
             }
-            if (selected) {
-                Box(
-                    Modifier
-                        .width(2.dp)
-                        .fillMaxHeight()
-                        .background(Tokens.actionFill)
-                        .align(Alignment.CenterStart),
-                )
-            }
-            if (file.pinned) PinBadge(Modifier.align(Alignment.TopStart))
         }
         FileContextMenu(
             expanded = menuOpen,
@@ -641,59 +536,72 @@ private fun FocusCard(
     }
 }
 
+@Composable
+private fun QuietGrid(files: List<DemoFile>, onSelect: (String) -> Unit, onAction: (String) -> Unit) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val tileWidth = (maxWidth - quietGap * (quietColumns - 1)) / quietColumns
+        Column(verticalArrangement = Arrangement.spacedBy(quietGap)) {
+            files.chunked(quietColumns).forEach { rowFiles ->
+                Row(horizontalArrangement = Arrangement.spacedBy(quietGap)) {
+                    rowFiles.forEach { file ->
+                        QuietTile(
+                            file = file,
+                            width = tileWidth,
+                            onSelect = { onSelect(file.id) },
+                            onAction = onAction,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-private fun StandardCard(
+private fun QuietTile(
     file: DemoFile,
     width: Dp,
-    selected: Boolean,
     onSelect: () -> Unit,
     onAction: (String) -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
     var menuOpen by remember { mutableStateOf(false) }
-    val shape = RoundedCornerShape(12.dp)
 
     Box {
         Column(
             Modifier
                 .width(width)
-                .height(cardHeight)
-                .clip(shape)
-                .background(if (hovered) Color(0xF4FFFFFF) else Color(0xE8FFFFFF))
-                .border(
-                    BorderStroke(
-                        if (selected) 1.4.dp else 0.6.dp,
-                        if (selected) Tokens.actionFill.copy(alpha = 0.9f) else Tokens.divider.copy(alpha = 0.65f),
-                    ),
-                    shape,
-                )
+                .height(quietTileHeight)
                 .hoverable(interaction)
                 .combinedClickable(onClick = onSelect, onDoubleClick = { onAction("打开：${file.name}") })
                 .onPointerEvent(PointerEventType.Press) { event ->
                     if (event.buttons.isSecondaryPressed) menuOpen = true
-                }
-                .padding(7.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+                },
+            verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .height(88.dp)
-                    .clip(RoundedCornerShape(8.dp)),
+                    .height(104.dp)
+                    .clip(RoundedCornerShape(9.dp))
+                    .border(
+                        if (hovered) 1.dp else 0.5.dp,
+                        if (hovered) Color(0x33000000) else Tokens.divider.copy(alpha = 0.55f),
+                        RoundedCornerShape(9.dp),
+                    ),
             ) {
                 FilePreview(file)
-                StatusOverlay(file)
-                Badge(file, Modifier.align(Alignment.TopEnd))
+                QuietStatusOverlay(file)
                 if (file.pinned) PinBadge(Modifier.align(Alignment.TopStart))
-                if (hovered || selected) {
+                if (hovered) {
                     Row(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
-                            .height(26.dp)
-                            .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xCC000000))))
+                            .height(25.dp)
+                            .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xAA000000))))
                             .padding(horizontal = 4.dp, vertical = 3.dp),
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -707,17 +615,17 @@ private fun StandardCard(
                                 .clickable { onAction("${file.quickActions().first()}：${file.name}") },
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text(file.quickActions().first(), color = Tokens.textPrimary, fontSize = 8.5.sp, fontWeight = FontWeight.Medium)
+                            Text(file.quickActions().first(), color = Tokens.textPrimary, fontSize = 8.sp, fontWeight = FontWeight.Medium)
                         }
                         Box(
                             Modifier
-                                .size(22.dp)
+                                .size(21.dp)
                                 .clip(RoundedCornerShape(5.dp))
                                 .background(Color(0xD9FFFFFF))
                                 .clickable { menuOpen = true },
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text("•••", color = Tokens.textPrimary, fontSize = 8.sp)
+                            Text("⋯", color = Tokens.textPrimary, fontSize = 9.sp)
                         }
                     }
                 }
@@ -738,19 +646,9 @@ private fun StandardCard(
                     DemoAvailability.REMOTE, DemoAvailability.FETCHING -> Tokens.actionFill
                     else -> Tokens.textSecondary
                 },
-                fontSize = 8.5.sp,
+                fontSize = 8.3.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-            )
-        }
-        if (selected) {
-            Box(
-                Modifier
-                    .width(2.dp)
-                    .height(cardHeight)
-                    .clip(RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp))
-                    .background(Tokens.actionFill)
-                    .align(Alignment.CenterStart),
             )
         }
         FileContextMenu(
@@ -759,6 +657,41 @@ private fun StandardCard(
             onDismiss = { menuOpen = false },
             onAction = onAction,
         )
+    }
+}
+
+@Composable
+private fun QuietStatusOverlay(file: DemoFile) {
+    when (file.availability) {
+        DemoAvailability.LOCAL -> Unit
+        DemoAvailability.REMOTE -> {
+            Box(
+                Modifier.fillMaxSize().background(Color(0x731C1C1E)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("另一台设备", color = Color.White, fontSize = 8.5.sp, fontWeight = FontWeight.Medium)
+            }
+        }
+        DemoAvailability.FETCHING -> {
+            Box(Modifier.fillMaxSize()) {
+                Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(3.dp).background(Color(0x33000000))) {
+                    Box(Modifier.fillMaxWidth(file.progress).height(3.dp).background(Tokens.actionFill))
+                }
+            }
+        }
+        DemoAvailability.FAILED -> {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("传输失败", color = Color.White, fontSize = 8.5.sp, fontWeight = FontWeight.Medium)
+            }
+        }
+        DemoAvailability.UNAVAILABLE -> {
+            Box(
+                Modifier.fillMaxSize().background(Color(0xB31C1C1E)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("内容不可用", color = Color.White, fontSize = 8.5.sp, fontWeight = FontWeight.Medium)
+            }
+        }
     }
 }
 
@@ -822,130 +755,6 @@ private fun MiniAction(label: String, primary: Boolean, onClick: () -> Unit) {
         Text(
             label,
             color = if (primary) Tokens.textOnAccent else Tokens.textPrimary,
-            fontSize = 9.5.sp,
-            fontWeight = if (primary) FontWeight.Medium else FontWeight.Normal,
-        )
-    }
-}
-
-@Composable
-private fun Inspector(file: DemoFile, modifier: Modifier, onAction: (String) -> Unit) {
-    Column(modifier.padding(start = 19.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("◇", color = Tokens.actionFill, fontSize = 10.sp)
-            Text("检查器", color = Tokens.textSecondary, fontSize = 9.sp, fontWeight = FontWeight.Medium)
-        }
-
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(150.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .border(0.6.dp, Tokens.divider.copy(alpha = 0.7f), RoundedCornerShape(10.dp)),
-        ) {
-            FilePreview(file)
-            StatusOverlay(file)
-            Badge(file, Modifier.align(Alignment.TopEnd))
-        }
-
-        Text(
-            file.name,
-            color = Tokens.textPrimary,
-            fontSize = 13.5.sp,
-            fontWeight = FontWeight.SemiBold,
-            lineHeight = 15.sp,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(file.meta, color = Tokens.textSecondary, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-
-        Box(Modifier.fillMaxWidth().height(1.dp).background(Tokens.divider.copy(alpha = 0.55f)))
-
-        MetadataRow("类型", file.typeLabel())
-        MetadataRow("来源", file.origin)
-        MetadataRow("大小", file.meta.substringBefore(" · "))
-        MetadataRow("状态", if (file.pinned) "已置顶 · ${file.availabilityLabel()}" else file.availabilityLabel())
-
-        Box(Modifier.fillMaxWidth().height(1.dp).background(Tokens.divider.copy(alpha = 0.55f)))
-
-        Text("动作", color = Tokens.textSecondary, fontSize = 9.sp, fontWeight = FontWeight.Medium)
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            file.inspectorActions().chunked(2).forEachIndexed { rowIndex, actions ->
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    actions.forEach { action ->
-                        InspectorAction(
-                            label = action,
-                            primary = rowIndex == 0 && action == actions.first(),
-                            destructive = action == "删除",
-                            modifier = Modifier.weight(1f),
-                            onClick = { onAction("$action：${file.name}") },
-                        )
-                    }
-                    if (actions.size == 1) Spacer(Modifier.weight(1f))
-                }
-            }
-        }
-
-        Spacer(Modifier.weight(1f))
-        Box(Modifier.fillMaxWidth().height(1.dp).background(Tokens.divider.copy(alpha = 0.55f)))
-        Text(
-            "↑↓ 选择   ↵ 打开   ⌘C 复制   ⌘⌫ 删除",
-            color = Tokens.textSecondary,
-            fontSize = 8.3.sp,
-            lineHeight = 11.sp,
-        )
-    }
-}
-
-@Composable
-private fun MetadataRow(label: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Top,
-    ) {
-        Text(label, color = Tokens.textSecondary, fontSize = 9.2.sp)
-        Text(
-            value,
-            color = Tokens.textPrimary,
-            fontSize = 9.2.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.End,
-            modifier = Modifier.widthIn(max = 176.dp),
-        )
-    }
-}
-
-@Composable
-private fun InspectorAction(
-    label: String,
-    primary: Boolean,
-    destructive: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    Box(
-        modifier
-            .height(27.dp)
-            .clip(RoundedCornerShape(6.dp))
-            .background(
-                when {
-                    primary -> Tokens.actionFill
-                    destructive -> Color(0x0FD70015)
-                    else -> Color(0x12000000)
-                },
-            )
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            label,
-            color = when {
-                primary -> Tokens.textOnAccent
-                destructive -> Tokens.errorText
-                else -> Tokens.textPrimary
-            },
             fontSize = 9.sp,
             fontWeight = if (primary) FontWeight.Medium else FontWeight.Normal,
         )
@@ -1106,25 +915,6 @@ private fun PinBadge(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun Badge(file: DemoFile, modifier: Modifier = Modifier) {
-    val color = when (file.availability) {
-        DemoAvailability.FAILED -> Tokens.errorText
-        DemoAvailability.REMOTE, DemoAvailability.FETCHING -> Tokens.actionFill
-        DemoAvailability.UNAVAILABLE -> Tokens.disabledText
-        DemoAvailability.LOCAL -> Tokens.textSecondary
-    }
-    Box(
-        modifier
-            .padding(6.dp)
-            .clip(RoundedCornerShape(999.dp))
-            .background(Color(0xD9FFFFFF))
-            .padding(horizontal = 5.dp, vertical = 2.dp),
-    ) {
-        Text(file.badgeText(), color = color, fontSize = 7.5.sp, fontWeight = FontWeight.Medium)
-    }
-}
-
-@Composable
 private fun StatusOverlay(file: DemoFile) {
     when (file.availability) {
         DemoAvailability.LOCAL -> Unit
@@ -1171,34 +961,29 @@ private fun FullStatus(title: String, detail: String, background: Color) {
 @Composable
 private fun EmptyFiles(onAction: (String) -> Unit) {
     Box(
-        Modifier
-            .fillMaxWidth()
-            .height(556.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .border(0.7.dp, Tokens.divider.copy(alpha = 0.75f), RoundedCornerShape(14.dp))
-            .background(Color(0x2EFFFFFF)),
+        Modifier.fillMaxWidth().height(300.dp),
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
                 Modifier
-                    .size(52.dp)
-                    .clip(RoundedCornerShape(14.dp))
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(13.dp))
                     .background(Color(0x12000000)),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("＋", color = Tokens.textPrimary, fontSize = 24.sp, fontWeight = FontWeight.Light)
+                Text("＋", color = Tokens.textPrimary, fontSize = 22.sp, fontWeight = FontWeight.Light)
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(11.dp))
             Text("把下一件内容放进来", color = Tokens.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
             Spacer(Modifier.height(4.dp))
             Text("截图、文件或文本会停在最近使用的位置。", color = Tokens.textSecondary, fontSize = 10.sp)
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(13.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                 MiniAction("放入文件…", primary = true) { onAction("打开文件选择器") }
                 MiniAction("新建文本…", primary = false) { onAction("打开文本编辑器") }
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(11.dp))
             Text("⌘O 放入文件   ⌘N 新建文本", color = Tokens.disabledText, fontSize = 8.sp)
         }
     }
@@ -1207,16 +992,16 @@ private fun EmptyFiles(onAction: (String) -> Unit) {
 @Composable
 private fun NoMatch(onClear: () -> Unit) {
     Box(
-        Modifier.fillMaxWidth().height(556.dp),
+        Modifier.fillMaxWidth().height(260.dp),
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("⌕", color = Tokens.textSecondary, fontSize = 26.sp)
-            Spacer(Modifier.height(8.dp))
+            Text("⌕", color = Tokens.textSecondary, fontSize = 24.sp)
+            Spacer(Modifier.height(7.dp))
             Text("没有匹配的文件", color = Tokens.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
             Spacer(Modifier.height(3.dp))
             Text("换一个关键词，或清除当前筛选。", color = Tokens.textSecondary, fontSize = 10.sp)
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(11.dp))
             MiniAction("清除筛选", primary = false, onClick = onClear)
         }
     }
@@ -1271,7 +1056,7 @@ private fun PreviewHarness(
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("统一文件区 · v2", color = Color(0xFFF5F5F7), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            Text("统一文件区 · v3", color = Color(0xFFF5F5F7), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
             Text(screen, color = Color(0xFF8E8E93), fontSize = 10.sp)
             Text(LocalPreviewFontStatus.current, color = Color(0xFF8E8E93), fontSize = 10.sp)
         }
@@ -1287,7 +1072,7 @@ private fun PreviewHarness(
             )
             HarnessButton(if (compact) "宽度：720" else "宽度：960", onToggleWidth)
             HarnessButton(if (reducedMotion) "减弱动态：开" else "减弱动态：关", onToggleReducedMotion)
-            Text("点卡片切换检查器 · 悬停快捷动作 · 右键完整菜单", color = Color(0xFF8E8E93), fontSize = 9.sp)
+            Text("点任意条目进入焦点位 · 悬停快捷动作 · 右键完整菜单", color = Color(0xFF8E8E93), fontSize = 9.sp)
         }
     }
 }

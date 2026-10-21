@@ -44,7 +44,7 @@ val previews: List<Preview> = listOf(
     ),
     Preview(
         title = "统一文件区",
-        covers = "最近焦点卡、密集文件网格和检查器；文件区内部用筛选，不增加截图页签。",
+        covers = "唯一焦点位加安静文件格；用更少控件承载截图、文本、文件和传输状态。",
         issue = 201,
         content = { UnifiedFilesPreview() },
     ),

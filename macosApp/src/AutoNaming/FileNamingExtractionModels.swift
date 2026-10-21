@@ -77,7 +77,7 @@ struct FileNamingExtractionPolicy: Sendable, Equatable {
     var maxPDFTextPages = 4
     var maxScannedPDFPages = 2
     var maxImageDimension = 1_600
-    var minimumOCRCharacters = 8
+    var minimumOCRCharacters = FileNamingExtraction.textOnlyOCRMinimumCharacters
 }
 
 struct FileNamingExtractedImage: Sendable, Equatable {
@@ -88,6 +88,8 @@ struct FileNamingExtractedImage: Sendable, Equatable {
 }
 
 struct FileNamingExtraction: Sendable, Equatable {
+    static let textOnlyOCRMinimumCharacters = 24
+
     let candidateId: String
     let fileURL: URL
     let kind: FileNamingContentKind
@@ -96,6 +98,11 @@ struct FileNamingExtraction: Sendable, Equatable {
     let sources: Set<FileNamingExtractionSource>
     let quality: FileNamingExtractionQuality
     let warnings: Set<FileNamingExtractionWarning>
+
+    var canUseOCRTextWithoutImage: Bool {
+        text.count >= Self.textOnlyOCRMinimumCharacters
+            && (sources.contains(.imageOCR) || sources.contains(.pdfOCR))
+    }
 }
 
 struct FileNamingExtractionFailure: Sendable, Equatable {

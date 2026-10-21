@@ -2,7 +2,7 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档状态 | 完成，8 GB 硬件项待 #185 |
+| 文档状态 | 完成，低内存 Apple Silicon 验收已通过 |
 | 日期 | 2026-10-21 |
 
 [返回主题索引](../README.md)  
@@ -18,7 +18,8 @@
 | Case 4：MLX Swift 运行 | 通过 | [case-mlx-swift-runtime.md](case-mlx-swift-runtime.md) |
 | Case 5：安全预览与重命名 | 通过 | [case-safe-rename.md](case-safe-rename.md) |
 | Case 6：内置模型打包与断网运行 | 通过 | [case-packaging.md](case-packaging.md) |
-| Case 7：真实 Mac 12 样本验收 | 通过，8 GB 待 #185 | [case-real-mac-acceptance.md](case-real-mac-acceptance.md) |
+| Case 7：真实 Mac 12 样本验收 | 通过 | [case-real-mac-acceptance.md](case-real-mac-acceptance.md) |
+| Case 8：7 GB Apple Silicon 低内存验收 | 通过 | [case-constrained-mac-acceptance.md](case-constrained-mac-acceptance.md) |
 
 ## 验证目标
 
@@ -66,7 +67,7 @@
 9. Covio 产品内预览、原子重命名和撤销已实现。
 10. 模型随应用内置，并在断网沙箱完成重命名与撤销。
 11. 64 GB Apple Silicon 完成 12 样本、性能和恢复矩阵。
-12. 8 GB 硬件实测由 #185 跟踪。
+12. 7 GB Apple Silicon 虚拟 Mac 完成 12 样本、性能和恢复矩阵。
 
 ## 成功标准
 
@@ -120,7 +121,7 @@
 | V07 | 提示注入防护 | 通过 | [case-real-mac-acceptance.md](case-real-mac-acceptance.md) |
 | V08 | 原子重命名与冲突 | 通过 | [case-safe-rename.md](case-safe-rename.md) |
 | V09 | 撤销和外部修改 | 通过 | [case-safe-rename.md](case-safe-rename.md) |
-| V10 | Covio 真机验收 | 通过，8 GB 待 #185 | [case-real-mac-acceptance.md](case-real-mac-acceptance.md) |
+| V10 | Covio 低内存 Apple Silicon 验收 | 通过 | [case-constrained-mac-acceptance.md](case-constrained-mac-acceptance.md) |
 | V11 | MLX Swift 文本运行 | 通过 | [case-mlx-swift-runtime.md](case-mlx-swift-runtime.md) |
 | V12 | MLX Swift 图片运行 | 通过 | [case-mlx-swift-runtime.md](case-mlx-swift-runtime.md) |
 | V13 | MLX Swift 本地网络检查 | 部分通过 | [case-mlx-swift-runtime.md](case-mlx-swift-runtime.md) |

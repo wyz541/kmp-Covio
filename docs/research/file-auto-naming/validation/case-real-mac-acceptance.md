@@ -107,11 +107,10 @@ non_loopback_network_rows=0
 
 ## 未通过或未执行项
 
-8 GB Apple Silicon 硬件没有提供。
 本轮机器是 64 GB。
-不能把 64 GB 结果冒充 8 GB 实测。
-后续项是 #185。
-恢复条件：提供 8 GB Apple Silicon Mac。
+7 GB Apple Silicon 低内存验收由 [Case 8](case-constrained-mac-acceptance.md) 单独记录。
+Case 8 的硬件约束低于 8 GB 产品门槛。
+Case 8 已通过全部功能、内存、延迟和安全门槛。
 
 ## 清理记录
 

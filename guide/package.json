@@ -9,7 +9,8 @@
     "check:contract": "node scripts/validate-guide.mjs",
     "check:contract:complete": "node scripts/validate-guide.mjs --require-complete",
     "build": "npm run check:model && astro build",
-    "preview": "astro preview"
+    "preview": "astro preview",
+    "evidence:capture": "node scripts/capture-evidence.mjs"
   },
   "dependencies": {
     "@astrojs/starlight": "0.42.6",

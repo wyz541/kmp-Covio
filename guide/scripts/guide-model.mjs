@@ -1,6 +1,22 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
+
+const EVIDENCE_FIELDS = [
+  'id',
+  'image',
+  'alt',
+  'capturedAt',
+  'device',
+  'os',
+  'scene',
+  'sourceCommit',
+  'sha256',
+  'status',
+];
+const EVIDENCE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.heic']);
+const FORMAL_COMPONENT_STATUSES = new Set(['preview', 'stable']);
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -22,6 +38,79 @@ function duplicates(values) {
     seen.add(value);
   }
   return [...repeated].sort();
+}
+
+function sha256File(file) {
+  return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+}
+
+function evidenceDate(record) {
+  if (record.capturedAt instanceof Date) {
+    return record.capturedAt.toISOString().slice(0, 10);
+  }
+  return String(record.capturedAt ?? '').slice(0, 10);
+}
+
+function validateEvidence({ record, pageFile, componentStatus, contentDir, errors }) {
+  const relativePage = path.relative(contentDir, pageFile);
+  const label = `${relativePage} evidence ${record?.id ?? '<missing-id>'}`;
+
+  for (const field of EVIDENCE_FIELDS) {
+    if (record?.[field] === undefined || record?.[field] === null || record?.[field] === '') {
+      errors.push(`${label} is missing ${field}`);
+    }
+  }
+
+  if (typeof record?.id === 'string' && !/^EV-[A-Z0-9]+(?:-[A-Z0-9]+)*-\d{3}$/.test(record.id)) {
+    errors.push(`${label} has an invalid evidence id`);
+  }
+
+  if (typeof record?.sha256 === 'string' && !/^[0-9a-f]{64}$/.test(record.sha256)) {
+    errors.push(`${label} has an invalid sha256`);
+  }
+
+  if (typeof record?.sourceCommit === 'string' && !/^[0-9a-f]{7,40}$/.test(record.sourceCommit)) {
+    errors.push(`${label} has an invalid sourceCommit`);
+  }
+
+  if (componentStatus === 'stable' && record?.status !== 'real-device') {
+    errors.push(`${label} is not a real-device capture on a stable component`);
+  }
+
+  if (typeof record?.image !== 'string' || record.image.length === 0) return;
+
+  const imagePath = path.resolve(path.dirname(pageFile), record.image);
+  if (!fs.existsSync(imagePath) || !fs.statSync(imagePath).isFile()) {
+    errors.push(`${label} image does not exist: ${record.image}`);
+    return;
+  }
+
+  const evidenceDir = path.join(path.dirname(pageFile), 'evidence');
+  const relativeToEvidence = path.relative(evidenceDir, imagePath);
+  if (relativeToEvidence.startsWith(`..${path.sep}`) || path.isAbsolute(relativeToEvidence)) {
+    errors.push(`${label} image must stay under its component evidence directory`);
+  }
+
+  const extension = path.extname(imagePath).toLowerCase();
+  if (!EVIDENCE_EXTENSIONS.has(extension)) {
+    errors.push(`${label} image has an unsupported extension: ${extension}`);
+  }
+
+  if (typeof record.sha256 === 'string') {
+    const actualSha = sha256File(imagePath);
+    if (actualSha !== record.sha256) {
+      errors.push(`${label} sha256 mismatch: expected ${record.sha256}, got ${actualSha}`);
+    }
+  }
+
+  const date = evidenceDate(record);
+  const basename = path.basename(imagePath);
+  if (date && !basename.startsWith(`${date}__`)) {
+    errors.push(`${label} filename must start with capturedAt: ${date}`);
+  }
+  if (typeof record.id === 'string' && !basename.endsWith(`__${record.id}${extension}`)) {
+    errors.push(`${label} filename must end with evidence id: ${record.id}`);
+  }
 }
 
 export function validateGuideModel({
@@ -68,6 +157,7 @@ export function validateGuideModel({
   );
 
   const pages = [];
+  const evidenceIds = [];
   for (const file of componentFiles) {
     const data = matter(fs.readFileSync(file, 'utf8')).data;
     const component = data.component;
@@ -82,6 +172,22 @@ export function validateGuideModel({
         `${path.relative(contentDir, file)} uses component.id=${component.id}, expected ${directoryId}`
       );
     }
+
+    const evidence = Array.isArray(data.evidence) ? data.evidence : [];
+    if (FORMAL_COMPONENT_STATUSES.has(component.status) && evidence.length === 0) {
+      errors.push(`${path.relative(contentDir, file)} has no real-device evidence`);
+    }
+    for (const record of evidence) {
+      if (typeof record?.id === 'string') evidenceIds.push(record.id);
+      validateEvidence({
+        record,
+        pageFile: file,
+        componentStatus: component.status,
+        contentDir,
+        errors,
+      });
+    }
+
     pages.push({ id: component.id, file });
   }
 
@@ -90,6 +196,11 @@ export function validateGuideModel({
   const duplicateIds = duplicates(authoredIds);
   if (duplicateIds.length) {
     errors.push(`component ids are duplicated: ${duplicateIds.join(', ')}`);
+  }
+
+  const duplicateEvidenceIds = duplicates(evidenceIds);
+  if (duplicateEvidenceIds.length) {
+    errors.push(`evidence ids are duplicated: ${duplicateEvidenceIds.join(', ')}`);
   }
 
   const pendingSet = new Set(pendingIds);
@@ -140,6 +251,7 @@ export function validateGuideModel({
       authoredContract: authoredContractIds.length,
       pendingContract: pendingIds.length,
       extensionTotal: extensionIds.length,
+      evidenceTotal: evidenceIds.length,
       coveragePercent: contractIds.length
         ? Math.round((authoredContractIds.length / contractIds.length) * 100)
         : 100,

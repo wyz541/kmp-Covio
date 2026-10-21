@@ -28,5 +28,6 @@ console.log(
     `${summary.coveragePercent}%`,
     `pending ${summary.pendingContract}`,
     `extensions ${summary.extensionTotal}`,
+    `evidence ${summary.evidenceTotal}`,
   ].join(' ')
 );

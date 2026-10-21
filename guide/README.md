@@ -9,6 +9,13 @@ npm install
 npm run dev
 ```
 
+## 页面入口
+
+- 首页：`/`
+- 章节总览：`/chapters/`
+- 组件图鉴：`/components/`
+- 组件样张：`/components/power-management/`
+
 ## 构建
 
 ```sh

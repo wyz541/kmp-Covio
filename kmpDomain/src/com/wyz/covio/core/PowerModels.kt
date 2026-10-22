@@ -21,6 +21,7 @@ data class PowerConfig(
     @SerialName("yieldOnLowPowerMode") val yieldOnLowPowerMode: Boolean = true,
     @SerialName("heatGuardEnabled") val heatGuardEnabled: Boolean = true,
     @SerialName("closedLidTimeCapMinutes") val closedLidTimeCapMinutes: Int = 240,
+    @SerialName("closedLidZeroBrightness") val closedLidZeroBrightness: Boolean = false,
 ) {
     fun normalized(): PowerConfig {
         val floor = batteryFloorPercent.coerceIn(0, 99)

@@ -39,6 +39,7 @@ class Engine(
     private var restoreAfterSleep: RestorePoint? = null
     private var manualLidHold = false
     private var powerLidHold = false
+    private var powerLidDisplayOffEnabled = true
     private var lowBatterySleepLatched = false
     private var lastWakeEvent: WakeEvent? = null
     private var wakeScanScheduled = false
@@ -90,6 +91,7 @@ class Engine(
                 restoreAfterSleep = null
                 manualLidHold = false
                 powerLidHold = false
+                powerLidDisplayOffEnabled = true
                 lowBatterySleepLatched = false
                 wakeScanScheduled = false
                 state = state.copy(darkWake = state.darkWake.copy(scanning = false))
@@ -314,6 +316,17 @@ class Engine(
         }
         publish()
         return result.success
+    }
+
+    /**
+     * Select who turns the built-in display off when a closed-lid hold starts.
+     *
+     * The experimental brightness path calls this with `false` while its
+     * private display write owns the panel. Every other path keeps the public
+     * `displaysleepnow` behaviour.
+     */
+    fun setPowerLidDisplayOffEnabled(enabled: Boolean) {
+        lock.withLock { powerLidDisplayOffEnabled = enabled }
     }
 
     fun setManualLidSleepAvailable(available: Boolean) {
@@ -574,8 +587,13 @@ class Engine(
         if (lidState == LidState.UNKNOWN || previous == lidState || !currentState.enabled) return
         if (lidState == LidState.CLOSED) {
             if (!currentState.lidSleepAvailable) {
-                logger.info("Lid closed while lid sleep is prevented; turning display off.")
-                displaySleepNow()
+                val displayOffEnabled = lock.withLock { powerLidDisplayOffEnabled }
+                if (displayOffEnabled) {
+                    logger.info("Lid closed while lid sleep is prevented; turning display off.")
+                    displaySleepNow()
+                } else {
+                    logger.info("Lid closed while the experimental brightness path owns the display.")
+                }
             } else if (currentConfig.lidSleepImmediateOnClose) {
                 logger.info("Lid closed; starting immediate sleep.")
                 requestSleep(restoreAfterWake = true)

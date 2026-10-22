@@ -47,6 +47,13 @@ enum AppPaths {
             .appendingPathComponent("history.json")
     }
 
+    /// Experimental private-brightness recovery record.
+    static var closedLidBrightnessRecoveryFile: URL {
+        supportDirectory
+            .appendingPathComponent("Power", isDirectory: true)
+            .appendingPathComponent("zero-brightness-recovery.json")
+    }
+
     /// 工作台配置。工作区顺序与首页组件都在这里。
     ///
     /// 权威在 `kmpDomain` 的 `WorkbenchStore.defaultWorkbenchPath()`，这里跟着它走。

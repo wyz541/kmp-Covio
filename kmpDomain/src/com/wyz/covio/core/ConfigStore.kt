@@ -159,6 +159,10 @@ class ConfigStore(
                     "closedLidTimeCapMinutes",
                     powerDefaults.closedLidTimeCapMinutes,
                 ),
+                closedLidZeroBrightness = powerBool(
+                    "closedLidZeroBrightness",
+                    powerDefaults.closedLidZeroBrightness,
+                ),
             ),
             chargeLimitEnabled = bool("chargeLimitEnabled", defaults.chargeLimitEnabled),
             chargeLimitPercent = int("chargeLimitPercent", defaults.chargeLimitPercent),

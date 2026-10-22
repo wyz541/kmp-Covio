@@ -5623,6 +5623,10 @@
       "en": "The Mac stays awake. Covio turns the display off after the lid closes.",
       "zh-Hans": "Mac 保持运行，Covio 在合盖后关闭屏幕。"
     },
+    "copy/power/session/lid-zero-brightness": {
+      "en": "Closed lid, experimental zero brightness",
+      "zh-Hans": "合盖实验零亮度"
+    },
     "copy/power/session/start": {
       "en": "Start",
       "zh-Hans": "开始"
@@ -5686,6 +5690,22 @@
     "copy/power/rules/lid": {
       "en": "Allow closed-lid hold",
       "zh-Hans": "允许合盖保持唤醒"
+    },
+    "copy/power/rules/closed-lid-zero-brightness": {
+      "en": "Experimental closed-lid zero brightness",
+      "zh-Hans": "实验性合盖零亮度"
+    },
+    "copy/power/rules/closed-lid-zero-brightness-hint": {
+      "en": "Opt-in. The built-in panel is set to 0.0 (near black). The private API can break after a macOS update; Covio restores the previous brightness when possible.",
+      "zh-Hans": "需要显式开启。内建屏设为 0.0（接近黑屏）。私有接口可能随 macOS 更新失效；Covio 会尽力恢复原亮度。"
+    },
+    "copy/power/rules/closed-lid-zero-brightness-unavailable": {
+      "en": "Unavailable on this macOS version or hardware.",
+      "zh-Hans": "当前 macOS 版本或硬件不支持。"
+    },
+    "copy/power/rules/closed-lid-zero-brightness-failed": {
+      "en": "Zero brightness failed. Covio restored the original brightness when possible and fell back to the public screen-off path.",
+      "zh-Hans": "零亮度设置失败。Covio 已尽力恢复原亮度，并回退到公开关屏路径。"
     },
     "copy/power/rules/external-display": {
       "en": "Pause lid hold with external display",

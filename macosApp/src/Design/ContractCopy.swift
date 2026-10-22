@@ -893,6 +893,14 @@ enum ContractCopy {
     static let copyPowerRulesBattery = LocalizedCopy(key: "copy/power/rules/battery", en: "Keep awake on battery", zhHans: "使用电池时保持唤醒")
     /// `copy/power/rules/battery-floor`
     static let copyPowerRulesBatteryFloor = LocalizedCopy(key: "copy/power/rules/battery-floor", en: "Battery floor", zhHans: "电池下限")
+    /// `copy/power/rules/closed-lid-zero-brightness`
+    static let copyPowerRulesClosedLidZeroBrightness = LocalizedCopy(key: "copy/power/rules/closed-lid-zero-brightness", en: "Experimental closed-lid zero brightness", zhHans: "实验性合盖零亮度")
+    /// `copy/power/rules/closed-lid-zero-brightness-failed`
+    static let copyPowerRulesClosedLidZeroBrightnessFailed = LocalizedCopy(key: "copy/power/rules/closed-lid-zero-brightness-failed", en: "Zero brightness failed. Covio restored the original brightness when possible and fell back to the public screen-off path.", zhHans: "零亮度设置失败。Covio 已尽力恢复原亮度，并回退到公开关屏路径。")
+    /// `copy/power/rules/closed-lid-zero-brightness-hint`
+    static let copyPowerRulesClosedLidZeroBrightnessHint = LocalizedCopy(key: "copy/power/rules/closed-lid-zero-brightness-hint", en: "Opt-in. The built-in panel is set to 0.0 (near black). The private API can break after a macOS update; Covio restores the previous brightness when possible.", zhHans: "需要显式开启。内建屏设为 0.0（接近黑屏）。私有接口可能随 macOS 更新失效；Covio 会尽力恢复原亮度。")
+    /// `copy/power/rules/closed-lid-zero-brightness-unavailable`
+    static let copyPowerRulesClosedLidZeroBrightnessUnavailable = LocalizedCopy(key: "copy/power/rules/closed-lid-zero-brightness-unavailable", en: "Unavailable on this macOS version or hardware.", zhHans: "当前 macOS 版本或硬件不支持。")
     /// `copy/power/rules/external-display`
     static let copyPowerRulesExternalDisplay = LocalizedCopy(key: "copy/power/rules/external-display", en: "Pause lid hold with external display", zhHans: "有外接屏时暂停合盖保持唤醒")
     /// `copy/power/rules/heat-guard`
@@ -939,6 +947,8 @@ enum ContractCopy {
     static let copyPowerSessionLidDisplayOff = LocalizedCopy(key: "copy/power/session/lid-display-off", en: "Closed lid, screen off", zhHans: "合盖关屏")
     /// `copy/power/session/lid-display-off-hint`
     static let copyPowerSessionLidDisplayOffHint = LocalizedCopy(key: "copy/power/session/lid-display-off-hint", en: "The Mac stays awake. Covio turns the display off after the lid closes.", zhHans: "Mac 保持运行，Covio 在合盖后关闭屏幕。")
+    /// `copy/power/session/lid-zero-brightness`
+    static let copyPowerSessionLidZeroBrightness = LocalizedCopy(key: "copy/power/session/lid-zero-brightness", en: "Closed lid, experimental zero brightness", zhHans: "合盖实验零亮度")
     /// `copy/power/session/none`
     static let copyPowerSessionNone = LocalizedCopy(key: "copy/power/session/none", en: "No keep-awake session is active.", zhHans: "当前没有保持唤醒会话。")
     /// `copy/power/session/reason-adapter`
@@ -1548,6 +1558,10 @@ enum ContractCopy {
         copyPowerRulesAdapter,
         copyPowerRulesBattery,
         copyPowerRulesBatteryFloor,
+        copyPowerRulesClosedLidZeroBrightness,
+        copyPowerRulesClosedLidZeroBrightnessFailed,
+        copyPowerRulesClosedLidZeroBrightnessHint,
+        copyPowerRulesClosedLidZeroBrightnessUnavailable,
         copyPowerRulesExternalDisplay,
         copyPowerRulesHeatGuard,
         copyPowerRulesLid,
@@ -1571,6 +1585,7 @@ enum ContractCopy {
         copyPowerSessionLid,
         copyPowerSessionLidDisplayOff,
         copyPowerSessionLidDisplayOffHint,
+        copyPowerSessionLidZeroBrightness,
         copyPowerSessionNone,
         copyPowerSessionReasonAdapter,
         copyPowerSessionReasonLid,

@@ -190,6 +190,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         shell.start()
         statusItemController = StatusItemController(shell: shell, runtime: runtime)
 
+        #if DEBUG
+        // Visual QA uses an isolated support directory and skips the global hotkey.
+        if ProcessInfo.processInfo.environment["COVIO_HUB_PREVIEW"] == "1" {
+            Task { @MainActor in
+                self.shell.toggle()
+            }
+        }
+        #endif
+
         // Control+Option+T 打开或收起 Hub。
         let hotKey = GlobalHotKey { [weak self] in
             self?.shell.toggle()

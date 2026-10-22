@@ -5,7 +5,7 @@ import kmpDomain
 
 /// Hub 面板的几何。
 ///
-/// 面板分三段：顶栏、一条分隔线、内容列。内容列自带内边距，里面是页标题行与主体。
+/// 面板由悬浮顶栏与内容列组成。内容列延伸到顶栏背后，并自带内边距。
 /// 这里的每一条都在核对「加法有没有漏项」，因为漏项的后果是内容被裁掉，
 /// 而裁掉的部分在测试里看不出来。
 @MainActor
@@ -40,19 +40,30 @@ final class HubMetricsTests: XCTestCase {
         XCTAssertGreaterThan(HubMetrics.tabBarHeight, tallest)
     }
 
-    /// 两块玻璃板的高度等于顶栏板、板间距、内容列内边距与页内容之和。
+    /// 功能层高度等于顶栏、内容顶部留白、内容列内边距与页内容之和。
     func testThePlateStackHeightIsTheSumOfItsParts() {
         for page in Self.allPages {
             let expected = HubMetrics.tabBarHeight
-                + HubMetrics.plateGap
+                + HubMetrics.navigationContentGap
                 + HubMetrics.panelPadding * 2
                 + HubMetrics.pageContentHeight(for: page)
             XCTAssertEqual(HubMetrics.plateStackHeight(for: page), expected)
         }
     }
 
-    /// 面板高度是两块板加上与菜单栏之间的缝。缝不算进板里，否则挂帘收起时会先
-    /// 露出一条空缝再露出顶栏板。
+    /// 首屏内容在导航层下方开始。内容仍可滚动到导航层背后。
+    func testTheContentStartsBelowTheNavigationLayer() {
+        XCTAssertEqual(
+            HubMetrics.contentTopPadding,
+            HubMetrics.tabBarHeight
+                + HubMetrics.navigationContentGap
+                + HubMetrics.panelPadding
+        )
+        XCTAssertGreaterThan(HubMetrics.contentTopPadding, HubMetrics.tabBarHeight)
+    }
+
+    /// 面板高度是内容层加上与菜单栏之间的缝。缝不算进内容层，否则挂帘收起时会
+    /// 先露出一条空缝再露出顶栏。
     func testThePanelHeightAddsTheGapAboveThePlates() {
         for page in Self.allPages {
             XCTAssertEqual(
@@ -62,7 +73,7 @@ final class HubMetricsTests: XCTestCase {
         }
     }
 
-    /// 顶栏板是胶囊：圆角等于高度的一半。
+    /// 顶栏是胶囊：圆角等于高度的一半。
     func testTheTopBarPlateIsACapsule() {
         XCTAssertEqual(HubMetrics.tabBarPlateRadius, HubMetrics.tabBarHeight / 2)
     }

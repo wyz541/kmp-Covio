@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import kmpDomain
 
@@ -219,50 +220,117 @@ struct AgentTabView: View {
     }
 
     private var composer: some View {
-        HStack(spacing: MacTheme.space2) {
-            TextField(
-                ContractCopy.copyAgentPlaceholder.text(for: language),
-                text: $draft,
-                axis: .vertical
-            )
-            .lineLimit(1...3)
-            .textFieldStyle(.plain)
-            .font(.system(size: 12))
-            .focused($inputFocused)
-            .onSubmit(send)
-            .disabled(agent.isBusy || agent.pendingAction != nil)
-            .padding(.horizontal, MacTheme.space3)
-            .frame(minHeight: HubMetrics.agentComposerHeight)
-            .background(
-                MacTheme.elevated,
-                in: RoundedRectangle(cornerRadius: MacTheme.controlRadius, style: .continuous)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: MacTheme.controlRadius, style: .continuous)
-                    .strokeBorder(MacTheme.divider, lineWidth: 1)
-            )
+        VStack(alignment: .leading, spacing: MacTheme.space2) {
+            if !agent.attachments.isEmpty {
+                attachmentStrip
+            }
 
-            if agent.stage == .executing {
-                HStack(spacing: MacTheme.space1) {
-                    ProgressView()
-                        .controlSize(.small)
-                    Text(ContractCopy.copyAgentThinking.text(for: language))
-                        .font(.system(size: 10))
-                        .foregroundStyle(MacTheme.textSecondary)
+            HStack(spacing: MacTheme.space2) {
+                Button(action: chooseAttachments) {
+                    Image(systemName: "paperclip")
+                        .font(.system(size: 12, weight: .medium))
+                        .frame(width: 24, height: 24)
                 }
-            } else if agent.isBusy {
-                Button(ContractCopy.copyAgentStop.text(for: language)) {
-                    agent.stop()
+                .buttonStyle(.plain)
+                .foregroundStyle(MacTheme.textSecondary)
+                .disabled(agent.isBusy || agent.pendingAction != nil)
+                .accessibilityLabel(ContractCopy.copyAgentAttachFiles.text(for: language))
+                .help(ContractCopy.copyAgentAttachFiles.text(for: language))
+
+                TextField(
+                    ContractCopy.copyAgentPlaceholder.text(for: language),
+                    text: $draft,
+                    axis: .vertical
+                )
+                .lineLimit(1...3)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12))
+                .focused($inputFocused)
+                .onSubmit(send)
+                .disabled(agent.isBusy || agent.pendingAction != nil)
+                .padding(.horizontal, MacTheme.space3)
+                .frame(minHeight: HubMetrics.agentComposerHeight)
+                .background(
+                    MacTheme.elevated,
+                    in: RoundedRectangle(cornerRadius: MacTheme.controlRadius, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: MacTheme.controlRadius, style: .continuous)
+                        .strokeBorder(MacTheme.divider, lineWidth: 1)
+                )
+
+                if agent.stage == .executing {
+                    HStack(spacing: MacTheme.space1) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text(ContractCopy.copyAgentThinking.text(for: language))
+                            .font(.system(size: 10))
+                            .foregroundStyle(MacTheme.textSecondary)
+                    }
+                } else if agent.isBusy {
+                    Button(ContractCopy.copyAgentStop.text(for: language)) {
+                        agent.stop()
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityHint(ContractCopy.copyAgentStop.text(for: language))
+                } else {
+                    Button(ContractCopy.copyAgentSend.text(for: language), action: send)
+                        .buttonStyle(.borderedProminent)
+                        .tint(MacTheme.accent)
+                        .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || agent.pendingAction != nil)
                 }
-                .buttonStyle(.bordered)
-                .accessibilityHint(ContractCopy.copyAgentStop.text(for: language))
-            } else {
-                Button(ContractCopy.copyAgentSend.text(for: language), action: send)
-                    .buttonStyle(.borderedProminent)
-                    .tint(MacTheme.accent)
-                    .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || agent.pendingAction != nil)
             }
         }
+    }
+
+    private var attachmentStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: MacTheme.space1) {
+                ForEach(agent.attachments) { file in
+                    HStack(spacing: MacTheme.space1) {
+                        Image(systemName: "doc")
+                            .font(.system(size: 9))
+                        Text(file.displayName)
+                            .font(.system(size: 10, weight: .medium))
+                            .lineLimit(1)
+                        Button {
+                            agent.removeAttachment(file.id)
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 8, weight: .semibold))
+                                .frame(width: 24, height: 24)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(agent.isBusy || agent.pendingAction != nil)
+                        .accessibilityLabel(ContractCopy.copyAgentRemoveAttachment.text(for: language))
+                        .accessibilityValue(file.displayName)
+                    }
+                    .foregroundStyle(MacTheme.textSecondary)
+                    .padding(.horizontal, MacTheme.space2)
+                    .frame(height: 28)
+                    .background(
+                        MacTheme.elevated,
+                        in: Capsule(style: .continuous)
+                    )
+                    .overlay(
+                        Capsule(style: .continuous)
+                            .strokeBorder(MacTheme.divider, lineWidth: 1)
+                    )
+                }
+            }
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    private func chooseAttachments() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = true
+        panel.resolvesAliases = false
+        panel.prompt = ContractCopy.copyAgentAttachFiles.text(for: language)
+        guard panel.runModal() == .OK else { return }
+        agent.attachFiles(panel.urls)
     }
 
     private func send() {
@@ -315,7 +383,7 @@ struct AgentHeadingActions: View {
             }
             .buttonStyle(.plain)
             .font(.system(size: 11, weight: .medium))
-            .disabled(agent.isBusy || agent.messages.isEmpty)
+            .disabled(agent.isBusy || (agent.messages.isEmpty && agent.attachments.isEmpty))
             .accessibilityLabel(ContractCopy.copyAgentClear.text(for: language))
 
             Button {

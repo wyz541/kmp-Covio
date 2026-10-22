@@ -30,6 +30,7 @@ flowchart LR
 | `AgentMCPRouter` | Swift | MCP JSON-RPC 工具发现与调用 |
 | `AgentExternalMCPService` | Swift + Network | loopback HTTP、token 和 session |
 | `AgentAppServices` | Swift | 连接现有 AppRuntime 服务 |
+| `AgentAttachmentStore` | Swift | 保存用户授权文件和安全作用域 |
 | `AgentVisionQAService` | Swift + MLX | 使用共享本地 VLM 回答图片像素问题 |
 | `PaneKind.AGENT` | Kotlin | 导航级工作区种类 |
 
@@ -56,6 +57,7 @@ flowchart LR
 - `macosApp/src/Agent/AgentMCPHTTPServer.swift`
 - `macosApp/src/Agent/AgentExternalMCPService.swift`
 - `macosApp/src/Agent/AgentAppServices.swift`
+- `macosApp/src/Agent/AgentFileInspection.swift`
 - `macosApp/src/Agent/AgentVisionQAService.swift`
 - `macosApp/src/Agent/LocalAgentModel.swift`
 - `macosApp/src/Agent/AgentChatRuntime.swift`
@@ -156,6 +158,17 @@ question -> queue describe_image -> finish response -> release model lease
 视觉回答和 OCR 文本都按文件正文处理。
 持久历史只保存占位文本。
 
+### 附件授权
+
+```text
+file panel -> regular-file check -> security scope -> stable attachment ID
+           -> chat context metadata -> typed file tool
+```
+
+Agent 页面显示附件名称和移除按钮。
+模型提示词只包含稳定文件 ID 和显示名。
+清空会话会撤销全部附件访问。
+
 ## 外部 Agent
 
 ```mermaid
@@ -208,6 +221,8 @@ flowchart LR
 23. 外部服务只监听 `127.0.0.1`。
 24. 外部 token 不写入日志、历史或审计。
 25. 外部 session 断开、删除或超时后必须清理 pending action。
+26. Agent 提示词只包含附件稳定 ID 和显示名，不包含本机路径。
+27. 清空会话必须释放附件安全作用域。
 
 ## 可靠性与失败模式
 
@@ -238,6 +253,8 @@ flowchart LR
 - [x] 清空会话和清空全部历史会删除 SQLite 记录。
 - [x] 图片像素问答由真实本地 VLM 完成，并返回确定性 citation。
 - [x] 图片派生回答在 SQLite 历史中替换为占位文本。
+- [x] Agent 页面可以添加和移除授权附件。
+- [x] 附件可用于检查、视觉问答、命名预览和重命名。
 - [x] Agent 只能打开固定页面。
 - [x] Agent 只能读取和修改 allowlist 设置。
 - [x] 未确认的设置修改不改变配置。

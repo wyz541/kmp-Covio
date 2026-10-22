@@ -297,7 +297,8 @@ final class AppRuntime {
                 }
             ),
             gateway: agentGateway,
-            historyStore: resolvedAgentHistory
+            historyStore: resolvedAgentHistory,
+            attachmentStore: agentAttachments
         )
 
         let engine = Engine(

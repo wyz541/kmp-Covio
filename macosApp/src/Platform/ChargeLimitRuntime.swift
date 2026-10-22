@@ -164,14 +164,6 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
             return .failure(.invalidTarget(userLimitPercent))
         }
         return syncOnQueue {
-            let previous: ChargeLimitRuntimeState?
-            do {
-                previous = try stateStore.load()
-            } catch let failure as ChargeLimitMCLFailure {
-                return .failure(failure)
-            } catch {
-                return .failure(.stateUnreadable)
-            }
             let state = ChargeLimitRuntimeState(
                 userLimitPercent: userLimitPercent,
                 chargingLatch: false,
@@ -189,7 +181,7 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
             case .success:
                 return statusLocked()
             case .failure(let failure):
-                _ = rollbackConfigurationLocked(previous: previous)
+                _ = rollbackConfigurationLocked()
                 return .failure(failure)
             }
         }
@@ -339,22 +331,8 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
         return .success(())
     }
 
-    /// 新设置失败时恢复上一次用户意图。首次启用失败时同时恢复系统原值。
-    private func rollbackConfigurationLocked(
-        previous: ChargeLimitRuntimeState?
-    ) -> ChargeLimitMCLFailure? {
-        if let previous {
-            do {
-                try stateStore.save(previous)
-                startTimerLocked()
-                return nil
-            } catch let failure as ChargeLimitMCLFailure {
-                return failure
-            } catch {
-                return .stateWriteFailed
-            }
-        }
-
+    /// 新设置失败时停止自动重试，并清除用户意图。后端会恢复首次覆盖前的状态。
+    private func rollbackConfigurationLocked() -> ChargeLimitMCLFailure? {
         stopTimerLocked()
         let restored = backend.restore()
         guard case .success = restored else {

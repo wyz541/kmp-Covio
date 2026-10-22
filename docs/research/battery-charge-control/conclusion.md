@@ -9,7 +9,7 @@ macOS 27 的可用方案分为两段：
 | 范围 | 可行路径 | 权限 | 结论 |
 | --- | --- | --- | --- |
 | `80%` 到 `100%` | `PowerUISmartChargeClient` 和原生 MCL | 无 root | 本机通过 `85%` 验证 |
-| `20%` 到 `79%` | root `defaults` 与 `notifyutil` | root helper | 本机通过 `70%` 验证 |
+| `20%` 到 `79%` | root `CFPreferences` 与 Darwin 通知 | root helper | 本机 `70%` 未注册到 powerd；当前 no-go |
 | 旧系统充电键可用 | `CH0B`、`CH0C` | root helper | 条件可做，需单独矩阵 |
 | 无安全写入路径 | 无 | 无 | 不支持 |
 
@@ -20,9 +20,10 @@ macOS 27 的可用方案分为两段：
 真机补充：
 
 1. `PowerUISmartChargeClient.setMCLLimit(75)` 返回 `PowerUISmartChargingErrorDomain Code=4`。
-2. root `defaults write` 写入 `mclLimitValue=70`，再执行 `notifyutil -p com.apple.smartcharging.defaultschanged` 后，`pmset` 显示 `70`。
+2. root 偏好写入 `mclLimitValue=70` 后，早期实验中 `pmset` 曾显示 `70`。
 3. `PowerUI enableMCL`、`disableMCL` 和 `setMCLLimit(85)` 成功后，`pmset` 显示 `85`。
-4. 因此，`80` 到 `100` 使用原生客户端，`20` 到 `79` 使用直接偏好。
+4. `2026-10-22` 复测时，完整偏好写入后 `pmset` 仍保持 `80%`。
+5. 因此，`80` 到 `100` 使用原生客户端。`20` 到 `79` 保持实验状态。
 
 ## 2. 旁路供电
 
@@ -76,10 +77,10 @@ Covio 设置原生 MCL 会改写系统充电上限。
 | --- | --- | --- |
 | 首期是否支持 `20%` 到 `100%` | 条件支持 | 混合路径已在 macOS 27 Apple Silicon 验证 `70%` 与 `85%` |
 | 首期是否使用原生 MCL | 条件采用 | 无 root，旁路可验证，私有接口 |
-| 首期是否支持 `20%` 到 `79%` | 条件支持 | root 直接偏好已在 `70%` 验证 |
+| 首期是否支持 `20%` 到 `79%` | 本机 no-go | `70%` 复测未进入 powerd |
 | 是否写旧 SMC 键 | macOS 27 不写 | 键不存在或 entitlement 阻止 |
 | 是否写新 SMC 键 | 否 | 第三方无 entitlement |
-| 是否写 root 原生偏好 | `20%` 到 `79%` 使用 | 真机 `70%` 已注册到 powerd；仍需扩展矩阵 |
+| 是否写 root 原生偏好 | 仅保留实验路径 | `70%` 未注册到 powerd；失败必须回滚 |
 | 是否把停止充电称为旁路 | 否 | 必须读取旁路证据 |
 | 是否保留 5% 回差承诺 | 否 | 原生接口不提供该参数 |
 | 是否保留用户原策略 | 是 | 避免破坏系统设置 |
@@ -89,7 +90,7 @@ Covio 设置原生 MCL 会改写系统充电上限。
 Feature #137 首期采用混合路径。
 
 1. `80%` 到 `100%` 使用原生 MCL。
-2. `20%` 到 `79%` 使用 root `defaults` 与 `notifyutil`。
+2. `20%` 到 `79%` 保留 root 偏好实验路径，不对外宣称支持。
 3. helper 只接受签名客户端和合法档位。
 4. 写入后必须回读 `PowerUI` 与 `pmset`。
 5. 保存原策略，并允许重复恢复。
@@ -102,8 +103,9 @@ Feature #137 首期采用混合路径。
 
 | 项目 | 现状 | 下一步 |
 | --- | --- | --- |
-| `20%` 到 `79%` | 本机 `70%` 路径通过 | 补完整机型与系统矩阵 |
-| 低档位偏好一致性 | 写入 `MCLFeatureState` 与 `mclLimitValue` 已有单元测试 | 验证 powerd 回读 |
+| `20%` 到 `79%` | 本机 `70%` 未注册到 powerd | 重试或改为限制 `80%` 到 `100%` |
+| 低档位偏好一致性 | 写入 `enabled`、`MCLFeatureState` 与 `mclLimitValue` 已有单元测试 | 验证 powerd 回读 |
+| 低档位失败关闭 | 真机返回错误，状态恢复 disabled，`pmset` 保持 `80%` | 验证 UI 配置同步关闭 |
 | 显式冲突覆盖 | 已有状态机测试 | 验证 UI 重试和 powerd 目标 |
 | Apple 校准周期 | 状态处理和恢复逻辑已有单元测试 | 等真实周期验证 |
 | 5% 回差 | Covio 状态机已实现 | 验证固件恢复充电的时机 |

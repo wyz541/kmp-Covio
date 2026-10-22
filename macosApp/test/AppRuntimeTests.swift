@@ -432,6 +432,32 @@ final class AppRuntimeTests: XCTestCase {
         XCTAssertNotNil(created.statusMessage)
     }
 
+    func testFailedChargeLimitChangeDisablesThePreviousIntent() throws {
+        let created = makeRuntime(engineStarted: true, helperInstalled: true)
+        XCTAssertTrue(created.applyChargeLimit(85))
+        chargeLimitClient.setResult = false
+
+        XCTAssertFalse(created.applyChargeLimit(90))
+
+        XCTAssertFalse(created.config.chargeLimitEnabled)
+        XCTAssertNotNil(created.statusMessage)
+    }
+
+    func testStartupDisablesAnIntentThatTheHelperRejects() throws {
+        let store = ConfigStore.companion.create(path: configFile.path)
+        let draft = ConfigDraft(store.load())
+        draft.chargeLimitEnabled = true
+        draft.chargeLimitPercent = 70
+        store.save(config: draft.build())
+
+        let created = makeRuntime(helperInstalled: true)
+        chargeLimitClient.setResult = false
+        created.start()
+
+        XCTAssertFalse(created.config.chargeLimitEnabled)
+        XCTAssertNotNil(created.statusMessage)
+    }
+
     // MARK: - 清除配置
 
     /// 清除配置会删掉用户全部设置，回到默认值。

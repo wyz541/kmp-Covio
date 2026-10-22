@@ -2,25 +2,30 @@ import CoreGraphics
 import CoreImage
 import Foundation
 import MLXGuidedGeneration
-import MLXHuggingFace
 import MLXLMCommon
-import MLXVLM
-import Tokenizers
 
 /// MLX Swift 运行时。模型只从本地目录加载，不提供下载器。
 actor MLXNamingModel: NamingModelPort {
-    nonisolated let identifier = "mlx-qwen3-vl-2b-4bit"
+    nonisolated let identifier: String
 
     private let configuration: NamingModelConfiguration
-    private var container: ModelContainer?
+    private let containerRuntime: any LocalModelContainerProviding
+    private let ownsContainerRuntime: Bool
     private var grammarTokenizer: GrammarTokenizer?
     private var modelLoadMilliseconds: Double?
     private var preheatMilliseconds: Double?
     private var activeGenerationTask: Task<NamingModelResponse, Error>?
     private var activePreheatTask: Task<NamingModelMetrics, Error>?
 
-    init(configuration: NamingModelConfiguration) {
+    init(
+        configuration: NamingModelConfiguration,
+        containerRuntime: (any LocalModelContainerProviding)? = nil
+    ) {
         self.configuration = configuration
+        self.containerRuntime = containerRuntime
+            ?? LocalModelRuntime(modelDirectory: configuration.modelDirectory)
+        self.ownsContainerRuntime = containerRuntime == nil
+        self.identifier = "mlx-\(configuration.tier.rawValue)-4bit"
     }
 
     func preheat() async throws -> NamingModelMetrics {
@@ -29,20 +34,26 @@ actor MLXNamingModel: NamingModelPort {
         }
         let task = Task { () throws -> NamingModelMetrics in
             let loadStart = DispatchTime.now().uptimeNanoseconds
-            let container = try await self.loadContainerIfNeeded()
-            _ = try await self.ensureGrammarTokenizer(container: container)
-            let loadMilliseconds = self.modelLoadMilliseconds
-                ?? elapsedMilliseconds(since: loadStart)
+            let timings = try await self.withContainer { container in
+                _ = try await self.ensureGrammarTokenizer(container: container)
+                let loadMilliseconds = self.modelLoadMilliseconds
+                    ?? elapsedMilliseconds(since: loadStart)
 
-            let warmRequest = NamingModelRequest(
-                candidateId: "preheat",
-                kind: .text,
-                text: "项目周报：本周完成本地文件命名模型接入和离线校验。",
-                quality: .high
-            )
-            let warmStart = DispatchTime.now().uptimeNanoseconds
-            _ = try await self.performRequest(warmRequest, container: container, isPreheat: true)
-            let warmMilliseconds = elapsedMilliseconds(since: warmStart)
+                let warmRequest = NamingModelRequest(
+                    candidateId: "preheat",
+                    kind: .text,
+                    text: "项目周报：本周完成本地文件命名模型接入和离线校验。",
+                    quality: .high
+                )
+                let warmStart = DispatchTime.now().uptimeNanoseconds
+                _ = try await self.performRequest(
+                    warmRequest,
+                    container: container,
+                    isPreheat: true
+                )
+                return (loadMilliseconds, elapsedMilliseconds(since: warmStart))
+            }
+            let (loadMilliseconds, warmMilliseconds) = timings
             self.modelLoadMilliseconds = loadMilliseconds
             self.preheatMilliseconds = warmMilliseconds
             return NamingModelMetrics(
@@ -77,12 +88,17 @@ actor MLXNamingModel: NamingModelPort {
 
         let task = Task { () throws -> NamingModelResponse in
             let loadStart = DispatchTime.now().uptimeNanoseconds
-            let container = try await self.loadContainerIfNeeded()
-            _ = try await self.ensureGrammarTokenizer(container: container)
-            if self.modelLoadMilliseconds == nil {
-                self.modelLoadMilliseconds = elapsedMilliseconds(since: loadStart)
+            return try await self.withContainer { container in
+                _ = try await self.ensureGrammarTokenizer(container: container)
+                if self.modelLoadMilliseconds == nil {
+                    self.modelLoadMilliseconds = elapsedMilliseconds(since: loadStart)
+                }
+                return try await self.performRequest(
+                    request,
+                    container: container,
+                    isPreheat: false
+                )
             }
-            return try await self.performRequest(request, container: container, isPreheat: false)
         }
         activeGenerationTask = task
         defer { activeGenerationTask = nil }
@@ -110,25 +126,24 @@ actor MLXNamingModel: NamingModelPort {
         activeGenerationTask = nil
         activePreheatTask = nil
         grammarTokenizer = nil
-        container = nil
         modelLoadMilliseconds = nil
         preheatMilliseconds = nil
+        if ownsContainerRuntime {
+            await containerRuntime.unloadModelContainer()
+        }
     }
 
-    private func loadContainerIfNeeded() async throws -> ModelContainer {
-        if let container { return container }
-        try Self.validateModelDirectory(configuration.modelDirectory)
+    private func withContainer<T>(
+        _ operation: (ModelContainer) async throws -> T
+    ) async throws -> T {
+        let lease = try await containerRuntime.acquireModelContainer()
         do {
-            let loaded = try await VLMModelFactory.shared.loadContainer(
-                from: configuration.modelDirectory,
-                using: #huggingFaceTokenizerLoader()
-            )
-            container = loaded
-            return loaded
-        } catch let error as NamingModelError {
-            throw error
+            let result = try await operation(lease.container)
+            await lease.release()
+            return result
         } catch {
-            throw NamingModelError(.modelLoadFailed, detail: error.localizedDescription)
+            await lease.release()
+            throw error
         }
     }
 
@@ -286,29 +301,6 @@ actor MLXNamingModel: NamingModelPort {
         return .ciImage(ciImage)
     }
 
-    private static func validateModelDirectory(_ directory: URL) throws {
-        var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: directory.path, isDirectory: &isDirectory),
-              isDirectory.boolValue
-        else {
-            throw NamingModelError(.modelDirectoryMissing, detail: directory.lastPathComponent)
-        }
-        let required = ["config.json", "tokenizer.json", "tokenizer_config.json"]
-        for name in required {
-            guard FileManager.default.fileExists(
-                atPath: directory.appendingPathComponent(name).path
-            ) else {
-                throw NamingModelError(.modelFilesMissing, detail: name)
-            }
-        }
-        let children = (try? FileManager.default.contentsOfDirectory(
-            at: directory,
-            includingPropertiesForKeys: nil
-        )) ?? []
-        guard children.contains(where: { $0.pathExtension == "safetensors" }) else {
-            throw NamingModelError(.modelFilesMissing, detail: "safetensors")
-        }
-    }
 }
 
 private struct ModelJSON: Decodable {

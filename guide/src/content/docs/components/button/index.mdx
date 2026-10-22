@@ -1,0 +1,93 @@
+---
+title: 按钮
+description: 解释 MacButton 的层级、状态、交互边界和实现位置。
+component:
+  id: button
+  kind: control
+  status: stable
+  definition: 按钮是触发一次明确操作的控件。
+  capabilities:
+    - id: trigger
+      title: 执行一次操作
+      description: 用户按下按钮时，调用方执行一个有明确结果的动作。
+    - id: hierarchy
+      title: 表达操作层级
+      description: 主要、次要和纯文字样式区分操作的优先级。
+    - id: availability
+      title: 表达可用状态
+      description: 调用方通过可用状态和标题表达处理中、成功或失败。
+  states:
+    - 默认
+    - 悬停
+    - 按下
+    - 聚焦
+    - 禁用
+    - 处理中
+    - 成功
+    - 警告
+    - 错误
+  platforms:
+    - macOS 26.0+
+  accessibilityRules:
+    - 按钮标题就是可访问名称，标题要保留动作含义。
+    - 键盘焦点必须可见。系统按钮样式负责焦点环。
+    - 当前最小高度是 22 点。主要操作应在布局允许时使用 44 点目标。
+    - 调用方要向辅助技术暴露处理中、成功、警告和错误状态。
+  implementation:
+    swift:
+      - MacButton
+      - MacButtonKind
+    notes: 调用方设置标题、样式和可用状态。调用方还必须阻止重复提交。
+  related:
+    - alert
+    - dialog
+evidence:
+  - id: "EV-BTN-001"
+    image: "./evidence/2026-10-22__macbook-pro__macos-27.0.1__light__EV-BTN-001.png"
+    alt: "Covio MacButton 在真实 macOS 测试宿主中的主要、次要、纯文字和禁用状态"
+    capturedAt: "2026-10-22"
+    device: "MacBook Pro (MacBookPro18,2, Apple M1 Max, 64 GB)"
+    os: "macOS 27.0.1 (26A434)"
+    appearance: "light"
+    scene: "SwiftUI 测试宿主渲染：主要、次要、纯文字和禁用按钮"
+    sourceCommit: "e3564cb"
+    sourceBranch: "task/project-guide-pilot-214"
+    sha256: "91ea5c7c4584de86b14676f74cfb6546d704178f9efd3a1a42328c52632236fd"
+    status: "real-device"
+---
+
+import ComponentFacts from '../../../../components/guide/ComponentFacts.astro';
+import ComponentRules from '../../../../components/guide/ComponentRules.astro';
+import EvidenceFigure from '../../../../components/guide/EvidenceFigure.astro';
+import Legend from '../../../../components/guide/Legend.astro';
+
+<ComponentFacts />
+
+## 使用边界
+
+按钮只表示一个动作。切换开关、选择选项或打开导航项时，应使用对应控件。
+
+## 三种层级
+
+| 层级 | 用途 | 示例 |
+| --- | --- | --- |
+| 主要 | 页面唯一的主操作 | 保存、继续 |
+| 次要 | 常用但没有最高优先级 | 取消、导出 |
+| 纯文字 | 低频、破坏性或辅助动作 | 清除配置、删除 |
+
+## 异步状态
+
+`MacButton` 只提供标题、样式和可用状态。调用方用标题描述“处理中”“成功”“失败”，并在处理中禁用按钮。
+
+<Legend />
+
+## 真机实例
+
+<EvidenceFigure />
+
+<ComponentRules />
+
+## 已知限制
+
+- 当前 `MacButton` 不画独立加载指示器。处理中状态由标题和禁用状态表达。
+- 设计合同列出成功、警告和错误变体。SwiftUI 实现没有独立枚举，调用方必须保持状态文案可见。

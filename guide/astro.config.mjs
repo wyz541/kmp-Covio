@@ -36,6 +36,9 @@ export default defineConfig({
           label: '组件图鉴',
           items: [
             { label: '组件总览', slug: 'components' },
+            { label: '按钮', slug: 'components/button' },
+            { label: '截图卡片', slug: 'components/screenshot-card' },
+            { label: '菜单栏图标', slug: 'components/tray-icon' },
             { label: '电源管理工作区', slug: 'components/power-management' },
           ],
         },

@@ -14,6 +14,7 @@ const data = Astro.locals.starlightRoute.entry.data as {
     sourceBranch?: string;
     sha256: string;
     status: string;
+    maxWidth?: number;
   }>;
 };
 const evidence = data.evidence ?? [];
@@ -36,6 +37,7 @@ const evidence = data.evidence ?? [];
           widths={[720, 1200, 1800]}
           sizes="(max-width: 60rem) 100vw, 60rem"
           loading="eager"
+          style={item.maxWidth ? `max-width: ${item.maxWidth}px` : undefined}
         />
       </div>
       <figcaption>

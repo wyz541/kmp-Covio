@@ -11,7 +11,7 @@ import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonObject
 
 /** 工作台配置的版本。字段的含义变了就加一。 */
-const val WORKBENCH_SCHEMA_VERSION = 1
+const val WORKBENCH_SCHEMA_VERSION = 2
 
 /** id 与种类名的长度上限。挡住坏文件里的超长字符串。 */
 private const val MAX_ID_LENGTH = 64
@@ -34,8 +34,10 @@ private const val MAX_TITLE_LENGTH = 24
 @Serializable
 enum class PaneKind {
     @SerialName("now") NOW,
+    @SerialName("agent") AGENT,
     @SerialName("clipboard") CLIPBOARD,
     @SerialName("files") FILES,
+    /** v1 的内置截图工作区。schema 2 读取后删除，仅保留反序列化能力。 */
     @SerialName("screenshots") SCREENSHOTS,
     @SerialName("devices") DEVICES,
     @SerialName("settings") SETTINGS,
@@ -45,8 +47,11 @@ enum class PaneKind {
     /** 序列化用的键。也是内置工作区的固定 id。测试盯着它与 `@SerialName` 一致。 */
     val key: String get() = name.lowercase()
 
-    /** 内置工作区不能删除，只能隐藏。见 ADR-0002 决策 6。 */
+    /** 是不是内置或历史内置工作区。历史截图工作区也归入这一组，防止用户重新添加。 */
     val isBuiltin: Boolean get() = this != BOARD
+
+    /** 是否属于 schema 2 的默认内置工作区。截图工作区只用于读取旧配置。 */
+    val isCurrentBuiltin: Boolean get() = isBuiltin && this != SCREENSHOTS
 
     /**
      * 内置工作区的固定 id。
@@ -243,9 +248,10 @@ data class WorkbenchConfig(
      * 2. 内置工作区的 id 改成由种类定。手改过的错位 id 会和补回来的条目撞车。
      * 3. 丢掉占用内置 id 的自建工作区。
      * 4. id 重复时留第一个。
-     * 5. 补回缺失的内置工作区。补在末尾：原位置已经丢了，插在中间会打乱用户排好的顺序。
-     * 6. 工作区超过 [MAX_PANES] 时先丢自建工作区，内置的一个都不丢。
-     * 7. 组件丢掉 id 或种类为空的，id 重复时留第一个，超过 [MAX_WIDGETS] 时留前 24 个。
+     * 5. 删除 schema 1 的历史截图工作区。
+     * 6. 补回缺失的当前内置工作区。补在末尾：原位置已经丢了，插在中间会打乱用户排好的顺序。
+     * 7. 工作区超过 [MAX_PANES] 时先丢自建工作区，内置的一个都不丢。
+     * 8. 组件丢掉 id 或种类为空的，id 重复时留第一个，超过 [MAX_WIDGETS] 时留前 24 个。
      */
     fun normalized(): WorkbenchConfig = copy(
         schemaVersion = WORKBENCH_SCHEMA_VERSION,
@@ -271,13 +277,14 @@ data class WorkbenchConfig(
 }
 
 /**
- * 六个内置工作区，按需求文档第 5 节的顺序。
+ * 六个当前内置工作区，按需求文档第 5 节的顺序。
  *
- * 顺序在所有平台上一致：Now、Clipboard、Files、Screenshots、Devices、Settings。
+ * 顺序在所有平台上一致：Now、Agent、Clipboard、Files、Devices、Settings。
+ * Screenshots 是 schema 1 的历史种类，不再进入默认配置。
  * 用户可以改顺序，默认值只有这一份。
  */
 fun defaultPanes(): List<PaneInstance> = PaneKind.entries
-    .filter { it.isBuiltin }
+    .filter { it.isCurrentBuiltin }
     .map { PaneInstance.builtin(it) }
 
 /**
@@ -303,6 +310,8 @@ private fun normalizedPanes(panes: List<PaneInstance>): List<PaneInstance> {
     val seen = LinkedHashSet<String>()
     val cleaned = panes.asSequence()
         .map(PaneInstance::normalized)
+        // schema 1 的截图工作区由文件区接替。迁移时直接删除，不再补回。
+        .filterNot { it.kind == PaneKind.SCREENSHOTS }
         // 内置工作区的 id 由种类定，不认文件里写的那个。
         // 不这么改的话，手改出来的错位 id 会和补回来的内置工作区撞车。
         .map { if (it.isBuiltin) it.copy(id = it.kind.defaultId) else it }
@@ -314,7 +323,7 @@ private fun normalizedPanes(panes: List<PaneInstance>): List<PaneInstance> {
 
     val present = cleaned.mapTo(HashSet()) { it.kind }
     for (kind in PaneKind.entries) {
-        if (kind.isBuiltin && kind !in present) cleaned += PaneInstance.builtin(kind)
+        if (kind.isCurrentBuiltin && kind !in present) cleaned += PaneInstance.builtin(kind)
     }
 
     val builtins = cleaned.count { it.isBuiltin }

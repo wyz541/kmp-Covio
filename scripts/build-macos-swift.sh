@@ -33,6 +33,8 @@ xcodebuild \
   -scheme "$SCHEME" \
   -configuration "$CONFIGURATION" \
   -derivedDataPath "$DERIVED_DATA" \
+  -skipMacroValidation \
+  -skipPackagePluginValidation \
   build
 
 APP="$DERIVED_DATA/Build/Products/$CONFIGURATION/Covio.app"

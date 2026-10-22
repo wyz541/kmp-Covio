@@ -235,6 +235,11 @@ enum HubMetrics {
         FilesTabView.listHeight + FilesTabView.noticeGap + FilesTabView.noticeHeight
     }
 
+    /// Agent 页的主体高度：对话区、确认卡和输入框。
+    static let agentBodyHeight: CGFloat = 580
+    static let agentTranscriptHeight: CGFloat = 430
+    static let agentComposerHeight: CGFloat = 34
+
     /// 某个页面的主体高度，不含页标题行。
     static func bodyHeight(for page: HubPage) -> CGFloat {
         switch page {
@@ -248,6 +253,7 @@ enum HubMetrics {
             case .screenshots: screenshotsBodyHeight
             case .clipboard: clipboardBodyHeight
             case .files: filesBodyHeight
+            case .agent: agentBodyHeight
             }
         }
     }

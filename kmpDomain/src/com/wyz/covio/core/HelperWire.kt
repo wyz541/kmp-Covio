@@ -34,8 +34,11 @@ object HelperWire {
     const val COMMAND_LID_LEASE_RENEW = "lidLeaseRenew"
     const val COMMAND_LID_LEASE_RELEASE = "lidLeaseRelease"
     const val COMMAND_LID_LEASE_STATUS = "lidLeaseStatus"
+    const val COMMAND_CHARGE_LIMIT_STATUS = "chargeLimitStatus"
+    const val COMMAND_CHARGE_LIMIT_CONFIGURE = "chargeLimitConfigure"
+    const val COMMAND_CHARGE_LIMIT_RESTORE = "chargeLimitRestore"
 
-    const val ERROR_PROTOCOL_V2_REQUIRED = "Protocol version 2 required"
+    const val ERROR_UNSUPPORTED_PROTOCOL = "Unsupported protocol version"
     const val ERROR_EXTERNAL_DISPLAY = "Closed lid lease is blocked while an external display is connected"
     const val ERROR_CANNOT_READ_EXTERNAL_DISPLAY = "Cannot read external display count"
     const val ERROR_EXTERNAL_SLEEP_CONFLICT = "SleepDisabled is owned by an external tool"
@@ -126,12 +129,17 @@ object HelperWire {
         // 旧版只能探测版本。它不能再获得任何写权限。
         val legacyVersionProbe = request.version == "1" && request.command == COMMAND_VERSION
         if (request.version != HELPER_PROTOCOL_VERSION && !legacyVersionProbe) {
-            return ERROR_PROTOCOL_V2_REQUIRED
+            return ERROR_UNSUPPORTED_PROTOCOL
         }
         if (request.requestId.isBlank()) return "Missing requestId"
         if (request.command !in HELPER_ALLOWED_COMMANDS) return "Command is not allowed"
 
         when (request.command) {
+            COMMAND_SET_DISABLE_SLEEP -> {
+                val value = request.payload["disabled"] ?: return "Missing disabled value"
+                if (value != "true" && value != "false") return "Invalid disabled value"
+            }
+
             COMMAND_SET_HIBERNATE_MODE -> {
                 val mode = request.payload["mode"]?.toIntOrNull() ?: return "Missing hibernate mode"
                 if (mode !in SUPPORTED_HIBERNATE_MODES) return "Invalid hibernate mode"
@@ -154,8 +162,17 @@ object HelperWire {
                 }
             }
         }
+        if (request.command == COMMAND_CHARGE_LIMIT_CONFIGURE) {
+            val percent = request.payload["percent"]?.toIntOrNull() ?: return "Missing charge limit"
+            if (!ChargeLimitPolicy.isValidUpperLimit(percent)) return "Invalid charge limit"
+        }
         return null
     }
+
+    /** 充电控制命令需要调用方代码签名，不能只靠已安装用户的 uid。 */
+    fun isChargeLimitCommand(command: String): Boolean = command == COMMAND_CHARGE_LIMIT_STATUS ||
+        command == COMMAND_CHARGE_LIMIT_CONFIGURE ||
+        command == COMMAND_CHARGE_LIMIT_RESTORE
 
     // MARK: pmset 调用
 
@@ -166,6 +183,12 @@ object HelperWire {
      * 白名单外的命令在 [validate] 就已被拒绝。
      */
     fun pmsetArguments(request: HelperRequest): List<String>? = when (request.command) {
+        COMMAND_SET_DISABLE_SLEEP -> listOf(
+            "-a",
+            "disablesleep",
+            if (request.payload["disabled"] == "true") "1" else "0",
+        )
+
         COMMAND_SET_HIBERNATE_MODE -> request.payload["mode"]
             ?.toIntOrNull()
             ?.let { listOf("-a", "hibernatemode", it.toString()) }

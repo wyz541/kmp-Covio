@@ -24,9 +24,11 @@ object HelperInstallScript {
         executablePath: String,
         uid: String,
         version: String = APP_VERSION,
+        clientRequirement: String? = null,
     ): String = buildString {
         val directory = shellEscaped(HELPER_DIRECTORY)
         val allowedUid = shellEscaped(HELPER_ALLOWED_UID_PATH)
+        val requirementPath = shellEscaped(HELPER_CLIENT_REQUIREMENT_PATH)
         val versionPath = shellEscaped(HELPER_VERSION_PATH)
         val appPath = shellEscaped(HELPER_APP_PATH_FILE)
         val plistPath = shellEscaped(HELPER_PLIST_PATH)
@@ -39,6 +41,13 @@ object HelperInstallScript {
         append("printf '%s\\n' '${shellEscaped(executablePath)}' > '$appPath'\n")
         append("chown root:wheel '$allowedUid' '$versionPath' '$appPath'\n")
         append("chmod 0644 '$allowedUid' '$versionPath' '$appPath'\n")
+        if (clientRequirement.isNullOrBlank()) {
+            append("rm -f '$requirementPath'\n")
+        } else {
+            append("printf '%s\\n' '${shellEscaped(clientRequirement)}' > '$requirementPath'\n")
+            append("chown root:wheel '$requirementPath'\n")
+            append("chmod 0644 '$requirementPath'\n")
+        }
         append("cat > '$plistPath' <<'PLIST'\n")
         append(plistText(executablePath)).append('\n')
         append("PLIST\n")

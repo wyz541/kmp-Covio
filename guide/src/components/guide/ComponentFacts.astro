@@ -1,0 +1,73 @@
+---
+const data = Astro.locals.starlightRoute.entry.data as {
+  component?: {
+    id: string;
+    kind: string;
+    status: string;
+    definition: string;
+    capabilities: Array<{ id: string; title: string; description: string }>;
+    states: string[];
+    platforms: string[];
+  };
+};
+
+const component = data.component;
+const kindLabels: Record<string, string> = {
+  shell: '外壳',
+  surface: '界面区域',
+  navigation: '导航',
+  control: '操作控件',
+  container: '容器',
+  feedback: '反馈',
+  indicator: '状态指示',
+  menu: '菜单',
+  content: '内容',
+  decoration: '装饰',
+};
+const statusLabels: Record<string, string> = {
+  draft: '草稿',
+  preview: '预览',
+  stable: '稳定',
+  deprecated: '已弃用',
+};
+---
+
+{component && (
+  <section class="component-facts" aria-labelledby="component-definition">
+    <div class="component-facts__meta">
+      <div><span>组件 ID</span><strong>{component.id}</strong></div>
+      <div><span>类型</span><strong>{kindLabels[component.kind] ?? component.kind}</strong></div>
+      <div><span>状态</span><strong>{statusLabels[component.status] ?? component.status}</strong></div>
+      <div><span>平台</span><strong>{component.platforms.join('、')}</strong></div>
+    </div>
+
+    <div class="component-facts__definition">
+      <p class="guide-eyebrow">定义</p>
+      <h2 id="component-definition">{component.definition}</h2>
+    </div>
+
+    <div class="component-facts__section">
+      <div>
+        <p class="guide-eyebrow">功能</p>
+        <h2>这个区域能做什么</h2>
+      </div>
+      <div class="component-facts__capabilities">
+        {component.capabilities.map((capability, index) => (
+          <article>
+            <span aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+            <h3>{capability.title}</h3>
+            <p>{capability.description}</p>
+          </article>
+        ))}
+      </div>
+    </div>
+
+    <div class="component-facts__states">
+      <p class="guide-eyebrow">状态</p>
+      <h2>阅读时留意这些变化</h2>
+      <ul>
+        {component.states.map((state) => <li>{state}</li>)}
+      </ul>
+    </div>
+  </section>
+)}

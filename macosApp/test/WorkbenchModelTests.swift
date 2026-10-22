@@ -32,7 +32,7 @@ final class WorkbenchModelTests: XCTestCase {
         XCTAssertEqual(model.panes.count, 6)
         XCTAssertEqual(
             model.panes.map(\.tab),
-            [.now, .clipboard, .files, .screenshots, .devices, .settings]
+            [.now, .agent, .clipboard, .files, .devices, .settings]
         )
         for pane in model.panes {
             XCTAssertFalse(pane.title.isEmpty, "\(pane.id) 没有标题")
@@ -310,7 +310,7 @@ final class WorkbenchModelTests: XCTestCase {
     /// 冷却里连着进入两个页签，只换到最后停住的那一个。
     func testHoveringASecondTabRearmsTheSwitch() async {
         let model = model()
-        let third = HubDestination.pane(id: PaneKind.screenshots.defaultId)
+        let third = HubDestination.pane(id: PaneKind.devices.defaultId)
 
         model.pointerEntered(.pane(id: PaneKind.clipboard.defaultId))
         model.pointerEntered(.pane(id: PaneKind.files.defaultId))
@@ -324,11 +324,11 @@ final class WorkbenchModelTests: XCTestCase {
     func testClickingCancelsTheDeferredSwitch() async {
         let model = model()
         let deferred = HubDestination.pane(id: PaneKind.files.defaultId)
-        let clicked = HubDestination.pane(id: PaneKind.screenshots.defaultId)
+        let clicked = HubDestination.pane(id: PaneKind.devices.defaultId)
 
         model.pointerEntered(.pane(id: PaneKind.clipboard.defaultId))
         model.pointerEntered(deferred)
-        model.select(paneID: PaneKind.screenshots.defaultId)
+        model.select(paneID: PaneKind.devices.defaultId)
 
         XCTAssertEqual(model.destination, clicked)
         XCTAssertNil(model.pendingDestination, "点选应该把排着的那一次清掉")

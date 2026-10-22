@@ -9,7 +9,7 @@ import kmpDomain
 /// 对外语义一致：超时或失败返回 nil，不抛异常。
 ///
 /// 线上格式与校验在共享层的 `HelperWire`，两端的客户端发同样的字节。
-final class HelperClient {
+final class HelperClient: @unchecked Sendable {
     /// helper 的 socket 路径。`PrivilegedOps` 用它判断「装没装」，
     /// 测试也用它指向一个临时的假 helper。
     let socketPath: String
@@ -83,6 +83,10 @@ final class HelperClient {
         request(command: "setHibernateMode", payload: ["mode": String(mode)])?.ok == true
     }
 
+    func setDisableSleep(disabled: Bool) -> Bool {
+        request(command: "setDisableSleep", payload: ["disabled": disabled ? "true" : "false"])?.ok == true
+    }
+
     private func leaseRequest(
         command: String,
         leaseId: String,
@@ -140,6 +144,37 @@ final class HelperClient {
         }
     }
 
+    func chargeLimitStatus() -> ChargeLimitHelperStatus? {
+        guard let reply = request(command: "chargeLimitStatus"), reply.ok,
+              let enabled = reply.result?["enabled"].flatMap(Bool.init)
+        else {
+            return nil
+        }
+        return ChargeLimitHelperStatus(
+            enabled: enabled,
+            userLimitPercent: reply.result?["userLimitPercent"].flatMap(Int.init),
+            targetPercent: reply.result?["targetPercent"].flatMap(Int.init),
+            chargingLatch: reply.result?["chargingLatch"].flatMap(Bool.init) ?? false,
+            phase: reply.result?["phase"] ?? "unknown",
+            bypassEngaged: reply.result?["bypassEngaged"].flatMap(Bool.init) ?? false,
+            originalFeatureState: reply.result?["originalFeatureState"].flatMap(Int.init),
+            originalLimitPercent: reply.result?["originalLimitPercent"].flatMap(Int.init),
+            originalOptimizedChargingEnabled: reply.result?["originalOptimizedChargingEnabled"]
+                .flatMap(Bool.init)
+        )
+    }
+
+    func setChargeLimit(percent: Int) -> Bool {
+        request(
+            command: "chargeLimitConfigure",
+            payload: ["percent": String(percent)]
+        )?.ok == true
+    }
+
+    func restoreChargeLimit() -> Bool {
+        request(command: "chargeLimitRestore")?.ok == true
+    }
+
     // MARK: - 私有
 
     private func transact(_ line: String) -> HelperReply? {
@@ -186,6 +221,28 @@ final class HelperClient {
 struct HelperVersionInfo {
     let version: String
     let protocolVersion: String?
+}
+
+/// 充电上限 helper 客户端端口。测试替换这个端口，避免连接真实 helper。
+protocol ChargeLimitClientProtocol: Sendable {
+    func chargeLimitStatus() -> ChargeLimitHelperStatus?
+    func setChargeLimit(percent: Int) -> Bool
+    func restoreChargeLimit() -> Bool
+}
+
+extension HelperClient: ChargeLimitClientProtocol {}
+
+/// `HelperClient.chargeLimitStatus()` 解析后的结果。
+struct ChargeLimitHelperStatus: Equatable, Sendable {
+    let enabled: Bool
+    let userLimitPercent: Int?
+    let targetPercent: Int?
+    let chargingLatch: Bool
+    let phase: String
+    let bypassEngaged: Bool
+    let originalFeatureState: Int?
+    let originalLimitPercent: Int?
+    let originalOptimizedChargingEnabled: Bool?
 }
 
 /// `sockaddr_un` 的构造与长度计算集中在这里，调用方不用碰 C 指针。

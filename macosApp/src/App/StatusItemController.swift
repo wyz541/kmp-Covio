@@ -109,9 +109,9 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     // MARK: - 菜单动作
 
-    /// 打开截图工作区。
+    /// 打开文件工作区。截图筛选由文件页处理。
     @objc private func showShelf() {
-        shell.workbench.destination = .pane(id: PaneKind.screenshots.defaultId)
+        shell.workbench.destination = .pane(id: PaneKind.files.defaultId)
         shell.show()
     }
 

@@ -1,0 +1,23 @@
+{
+  "name": "covio-project-guide",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "astro dev",
+    "check:model": "node scripts/test-guide-model.mjs && node scripts/validate-guide.mjs",
+    "check:contract": "node scripts/validate-guide.mjs",
+    "check:contract:complete": "node scripts/validate-guide.mjs --require-complete",
+    "build": "npm run check:model && astro build",
+    "preview": "astro preview",
+    "evidence:capture": "node scripts/capture-evidence.mjs"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "0.42.6",
+    "astro": "7.4.1",
+    "sharp": "0.35.3"
+  },
+  "devDependencies": {
+    "gray-matter": "^4.0.3"
+  }
+}

@@ -111,6 +111,38 @@ final class HelperStatusTests: XCTestCase {
     func testLidLeaseFailsWithoutAHelper() {
         XCTAssertFalse(ops().setDisableSleep(disabled: true))
     }
+
+    func testChargeLimitStatusParsesTheHelperReply() throws {
+        let helper = try FakeHelper(socketPath: socketPath, version: ModelsKt.APP_VERSION)
+        defer { helper.stop() }
+
+        let client = HelperClient(socketPath: socketPath, timeoutMillis: 1_000)
+        let status = try XCTUnwrap(client.chargeLimitStatus())
+
+        XCTAssertTrue(status.enabled)
+        XCTAssertEqual(status.userLimitPercent, 85)
+        XCTAssertEqual(status.targetPercent, 85)
+        XCTAssertTrue(status.chargingLatch)
+        XCTAssertEqual(status.phase, "charging")
+        XCTAssertFalse(status.bypassEngaged)
+        XCTAssertEqual(status.originalFeatureState, 0)
+        XCTAssertEqual(status.originalLimitPercent, 80)
+        XCTAssertEqual(helper.commands.last, "chargeLimitStatus")
+    }
+
+    func testChargeLimitCommandsUseTheWireCommandNames() throws {
+        let helper = try FakeHelper(socketPath: socketPath, version: ModelsKt.APP_VERSION)
+        defer { helper.stop() }
+
+        let client = HelperClient(socketPath: socketPath, timeoutMillis: 1_000)
+        XCTAssertTrue(client.setChargeLimit(percent: 85))
+        XCTAssertTrue(client.restoreChargeLimit())
+
+        XCTAssertEqual(
+            Array(helper.commands.suffix(2)),
+            ["chargeLimitConfigure", "chargeLimitRestore"]
+        )
+    }
 }
 
 /// 只在测试里存在的假 helper。
@@ -213,6 +245,20 @@ private final class FakeHelper {
                     covioOwned: KotlinBoolean(bool: false),
                     activeLeaseCount: 0,
                     expiresAtEpochSeconds: nil
+                )
+            } else if request.command == HelperWire.shared.COMMAND_CHARGE_LIMIT_STATUS {
+                reply = HelperWire.shared.success(
+                    requestId: request.requestId,
+                    result: [
+                        "enabled": "true",
+                        "userLimitPercent": "85",
+                        "targetPercent": "85",
+                        "chargingLatch": "true",
+                        "phase": "charging",
+                        "bypassEngaged": "false",
+                        "originalFeatureState": "0",
+                        "originalLimitPercent": "80",
+                    ]
                 )
             } else {
                 reply = HelperWire.shared.success(requestId: request.requestId, result: [:])

@@ -260,6 +260,7 @@ final class HelperContractMirrorTests: XCTestCase {
         XCTAssertEqual(HelperProtocol.helperDirectory, HelperContractKt.HELPER_DIRECTORY)
         XCTAssertEqual(HelperProtocol.versionPath, HelperContractKt.HELPER_VERSION_PATH)
         XCTAssertEqual(HelperProtocol.allowedUidPath, HelperContractKt.HELPER_ALLOWED_UID_PATH)
+        XCTAssertEqual(HelperProtocol.clientRequirementPath, HelperContractKt.HELPER_CLIENT_REQUIREMENT_PATH)
         XCTAssertEqual(HelperProtocol.plistPath, HelperContractKt.HELPER_PLIST_PATH)
         XCTAssertEqual(HelperProtocol.logPath, HelperContractKt.HELPER_LOG_PATH)
         XCTAssertEqual(HelperProtocol.appPathFile, HelperContractKt.HELPER_APP_PATH_FILE)

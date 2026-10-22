@@ -1,0 +1,9 @@
+{
+  "components": [
+    {
+      "id": "power-management",
+      "status": "preview",
+      "reason": "High-level power management surface used to validate the evidence pipeline."
+    }
+  ]
+}

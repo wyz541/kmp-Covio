@@ -4,15 +4,55 @@ import kmpDomain
 /// 特权 helper 的服务端。以 `Covio --helper` 启动，由 LaunchDaemon 以 root 运行。
 ///
 /// 对应 Compose 版的 `app/src/com/wyz/covio/app/helper/HelperServer.kt`。
-/// 请求来自本机 Unix 域套接字。每个连接先校验 uid，再校验命令白名单，
-/// 最后只调用 `/usr/bin/pmset`。这里是唯一以 root 执行命令的地方。
-///
-/// 两条命令都只跑 `pmset`，参数由共享层的 `HelperWire` 给出。
+/// 请求来自本机 Unix 域套接字。每个连接先校验 uid，再校验命令白名单。
+/// 充电命令还要校验调用方代码签名。
+/// 现有设置命令交给 `/usr/bin/pmset`，充电命令交给 MCL 后端。
 /// 套接字是 OS 调用，所以这一层在两端各有一份，这是规范允许的重复。
 enum HelperServer {
+    private static let peerAuthorizer: HelperPeerAuthorizing = CodeSignaturePeerAuthorizer()
+    private static let chargeLimitRuntime = ChargeLimitRuntimeController(
+        backend: ChargeLimitMCLController(
+            stateStore: ChargeLimitStateStore(
+                url: URL(fileURLWithPath: HelperProtocol.helperDirectory)
+                    .appendingPathComponent("charge-limit")
+                    .appendingPathComponent("state.json")
+            )
+        ),
+        powerReader: MacChargeLimitPowerReader(),
+        stateStore: ChargeLimitRuntimeStateStore(
+            url: URL(fileURLWithPath: HelperProtocol.helperDirectory)
+                .appendingPathComponent("charge-limit")
+                .appendingPathComponent("runtime.json")
+        )
+    )
+    private static let chargeLimitHandler = ChargeLimitHelperCommandHandler(
+        runtime: chargeLimitRuntime
+    )
+
     /// 阻塞运行，直到进程被信号终止。返回进程退出码。
     static func run() -> Int32 {
         let log = HelperLog()
+        if case .failure(let failure) = chargeLimitRuntime.resumeOnStartup() {
+            log.error("Charge limit runtime failed to resume: \(failure)")
+        }
+        var terminationSources: [DispatchSourceSignal] = []
+        for number in [SIGTERM, SIGINT] {
+            signal(number, SIG_IGN)
+            let source = DispatchSource.makeSignalSource(signal: number, queue: .global())
+            source.setEventHandler {
+                let restored: Bool
+                if case .success = chargeLimitRuntime.restore() {
+                    restored = true
+                } else {
+                    restored = false
+                    log.error("Charge limit restore failed during helper termination")
+                }
+                exit(restored ? 0 : 1)
+            }
+            source.resume()
+            terminationSources.append(source)
+        }
+        defer { terminationSources.forEach { $0.cancel() } }
         do {
             try serve(log: log)
             return 0
@@ -105,6 +145,24 @@ enum HelperServer {
                     to: client
                 )
                 return
+            }
+
+            if HelperWire.shared.isChargeLimitCommand(command: request.command) {
+                guard peerAuthorizer.isAuthorized(descriptor: client) else {
+                    log.info("Rejected charge command from an unsigned client")
+                    write(
+                        reply: HelperWire.shared.failure(
+                            requestId: request.requestId,
+                            message: "Peer signature is not allowed"
+                        ),
+                        to: client
+                    )
+                    return
+                }
+                if let reply = chargeLimitHandler.handle(request) {
+                    write(reply: reply, to: client)
+                    return
+                }
             }
 
             let reply: HelperReply

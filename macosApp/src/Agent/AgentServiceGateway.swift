@@ -105,13 +105,15 @@ actor AgentServiceGateway {
             ).jsonString()
         }
 
+        let started = ContinuousClock.now
         let result = await executeWithTimeout(name: name, arguments: call.function.arguments)
         record(
             name: name,
             risk: descriptor.risk,
             status: result.ok ? .completed : .failed,
             detail: result.ok ? "Completed" : result.summary,
-            errorCode: result.errorCode
+            errorCode: result.errorCode,
+            durationMilliseconds: Self.milliseconds(since: started)
         )
         return result.jsonString()
     }
@@ -132,6 +134,7 @@ actor AgentServiceGateway {
             return .failure("Deferred action was not found.", code: .executionFailed)
         }
         activeDeferred = nil
+        let started = ContinuousClock.now
         let result = await executeWithTimeout(
             name: call.action.toolName,
             arguments: call.arguments
@@ -141,7 +144,8 @@ actor AgentServiceGateway {
             risk: .readOnly,
             status: result.ok ? .completed : .failed,
             detail: result.ok ? "Deferred action completed" : result.summary,
-            errorCode: result.errorCode
+            errorCode: result.errorCode,
+            durationMilliseconds: Self.milliseconds(since: started)
         )
         return result
     }
@@ -151,6 +155,7 @@ actor AgentServiceGateway {
             return .failure("There is no pending local action.", code: .executionFailed)
         }
         self.pending = nil
+        let started = ContinuousClock.now
         let result = await executeWithTimeout(
             name: pending.action.toolName,
             arguments: pending.arguments
@@ -160,7 +165,8 @@ actor AgentServiceGateway {
             risk: .sideEffect,
             status: result.ok ? .completed : .failed,
             detail: result.ok ? "Confirmed and completed" : result.summary,
-            errorCode: result.errorCode
+            errorCode: result.errorCode,
+            durationMilliseconds: Self.milliseconds(since: started)
         )
         return result
     }
@@ -176,7 +182,7 @@ actor AgentServiceGateway {
         )
     }
 
-    func recentAudits(limit: Int = 8) -> [AgentToolAudit] {
+    func recentAudits(limit: Int = 40) -> [AgentToolAudit] {
         Array(audits.suffix(max(0, limit)))
     }
 
@@ -433,7 +439,8 @@ actor AgentServiceGateway {
         risk: AgentToolRisk,
         status: AgentToolAuditStatus,
         detail: String,
-        errorCode: AgentServiceErrorCode? = nil
+        errorCode: AgentServiceErrorCode? = nil,
+        durationMilliseconds: Int? = nil
     ) {
         audits.append(
             AgentToolAudit(
@@ -442,12 +449,20 @@ actor AgentServiceGateway {
                 risk: risk,
                 status: status,
                 detail: detail,
-                errorCode: errorCode
+                errorCode: errorCode,
+                durationMilliseconds: durationMilliseconds
             )
         )
         if audits.count > maxAuditEntries {
             audits.removeFirst(audits.count - maxAuditEntries)
         }
+    }
+
+    private static func milliseconds(since start: ContinuousClock.Instant) -> Int {
+        let components = start.duration(to: .now).components
+        let milliseconds = components.seconds * 1_000
+            + components.attoseconds / 1_000_000_000_000_000
+        return Int(max(0, milliseconds))
     }
 }
 

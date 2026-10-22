@@ -11,11 +11,18 @@ struct AgentChatMessage: Sendable, Equatable, Identifiable {
     let id: UUID
     let role: AgentChatRole
     var text: String
+    let createdAtEpochMilliseconds: Int64
 
-    init(id: UUID = UUID(), role: AgentChatRole, text: String) {
+    init(
+        id: UUID = UUID(),
+        role: AgentChatRole,
+        text: String,
+        createdAtEpochMilliseconds: Int64 = AgentEventClock.nowMilliseconds()
+    ) {
         self.id = id
         self.role = role
         self.text = text
+        self.createdAtEpochMilliseconds = createdAtEpochMilliseconds
     }
 }
 
@@ -37,18 +44,33 @@ final class AgentChatRuntime {
     private(set) var errorText: String?
     var language: AppLanguage = CopyLocale.language
 
+    private static let fileDerivedHistoryPlaceholder =
+        "[File-derived response omitted from local history.]"
+    private static let sensitiveFileTools: Set<String> = [
+        "inspect_file",
+        "search_file_content",
+    ]
     private let model: any AgentModelServing
     private let gateway: AgentServiceGateway
+    private let historyStore: (any AgentHistoryStoring)?
     private var generationTask: Task<Void, Never>?
     private var executionTask: Task<Void, Never>?
+    private var historyWriteTask: Task<Void, Never>?
     private var generationID = UUID()
+    private var sessionID: UUID?
+    private var sessionStartedAt = AgentEventClock.nowMilliseconds()
+    private var restoredAudits: [AgentToolAudit] = []
+    private var historyContainsFileContent = false
+    private var didRestoreHistory = false
 
     init(
         model: any AgentModelServing,
-        gateway: AgentServiceGateway
+        gateway: AgentServiceGateway,
+        historyStore: (any AgentHistoryStoring)? = nil
     ) {
         self.model = model
         self.gateway = gateway
+        self.historyStore = historyStore
     }
 
     var isBusy: Bool {
@@ -59,12 +81,15 @@ final class AgentChatRuntime {
         let prompt = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !prompt.isEmpty, !isBusy, pendingAction == nil else { return }
         errorText = nil
+        startSessionIfNeeded()
+        let auditsBeforeTurn = Set(toolAudits.map(\.id))
         messages.append(AgentChatMessage(role: .user, text: prompt))
         let assistantID = UUID()
         messages.append(AgentChatMessage(id: assistantID, role: .assistant, text: ""))
         stage = .thinking
         let generationID = UUID()
         self.generationID = generationID
+        persistHistory()
 
         generationTask = Task { [weak self] in
             guard let self else { return }
@@ -75,9 +100,10 @@ final class AgentChatRuntime {
                     }
                 }
                 guard self.generationID == generationID, !Task.isCancelled else { return }
-                await self.runDeferredActions()
+                await self.runDeferredActions(auditsBeforeTurn: auditsBeforeTurn)
                 guard self.generationID == generationID, !Task.isCancelled else { return }
                 await self.refreshToolState()
+                self.markFileDerivedHistory(after: auditsBeforeTurn)
                 if self.pendingAction != nil {
                     self.stage = .awaitingConfirmation
                 } else {
@@ -88,6 +114,7 @@ final class AgentChatRuntime {
                 {
                     self.messages[index].text = ContractCopy.copyAgentEmptyResponse.text(for: self.language)
                 }
+                self.persistHistory()
             } catch is CancellationError {
                 self.finishStopped(assistantID: assistantID, generationID: generationID)
             } catch {
@@ -99,6 +126,9 @@ final class AgentChatRuntime {
                 {
                     self.messages[index].text = self.errorText ?? ""
                 }
+                await self.refreshToolState()
+                self.markFileDerivedHistory(after: auditsBeforeTurn)
+                self.persistHistory()
             }
             self.generationTask = nil
         }
@@ -115,6 +145,7 @@ final class AgentChatRuntime {
         {
             messages[last].text = ContractCopy.copyAgentStopped.text(for: language)
         }
+        persistHistory()
     }
 
     func confirmPendingAction() {
@@ -123,6 +154,7 @@ final class AgentChatRuntime {
         stage = .executing
         let actionID = pendingAction.id
         let toolName = pendingAction.toolName
+        let auditsBeforeAction = Set(toolAudits.map(\.id))
         executionTask = Task {
             let result = await gateway.confirmPending()
             guard self.pendingAction?.id == actionID else {
@@ -135,6 +167,7 @@ final class AgentChatRuntime {
                 : ContractCopy.copyAgentActionFailed.text(for: self.language)
             self.messages.append(AgentChatMessage(role: .service, text: message))
             await self.refreshToolState()
+            self.markFileDerivedHistory(after: auditsBeforeAction)
 
             let assistantID = UUID()
             self.messages.append(AgentChatMessage(id: assistantID, role: .assistant, text: ""))
@@ -162,6 +195,7 @@ final class AgentChatRuntime {
             }
             self.executionTask = nil
             self.stage = .idle
+            self.persistHistory()
         }
     }
 
@@ -178,21 +212,129 @@ final class AgentChatRuntime {
             )
             await self.refreshToolState()
             self.stage = .idle
+            self.persistHistory()
         }
     }
 
     func clear() {
         guard !isBusy else { return }
+        let previousSessionID = sessionID
         stop()
+        resetConversationState()
+        let previousWrite = historyWriteTask
+        historyWriteTask = Task {
+            await previousWrite?.value
+            await self.gateway.reset()
+            await self.model.reset()
+            if let previousSessionID, let historyStore = self.historyStore {
+                try? await historyStore.deleteSession(id: previousSessionID)
+            }
+        }
+    }
+
+    func clearAllHistory() {
+        guard !isBusy else { return }
+        stop()
+        resetConversationState()
+        let previousWrite = historyWriteTask
+        historyWriteTask = Task {
+            await previousWrite?.value
+            await self.gateway.reset()
+            await self.model.reset()
+            if let historyStore = self.historyStore {
+                try? await historyStore.deleteAllSessions()
+            }
+        }
+    }
+
+    func restoreHistory() async {
+        guard !didRestoreHistory else { return }
+        didRestoreHistory = true
+        guard let historyStore else { return }
+        do {
+            let restored = try await historyStore.loadLatestSession()
+            guard messages.isEmpty, sessionID == nil, let restored else { return }
+            sessionID = restored.id
+            sessionStartedAt = restored.startedAtEpochMilliseconds
+            messages = restored.messages
+            restoredAudits = restored.audits
+            toolAudits = restored.audits
+        } catch {
+            errorText = ContractCopy.copyAgentError.text(for: language)
+        }
+    }
+
+    func flushHistory() async {
+        await historyWriteTask?.value
+    }
+
+    private func resetConversationState() {
+        sessionID = nil
+        sessionStartedAt = AgentEventClock.nowMilliseconds()
         messages = []
         pendingAction = nil
         executionTask = nil
         toolAudits = []
+        restoredAudits = []
+        historyContainsFileContent = false
         errorText = nil
         stage = .idle
-        Task {
-            await gateway.reset()
-            await model.reset()
+    }
+
+    private func startSessionIfNeeded() {
+        guard sessionID == nil else { return }
+        sessionID = UUID()
+        sessionStartedAt = AgentEventClock.nowMilliseconds()
+        historyContainsFileContent = false
+    }
+
+    private func persistHistory() {
+        guard let historyStore, let record = historyRecord() else { return }
+        let previousWrite = historyWriteTask
+        historyWriteTask = Task {
+            await previousWrite?.value
+            try? await historyStore.saveSession(record)
+        }
+    }
+
+    private func historyRecord() -> AgentHistorySession? {
+        guard let sessionID else { return nil }
+        let normalizedTitle = messages
+            .first(where: { $0.role == .user })?
+            .text
+            .split(whereSeparator: \.isWhitespace)
+            .joined(separator: " ") ?? ""
+        let title = normalizedTitle.isEmpty
+            ? "New conversation"
+            : String(normalizedTitle.prefix(80))
+        let persistedMessages = messages.compactMap { message -> AgentChatMessage? in
+            if message.role == .assistant, message.text.isEmpty { return nil }
+            guard message.role == .assistant, historyContainsFileContent else {
+                return message
+            }
+            return AgentChatMessage(
+                id: message.id,
+                role: message.role,
+                text: Self.fileDerivedHistoryPlaceholder,
+                createdAtEpochMilliseconds: message.createdAtEpochMilliseconds
+            )
+        }
+        return AgentHistorySession(
+            id: sessionID,
+            title: title,
+            startedAtEpochMilliseconds: sessionStartedAt,
+            updatedAtEpochMilliseconds: AgentEventClock.nowMilliseconds(),
+            messages: persistedMessages,
+            audits: toolAudits
+        )
+    }
+
+    private func markFileDerivedHistory(after previousAuditIDs: Set<String>) {
+        if toolAudits.contains(where: {
+            !previousAuditIDs.contains($0.id)
+                && Self.sensitiveFileTools.contains($0.toolName)
+        }) {
+            historyContainsFileContent = true
         }
     }
 
@@ -211,14 +353,29 @@ final class AgentChatRuntime {
         {
             messages[index].text = ContractCopy.copyAgentStopped.text(for: language)
         }
+        persistHistory()
     }
 
     private func refreshToolState() async {
         pendingAction = await gateway.pendingAction()
-        toolAudits = await gateway.recentAudits()
+        let liveAudits = await gateway.recentAudits()
+        var auditsByID: [String: AgentToolAudit] = [:]
+        for audit in restoredAudits + liveAudits {
+            auditsByID[audit.id] = audit
+        }
+        toolAudits = Array(
+            auditsByID.values
+                .sorted {
+                    if $0.createdAtEpochMilliseconds == $1.createdAtEpochMilliseconds {
+                        return $0.id < $1.id
+                    }
+                    return $0.createdAtEpochMilliseconds < $1.createdAtEpochMilliseconds
+                }
+                .suffix(40)
+        )
     }
 
-    private func runDeferredActions() async {
+    private func runDeferredActions(auditsBeforeTurn: Set<String>) async {
         while let action = await gateway.takeDeferredAction() {
             guard !Task.isCancelled else { return }
             stage = .executing
@@ -227,6 +384,8 @@ final class AgentChatRuntime {
                 AgentChatMessage(role: .service, text: result.summary)
             )
             await refreshToolState()
+            markFileDerivedHistory(after: auditsBeforeTurn)
+            persistHistory()
 
             let assistantID = UUID()
             messages.append(AgentChatMessage(id: assistantID, role: .assistant, text: ""))
@@ -252,6 +411,7 @@ final class AgentChatRuntime {
             {
                 messages.remove(at: index)
             }
+            persistHistory()
         }
     }
 

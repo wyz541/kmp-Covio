@@ -143,6 +143,7 @@ struct AgentServiceHandlers: Sendable {
     let previewFileNames: @Sendable ([String], Int) async -> AgentServiceResult
     let applyFileRenames: @Sendable ([String]) async -> AgentServiceResult
     let undoRenameRun: @Sendable (String) async -> AgentServiceResult
+    let searchFileContent: @Sendable ([String], String, Int) async -> AgentServiceResult
     let screenshots: @Sendable (Int) async -> AgentServiceResult
     let clipboardMetadata: @Sendable (Int) async -> AgentServiceResult
     let copyText: @Sendable (String) async -> AgentServiceResult
@@ -165,6 +166,9 @@ struct AgentServiceHandlers: Sendable {
         },
         undoRenameRun: @escaping @Sendable (String) async -> AgentServiceResult = { _ in
             .failure("Rename undo is unavailable.", code: .executionFailed)
+        },
+        searchFileContent: @escaping @Sendable ([String], String, Int) async -> AgentServiceResult = { _, _, _ in
+            .failure("File content search is unavailable.", code: .executionFailed)
         }
     ) {
         self.monitorSnapshot = monitorSnapshot
@@ -174,6 +178,7 @@ struct AgentServiceHandlers: Sendable {
         self.previewFileNames = previewFileNames
         self.applyFileRenames = applyFileRenames
         self.undoRenameRun = undoRenameRun
+        self.searchFileContent = searchFileContent
         self.screenshots = screenshots
         self.clipboardMetadata = clipboardMetadata
         self.copyText = copyText
@@ -187,6 +192,11 @@ private struct InspectFileToolInput: Codable { let fileId: String; let maxCharac
 private struct PreviewFileNamesToolInput: Codable { let fileIds: [String]; let maxResults: Int? }
 private struct ApplyFileRenamesToolInput: Codable { let previewIds: [String] }
 private struct UndoRenameRunToolInput: Codable { let runId: String }
+private struct SearchFileContentToolInput: Codable {
+    let fileIds: [String]
+    let query: String
+    let limit: Int?
+}
 private struct LimitToolInput: Codable { let limit: Int? }
 private struct CopyTextToolInput: Codable { let text: String }
 
@@ -307,6 +317,36 @@ enum AgentToolCatalog {
                         type: .string,
                         description: "Run ID returned by apply_file_renames.",
                         extraProperties: ["minLength": 1, "maxLength": 128]
+                    ),
+                ]
+            ) { _ in AgentToolAck() }
+        ),
+        descriptor(
+            name: "search_file_content",
+            summary: "Search authorized local files and return cited text excerpts.",
+            risk: .readOnly,
+            executionMode: .afterModelResponse,
+            tool: Tool<SearchFileContentToolInput, AgentToolAck>(
+                name: "search_file_content",
+                description: "Search authorized files by stable IDs. Returns cited excerpts and does not return whole files.",
+                parameters: [
+                    .required(
+                        "fileIds",
+                        type: .array(elementType: .string),
+                        description: "Authorized workspace or attachment file IDs.",
+                        extraProperties: ["minItems": 1, "maxItems": 20]
+                    ),
+                    .required(
+                        "query",
+                        type: .string,
+                        description: "Question or search terms.",
+                        extraProperties: ["minLength": 1, "maxLength": 512]
+                    ),
+                    .optional(
+                        "limit",
+                        type: .int,
+                        description: "Maximum excerpt count.",
+                        extraProperties: ["minimum": 1, "maximum": 12]
                     ),
                 ]
             ) { _ in AgentToolAck() }

@@ -23,6 +23,8 @@ struct ChargeLimitRuntimeState: Codable, Equatable {
     var schemaVersion = currentSchemaVersion
     var userLimitPercent: Int
     var chargingLatch = false
+    /// 校准开始时看到的系统目标。校准结束后只恢复匹配此值的临时覆盖。
+    var calibrationTargetPercent: Int? = nil
     var lastPhase = "off"
 }
 
@@ -144,7 +146,7 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
                 return .failure(.stateUnreadable)
             }
             startTimerLocked()
-            switch evaluateLocked() {
+            switch evaluateLocked(recoveringFromStartup: true) {
             case .success:
                 return .success(())
             case .failure(let failure):
@@ -239,7 +241,9 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
         timer = nil
     }
 
-    private func evaluateLocked() -> Result<Void, ChargeLimitMCLFailure> {
+    private func evaluateLocked(
+        recoveringFromStartup: Bool = false
+    ) -> Result<Void, ChargeLimitMCLFailure> {
         let state: ChargeLimitRuntimeState
         do {
             guard let loaded = try stateStore.load() else { return .success(()) }
@@ -261,6 +265,10 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
         }
         let observedTarget = backend.observedTargetPercent()
         let expectedTarget = effectiveTarget(backendState?.targetPercent)
+        let returningFromCalibration = state.lastPhase == "calibration" &&
+            !reading.calibrationActive &&
+            state.calibrationTargetPercent == observedTarget
+        let targetMayBeReplaced = recoveringFromStartup || returningFromCalibration
         let observation = ChargeLimitObservation(
             enabled: true,
             upperLimitPercent: Int32(state.userLimitPercent),
@@ -272,7 +280,7 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
             isCharged: reading.isCharged,
             calibrationActive: reading.calibrationActive,
             systemProtectionActive: reading.systemProtectionActive,
-            conflict: backendState != nil && observedTarget != expectedTarget,
+            conflict: backendState != nil && observedTarget != expectedTarget && !targetMayBeReplaced,
             errorMessage: nil,
             observedTargetPercent: observedTarget.map {
                 KotlinInt(int: Int32($0))
@@ -288,6 +296,7 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
         let updated = ChargeLimitRuntimeState(
             userLimitPercent: state.userLimitPercent,
             chargingLatch: decision.chargingLatch,
+            calibrationTargetPercent: reading.calibrationActive ? observedTarget : nil,
             lastPhase: phaseName(decision.phase)
         )
         do {

@@ -19,6 +19,7 @@ enum AgentAppServices {
             autoNaming: autoNaming,
             policy: fileNamingPolicy
         )
+        let searchIndex = AgentFileSearchIndex()
         return AgentServiceHandlers(
             monitorSnapshot: {
                 let snapshot = await monitor.sample()
@@ -83,6 +84,26 @@ enum AgentAppServices {
             },
             undoRenameRun: { runId in
                 await namingService.undo(runId: runId)
+            },
+            searchFileContent: { fileIds, query, limit in
+                var seen = Set<String>()
+                let uniqueIds = fileIds.filter { seen.insert($0).inserted }
+                let files = await MainActor.run {
+                    uniqueIds.compactMap {
+                        resolveFile(
+                            fileId: $0,
+                            workspace: workspace,
+                            attachments: attachments
+                        )
+                    }
+                }
+                guard files.count == uniqueIds.count, !files.isEmpty else {
+                    return .failure(
+                        "One or more files are not authorized.",
+                        code: .fileUnavailable
+                    )
+                }
+                return await searchIndex.search(files: files, query: query, limit: limit)
             }
         )
     }

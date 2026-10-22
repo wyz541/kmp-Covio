@@ -13,16 +13,12 @@ enum HelperServer {
     private static let chargeLimitRuntime = ChargeLimitRuntimeController(
         backend: ChargeLimitMCLController(
             stateStore: ChargeLimitStateStore(
-                url: URL(fileURLWithPath: HelperProtocol.helperDirectory)
-                    .appendingPathComponent("charge-limit")
-                    .appendingPathComponent("state.json")
+                url: URL(fileURLWithPath: HelperProtocol.chargeLimitStatePath)
             )
         ),
         powerReader: MacChargeLimitPowerReader(),
         stateStore: ChargeLimitRuntimeStateStore(
-            url: URL(fileURLWithPath: HelperProtocol.helperDirectory)
-                .appendingPathComponent("charge-limit")
-                .appendingPathComponent("runtime.json")
+            url: URL(fileURLWithPath: HelperProtocol.chargeLimitRuntimePath)
         )
     )
     private static let chargeLimitHandler = ChargeLimitHelperCommandHandler(
@@ -40,14 +36,9 @@ enum HelperServer {
             signal(number, SIG_IGN)
             let source = DispatchSource.makeSignalSource(signal: number, queue: .global())
             source.setEventHandler {
-                let restored: Bool
-                if case .success = chargeLimitRuntime.restore() {
-                    restored = true
-                } else {
-                    restored = false
-                    log.error("Charge limit restore failed during helper termination")
-                }
-                exit(restored ? 0 : 1)
+                // 充电状态跨越 helper 重启。卸载路径会先显式恢复原策略，
+                // 通用 SIGTERM 不能清除状态，否则下一次启动无法恢复用户上限。
+                exit(0)
             }
             source.resume()
             terminationSources.append(source)

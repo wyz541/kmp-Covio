@@ -1677,7 +1677,7 @@
     "component/tab-bar": {
       "name": "Covio/Tab Bar",
       "figmaComponentSetId": "121:12394",
-      "purpose": "Hub top tab bar: home entry, search, workspace tabs, and the current-page action.",
+      "purpose": "Hub navigation layer: home entry, search, workspace tabs, and the current-page action.",
       "variants": [
         "DEFAULT",
         "HOVER",
@@ -1703,7 +1703,8 @@
       "accessibilityRules": [
         "Do not use color as the only status indicator.",
         "Keep keyboard focus visible and expose a readable accessible name.",
-        "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows."
+        "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows.",
+        "Keep navigation text readable over every content backdrop."
       ],
       "composeMapping": {
         "target": "MacTabBar",
@@ -1723,7 +1724,7 @@
       "sourceAuthority": "macOS 27 (Community)",
       "swiftMapping": {
         "target": "WorkbenchTabBar",
-        "behavior": "横排页签栏，高 46 点，横向内边距 24 点。左端固定是首页入口 36 × 30，紧挨着 170 × 30 的搜索框，中间是工作区页签（高 30，胶囊圆角，间距 4），右端是当前页的动作按钮。选中态由一块胶囊滑块画，160 毫秒横向滑动。编辑模式里页签前面加拖动把手，拖动跨过 84 点换一次位置。"
+        "behavior": "导航层叠在内容层上方，宽 960 点、高 46 点，使用无边框超薄材质。内容延伸到导航层背后，首屏内容从其下方开始。左端固定是首页入口 36 × 30，紧挨着 170 × 30 的搜索框，中间是工作区页签（高 30，胶囊圆角，间距 4），右端是当前页的动作按钮。选中态由一块胶囊滑块画，160 毫秒横向滑动。编辑模式里页签前面加拖动把手，拖动跨过 84 点换一次位置。"
       }
     },
     "component/bento-grid": {
@@ -6306,6 +6307,10 @@
     "copy/hub/files/action/clear-filter": {
       "en": "Clear Filter",
       "zh-Hans": "清除筛选"
+    },
+    "copy/hub/files/action/dismiss": {
+      "en": "Dismiss",
+      "zh-Hans": "关闭"
     },
     "copy/hub/files/empty/title": {
       "en": "Drop the next item here",

@@ -295,6 +295,8 @@ enum ContractCopy {
     static let copyHubFilesActionCopy = LocalizedCopy(key: "copy/hub/files/action/copy", en: "Copy", zhHans: "复制")
     /// `copy/hub/files/action/copy-text`
     static let copyHubFilesActionCopyText = LocalizedCopy(key: "copy/hub/files/action/copy-text", en: "Copy Text", zhHans: "复制正文")
+    /// `copy/hub/files/action/dismiss`
+    static let copyHubFilesActionDismiss = LocalizedCopy(key: "copy/hub/files/action/dismiss", en: "Dismiss", zhHans: "关闭")
     /// `copy/hub/files/action/download`
     static let copyHubFilesActionDownload = LocalizedCopy(key: "copy/hub/files/action/download", en: "Download", zhHans: "下载")
     /// `copy/hub/files/action/import`
@@ -1273,6 +1275,7 @@ enum ContractCopy {
         copyHubFilesActionClearFilter,
         copyHubFilesActionCopy,
         copyHubFilesActionCopyText,
+        copyHubFilesActionDismiss,
         copyHubFilesActionDownload,
         copyHubFilesActionImport,
         copyHubFilesActionMarkup,

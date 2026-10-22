@@ -78,16 +78,13 @@ The download has this SHA-256 checksum:
 
 - The macOS interface is SwiftUI. The shared logic is Kotlin Multiplatform, module `kmpDomain`.
 - The app requires macOS 26 or later. Covio 0.4.x stays on macOS 12.
-- The Hub has a new layout. A floating navigation rail is on the left. A floating capsule is at the top.
-  - The rail holds the search box, the six tabs, and a bottom group.
-  - The bottom group holds the run indicator, the settings button, the language menu, and quit.
-  - The capsule holds the page title and the page actions.
-  - On the Settings tab the capsule holds the six section switches.
-  - The page title moved from the page body to the capsule.
+- The Hub has a new layout. A floating navigation bar is at the top.
+  - The bar holds the home entry, the search box, the workspace tabs, and the current-page action.
+  - The content extends behind the navigation bar.
 - The search box searches settings. Selecting a result opens the Settings tab.
   The Hub scrolls to that row and highlights it for 1.2 seconds.
 - Press Escape to clear the search. Press Escape again to collapse the Hub.
-- The navigation rail and the capsule use Liquid Glass. In System Settings, turn on Reduce motion to switch without animation.
+- The top navigation bar uses a translucent functional layer like Apple Maps on macOS 26 Tahoe.
 - The app adds the clipboard history. See the Clipboard history section.
 - The Files tab adds local offline auto naming. It supports text, PDF, images, code, mixed files, preview, safe rename, and undo.
 - The screenshot toolbar behaves as in 0.4.2. The implementation is Swift.
@@ -406,8 +403,8 @@ Exact 8 GB hardware validation is tracked by [#185](https://github.com/wyz541/km
 31. Quit the app. Confirm the LaunchAgent does not restart it.
 32. Force-quit the app. Confirm the LaunchAgent restarts it.
 33. Remove the helper. Confirm `SleepDisabled` is `0`.
-34. Open the Hub. Confirm the floating rail is on the left and the floating capsule is at the top.
-35. Confirm the rail and the capsule look like glass. If they do not, set `GlassSurfaceMode.current` to `.material`.
+34. Open the Hub. Confirm the navigation bar floats above the content.
+35. Confirm the content remains visible through the navigation bar.
 36. Switch all six tabs. Confirm each page fits the card. Confirm no button row is cut.
 37. Type `休眠` in the search box. Select the result. Confirm the Hub opens the Settings tab, the General section, and highlights the sleep mode row.
 38. Press Escape. Confirm the search clears and the Hub stays open. Press Escape again. Confirm the Hub collapses.

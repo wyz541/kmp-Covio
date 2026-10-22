@@ -220,6 +220,7 @@ final class ContractConstantsTests: XCTestCase {
             "copy/hub/files/kind/audio",
             "copy/hub/files/error/copy",
             "copy/hub/files/error/connection",
+            "copy/hub/files/action/dismiss",
             "copy/hub/files/state/waiting",
             "copy/hub/files/state/transferring",
             "copy/hub/files/state/transfer-cancelled",
@@ -373,7 +374,7 @@ final class SettingsSectionTests: XCTestCase {
             XCTAssertEqual(
                 HubMetrics.contentHeight(for: page),
                 HubMetrics.plateTopInset + HubMetrics.plateStackHeight(for: page),
-                "\(tab.rawValue) 的面板高度不等于两块板加上顶部的缝"
+                "\(tab.rawValue) 的面板高度不等于内容层加上顶部的缝"
             )
             XCTAssertEqual(
                 HubMetrics.pageContentHeight(for: page),
@@ -415,7 +416,7 @@ final class SettingsSectionTests: XCTestCase {
         }
     }
 
-    /// 面板必须盖得住顶栏板加内容板。
+    /// 面板必须盖得住顶栏与内容列。
     ///
     /// 编辑模式多一条提示条，也要盖得住。
     func testThePanelCoversTheTabBarAndThePageOnEveryPage() {
@@ -424,7 +425,7 @@ final class SettingsSectionTests: XCTestCase {
             for editing in [false, true] {
                 let plates = HubMetrics.plateStackHeight(for: page, editing: editing)
                 let needed = HubMetrics.tabBarHeight
-                    + HubMetrics.plateGap
+                    + HubMetrics.navigationContentGap
                     + HubMetrics.panelPadding * 2
                     + (editing ? HubMetrics.editBannerHeight + HubMetrics.pageGap : 0)
                     + HubMetrics.pageContentHeight(for: page)

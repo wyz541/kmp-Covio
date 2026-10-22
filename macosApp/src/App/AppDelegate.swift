@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     #if DEBUG
     private var monitorPreview: MonitorPreviewWindowController?
     private var fileAreaPreview: NSWindow?
+    private var fileAreaLivePreview: FileAreaLivePreviewController?
     #endif
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -132,6 +133,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             return
         }
+        if ProcessInfo.processInfo.environment["COVIO_FILE_AREA_LIVE_PREVIEW"] == "1" {
+            NSApp.setActivationPolicy(.regular)
+            let width = Double(ProcessInfo.processInfo.environment["COVIO_FILE_AREA_WIDTH"] ?? "960") ?? 960
+            let state = FileAreaLivePreviewState(
+                rawValue: ProcessInfo.processInfo.environment["COVIO_FILE_AREA_PREVIEW_STATE"] ?? "normal"
+            ) ?? .normal
+            let reduceMotion = ProcessInfo.processInfo.environment["COVIO_FILE_AREA_REDUCE_MOTION"] == "1"
+            let preview = FileAreaLivePreviewController(
+                panelWidth: width,
+                state: state,
+                reduceMotion: reduceMotion
+            )
+            fileAreaLivePreview = preview
+            preview.present()
+            return
+        }
         if ProcessInfo.processInfo.environment["COVIO_FILE_AREA_PREVIEW"] == "1" {
             NSApp.setActivationPolicy(.regular)
             let width = Double(ProcessInfo.processInfo.environment["COVIO_FILE_AREA_WIDTH"] ?? "960") ?? 960
@@ -189,6 +206,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         shell.start()
         statusItemController = StatusItemController(shell: shell, runtime: runtime)
+
+        #if DEBUG
+        // Visual QA uses an isolated support directory and skips the global hotkey.
+        if ProcessInfo.processInfo.environment["COVIO_HUB_PREVIEW"] == "1" {
+            Task { @MainActor in
+                self.shell.toggle()
+            }
+        }
+        #endif
 
         // Control+Option+T 打开或收起 Hub。
         let hotKey = GlobalHotKey { [weak self] in

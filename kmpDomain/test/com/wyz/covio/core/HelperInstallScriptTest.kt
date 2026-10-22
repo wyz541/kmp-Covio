@@ -140,12 +140,16 @@ class HelperInstallScriptTest {
         assertTrue(script.contains("<string>$HELPER_ARGUMENT</string>"))
     }
 
-    /** 卸载先清 `disablesleep`：helper 删掉之后没人能清这个标志。 */
+    /** 充电状态仍存在时，卸载必须先停下，不能丢失恢复原策略所需的信息。 */
     @Test
     fun `the uninstall script is byte for byte the shipped one`() {
         assertEquals(
             listOf(
                 "set -e",
+                "if [ -e '$HELPER_CHARGE_LIMIT_STATE_PATH' ] || [ -e '$HELPER_CHARGE_LIMIT_RUNTIME_PATH' ]; then",
+                "  printf '%s\\n' 'Covio charge limit state is still active. Restore it in Covio before uninstalling the helper.' >&2",
+                "  exit 1",
+                "fi",
                 "/usr/bin/pmset -a disablesleep 0 || true",
                 "/bin/launchctl bootout system '$HELPER_PLIST_PATH' 2>/dev/null || true",
                 "rm -f '$HELPER_PLIST_PATH'",
@@ -154,6 +158,18 @@ class HelperInstallScriptTest {
             ).joinToString("\n"),
             HelperInstallScript.uninstallScript(),
         )
+    }
+
+    @Test
+    fun `the uninstall guard runs before any cleanup`() {
+        val lines = HelperInstallScript.uninstallScript().lines()
+        val guard = lines.indexOfFirst { it.startsWith("if [ -e") }
+        val sleepCleanup = lines.indexOf("/usr/bin/pmset -a disablesleep 0 || true")
+        val stateRemoval = lines.indexOf("rm -rf '$HELPER_DIRECTORY'")
+
+        assertTrue(guard >= 0, "卸载脚本没有充电状态检查：$lines")
+        assertTrue(guard < sleepCleanup, "充电状态检查必须在睡眠清理之前")
+        assertTrue(guard < stateRemoval, "充电状态检查必须在删除目录之前")
     }
 
     @Test

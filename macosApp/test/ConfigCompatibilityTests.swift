@@ -260,6 +260,8 @@ final class HelperContractMirrorTests: XCTestCase {
     func testPathsComeFromKotlin() {
         XCTAssertEqual(HelperProtocol.socketPath, HelperContractKt.HELPER_SOCKET_PATH)
         XCTAssertEqual(HelperProtocol.helperDirectory, HelperContractKt.HELPER_DIRECTORY)
+        XCTAssertEqual(HelperProtocol.chargeLimitStatePath, HelperContractKt.HELPER_CHARGE_LIMIT_STATE_PATH)
+        XCTAssertEqual(HelperProtocol.chargeLimitRuntimePath, HelperContractKt.HELPER_CHARGE_LIMIT_RUNTIME_PATH)
         XCTAssertEqual(HelperProtocol.versionPath, HelperContractKt.HELPER_VERSION_PATH)
         XCTAssertEqual(HelperProtocol.allowedUidPath, HelperContractKt.HELPER_ALLOWED_UID_PATH)
         XCTAssertEqual(HelperProtocol.clientRequirementPath, HelperContractKt.HELPER_CLIENT_REQUIREMENT_PATH)

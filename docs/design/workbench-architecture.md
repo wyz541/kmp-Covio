@@ -134,16 +134,16 @@ R7 不做主屏手势。系统不向第三方应用开放 iOS 主屏手势入口
 | 锚点 | 指针所在屏幕的顶部中央 |
 | 宽度 | 最小 720 点，最大为屏幕宽度减 80 点。板宽 960 点。 |
 | 高度 | 内容自适应，最大为屏幕高度减 120 点。 |
-| 背景 | 面板是两块玻璃板：顶栏与内容区底板。 |
-| 板间距 | 11 点。 |
-| 顶栏板与菜单栏之间的缝 | 11 点。 |
-| 顶栏板 | 圆角 23 点，胶囊形。高 46 点，宽 960 点。 |
-| 内容区 | 宽 960 点。底板圆角 23 点，卡片叠在底板上。 |
+| 背景 | 内容层铺满面板。导航层叠在内容层上方。视觉关系参考 macOS 26 Tahoe 的 Apple Maps。 |
+| 首屏内容留白 | 11 点。留白位于导航层底部与首屏内容之间，不是可见板间距。 |
+| 顶栏与菜单栏之间的缝 | 11 点。 |
+| 顶栏 | 圆角 23 点，胶囊形。高 46 点，宽 960 点。顶栏叠在内容层上方。 |
+| 内容区 | 宽 960 点，高度覆盖整个面板。内容延伸到顶栏背后，底板圆角 23 点。 |
 | 底板材质 | 系统的语义材质 `.hudWindow`，不带边框，不加着色。`GlassSurfaceMode.plateMode = .system`，`plateMaterial = .hudWindow`，`plateTintOpacity = 0`。 |
 | 卡片材质 | 叠在底板上，底材 `Glass.clear`。填充取色值乘 `MacTheme.tintedCardOpacity`，当前取 `0.1`。 |
-| 顶栏板材质 | Liquid Glass 的 regular 变体，带镜面亮边。`GlassSurfaceMode.topBarMode = .glass`。 |
-| 板边框 | 底板没有。卡片与顶栏板带 Liquid Glass 自带的镜面亮边，不另描边。 |
-| 板投影 | 无。层次由亮边与明度差给。 |
+| 顶栏材质 | 无边框超薄材质。`GlassSurfaceMode.topBarMode = .ultraThin`。 |
+| 边框 | 内容底板与顶栏都没有边框。卡片保留 Liquid Glass 自带的镜面亮边。 |
+| 投影 | 顶栏与内容层都没有投影。 |
 | 菜单栏胶囊 | 高 20 点。内容是品牌菱形加名字。 |
 
 控制中心是两层。一层是面板级的模糊底板，把桌面与工作区分开；模块叠在底板上面，自己走 clear，只加一层薄高光，不重复模糊。真机对照：把一个带文字的窗口摆在面板下面，控制中心打开后整片面板区域的文字都被抹平，模块之间与模块周围也一样。模糊来自底板，不是来自模块本身。所以 `.clear` 只有在底下已经有模糊时才成立；单独把 `.clear` 压在桌面上，背后窗口的文字会原样透上来。
@@ -166,7 +166,7 @@ R7 不做主屏手势。系统不向第三方应用开放 iOS 主屏手势入口
 
 底板最后没有用 Liquid Glass，改用系统给的语义材质。AppKit 头文件把这条规则写死了：`AppearanceBased`、`Light`、`Dark`、`MediumLight`、`UltraDark` 这一组都标了废弃，注释是「You should instead choose an appropriate semantic material.」；剩下的材质按所属的界面元素命名并说明。浮在桌面上的面板对应 `.hudWindow`，说明是「The material used as the background of heads-up display (HUD) windows.」SwiftUI 的 `Material` 没有面板这一档（只有 `ultraThin` 到 `ultraThick` 和 `bar`），所以底板走 `NSVisualEffectView`。
 
-改用系统材质顺带解决了边框：`NSVisualEffectView` 不带 Liquid Glass 的镜面亮边。真机对照（2026-10-17）：把两块板的左上角放大，Liquid Glass 沿上边缘有一条浅蓝亮线，控制中心的**底板**边缘是干净的，只有**模块**带亮边。顶栏板是独立的一块胶囊，与控制中心的模块同类，所以保留 `.glass` 和它的亮边 —— 两块板都去掉边框以后，中间那道 11 点的缝就只剩明度差，读起来像一整块面板。
+改用系统材质顺带解决了边框：`NSVisualEffectView` 不带 Liquid Glass 的镜面亮边。真机对照（2026-10-17）：Liquid Glass 沿上边缘有一条浅蓝亮线，控制中心的**底板**边缘是干净的，只有**模块**带亮边。当前版本不把内容与顶栏上下分板。内容层铺满面板，顶栏以超薄材质叠在内容上方，层级与 Apple Maps 的侧边栏一致。
 
 **底板的填充取不到控制中心的水平。** 底材的输出是 `α·模糊(桌面) + (1−α)·F`。`α` 是透光比例，`F` 是填充色。把上表换成这两个量：
 

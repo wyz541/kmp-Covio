@@ -13,6 +13,56 @@ private struct FileAreaSnapshot {
     let activeTransferCount: Int
 }
 
+/// 文件区的键盘顺序。焦点卡排在网格之前，网格严格按行优先。
+enum FileAreaKeyboardNavigation {
+    static func order(selectedID: String?, quietIDs: [String]) -> [String] {
+        guard let selectedID else { return quietIDs }
+        return [selectedID] + quietIDs
+    }
+
+    static func destination(
+        _ direction: MoveCommandDirection,
+        from currentID: String,
+        order: [String],
+        columns: Int = FileAreaMetrics.quietColumns
+    ) -> String? {
+        guard let index = order.firstIndex(of: currentID) else { return nil }
+        let nextIndex: Int?
+        switch direction {
+        case .left:
+            nextIndex = index > 0 ? index - 1 : nil
+        case .right:
+            nextIndex = index + 1 < order.count ? index + 1 : nil
+        case .up:
+            if index == 0 {
+                nextIndex = nil
+            } else if index <= columns {
+                nextIndex = 0
+            } else {
+                nextIndex = index - columns
+            }
+        case .down:
+            if index == 0 {
+                nextIndex = order.count > 1 ? 1 : nil
+            } else {
+                let candidate = index + columns
+                nextIndex = candidate < order.count ? candidate : nil
+            }
+        @unknown default:
+            nextIndex = nil
+        }
+        guard let nextIndex else { return nil }
+        return order[nextIndex]
+    }
+
+    static func itemAfterRemoval(_ itemID: String, order: [String]) -> String? {
+        guard let index = order.firstIndex(of: itemID) else { return nil }
+        if index + 1 < order.count { return order[index + 1] }
+        if index > 0 { return order[index - 1] }
+        return nil
+    }
+}
+
 /// 统一文件区。
 ///
 /// 一级导航里只有一个文件工作区。截图、工作区文件和传输状态都从同一份
@@ -28,10 +78,14 @@ struct FilesTabView: View {
     var requestedFilter: FileAreaFilterChoice?
     var onConsumeRequestedFilter: () -> Void = {}
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    @Environment(\.fileAreaReduceMotionOverride) private var reduceMotionOverride
     @State private var selection: FileAreaFilterChoice = .all
     @State private var selectedItemID: String?
     @State private var dropTargeted = false
+    @State private var keyboardMenuRequestID: String?
+    @State private var keyboardMenuRequestNonce = 0
+    @FocusState private var keyboardFocusedItemID: String?
 
     var body: some View {
         let snapshot = makeSnapshot()
@@ -52,10 +106,15 @@ struct FilesTabView: View {
         .onChange(of: snapshot.filteredItems.map(\.id)) { _, ids in
             guard let firstID = ids.first else {
                 selectedItemID = nil
+                keyboardFocusedItemID = nil
                 return
             }
-            if let selectedItemID, ids.contains(selectedItemID) { return }
-            selectedItemID = firstID
+            if selectedItemID.map({ ids.contains($0) }) != true {
+                selectedItemID = firstID
+            }
+            if let focused = keyboardFocusedItemID, !ids.contains(focused) {
+                keyboardFocusedItemID = firstID
+            }
         }
         .background {
             // 空状态和无匹配也遵守同一组快捷键。
@@ -106,12 +165,50 @@ struct FilesTabView: View {
                             item: selectedItem,
                             url: url(for: selectedItem),
                             language: language,
-                            transferTask: transfer.task(for: selectedItem.itemId)
+                            transferTask: transfer.task(for: selectedItem.itemId),
+                            keyboardFocused: keyboardFocusedItemID == selectedItem.id,
+                            keyboardMenuRequested: keyboardMenuRequestID == selectedItem.id,
+                            keyboardMenuRequestNonce: keyboardMenuRequestNonce,
+                            onKeyboardMenuDismissed: {
+                                restoreKeyboardFocus(to: selectedItem.id)
+                            }
                         ) { action in
                             perform(action, on: selectedItem)
                         }
                         .id(selectedItem.id)
                         .transition(.opacity)
+                        .contentTransition(.opacity)
+                        .animation(focusAnimation, value: selectedItem.id)
+                        .focusable { isFocused in
+                            updateKeyboardFocus(isFocused, id: selectedItem.id)
+                        }
+                        .focused($keyboardFocusedItemID, equals: selectedItem.id)
+                        .onMoveCommand { direction in
+                            moveKeyboardFocus(
+                                direction,
+                                from: selectedItem.id,
+                                snapshot: snapshot
+                            )
+                        }
+                        .onKeyPress(.leftArrow) {
+                            moveKeyboardFocus(.left, from: selectedItem.id, snapshot: snapshot)
+                            return .handled
+                        }
+                        .onKeyPress(.rightArrow) {
+                            moveKeyboardFocus(.right, from: selectedItem.id, snapshot: snapshot)
+                            return .handled
+                        }
+                        .onKeyPress(.upArrow) {
+                            moveKeyboardFocus(.up, from: selectedItem.id, snapshot: snapshot)
+                            return .handled
+                        }
+                        .onKeyPress(.downArrow) {
+                            moveKeyboardFocus(.down, from: selectedItem.id, snapshot: snapshot)
+                            return .handled
+                        }
+                        .onKeyPress { press in
+                            handleKeyPress(press, item: selectedItem, snapshot: snapshot)
+                        }
 
                         if !snapshot.quietItems.isEmpty {
                             LazyVGrid(columns: quietColumns, alignment: .leading, spacing: FileAreaMetrics.quietGap) {
@@ -121,9 +218,41 @@ struct FilesTabView: View {
                                         url: url(for: item),
                                         language: language,
                                         transferTask: transfer.task(for: item.itemId),
+                                        keyboardFocused: keyboardFocusedItemID == item.id,
+                                        keyboardMenuRequested: keyboardMenuRequestID == item.id,
+                                        keyboardMenuRequestNonce: keyboardMenuRequestNonce,
+                                        onKeyboardMenuDismissed: {
+                                            restoreKeyboardFocus(to: item.id)
+                                        },
                                         onSelect: { select(item.id) }
                                     ) { action in
                                         perform(action, on: item)
+                                    }
+                                    .focusable { isFocused in
+                                        updateKeyboardFocus(isFocused, id: item.id)
+                                    }
+                                    .focused($keyboardFocusedItemID, equals: item.id)
+                                    .onMoveCommand { direction in
+                                        moveKeyboardFocus(direction, from: item.id, snapshot: snapshot)
+                                    }
+                                    .onKeyPress(.leftArrow) {
+                                        moveKeyboardFocus(.left, from: item.id, snapshot: snapshot)
+                                        return .handled
+                                    }
+                                    .onKeyPress(.rightArrow) {
+                                        moveKeyboardFocus(.right, from: item.id, snapshot: snapshot)
+                                        return .handled
+                                    }
+                                    .onKeyPress(.upArrow) {
+                                        moveKeyboardFocus(.up, from: item.id, snapshot: snapshot)
+                                        return .handled
+                                    }
+                                    .onKeyPress(.downArrow) {
+                                        moveKeyboardFocus(.down, from: item.id, snapshot: snapshot)
+                                        return .handled
+                                    }
+                                    .onKeyPress { press in
+                                        handleKeyPress(press, item: item, snapshot: snapshot)
                                     }
                                 }
                             }
@@ -136,12 +265,34 @@ struct FilesTabView: View {
             .scrollIndicators(.hidden)
         }
         .frame(height: FileAreaMetrics.areaHeight, alignment: .top)
-        .animation(focusAnimation, value: snapshot.selectedItem?.id)
+        .background {
+            FileAreaArrowKeyMonitor(
+                isActive: keyboardFocusedItemID != nil && keyboardMenuRequestID == nil
+            ) { direction in
+                guard let focused = keyboardFocusedItemID else { return }
+                moveKeyboardFocus(direction, from: focused, snapshot: snapshot)
+            }
+        }
         .overlay(alignment: .bottom) {
             if let notice {
-                MacAlert(message: notice, kind: noticeKind)
-                    .padding(.top, MacTheme.space2)
-                    .transition(.opacity)
+                HStack(spacing: MacTheme.space2) {
+                    MacAlert(message: notice, kind: noticeKind)
+                    Button {
+                        workspace.clearMessages()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 9, weight: .semibold))
+                            .frame(width: 22, height: 22)
+                            .background(
+                                MacTheme.elevated.opacity(0.9),
+                                in: Circle()
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(ContractCopy.copyHubFilesActionDismiss.text(for: language))
+                }
+                .padding(.top, MacTheme.space2)
+                .transition(.opacity)
             }
         }
         .overlay {
@@ -285,6 +436,10 @@ struct FilesTabView: View {
         )
     }
 
+    private var reduceMotion: Bool {
+        reduceMotionOverride ?? systemReduceMotion
+    }
+
     private var focusAnimation: Animation {
         let duration = reduceMotion
             ? HubMotion.fileFocusSwitchReduced
@@ -307,20 +462,151 @@ struct FilesTabView: View {
     }
 
     private func select(_ id: String) {
-        withAnimation(focusAnimation) {
-            selectedItemID = id
+        selectedItemID = id
+        keyboardMenuRequestID = nil
+    }
+
+    private func updateKeyboardFocus(_ isFocused: Bool, id: String) {
+        if isFocused {
+            keyboardFocusedItemID = id
+            return
         }
+        Task { @MainActor in
+            await Task.yield()
+            if keyboardFocusedItemID == id { keyboardFocusedItemID = nil }
+        }
+    }
+
+    private func restoreKeyboardFocus(to id: String) {
+        keyboardMenuRequestID = nil
+        keyboardFocusedItemID = nil
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(50))
+            keyboardFocusedItemID = id
+        }
+    }
+
+    /// 空格把键盘焦点对应的安静格子提升为焦点卡；同一个 id 让焦点不丢失。
+    private func promoteToFocus(_ item: FileAreaItem, snapshot: FileAreaSnapshot) {
+        guard snapshot.quietItems.contains(where: { $0.id == item.id }) else { return }
+        selectedItemID = item.id
+        keyboardMenuRequestID = nil
+        // 等焦点卡换进同一 id，再把键盘焦点接过去。
+        Task { @MainActor in
+            await Task.yield()
+            keyboardFocusedItemID = item.id
+        }
+    }
+
+    private func moveKeyboardFocus(
+        _ direction: MoveCommandDirection,
+        from currentID: String,
+        snapshot: FileAreaSnapshot
+    ) {
+        let order = focusOrder(snapshot)
+        keyboardFocusedItemID = FileAreaKeyboardNavigation.destination(
+            direction,
+            from: currentID,
+            order: order
+        )
+    }
+
+    /// 焦点位永远排在网格之前，网格按行优先顺序排列。
+    private func focusOrder(_ snapshot: FileAreaSnapshot) -> [String] {
+        FileAreaKeyboardNavigation.order(
+            selectedID: snapshot.selectedItem?.id,
+            quietIDs: snapshot.quietItems.map(\.id)
+        )
+    }
+
+    private func handleKeyPress(
+        _ press: KeyPress,
+        item: FileAreaItem,
+        snapshot: FileAreaSnapshot
+    ) -> KeyPress.Result {
+        let command = press.modifiers.contains(.command)
+        if press.key == .leftArrow {
+            moveKeyboardFocus(.left, from: item.id, snapshot: snapshot)
+            return .handled
+        }
+        if press.key == .rightArrow {
+            moveKeyboardFocus(.right, from: item.id, snapshot: snapshot)
+            return .handled
+        }
+        if press.key == .upArrow {
+            moveKeyboardFocus(.up, from: item.id, snapshot: snapshot)
+            return .handled
+        }
+        if press.key == .downArrow {
+            moveKeyboardFocus(.down, from: item.id, snapshot: snapshot)
+            return .handled
+        }
+        if command && press.characters.lowercased() == "c" {
+            if item.capabilities.canCopy {
+                perform(.copy, on: item)
+                return .handled
+            }
+            if item.capabilities.canCopyText {
+                perform(.copyText, on: item)
+                return .handled
+            }
+            return .ignored
+        }
+        if command && (press.key == .delete || press.key == .deleteForward) {
+            guard item.capabilities.canRemove else { return .ignored }
+            let nextID = FileAreaKeyboardNavigation.itemAfterRemoval(
+                item.id,
+                order: focusOrder(snapshot)
+            )
+            perform(.remove, on: item)
+            keyboardFocusedItemID = nextID
+            return .handled
+        }
+        if press.key == .return {
+            if item.capabilities.canOpen {
+                perform(.open, on: item)
+                return .handled
+            }
+            if let action = FileAreaPresentation.quickAction(
+                for: item,
+                task: transfer.task(for: item.itemId)
+            ) {
+                perform(action, on: item)
+                return .handled
+            }
+            return .ignored
+        }
+        if press.key == .space {
+            guard snapshot.quietItems.contains(where: { $0.id == item.id }) else {
+                return .ignored
+            }
+            promoteToFocus(item, snapshot: snapshot)
+            return .handled
+        }
+        if press.characters.lowercased() == "m",
+           !press.modifiers.contains(.command),
+           !press.modifiers.contains(.control),
+           !press.modifiers.contains(.option) {
+            keyboardMenuRequestID = item.id
+            keyboardMenuRequestNonce += 1
+            return .handled
+        }
+        return .ignored
     }
 
     private func clearFilters() {
         selection = .all
         selectedItemID = nil
+        keyboardFocusedItemID = nil
+        keyboardMenuRequestID = nil
     }
 
     private func consumeRequestedFilter() {
         guard let requestedFilter else { return }
         selection = requestedFilter
         selectedItemID = nil
+        keyboardFocusedItemID = nil
+        keyboardMenuRequestID = nil
         onConsumeRequestedFilter()
     }
 

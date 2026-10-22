@@ -20,10 +20,11 @@ import SwiftUI
 /// SwiftUI 的 `Material` 没有面板这一档，只有 `ultraThin` 到 `ultraThick` 和 `bar`。
 /// 所以面板底材走 `NSVisualEffectView`。材质原样使用：不乘不透明度倍率，不加着色。
 ///
-/// 面板是两层：
+/// 面板有三层：
 ///
-/// 1. 一块铺满内容区的**模糊底板**，把桌面与工作区分开。
-/// 2. 卡片叠在底板上，自己走 `.clear`，只加一层薄高光，不重复模糊。
+/// 1. 一块铺满面板的**内容层**，把桌面与工作区分开。
+/// 2. 卡片叠在内容层上，自己走 `.clear`，只加一层薄高光，不重复模糊。
+/// 3. 导航层叠在内容层上方，用超薄材质模糊背后的内容。
 ///
 /// 真机对照：把一个带文字的 TextEdit 窗口摆在面板下面。整片面板区域的文字
 /// 都被抹成灰条。模糊来自底板，不是来自卡片本身。
@@ -35,14 +36,14 @@ import SwiftUI
 ///
 /// | 位置 | 底材 | 理由 |
 /// | --- | --- | --- |
-/// | 内容区底板 | `.system` + `.hudWindow` | 面板底材，用系统给的语义材质 |
-/// | 内容区的卡片 | `.clear` | 叠在底板上，不重复模糊，保留 Liquid Glass 的亮边 |
-/// | 顶栏板 | `.glass` | 它是独立胶囊，保留亮边 |
+/// | 内容层 | `.system` + `.hudWindow` | 面板底材，用系统给的语义材质 |
+/// | 内容区的卡片 | `.clear` | 叠在内容层上，不重复模糊，保留 Liquid Glass 的亮边 |
+/// | 导航层 | `.ultraThin` | 模糊背后的内容，不带边框 |
 ///
-/// 底板不带边框是有意的：控制中心的**模块**有亮边，**底板**没有。
-/// 两块板的区别在真机上放大左上角就能看出来，见 [plateMode]。
+/// 内容层与导航层都不带边框。卡片保留 Liquid Glass 自带的亮边。
 ///
-/// 两块板都不加着色：真机实测，压平传递曲线的是那层黑色着色，见 [plateTintOpacity]。
+/// 内容层与导航层都不加着色：真机实测，压平传递曲线的是那层黑色着色，
+/// 见 [plateTintOpacity]。
 /// 卡片只带一点点色相，见 `MacTheme.tintedCardOpacity`。
 ///
 /// 这几个模式也用于真机对照：同一个面板换底材截图，挑出最接近目标的那个。
@@ -129,7 +130,7 @@ enum GlassSurfaceMode: String, CaseIterable, Sendable {
     /// 底板用的底材。取 `.system`：面板底材用系统给的语义材质，见 [plateMaterial]。
     ///
     /// 为什么不用 `.glass`：Liquid Glass 自带一圈镜面亮边。控制中心的**模块**有亮边，
-    /// **底板**没有。真机对照（2026-10-17）：把两块板的左上角放大，工作台的内容板
+    /// **内容层**没有。真机对照（2026-10-17）：把旧的上下两板左上角放大，内容板
     /// 沿上边缘有一条浅蓝亮线，控制中心的底板边缘是干净的。
     ///
     /// 卡片的亮边保留：卡片走 `.clear` 玻璃，与控制中心的模块一样带边。
@@ -137,14 +138,13 @@ enum GlassSurfaceMode: String, CaseIterable, Sendable {
     /// 调试构建可以用 `COVIO_PLATE_MODE` 覆盖，用来复核别的底材。
     @MainActor static var plateMode: GlassSurfaceMode = .system
 
-    /// 顶栏板用的底材。默认 `.glass`：它是一块独立的胶囊，保留亮边。
+    /// 顶栏功能层用的底材。默认 `.ultraThin`，参考 macOS 26 Tahoe 的 Apple Maps。
     ///
-    /// 底板不带边框，顶栏板带 —— 两者不同是有意的。顶栏板是与底板分开的一块，
-    /// 两块都去掉边框以后，中间那道 11 点的缝就只剩明度差，读起来像一整块面板。
-    /// 控制中心里凡是独立成块的元素都带亮边。
+    /// 顶栏叠在内容层上方，所以超薄材质会模糊背后的内容。顶栏不带边框与投影，
+    /// 层次由材质边界与内容移动给。系统开启降低透明度时，材质自动变得更实。
     ///
     /// 调试构建可以用 `COVIO_TOPBAR_MODE` 覆盖。
-    @MainActor static var topBarMode: GlassSurfaceMode = .glass
+    @MainActor static var topBarMode: GlassSurfaceMode = .ultraThin
 
     /// 底板用的着色。不透明度是 0 时返回 nil，玻璃走原样。
     @MainActor static var plateTint: Color? {

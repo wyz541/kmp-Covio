@@ -87,6 +87,8 @@ Amper 自动装 pnpm 与 Node，自动生成 `index.html`。不用手写 HTML。
 2. 图存进 `docs/design/previews/`。命名见该目录的 `README.md`。
 3. 图路径写进提出这份打样的 issue 正文。设计闸门的 R8 要求这一条。
 
+预览截图作为 UI 决策证据时，按 `docs/design/previews/README.md` 的角色命名。旧图保留，不覆盖。
+
 地址栏可以带锚点，直接落到某一屏，不用手点。格式是 `#<issue 号>-<锚点>`。
 锚点名由每一份打样自己定，写在它的 `StartScreen` 里。例如 `#107-home` 直接进
 第 107 号打样的首页。锚点名不认识时，打样抛错，不静默落回首页。

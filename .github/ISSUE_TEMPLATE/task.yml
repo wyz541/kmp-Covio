@@ -1,0 +1,76 @@
+name: Task
+description: 小功能或 sub-issue。一个会话能做完。
+labels: ["task"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        一个 issue 对应一条分支和一个 PR。
+        大功能的子 issue 用 GitHub 原生 sub-issue 关系关联。
+        标题写成「动词 对象」。
+        验收标准与截图规则见 [研发工作流](../../docs/process/workflow.md) 的 S5 与 UI 证据。
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: 目标
+      description: 交付后用户能做什么。不写实现细节。
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 验收标准
+      description: 一行一条。每条必须可判定。
+      placeholder: |
+        - 验收：<可判断的结果>
+        - 验收：<可判断的结果>
+    validations:
+      required: true
+
+  - type: dropdown
+    id: estimated_days
+    attributes:
+      label: 预计工期
+      options:
+        - 1 天
+        - 2 天
+        - 3 天
+    validations:
+      required: true
+
+  - type: dropdown
+    id: ui_type
+    attributes:
+      label: UI 类型
+      description: 选择本 issue 的 UI 证据类型。
+      options:
+        - 不涉及 UI
+        - UI 决策
+        - UI 代码变更
+    validations:
+      required: true
+
+  - type: textarea
+    id: ui_evidence
+    attributes:
+      label: UI 证据
+      description: |
+        创建时写计划，结题前补图。
+        UI 决策附当前界面或候选方案，以及选定方案。
+        UI 代码变更附同一页面、同一状态的真机前后截图。
+        截图归档到 docs/design/previews/。命名遵守该目录的 README。
+        Issue 正文使用同一文件的固定 commit GitHub 图片地址。
+        不涉及 UI 时填「不适用」。
+        截图缺失或链接失效时，不得关闭 issue。
+      placeholder: |
+        变更前：
+        ![变更前](截图)
+
+        变更后：
+        ![变更后](截图)
+
+        归档：docs/design/previews/
+    validations:
+      required: true

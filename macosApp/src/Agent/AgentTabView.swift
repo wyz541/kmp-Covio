@@ -229,7 +229,7 @@ struct AgentTabView: View {
                 Button(action: chooseAttachments) {
                     Image(systemName: "paperclip")
                         .font(.system(size: 12, weight: .medium))
-                        .frame(width: 20, height: 20)
+                        .frame(width: 24, height: 24)
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(MacTheme.textSecondary)
@@ -298,6 +298,7 @@ struct AgentTabView: View {
                         } label: {
                             Image(systemName: "xmark")
                                 .font(.system(size: 8, weight: .semibold))
+                                .frame(width: 24, height: 24)
                         }
                         .buttonStyle(.plain)
                         .disabled(agent.isBusy || agent.pendingAction != nil)
@@ -306,7 +307,7 @@ struct AgentTabView: View {
                     }
                     .foregroundStyle(MacTheme.textSecondary)
                     .padding(.horizontal, MacTheme.space2)
-                    .frame(height: 22)
+                    .frame(height: 28)
                     .background(
                         MacTheme.elevated,
                         in: Capsule(style: .continuous)

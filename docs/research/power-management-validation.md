@@ -1,10 +1,27 @@
 # Power 真机验证矩阵
 
+## 文档状态
+
+| 项目 | 内容 |
+| --- | --- |
+| 文档版本 | `2.0` |
+| 状态 | helper v4 与最终 RC 通过；分发阻塞已记录 |
+| 日期 | `2026-10-22` |
+| Issue | #269 |
+| Feature | #148 |
+| 基线 | `c3045f0` |
+| RC | `0.5.0` |
+
 ## 结论
 
-Apple Silicon 开发机已完成只读系统观察、构建、自动化测试和浅色/深色窗口检查。
-helper v2 已经通过一次管理员提示安装并验证在线。
-真实合盖、睡眠、唤醒和 `pmset disablesleep` 写入尚未执行。
+Power 主线已在 `main` 的 `c3045f0` 上完成最终本地验证。
+helper 已切换到当前主线构建，在线版本是 `0.5.0`，协议是 `v4`。
+真实合盖保持运行 `138` 秒，期间续租 `14` 次，系统启动时间没有变化。
+开盖后租约正常释放，`SleepDisabled` 回到 `0`。
+自动测试全部通过。
+本地 RC 的离线文件命名 bundle 验收通过。
+Developer ID 签名和公证当前不可执行。
+当前产品范围不能直接进入 Mac App Store。
 
 ## 环境
 
@@ -13,21 +30,26 @@ helper v2 已经通过一次管理员提示安装并验证在线。
 | 硬件 | MacBook Pro，Apple M1 Max |
 | 内存 | 64 GB |
 | macOS | `27.0.1 (26A434)` |
-| helper | `0.5.0`，协议 `2` |
+| 基线 | `c3045f0` |
+| RC | `0.5.0`，arm64 |
+| helper | `0.5.0`，协议 `4` |
+| 签名 | ad-hoc |
 | 当前供电 | AC Power |
-| 电池 | 内置电池，80%，未充电 |
+| 电池 | 内置电池，68%，充电中 |
 | 系统 `SleepDisabled` | `0` |
 
 ## 已验证
 
 | 场景 | 步骤 | 结果 | 证据 |
 | --- | --- | --- | --- |
-| 构建 | 执行 `bash scripts/test-all.sh` | 通过；KMP 418 项，app 模块 26 项，macOS XCTest 551 项 | 本地测试日志 |
-| 电源观察 | 读取 `pmset -g` 与 `pmset -g batt` | 适配器、电池和睡眠状态可读 | 验证记录 |
-| helper v2 安装 | 一次 macOS 管理员提示 | 安装完成，LaunchDaemon 在线，`SleepDisabled=0` | `verify-helper-cutover.sh verify` |
-| 合盖租约写入 | 获取、续租、释放租约 | `SleepDisabled` 从 `0` 变为 `1`，释放后回到 `0` | 真实 helper 测试 |
-| 合盖保持运行 | 真实合盖，持续续租约 `75` 秒 | `AppleClamshellState=Yes`，续租 6 次，启动时间未变化，释放后恢复 `SleepDisabled=0` | 真实 helper 测试 |
-| 开盖恢复 | 合盖测试后打开屏幕 | `AppleClamshellState=No`，租约数为 `0`，`SleepDisabled=0` | 真实 helper 复查 |
+| 构建与测试 | 执行 `bash scripts/test-all.sh` | 通过；727 项 XCTest，1 项跳过，0 项失败 | 本地测试日志 |
+| helper v4 割接 | 卸载旧 worktree helper，安装当前主线构建 | LaunchDaemon 在线；版本 `0.5.0`，协议 `4` | `verify-helper-cutover.sh all` |
+| helper 在线应答 | 查询版本和协议 | 版本 `0.5.0`，协议 `4` | `verify-helper-cutover.sh verify` |
+| 租约写入 | 获取、查询、续租、释放 | `SleepDisabled` 从 `0` 变为 `1`，释放后回到 `0` | `helper-lease-roundtrip.log` |
+| 真实合盖保持 | 持有租约后合盖 `138` 秒 | `AppleClamshellState=Yes`，续租 `14` 次，启动时间不变 | `lid-hold.log` 与 `helper.log` |
+| 开盖恢复 | 打开上盖并释放租约 | `AppleClamshellState=No`，活动租约 `0`，`SleepDisabled=0` | 系统复查 |
+| 所有权恢复 | 释放后检查 marker | `sleep_owner` 不存在 | 系统复查 |
+| RC bundle | 执行离线 bundle 验收 | 2 个文件命名成功，2 个撤销成功，非回环网络连接 `0` | `verify-dmg-c3045f0.log` |
 | 键名兼容 | macOS 27 输出 `SleepDisabled` | KMP 两个平台通过 | `PmsetConfigParserTest` |
 | 浅色布局 | 打开 Power 预览 | 内容可读，页面可滚动 | 窗口截图 |
 | 深色布局 | 打开 Power 预览 | 内容可读，页面可滚动 | 窗口截图 |
@@ -42,6 +64,20 @@ helper v2 已经通过一次管理员提示安装并验证在线。
 | 热危险 | 注入严重热状态 | 释放租约并记录护栏事件 | Swift 测试 |
 | 外部冲突 | 注入外部 `SleepDisabled`，再解除 | 记录冲突与恢复事件 | Swift 测试 |
 
+## 合盖结果
+
+| 项目 | 结果 |
+| --- | --- |
+| 开始合盖 | Unix 时间 `1792650556` |
+| 打开上盖 | Unix 时间 `1792650694` |
+| 持续时长 | `138` 秒 |
+| 续租次数 | `14` |
+| 合盖状态 | `AppleClamshellState=Yes` |
+| 合盖期间 `SleepDisabled` | `1` |
+| 启动时间 | 合盖前后一致 |
+| 释放结果 | `SleepDisabled=0` |
+| 所有权文件 | `sleep_owner` 不存在 |
+
 ## 窗口截图
 
 浅色模式：
@@ -52,7 +88,7 @@ helper v2 已经通过一次管理员提示安装并验证在线。
 
 ![Power history dark](../design/previews/155-power-history-dark.png)
 
-## 待真实合盖与睡眠测试
+## 待真机验证
 
 | 场景 | 操作前条件 | 必须观察 |
 | --- | --- | --- |
@@ -62,14 +98,28 @@ helper v2 已经通过一次管理员提示安装并验证在线。
 | 外部设置冲突 | 其他应用设置 `SleepDisabled=1` | Covio 不清除该值，页面显示冲突 |
 | 睡眠与唤醒 | 进入睡眠，再按电源键唤醒 | 历史记录睡眠与完整唤醒 |
 | 合盖睡眠 | 无会话时合盖 | Mac 进入睡眠 |
-| 合盖唤醒 | 会话有效时合盖，再开盖 | Mac 保持运行或按预期唤醒 |
 | 插拔电源 | 运行中插拔适配器 | 历史记录连接与断开事件 |
+| 其他 Mac | 在 macOS 26、Intel Mac 和其他 Apple Silicon 机型运行 | 行为与当前白名单一致 |
+
+实验零亮度已由 [合盖显示与最低亮度](lid-display-minimum-brightness.md) 记录。
+该实验路径使用私有 API。本次 helper v4 割接没有重新执行零亮度物理合盖矩阵。
+
+## 分发结论
+
+| 路径 | 状态 | 证据 | 解除条件 |
+| --- | --- | --- | --- |
+| 本地 RC | 通过 | DMG CRC、深度签名、离线模型和命名验收通过 | 无 |
+| Developer ID 签名 | 阻塞 | `security find-identity -v -p codesigning` 返回 `0 valid identities found` | 安装有效 Developer ID Application 证书 |
+| 公证 | 阻塞 | `notarytool` 没有 `Covio` 凭据配置 | 建立 Apple 凭据并完成公证 |
+| Mac App Store | 当前范围 no-go | LaunchDaemon helper、私有 `DisplayServices` API 和沙盒路径都需要重构 | 单独设计无特权或合规替代方案 |
 
 ## 风险
 
 1. `pmset disablesleep` 是系统级持久状态。
 2. 合盖测试需要真实睡眠与唤醒，不能由单元测试代替。
 3. 热状态无法稳定注入到真实硬件。
-4. 当前安装的是 Debug 构建。plist 指向用户可写的 worktree 路径。该状态仅用于临时测试。
-5. 长期使用前，必须把 helper 应用安装到 root 所有的固定路径，或者采用签名校验的正式安装器。
-6. App Store 分发仍未决定。
+4. 当前 helper 使用 Debug 构建。LaunchDaemon 指向用户可写 worktree。该状态只适合临时测试。
+5. 长期分发前，必须把 helper 放到 root 所有且受签名保护的固定路径，或者采用签名校验的正式安装器。
+6. Developer ID 和公证凭据缺失，因此 Gatekeeper 仍拒绝 ad-hoc RC。
+7. 私有亮度 API 可能随 macOS 更新失效。
+8. App Store 需要独立产品范围和实现方案，不能在当前 RC 上直接验证。

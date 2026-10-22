@@ -1143,9 +1143,25 @@
                 "additionalProperties": false,
                 "required": [
                   "state",
-                  "sfSymbol",
                   "purpose",
                   "copyKey"
+                ],
+                "oneOf": [
+                  {
+                    "required": [
+                      "sfSymbol"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "renderer"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "assetName"
+                    ]
+                  }
                 ],
                 "properties": {
                   "state": {
@@ -1153,6 +1169,14 @@
                     "minLength": 1
                   },
                   "sfSymbol": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "renderer": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "assetName": {
                     "type": "string",
                     "minLength": 1
                   },

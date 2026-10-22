@@ -30,6 +30,9 @@ python3 -I "$ROOT/scripts/generate-contract-constants.py" --check
 # 再查合同的跨段规则。schema 管形状，管不了「macOS 下 swiftMapping 必填」这类要求。
 python3 -I "$ROOT/scripts/validate-contract.py"
 
+# 菜单栏拟物图标是预渲染资源，确认它和生成脚本没有漂移。
+swift "$ROOT/scripts/generate-status-icon.swift" "$ROOT/macosApp/src" --check
+
 # spike 测试会把测量结果打到 stdout。--quiet 会压掉它们，所以不加。
 xcodebuild \
   -project "$PROJECT" \

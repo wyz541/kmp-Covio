@@ -2478,7 +2478,7 @@
     "component/tray-icon": {
       "name": "Covio/Tray Icon",
       "figmaComponentSetId": "8303:68442",
-      "purpose": "Menu bar status item: the brand capsule.",
+      "purpose": "Menu bar brand capsule and fallback status item.",
       "variants": [
         "DEFAULT",
         "DISABLED",
@@ -2530,7 +2530,7 @@
       "sourceAuthority": "macOS 27 (Community)",
       "swiftMapping": {
         "target": "StatusItemController",
-        "behavior": "菜单栏状态项，画品牌胶囊：高 20 点，胶囊圆角，底色 token/color/brand，内容为应用图形与名称，都用 token/color/text-on-accent。图形不用模板图，品牌色在明暗两档相同。左键开合挂帘，右键开菜单。"
+        "behavior": "一级入口由 MenuBarCapsulePanel 绘制 20 点品牌胶囊。StatusItemController 的次级状态项加载 CovioStatusIcon 的预渲染 1× 与 2× 拟物玻璃吊卡。运行时复用缓存位图，不计算渐变和阴影。左键开合挂帘，右键开菜单。"
       }
     },
     "component/tray-menu": {
@@ -3716,7 +3716,7 @@
       "statusItemStates": [
         {
           "state": "DEFAULT",
-          "sfSymbol": "menubar.rectangle",
+          "assetName": "CovioStatusIcon",
           "purpose": "status-icon/default",
           "copyKey": "copy/status-item/default"
         },
@@ -6491,7 +6491,7 @@
     "platform/component/tray-icon": {
       "componentKey": "component/tray-icon",
       "runtimeTarget": "CovioTrayIcon",
-      "behavior": "菜单栏状态项，画品牌胶囊：高 20 点，胶囊圆角，底色 token/color/brand，内容为应用图形与名称，都用 token/color/text-on-accent。图形不用模板图，品牌色在明暗两档相同。左键开合挂帘，右键开菜单。",
+      "behavior": "一级入口由 MenuBarCapsulePanel 绘制 20 点品牌胶囊。StatusItemController 的次级状态项加载 CovioStatusIcon 的预渲染 1× 与 2× 拟物玻璃吊卡。运行时复用缓存位图，不计算渐变和阴影。左键开合挂帘，右键开菜单。",
       "status": "native-source-mapped",
       "swiftRuntimeTarget": "StatusItemController"
     },

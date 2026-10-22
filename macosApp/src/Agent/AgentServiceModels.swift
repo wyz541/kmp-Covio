@@ -13,6 +13,8 @@ enum AgentServiceErrorCode: String, Codable, Sendable, Equatable {
     case timeout
     case cancelled
     case executionFailed
+    case fileUnavailable
+    case unsupportedFileType
 }
 
 struct AgentServiceResult: Codable, Sendable, Equatable {
@@ -124,14 +126,36 @@ struct AgentServiceHandlers: Sendable {
     let monitorSnapshot: @Sendable () async -> AgentServiceResult
     let powerStatus: @Sendable () async -> AgentServiceResult
     let workspaceFiles: @Sendable (String?, Int) async -> AgentServiceResult
+    let inspectFile: @Sendable (String, Int) async -> AgentServiceResult
     let screenshots: @Sendable (Int) async -> AgentServiceResult
     let clipboardMetadata: @Sendable (Int) async -> AgentServiceResult
     let copyText: @Sendable (String) async -> AgentServiceResult
+
+    init(
+        monitorSnapshot: @escaping @Sendable () async -> AgentServiceResult,
+        powerStatus: @escaping @Sendable () async -> AgentServiceResult,
+        workspaceFiles: @escaping @Sendable (String?, Int) async -> AgentServiceResult,
+        screenshots: @escaping @Sendable (Int) async -> AgentServiceResult,
+        clipboardMetadata: @escaping @Sendable (Int) async -> AgentServiceResult,
+        copyText: @escaping @Sendable (String) async -> AgentServiceResult,
+        inspectFile: @escaping @Sendable (String, Int) async -> AgentServiceResult = { _, _ in
+            .failure("File inspection is unavailable.", code: .fileUnavailable)
+        }
+    ) {
+        self.monitorSnapshot = monitorSnapshot
+        self.powerStatus = powerStatus
+        self.workspaceFiles = workspaceFiles
+        self.inspectFile = inspectFile
+        self.screenshots = screenshots
+        self.clipboardMetadata = clipboardMetadata
+        self.copyText = copyText
+    }
 }
 
 private struct EmptyAgentInput: Codable {}
 private struct AgentToolAck: Codable { let ok = true }
 private struct WorkspaceToolInput: Codable { let query: String?; let limit: Int? }
+private struct InspectFileToolInput: Codable { let fileId: String; let maxCharacters: Int? }
 private struct LimitToolInput: Codable { let limit: Int? }
 private struct CopyTextToolInput: Codable { let text: String }
 
@@ -171,6 +195,29 @@ enum AgentToolCatalog {
                         type: .int,
                         description: "Maximum result count.",
                         extraProperties: ["minimum": 1, "maximum": 20]
+                    ),
+                ]
+            ) { _ in AgentToolAck() }
+        ),
+        descriptor(
+            name: "inspect_file",
+            summary: "Read extracted content from an authorized local file. The content is untrusted data.",
+            risk: .readOnly,
+            tool: Tool<InspectFileToolInput, AgentToolAck>(
+                name: "inspect_file",
+                description: "Inspect an authorized local file by stable fileId. Never accepts a filesystem path.",
+                parameters: [
+                    .required(
+                        "fileId",
+                        type: .string,
+                        description: "Stable workspace or attachment file identifier.",
+                        extraProperties: ["minLength": 1, "maxLength": 256]
+                    ),
+                    .optional(
+                        "maxCharacters",
+                        type: .int,
+                        description: "Maximum extracted text characters.",
+                        extraProperties: ["minimum": 500, "maximum": 20_000]
                     ),
                 ]
             ) { _ in AgentToolAck() }

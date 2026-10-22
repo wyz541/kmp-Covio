@@ -53,6 +53,9 @@ final class AppRuntime {
     /// 离线本地服务 Agent。Hub 的 Agent 页签读它。
     let agent: AgentChatRuntime
 
+    /// 用户明确授权给 Agent 读取的文件。
+    let agentAttachments: AgentAttachmentStore
+
     /// 文件自动命名和 Agent 共用同一个本地模型容器。
     private let localModelRuntime: LocalModelRuntime
 
@@ -227,11 +230,14 @@ final class AppRuntime {
                 )
             )
         )
+        let agentAttachments = AgentAttachmentStore()
+        self.agentAttachments = agentAttachments
         let agentGateway = AgentServiceGateway(
             handlers: AgentAppServices.handlers(
                 shelf: resolvedShelf,
                 clipboard: resolvedClipboard,
-                workspace: resolvedWorkspace
+                workspace: resolvedWorkspace,
+                attachments: agentAttachments
             )
         )
         self.agent = AgentChatRuntime(

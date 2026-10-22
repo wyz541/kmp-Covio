@@ -8,6 +8,7 @@ import kmpDomain
 /// - `--install-helper` / `--uninstall-helper`：迁移脚本用它走真实的安装路径，
 ///   而不是在脚本里重抄一遍安装步骤。
 /// - `--helper-version`：问 helper 自己的版本号，迁移脚本用它判断是否 OUTDATED。
+/// - Debug 构建另有充电命令，用来验证 helper 的原始回复。
 ///
 /// Hub 是 NSPanel，由 `AppDelegate` 与 `NotchShellController` 管理。
 /// 这里不提供任何窗口。`Settings` 场景是让 `App` 协议有一个非空 `Scene` 的最小写法。
@@ -31,6 +32,11 @@ enum CovioMain {
         if arguments.contains(MaintenanceCommand.helperProtocolVersion) {
             exit(printHelperProtocolVersion())
         }
+#if DEBUG
+        if handleChargeLimitMaintenance(arguments) {
+            return
+        }
+#endif
         CovioApp.main()
     }
 
@@ -66,6 +72,47 @@ enum CovioMain {
         print(protocolVersion)
         return 0
     }
+
+#if DEBUG
+    /// Debug 构建的硬件验证入口。命令仍由 helper 校验客户端签名和参数范围。
+    private static func handleChargeLimitMaintenance(_ arguments: [String]) -> Bool {
+        if arguments.contains(DebugChargeCommand.status) {
+            exit(printChargeLimitReply(
+                command: HelperWire.shared.COMMAND_CHARGE_LIMIT_STATUS
+            ))
+        }
+        if arguments.contains(DebugChargeCommand.restore) {
+            exit(printChargeLimitReply(
+                command: HelperWire.shared.COMMAND_CHARGE_LIMIT_RESTORE
+            ))
+        }
+        if let index = arguments.firstIndex(of: DebugChargeCommand.configure) {
+            guard arguments.indices.contains(index + 1),
+                  let percent = Int(arguments[index + 1])
+            else {
+                log("Charge limit percent is missing or invalid")
+                exit(1)
+            }
+            exit(printChargeLimitReply(
+                command: HelperWire.shared.COMMAND_CHARGE_LIMIT_CONFIGURE,
+                payload: ["percent": String(percent)]
+            ))
+        }
+        return false
+    }
+
+    private static func printChargeLimitReply(
+        command: String,
+        payload: [String: String] = [:]
+    ) -> Int32 {
+        guard let reply = HelperClient().request(command: command, payload: payload) else {
+            log("Helper did not reply to \(command)")
+            return 1
+        }
+        print(HelperWire.shared.encodeReply(reply: reply))
+        return reply.ok ? 0 : 1
+    }
+#endif
 }
 
 /// 迁移与排查用的命令行开关。只影响启动分流，不影响正常运行。
@@ -79,6 +126,15 @@ enum MaintenanceCommand {
     /// 打印 helper 报告的协议版本号。
     static let helperProtocolVersion = "--helper-protocol-version"
 }
+
+#if DEBUG
+/// 只用于真机验证的调试命令。发布构建不包含这些入口。
+enum DebugChargeCommand {
+    static let status = "--charge-limit-status"
+    static let configure = "--charge-limit-configure"
+    static let restore = "--charge-limit-restore"
+}
+#endif
 
 struct CovioApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate

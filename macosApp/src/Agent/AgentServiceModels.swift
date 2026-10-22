@@ -117,6 +117,8 @@ struct AgentToolAudit: Sendable, Equatable, Identifiable {
     let status: AgentToolAuditStatus
     let detail: String
     let errorCode: AgentServiceErrorCode?
+    let durationMilliseconds: Int?
+    let createdAtEpochMilliseconds: Int64
 
     init(
         id: String,
@@ -124,7 +126,9 @@ struct AgentToolAudit: Sendable, Equatable, Identifiable {
         risk: AgentToolRisk,
         status: AgentToolAuditStatus,
         detail: String,
-        errorCode: AgentServiceErrorCode? = nil
+        errorCode: AgentServiceErrorCode? = nil,
+        durationMilliseconds: Int? = nil,
+        createdAtEpochMilliseconds: Int64 = AgentEventClock.nowMilliseconds()
     ) {
         self.id = id
         self.toolName = toolName
@@ -132,6 +136,14 @@ struct AgentToolAudit: Sendable, Equatable, Identifiable {
         self.status = status
         self.detail = detail
         self.errorCode = errorCode
+        self.durationMilliseconds = durationMilliseconds
+        self.createdAtEpochMilliseconds = createdAtEpochMilliseconds
+    }
+}
+
+enum AgentEventClock {
+    static func nowMilliseconds() -> Int64 {
+        Int64((Date().timeIntervalSince1970 * 1_000).rounded())
     }
 }
 

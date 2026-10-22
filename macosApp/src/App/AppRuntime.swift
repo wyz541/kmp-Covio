@@ -64,6 +64,7 @@ final class AppRuntime {
 
     /// 文件自动命名和 Agent 共用同一个本地模型容器。
     private let localModelRuntime: LocalModelRuntime
+    private let agentHistoryStore: any AgentHistoryStoring
 
     private let configStore: ConfigStore
     /// 挂帘读配置的中间人。理由见 `ShelfBridge`。
@@ -122,7 +123,8 @@ final class AppRuntime {
         clipboard: ClipboardRuntime? = nil,
         workspace: WorkspaceRuntime? = nil,
         transfer: WorkspaceTransferRuntime? = nil,
-        autoNaming: AutoNamingRuntime? = nil
+        autoNaming: AutoNamingRuntime? = nil,
+        agentHistoryStore: (any AgentHistoryStoring)? = nil
     ) {
         let resolvedLogger = logger ?? FileAppLogger()
         let resolvedStore = configStore ?? ConfigStore.companion.create(path: AppPaths.configFile.path)
@@ -241,6 +243,9 @@ final class AppRuntime {
         self.autoNaming = resolvedAutoNaming
         let agentAttachments = AgentAttachmentStore()
         self.agentAttachments = agentAttachments
+        let resolvedAgentHistory = agentHistoryStore
+            ?? AgentHistoryStore(path: AppPaths.agentHistoryFile)
+        self.agentHistoryStore = resolvedAgentHistory
         let agentGateway = AgentServiceGateway(
             handlers: AgentAppServices.handlers(
                 shelf: resolvedShelf,
@@ -258,7 +263,8 @@ final class AppRuntime {
                 gateway: agentGateway,
                 containerRuntime: localModelRuntime
             ),
-            gateway: agentGateway
+            gateway: agentGateway,
+            historyStore: resolvedAgentHistory
         )
 
         let engine = Engine(
@@ -329,6 +335,7 @@ final class AppRuntime {
         engine.start()
         powerRuntime.start()
         syncState()
+        Task { await agent.restoreHistory() }
 
         // 挂帘的错误要显示在 Hub 上，出口在这里接。
         shelfBridge.report = { [weak self] entry in

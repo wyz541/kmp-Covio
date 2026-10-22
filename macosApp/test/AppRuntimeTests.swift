@@ -73,7 +73,10 @@ final class AppRuntimeTests: XCTestCase {
             closedLidBrightnessBackend: brightnessBackend,
             closedLidBrightnessStore: FakeClosedLidBrightnessRecoveryStore(),
             shelf: makeShelf(),
-            workspace: makeWorkspace()
+            workspace: makeWorkspace(),
+            agentHistoryStore: AgentHistoryStore(
+                path: directory.appendingPathComponent("agent-history.sqlite3")
+            )
         )
         runtime = created
         if engineStarted { created.start() }

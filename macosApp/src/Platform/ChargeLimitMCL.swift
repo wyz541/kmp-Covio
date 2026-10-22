@@ -355,10 +355,13 @@ final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
         if powerUI.isMCLEnabled() != true {
             guard applyWithPowerUI(powerUIMinimum) else { return false }
         }
+        preferences.writeInt(DirectMCLPreference.keyFeatureState, value: 1)
         preferences.writeInt(DirectMCLPreference.keyLimitValue, value: targetPercent)
         guard preferences.synchronize() else { return false }
         preferences.notifyChanged()
-        guard preferences.readInt(DirectMCLPreference.keyLimitValue) == targetPercent else {
+        guard preferences.readInt(DirectMCLPreference.keyFeatureState) == 1,
+              preferences.readInt(DirectMCLPreference.keyLimitValue) == targetPercent
+        else {
             return false
         }
 

@@ -147,6 +147,11 @@ struct AgentTabView: View {
                     Spacer(minLength: MacTheme.space1)
                     Text(audit.status.rawValue)
                         .font(.system(size: 9, weight: .medium))
+                    if let duration = audit.durationMilliseconds {
+                        Text("\(duration) ms")
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundStyle(MacTheme.textSecondary)
+                    }
                     if let code = audit.errorCode?.rawValue {
                         Text(code)
                             .font(.system(size: 9, design: .monospaced))
@@ -301,13 +306,39 @@ struct AgentHeadingActions: View {
     let agent: AgentChatRuntime
     let language: AppLanguage
 
+    @State private var confirmClearAll = false
+
     var body: some View {
-        Button(ContractCopy.copyAgentClear.text(for: language)) {
-            agent.clear()
+        HStack(spacing: MacTheme.space2) {
+            Button(ContractCopy.copyAgentClear.text(for: language)) {
+                agent.clear()
+            }
+            .buttonStyle(.plain)
+            .font(.system(size: 11, weight: .medium))
+            .disabled(agent.isBusy || agent.messages.isEmpty)
+            .accessibilityLabel(ContractCopy.copyAgentClear.text(for: language))
+
+            Button {
+                confirmClearAll = true
+            } label: {
+                Image(systemName: "trash")
+                    .font(.system(size: 11, weight: .medium))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(MacTheme.textSecondary)
+            .disabled(agent.isBusy || agent.messages.isEmpty)
+            .accessibilityLabel(ContractCopy.copyAgentHistoryClearAll.text(for: language))
+            .alert(
+                ContractCopy.copyAgentHistoryClearTitle.text(for: language),
+                isPresented: $confirmClearAll
+            ) {
+                Button(ContractCopy.copyAgentCancel.text(for: language), role: .cancel) {}
+                Button(ContractCopy.copyAgentHistoryClearAll.text(for: language), role: .destructive) {
+                    agent.clearAllHistory()
+                }
+            } message: {
+                Text(ContractCopy.copyAgentHistoryClearBody.text(for: language))
+            }
         }
-        .buttonStyle(.plain)
-        .font(.system(size: 11, weight: .medium))
-        .disabled(agent.isBusy || agent.messages.isEmpty)
-        .accessibilityLabel(ContractCopy.copyAgentClear.text(for: language))
     }
 }

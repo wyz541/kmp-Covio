@@ -6359,6 +6359,18 @@
     "copy/hub/files/state/local": {
       "en": "Available on this Mac",
       "zh-Hans": "本机可用"
+    },
+    "copy/agent/history/clear-all": {
+      "en": "Clear All History",
+      "zh-Hans": "清除全部历史"
+    },
+    "copy/agent/history/clear-body": {
+      "en": "This removes saved conversations and tool audit records from this Mac. It cannot be undone.",
+      "zh-Hans": "此操作会删除这台 Mac 上保存的会话和工具审计记录。此操作无法撤销。"
+    },
+    "copy/agent/history/clear-title": {
+      "en": "Clear all local Agent history?",
+      "zh-Hans": "清除全部本地 Agent 历史？"
     }
   },
   "platformMapping": {

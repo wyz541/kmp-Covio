@@ -6,10 +6,32 @@ enum AgentToolRisk: String, Sendable, Equatable {
     case sideEffect
 }
 
+enum AgentServiceErrorCode: String, Codable, Sendable, Equatable {
+    case invalidArguments
+    case unknownTool
+    case pendingActionExists
+    case timeout
+    case cancelled
+    case executionFailed
+}
+
 struct AgentServiceResult: Codable, Sendable, Equatable {
     let ok: Bool
     let summary: String
     let data: JSONValue?
+    let errorCode: AgentServiceErrorCode?
+
+    init(
+        ok: Bool,
+        summary: String,
+        data: JSONValue?,
+        errorCode: AgentServiceErrorCode? = nil
+    ) {
+        self.ok = ok
+        self.summary = summary
+        self.data = data
+        self.errorCode = errorCode
+    }
 
     func jsonString() -> String {
         let encoder = JSONEncoder()
@@ -22,8 +44,11 @@ struct AgentServiceResult: Codable, Sendable, Equatable {
         return text
     }
 
-    static func failure(_ summary: String) -> AgentServiceResult {
-        AgentServiceResult(ok: false, summary: summary, data: nil)
+    static func failure(
+        _ summary: String,
+        code: AgentServiceErrorCode = .executionFailed
+    ) -> AgentServiceResult {
+        AgentServiceResult(ok: false, summary: summary, data: nil, errorCode: code)
     }
 }
 
@@ -39,6 +64,27 @@ struct AgentPendingAction: Sendable, Equatable, Identifiable {
     let toolName: String
     let summary: String
     let characterCount: Int?
+    let textPreview: String?
+    let risk: AgentToolRisk
+    let toolCallID: String?
+
+    init(
+        id: String,
+        toolName: String,
+        summary: String,
+        characterCount: Int?,
+        textPreview: String? = nil,
+        risk: AgentToolRisk = .sideEffect,
+        toolCallID: String? = nil
+    ) {
+        self.id = id
+        self.toolName = toolName
+        self.summary = summary
+        self.characterCount = characterCount
+        self.textPreview = textPreview
+        self.risk = risk
+        self.toolCallID = toolCallID
+    }
 }
 
 enum AgentToolAuditStatus: String, Sendable, Equatable {
@@ -55,6 +101,23 @@ struct AgentToolAudit: Sendable, Equatable, Identifiable {
     let risk: AgentToolRisk
     let status: AgentToolAuditStatus
     let detail: String
+    let errorCode: AgentServiceErrorCode?
+
+    init(
+        id: String,
+        toolName: String,
+        risk: AgentToolRisk,
+        status: AgentToolAuditStatus,
+        detail: String,
+        errorCode: AgentServiceErrorCode? = nil
+    ) {
+        self.id = id
+        self.toolName = toolName
+        self.risk = risk
+        self.status = status
+        self.detail = detail
+        self.errorCode = errorCode
+    }
 }
 
 struct AgentServiceHandlers: Sendable {

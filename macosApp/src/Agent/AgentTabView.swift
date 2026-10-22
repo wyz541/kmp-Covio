@@ -39,8 +39,11 @@ struct AgentTabView: View {
                         ForEach(agent.messages) { message in
                             messageView(message)
                         }
-                        if agent.stage == .thinking {
+                        if agent.stage == .thinking || agent.stage == .executing {
                             thinkingRow
+                        }
+                        if !agent.toolAudits.isEmpty {
+                            auditSection
                         }
                         Color.clear.frame(height: 1).id(Self.bottomID)
                     }
@@ -131,15 +134,56 @@ struct AgentTabView: View {
         .accessibilityElement(children: .combine)
     }
 
+    private var auditSection: some View {
+        VStack(alignment: .leading, spacing: MacTheme.space1) {
+            Divider()
+            ForEach(Array(agent.toolAudits.suffix(6))) { audit in
+                HStack(spacing: MacTheme.space1) {
+                    Text(audit.toolName)
+                        .font(.system(size: 9, design: .monospaced))
+                    Text("· \(audit.risk.rawValue)")
+                        .font(.system(size: 9))
+                        .foregroundStyle(MacTheme.textSecondary)
+                    Spacer(minLength: MacTheme.space1)
+                    Text(audit.status.rawValue)
+                        .font(.system(size: 9, weight: .medium))
+                    if let code = audit.errorCode?.rawValue {
+                        Text(code)
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundStyle(MacTheme.errorText)
+                    }
+                }
+                .accessibilityElement(children: .combine)
+            }
+        }
+        .padding(.top, MacTheme.space1)
+    }
+
     private func confirmationCard(_ pending: AgentPendingAction) -> some View {
         HStack(spacing: MacTheme.space3) {
             VStack(alignment: .leading, spacing: MacTheme.space1) {
-                Text(ContractCopy.copyAgentConfirmTitle.text(for: language))
+                Text("\(pending.toolName) · \(pending.risk.rawValue)")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(MacTheme.textPrimary)
                 Text(pendingSummary(pending))
                     .font(.system(size: 11))
                     .foregroundStyle(MacTheme.textSecondary)
+                if let preview = pending.textPreview, !preview.isEmpty {
+                    Text(preview)
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(MacTheme.textPrimary)
+                        .lineLimit(5)
+                        .textSelection(.enabled)
+                        .padding(MacTheme.space2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            MacTheme.material,
+                            in: RoundedRectangle(
+                                cornerRadius: MacTheme.controlRadius,
+                                style: .continuous
+                            )
+                        )
+                }
                 Text(ContractCopy.copyAgentConfirmBody.text(for: language))
                     .font(.system(size: 10))
                     .foregroundStyle(MacTheme.textSecondary)
@@ -149,11 +193,13 @@ struct AgentTabView: View {
                 agent.cancelPendingAction()
             }
             .buttonStyle(.plain)
+            .disabled(agent.stage != .awaitingConfirmation)
             Button(ContractCopy.copyAgentConfirm.text(for: language)) {
                 agent.confirmPendingAction()
             }
             .buttonStyle(.borderedProminent)
             .tint(MacTheme.accent)
+            .disabled(agent.stage != .awaitingConfirmation)
         }
         .padding(MacTheme.space3)
         .background(
@@ -191,7 +237,15 @@ struct AgentTabView: View {
                     .strokeBorder(MacTheme.divider, lineWidth: 1)
             )
 
-            if agent.isBusy {
+            if agent.stage == .executing {
+                HStack(spacing: MacTheme.space1) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text(ContractCopy.copyAgentThinking.text(for: language))
+                        .font(.system(size: 10))
+                        .foregroundStyle(MacTheme.textSecondary)
+                }
+            } else if agent.isBusy {
                 Button(ContractCopy.copyAgentStop.text(for: language)) {
                     agent.stop()
                 }

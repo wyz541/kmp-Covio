@@ -3,6 +3,7 @@ import MLXLMCommon
 
 actor AgentServiceGateway {
     private let handlers: AgentServiceHandlers
+    private let timeout: Duration
     private var pending: PendingCall?
     private var audits: [AgentToolAudit] = []
     private let maxAuditEntries = 40
@@ -12,31 +13,54 @@ actor AgentServiceGateway {
         let arguments: [String: JSONValue]
     }
 
-    init(handlers: AgentServiceHandlers) {
+    init(handlers: AgentServiceHandlers, timeout: Duration = .seconds(15)) {
         self.handlers = handlers
+        self.timeout = timeout
     }
 
     func handle(_ call: ToolCall) async -> String {
         let name = call.function.name
         guard let descriptor = AgentToolCatalog.descriptor(named: name) else {
             record(name: name, risk: .readOnly, status: .rejected, detail: "Unknown tool")
-            return AgentServiceResult.failure("Unknown local service.").jsonString()
+            return AgentServiceResult.failure(
+                "Unknown local service.",
+                code: .unknownTool
+            ).jsonString()
         }
 
         guard validateArguments(call.function.arguments, for: descriptor) else {
             record(name: name, risk: descriptor.risk, status: .rejected, detail: "Invalid arguments")
-            return AgentServiceResult.failure("Invalid local service arguments.").jsonString()
+            return AgentServiceResult.failure(
+                "Invalid local service arguments.",
+                code: .invalidArguments
+            ).jsonString()
         }
 
         if descriptor.risk == .sideEffect {
+            guard pending == nil else {
+                record(
+                    name: name,
+                    risk: descriptor.risk,
+                    status: .rejected,
+                    detail: "Another action is waiting for confirmation"
+                )
+                return AgentServiceResult.failure(
+                    "Another local action is already waiting for confirmation.",
+                    code: .pendingActionExists
+                ).jsonString()
+            }
             let summary = pendingSummary(name: name, arguments: call.function.arguments)
+            let text = stringValue(call.function.arguments["text"])
             let action = AgentPendingAction(
                 id: UUID().uuidString,
                 toolName: name,
                 summary: summary,
                 characterCount: name == "copy_text"
-                    ? stringValue(call.function.arguments["text"])?.count
-                    : nil
+                    ? text?.count
+                    : nil,
+                textPreview: text.map { String($0.prefix(500)) },
+                risk: descriptor.risk,
+                toolCallID: call.id
             )
             pending = PendingCall(action: action, arguments: call.function.arguments)
             record(
@@ -52,12 +76,13 @@ actor AgentServiceGateway {
             ).jsonString()
         }
 
-        let result = await execute(name: name, arguments: call.function.arguments)
+        let result = await executeWithTimeout(name: name, arguments: call.function.arguments)
         record(
             name: name,
             risk: descriptor.risk,
             status: result.ok ? .completed : .failed,
-            detail: result.ok ? "Completed" : result.summary
+            detail: result.ok ? "Completed" : result.summary,
+            errorCode: result.errorCode
         )
         return result.jsonString()
     }
@@ -68,15 +93,19 @@ actor AgentServiceGateway {
 
     func confirmPending() async -> AgentServiceResult {
         guard let pending else {
-            return .failure("There is no pending local action.")
+            return .failure("There is no pending local action.", code: .executionFailed)
         }
         self.pending = nil
-        let result = await execute(name: pending.action.toolName, arguments: pending.arguments)
+        let result = await executeWithTimeout(
+            name: pending.action.toolName,
+            arguments: pending.arguments
+        )
         record(
             name: pending.action.toolName,
             risk: .sideEffect,
             status: result.ok ? .completed : .failed,
-            detail: result.ok ? "Confirmed and completed" : result.summary
+            detail: result.ok ? "Confirmed and completed" : result.summary,
+            errorCode: result.errorCode
         )
         return result
     }
@@ -101,6 +130,35 @@ actor AgentServiceGateway {
         audits = []
     }
 
+    private func executeWithTimeout(
+        name: String,
+        arguments: [String: JSONValue]
+    ) async -> AgentServiceResult {
+        let timeout = self.timeout
+        do {
+            return try await withThrowingTaskGroup(of: AgentServiceResult.self) { group in
+                group.addTask {
+                    await self.execute(name: name, arguments: arguments)
+                }
+                group.addTask {
+                    try await Task.sleep(for: timeout)
+                    throw GatewayTimeout()
+                }
+                guard let result = try await group.next() else {
+                    throw GatewayTimeout()
+                }
+                group.cancelAll()
+                return result
+            }
+        } catch is CancellationError {
+            return .failure("Local service was cancelled.", code: .cancelled)
+        } catch is GatewayTimeout {
+            return .failure("Local service timed out.", code: .timeout)
+        } catch {
+            return .failure("Local service failed.", code: .executionFailed)
+        }
+    }
+
     private func execute(name: String, arguments: [String: JSONValue]) async -> AgentServiceResult {
         switch name {
         case "get_monitor_snapshot":
@@ -118,11 +176,11 @@ actor AgentServiceGateway {
             return await handlers.clipboardMetadata(boundedLimit(arguments["limit"], defaultValue: 8))
         case "copy_text":
             guard let text = stringValue(arguments["text"]), !text.isEmpty else {
-                return .failure("Text is required.")
+                return .failure("Text is required.", code: .invalidArguments)
             }
             return await handlers.copyText(text)
         default:
-            return .failure("Unknown local service.")
+            return .failure("Unknown local service.", code: .unknownTool)
         }
     }
 
@@ -191,7 +249,8 @@ actor AgentServiceGateway {
         name: String,
         risk: AgentToolRisk,
         status: AgentToolAuditStatus,
-        detail: String
+        detail: String,
+        errorCode: AgentServiceErrorCode? = nil
     ) {
         audits.append(
             AgentToolAudit(
@@ -199,7 +258,8 @@ actor AgentServiceGateway {
                 toolName: name,
                 risk: risk,
                 status: status,
-                detail: detail
+                detail: detail,
+                errorCode: errorCode
             )
         )
         if audits.count > maxAuditEntries {
@@ -207,3 +267,5 @@ actor AgentServiceGateway {
         }
     }
 }
+
+private struct GatewayTimeout: Error {}

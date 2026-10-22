@@ -76,7 +76,8 @@ final class AppRuntimeTests: XCTestCase {
             workspace: makeWorkspace(),
             agentHistoryStore: AgentHistoryStore(
                 path: directory.appendingPathComponent("agent-history.sqlite3")
-            )
+            ),
+            agentExternalPreferences: .disabled
         )
         runtime = created
         if engineStarted { created.start() }

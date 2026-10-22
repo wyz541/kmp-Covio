@@ -247,6 +247,37 @@ final class AgentChatRuntimeTests: XCTestCase {
         XCTAssertNil(afterClearAll)
     }
 
+    func testExternalPendingActionAppearsInTheLocalConfirmationState() async {
+        let gateway = AgentServiceGateway(
+            handlers: AgentServiceHandlers(
+                monitorSnapshot: { .failure("unused") },
+                powerStatus: { .failure("unused") },
+                workspaceFiles: { _, _ in .failure("unused") },
+                screenshots: { _ in .failure("unused") },
+                clipboardMetadata: { _ in .failure("unused") },
+                copyText: { _ in
+                    AgentServiceResult(ok: true, summary: "copied", data: nil)
+                }
+            )
+        )
+        let runtime = AgentChatRuntime(
+            model: FakeAgentModel(chunks: ["unused"]),
+            gateway: gateway
+        )
+
+        _ = await gateway.handleExternal(
+            ToolCall(function: .init(
+                name: "copy_text",
+                arguments: ["text": .string("external")]
+            )),
+            sessionID: "mcp-session"
+        )
+        await runtime.refreshExternalToolState()
+
+        XCTAssertEqual(runtime.stage, .awaitingConfirmation)
+        XCTAssertEqual(runtime.pendingAction?.source, .external("mcp-session"))
+    }
+
     private func waitUntil(_ condition: @escaping @MainActor () -> Bool) async {
         for _ in 0..<100 {
             if condition() { return }

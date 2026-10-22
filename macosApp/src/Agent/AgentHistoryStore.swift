@@ -10,6 +10,22 @@ struct AgentHistorySession: Sendable, Equatable {
     let audits: [AgentToolAudit]
 }
 
+struct AgentExternalAuditRecord: Sendable, Equatable {
+    let id: String
+    let sessionID: String
+    let toolName: String
+    let risk: AgentToolRisk
+    let status: AgentToolAuditStatus
+    let detail: String
+    let errorCode: AgentServiceErrorCode?
+    let durationMilliseconds: Int?
+    let createdAtEpochMilliseconds: Int64
+}
+
+protocol AgentExternalAuditStoring: Sendable {
+    func recordExternalAudit(_ audit: AgentExternalAuditRecord) async throws
+}
+
 protocol AgentHistoryStoring: Sendable {
     func loadLatestSession() async throws -> AgentHistorySession?
     func saveSession(_ session: AgentHistorySession) async throws
@@ -35,8 +51,8 @@ private final class AgentHistorySQLiteConnection: @unchecked Sendable {
     }
 }
 
-actor AgentHistoryStore: AgentHistoryStoring {
-    private let connection: AgentHistorySQLiteConnection?
+actor AgentHistoryStore: AgentHistoryStoring, AgentExternalAuditStoring {
+    private var connection: AgentHistorySQLiteConnection?
     private let openingError: AgentHistoryStoreError?
 
     init(path: URL) {
@@ -174,12 +190,97 @@ actor AgentHistoryStore: AgentHistoryStoring {
 
     func deleteAllSessions() async throws {
         let database = try readyDatabase()
-        try execute(database, "DELETE FROM agent_sessions")
+        try transaction(database) {
+            try execute(database, "DELETE FROM agent_sessions")
+            try execute(database, "DELETE FROM agent_external_audits")
+        }
+    }
+
+    func recordExternalAudit(_ audit: AgentExternalAuditRecord) async throws {
+        let database = try readyDatabase()
+        let statement = try prepare(
+            database,
+            """
+            INSERT OR REPLACE INTO agent_external_audits
+                (id, session_id, tool_name, risk, status, detail, error_code,
+                 duration_ms, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """
+        )
+        defer { sqlite3_finalize(statement) }
+        try bindText(statement, index: 1, value: audit.id)
+        try bindText(statement, index: 2, value: audit.sessionID)
+        try bindText(statement, index: 3, value: audit.toolName)
+        try bindText(statement, index: 4, value: audit.risk.rawValue)
+        try bindText(statement, index: 5, value: audit.status.rawValue)
+        try bindText(statement, index: 6, value: audit.detail)
+        try bindOptionalText(statement, index: 7, value: audit.errorCode?.rawValue)
+        if let duration = audit.durationMilliseconds {
+            try bindInt64(statement, index: 8, value: Int64(duration))
+        } else if sqlite3_bind_null(statement, 8) != SQLITE_OK {
+            throw Self.sqliteError(database, fallback: "Could not bind an external audit duration.")
+        }
+        try bindInt64(statement, index: 9, value: audit.createdAtEpochMilliseconds)
+        try stepDone(statement, database: database)
+    }
+
+    func recentExternalAudits(limit: Int = 20) async throws -> [AgentExternalAuditRecord] {
+        let database = try readyDatabase()
+        let statement = try prepare(
+            database,
+            """
+            SELECT id, session_id, tool_name, risk, status, detail, error_code,
+                   duration_ms, created_at
+            FROM agent_external_audits
+            ORDER BY created_at DESC, rowid DESC
+            LIMIT ?
+            """
+        )
+        defer { sqlite3_finalize(statement) }
+        try bindInt64(statement, index: 1, value: Int64(max(0, limit)))
+        var records: [AgentExternalAuditRecord] = []
+        while sqlite3_step(statement) == SQLITE_ROW {
+            guard let risk = AgentToolRisk(rawValue: text(statement, column: 3)),
+                  let status = AgentToolAuditStatus(rawValue: text(statement, column: 4))
+            else {
+                throw AgentHistoryStoreError(message: "The external audit record is invalid.")
+            }
+            let errorCode: AgentServiceErrorCode?
+            if sqlite3_column_type(statement, 6) == SQLITE_NULL {
+                errorCode = nil
+            } else {
+                guard let code = AgentServiceErrorCode(rawValue: text(statement, column: 6)) else {
+                    throw AgentHistoryStoreError(message: "The external audit error code is invalid.")
+                }
+                errorCode = code
+            }
+            let duration = sqlite3_column_type(statement, 7) == SQLITE_NULL
+                ? nil
+                : Int(sqlite3_column_int64(statement, 7))
+            records.append(
+                AgentExternalAuditRecord(
+                    id: text(statement, column: 0),
+                    sessionID: text(statement, column: 1),
+                    toolName: text(statement, column: 2),
+                    risk: risk,
+                    status: status,
+                    detail: text(statement, column: 5),
+                    errorCode: errorCode,
+                    durationMilliseconds: duration,
+                    createdAtEpochMilliseconds: sqlite3_column_int64(statement, 8)
+                )
+            )
+        }
+        return records
     }
 
     func schemaVersion() async throws -> Int {
         let database = try readyDatabase()
         return try Self.userVersion(database)
+    }
+
+    func close() {
+        connection = nil
     }
 
     private func loadMessages(
@@ -371,7 +472,33 @@ actor AgentHistoryStore: AgentHistoryStoring {
                 version = 1
             }
         }
-        guard version == 1 else {
+        if version < 2 {
+            try transaction(database) {
+                try execute(
+                    database,
+                    """
+                    CREATE TABLE IF NOT EXISTS agent_external_audits (
+                        id TEXT PRIMARY KEY NOT NULL,
+                        session_id TEXT NOT NULL,
+                        tool_name TEXT NOT NULL,
+                        risk TEXT NOT NULL,
+                        status TEXT NOT NULL,
+                        detail TEXT NOT NULL,
+                        error_code TEXT,
+                        duration_ms INTEGER,
+                        created_at INTEGER NOT NULL
+                    )
+                    """
+                )
+                try execute(
+                    database,
+                    "CREATE INDEX IF NOT EXISTS agent_external_audits_created ON agent_external_audits(created_at)"
+                )
+                try execute(database, "PRAGMA user_version = 2")
+                version = 2
+            }
+        }
+        guard version == 2 else {
             throw AgentHistoryStoreError(
                 message: "The Agent history database version is not supported."
             )

@@ -249,6 +249,26 @@ enum ContractCopy {
     static let copyGeneralClearConfig = LocalizedCopy(key: "copy/general/clear-config", en: "Clear Configuration…", zhHans: "清除配置…")
     /// `copy/general/darkwake`
     static let copyGeneralDarkwake = LocalizedCopy(key: "copy/general/darkwake", en: "DarkWake awareness", zhHans: "DarkWake 感知")
+    /// `copy/general/external-agent/copied`
+    static let copyGeneralExternalAgentCopied = LocalizedCopy(key: "copy/general/external-agent/copied", en: "Pairing copied.", zhHans: "配对信息已复制。")
+    /// `copy/general/external-agent/copy-pairing`
+    static let copyGeneralExternalAgentCopyPairing = LocalizedCopy(key: "copy/general/external-agent/copy-pairing", en: "Copy Pairing", zhHans: "复制配对信息")
+    /// `copy/general/external-agent/enabled`
+    static let copyGeneralExternalAgentEnabled = LocalizedCopy(key: "copy/general/external-agent/enabled", en: "Enable local MCP service", zhHans: "启用本地 MCP 服务")
+    /// `copy/general/external-agent/endpoint`
+    static let copyGeneralExternalAgentEndpoint = LocalizedCopy(key: "copy/general/external-agent/endpoint", en: "Endpoint", zhHans: "Endpoint")
+    /// `copy/general/external-agent/rotate-token`
+    static let copyGeneralExternalAgentRotateToken = LocalizedCopy(key: "copy/general/external-agent/rotate-token", en: "Rotate Token", zhHans: "轮换 Token")
+    /// `copy/general/external-agent/starting`
+    static let copyGeneralExternalAgentStarting = LocalizedCopy(key: "copy/general/external-agent/starting", en: "Starting…", zhHans: "正在启动…")
+    /// `copy/general/external-agent/summary`
+    static let copyGeneralExternalAgentSummary = LocalizedCopy(key: "copy/general/external-agent/summary", en: "Allow local agents to use Covio services through an authenticated MCP endpoint.", zhHans: "允许本地 Agent 通过带认证的 MCP endpoint 使用 Covio 服务。")
+    /// `copy/general/external-agent/title`
+    static let copyGeneralExternalAgentTitle = LocalizedCopy(key: "copy/general/external-agent/title", en: "External Agent", zhHans: "外部 Agent")
+    /// `copy/general/external-agent/unavailable`
+    static let copyGeneralExternalAgentUnavailable = LocalizedCopy(key: "copy/general/external-agent/unavailable", en: "Local MCP service is unavailable.", zhHans: "本地 MCP 服务不可用。")
+    /// `copy/general/external-agent/warning`
+    static let copyGeneralExternalAgentWarning = LocalizedCopy(key: "copy/general/external-agent/warning", en: "Only loopback clients with the token can connect. Side effects still require confirmation.", zhHans: "只有持有 token 的 loopback 客户端可以连接。副作用仍需要确认。")
     /// `copy/general/language`
     static let copyGeneralLanguage = LocalizedCopy(key: "copy/general/language", en: "Language", zhHans: "语言")
     /// `copy/general/language/chinese`
@@ -1272,6 +1292,16 @@ enum ContractCopy {
         copyGeneralCheckUpdates,
         copyGeneralClearConfig,
         copyGeneralDarkwake,
+        copyGeneralExternalAgentCopied,
+        copyGeneralExternalAgentCopyPairing,
+        copyGeneralExternalAgentEnabled,
+        copyGeneralExternalAgentEndpoint,
+        copyGeneralExternalAgentRotateToken,
+        copyGeneralExternalAgentStarting,
+        copyGeneralExternalAgentSummary,
+        copyGeneralExternalAgentTitle,
+        copyGeneralExternalAgentUnavailable,
+        copyGeneralExternalAgentWarning,
         copyGeneralLanguage,
         copyGeneralLanguageChinese,
         copyGeneralLanguageEnglish,

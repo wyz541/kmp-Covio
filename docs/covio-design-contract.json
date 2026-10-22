@@ -6411,6 +6411,46 @@
     "copy/agent/history/clear-title": {
       "en": "Clear all local Agent history?",
       "zh-Hans": "清除全部本地 Agent 历史？"
+    },
+    "copy/general/external-agent/title": {
+      "en": "External Agent",
+      "zh-Hans": "外部 Agent"
+    },
+    "copy/general/external-agent/summary": {
+      "en": "Allow local agents to use Covio services through an authenticated MCP endpoint.",
+      "zh-Hans": "允许本地 Agent 通过带认证的 MCP endpoint 使用 Covio 服务。"
+    },
+    "copy/general/external-agent/enabled": {
+      "en": "Enable local MCP service",
+      "zh-Hans": "启用本地 MCP 服务"
+    },
+    "copy/general/external-agent/endpoint": {
+      "en": "Endpoint",
+      "zh-Hans": "Endpoint"
+    },
+    "copy/general/external-agent/copy-pairing": {
+      "en": "Copy Pairing",
+      "zh-Hans": "复制配对信息"
+    },
+    "copy/general/external-agent/rotate-token": {
+      "en": "Rotate Token",
+      "zh-Hans": "轮换 Token"
+    },
+    "copy/general/external-agent/starting": {
+      "en": "Starting…",
+      "zh-Hans": "正在启动…"
+    },
+    "copy/general/external-agent/unavailable": {
+      "en": "Local MCP service is unavailable.",
+      "zh-Hans": "本地 MCP 服务不可用。"
+    },
+    "copy/general/external-agent/warning": {
+      "en": "Only loopback clients with the token can connect. Side effects still require confirmation.",
+      "zh-Hans": "只有持有 token 的 loopback 客户端可以连接。副作用仍需要确认。"
+    },
+    "copy/general/external-agent/copied": {
+      "en": "Pairing copied.",
+      "zh-Hans": "配对信息已复制。"
     }
   },
   "platformMapping": {

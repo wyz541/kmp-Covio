@@ -8,6 +8,7 @@ actor AgentServiceGateway {
     private var deferred: [DeferredCall] = []
     private var activeDeferred: DeferredCall?
     private var audits: [AgentToolAudit] = []
+    private var auditObserver: (@Sendable (AgentToolAudit) async -> Void)?
     private let maxAuditEntries = 40
 
     private struct PendingCall: Sendable {
@@ -18,6 +19,7 @@ actor AgentServiceGateway {
     private struct DeferredCall: Sendable {
         let action: AgentDeferredAction
         let arguments: [String: JSONValue]
+        let source: AgentActionSource
     }
 
     init(handlers: AgentServiceHandlers, timeout: Duration = .seconds(15)) {
@@ -26,30 +28,69 @@ actor AgentServiceGateway {
     }
 
     func handle(_ call: ToolCall) async -> String {
+        let descriptor = AgentToolCatalog.descriptor(named: call.function.name)
+        return await process(call, source: .local, descriptor: descriptor)
+    }
+
+    func handleExternal(_ call: ToolCall, sessionID: String) async -> String {
+        let descriptor = AgentExternalToolPolicy.descriptor(named: call.function.name)
+        return await process(
+            call,
+            source: .external(sessionID),
+            descriptor: descriptor
+        )
+    }
+
+    func setAuditObserver(_ observer: (@Sendable (AgentToolAudit) async -> Void)?) {
+        auditObserver = observer
+    }
+
+    private func process(
+        _ call: ToolCall,
+        source: AgentActionSource,
+        descriptor: AgentToolDescriptor?
+    ) async -> String {
         let name = call.function.name
-        guard let descriptor = AgentToolCatalog.descriptor(named: name) else {
-            record(name: name, risk: .readOnly, status: .rejected, detail: "Unknown tool")
+        guard let descriptor else {
+            record(
+                name: name,
+                risk: .readOnly,
+                status: .rejected,
+                detail: "Unknown tool",
+                source: source
+            )
             return AgentServiceResult.failure(
                 "Unknown local service.",
                 code: .unknownTool
             ).jsonString()
         }
 
+        let risk = source == .local
+            ? descriptor.risk
+            : AgentExternalToolPolicy.risk(for: descriptor)
+
         guard validateArguments(call.function.arguments, for: descriptor) else {
-            record(name: name, risk: descriptor.risk, status: .rejected, detail: "Invalid arguments")
+            record(
+                name: name,
+                risk: risk,
+                status: .rejected,
+                detail: "Invalid arguments",
+                source: source
+            )
             return AgentServiceResult.failure(
                 "Invalid local service arguments.",
                 code: .invalidArguments
             ).jsonString()
         }
 
-        if descriptor.risk == .sideEffect {
+        if risk == .sideEffect {
             guard pending == nil else {
                 record(
                     name: name,
-                    risk: descriptor.risk,
+                    risk: risk,
                     status: .rejected,
-                    detail: "Another action is waiting for confirmation"
+                    detail: "Another action is waiting for confirmation",
+                    source: source
                 )
                 return AgentServiceResult.failure(
                     "Another local action is already waiting for confirmation.",
@@ -68,15 +109,17 @@ actor AgentServiceGateway {
                     ? text?.count
                     : nil,
                 textPreview: text.map { String($0.prefix(500)) } ?? previewText,
-                risk: descriptor.risk,
-                toolCallID: call.id
+                risk: risk,
+                toolCallID: call.id,
+                source: source
             )
             pending = PendingCall(action: action, arguments: call.function.arguments)
             record(
                 name: name,
-                risk: descriptor.risk,
+                risk: risk,
                 status: .pendingConfirmation,
-                detail: "Waiting for user confirmation"
+                detail: "Waiting for user confirmation",
+                source: source
             )
             return AgentServiceResult(
                 ok: true,
@@ -91,12 +134,19 @@ actor AgentServiceGateway {
                 toolName: name,
                 summary: deferredSummary(name: name, arguments: call.function.arguments)
             )
-            deferred.append(DeferredCall(action: action, arguments: call.function.arguments))
+            deferred.append(
+                DeferredCall(
+                    action: action,
+                    arguments: call.function.arguments,
+                    source: source
+                )
+            )
             record(
                 name: name,
-                risk: descriptor.risk,
+                risk: risk,
                 status: .queued,
-                detail: "Queued until the current model response finishes"
+                detail: "Queued until the current model response finishes",
+                source: source
             )
             return AgentServiceResult(
                 ok: true,
@@ -109,11 +159,12 @@ actor AgentServiceGateway {
         let result = await executeWithTimeout(name: name, arguments: call.function.arguments)
         record(
             name: name,
-            risk: descriptor.risk,
+            risk: risk,
             status: result.ok ? .completed : .failed,
             detail: result.ok ? "Completed" : result.summary,
             errorCode: result.errorCode,
-            durationMilliseconds: Self.milliseconds(since: started)
+            durationMilliseconds: Self.milliseconds(since: started),
+            source: source
         )
         return result.jsonString()
     }
@@ -145,7 +196,8 @@ actor AgentServiceGateway {
             status: result.ok ? .completed : .failed,
             detail: result.ok ? "Deferred action completed" : result.summary,
             errorCode: result.errorCode,
-            durationMilliseconds: Self.milliseconds(since: started)
+            durationMilliseconds: Self.milliseconds(since: started),
+            source: call.source
         )
         return result
     }
@@ -166,19 +218,22 @@ actor AgentServiceGateway {
             status: result.ok ? .completed : .failed,
             detail: result.ok ? "Confirmed and completed" : result.summary,
             errorCode: result.errorCode,
-            durationMilliseconds: Self.milliseconds(since: started)
+            durationMilliseconds: Self.milliseconds(since: started),
+            source: pending.action.source
         )
         return result
     }
 
-    func cancelPending() {
+    func cancelPending(source: AgentActionSource? = nil) {
         guard let pending else { return }
+        if let source, pending.action.source != source { return }
         self.pending = nil
         record(
             name: pending.action.toolName,
             risk: .sideEffect,
             status: .cancelled,
-            detail: "Cancelled by user"
+            detail: "Cancelled",
+            source: pending.action.source
         )
     }
 
@@ -434,6 +489,9 @@ actor AgentServiceGateway {
         if name == "undo_rename_run" {
             return "Undo the selected Agent rename run."
         }
+        if name == "open_pane", let pane = stringValue(arguments["pane"]) {
+            return "Open the \(pane) page."
+        }
         if name == "request_setting_change" {
             let key = stringValue(arguments["key"]) ?? "setting"
             let value = stringValue(arguments["value"]) ?? ""
@@ -487,21 +545,25 @@ actor AgentServiceGateway {
         status: AgentToolAuditStatus,
         detail: String,
         errorCode: AgentServiceErrorCode? = nil,
-        durationMilliseconds: Int? = nil
+        durationMilliseconds: Int? = nil,
+        source: AgentActionSource = .local
     ) {
-        audits.append(
-            AgentToolAudit(
-                id: UUID().uuidString,
-                toolName: name,
-                risk: risk,
-                status: status,
-                detail: detail,
-                errorCode: errorCode,
-                durationMilliseconds: durationMilliseconds
-            )
+        let audit = AgentToolAudit(
+            id: UUID().uuidString,
+            toolName: name,
+            risk: risk,
+            status: status,
+            detail: detail,
+            errorCode: errorCode,
+            durationMilliseconds: durationMilliseconds,
+            source: source
         )
+        audits.append(audit)
         if audits.count > maxAuditEntries {
             audits.removeFirst(audits.count - maxAuditEntries)
+        }
+        if let auditObserver {
+            Task { await auditObserver(audit) }
         }
     }
 

@@ -27,6 +27,15 @@ const val HELPER_SOCKET_PATH = "/Library/Application Support/Covio/helper.sock"
 /** helper 的安装目录。root 所有。 */
 const val HELPER_DIRECTORY = "/Library/Application Support/Covio"
 
+/** 充电上限状态目录。 */
+const val HELPER_CHARGE_LIMIT_DIRECTORY = "$HELPER_DIRECTORY/charge-limit"
+
+/** 保存原始 MCL 状态。卸载前必须确认此文件已经清除。 */
+const val HELPER_CHARGE_LIMIT_STATE_PATH = "$HELPER_CHARGE_LIMIT_DIRECTORY/state.json"
+
+/** 保存用户的持续充电意图。 */
+const val HELPER_CHARGE_LIMIT_RUNTIME_PATH = "$HELPER_CHARGE_LIMIT_DIRECTORY/runtime.json"
+
 /** 记录允许连接的 uid。安装时写入当前用户。 */
 const val HELPER_ALLOWED_UID_PATH = "$HELPER_DIRECTORY/allowed_uid"
 

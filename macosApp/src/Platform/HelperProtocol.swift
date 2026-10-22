@@ -18,6 +18,8 @@ enum HelperProtocol {
 
     static var socketPath: String { HelperContractKt.HELPER_SOCKET_PATH }
     static var helperDirectory: String { HelperContractKt.HELPER_DIRECTORY }
+    static var chargeLimitStatePath: String { HelperContractKt.HELPER_CHARGE_LIMIT_STATE_PATH }
+    static var chargeLimitRuntimePath: String { HelperContractKt.HELPER_CHARGE_LIMIT_RUNTIME_PATH }
     static var allowedUidPath: String { HelperContractKt.HELPER_ALLOWED_UID_PATH }
     static var clientRequirementPath: String { HelperContractKt.HELPER_CLIENT_REQUIREMENT_PATH }
     static var versionPath: String { HelperContractKt.HELPER_VERSION_PATH }

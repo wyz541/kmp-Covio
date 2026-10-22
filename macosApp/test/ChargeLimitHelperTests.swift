@@ -72,6 +72,28 @@ final class ChargeLimitHelperTests: XCTestCase {
         XCTAssertTrue(runtime.restoreCalled)
     }
 
+    func testUninstallRestoresAnActiveChargeLimit() {
+        let client = FakeChargeLimitInstallerClient(status: chargeLimitStatus(enabled: true))
+
+        XCTAssertTrue(HelperInstaller.restoreChargeLimitIfNeeded(using: client))
+        XCTAssertEqual(client.restoreCalls, 1)
+    }
+
+    func testUninstallSkipsRestoreWhenChargeLimitIsInactive() {
+        let client = FakeChargeLimitInstallerClient(status: chargeLimitStatus(enabled: false))
+
+        XCTAssertTrue(HelperInstaller.restoreChargeLimitIfNeeded(using: client))
+        XCTAssertEqual(client.restoreCalls, 0)
+    }
+
+    func testUninstallStopsWhenChargeLimitRestoreFails() {
+        let client = FakeChargeLimitInstallerClient(status: chargeLimitStatus(enabled: true))
+        client.restoreResult = false
+
+        XCTAssertFalse(HelperInstaller.restoreChargeLimitIfNeeded(using: client))
+        XCTAssertEqual(client.restoreCalls, 1)
+    }
+
     func testNonChargeCommandsAreLeftToTheExistingHelper() {
         let handler = ChargeLimitHelperCommandHandler(runtime: FakeChargeLimitRuntime())
 
@@ -145,6 +167,20 @@ final class ChargeLimitHelperTests: XCTestCase {
             payload: payload
         )
     }
+
+    private func chargeLimitStatus(enabled: Bool) -> ChargeLimitHelperStatus {
+        ChargeLimitHelperStatus(
+            enabled: enabled,
+            userLimitPercent: enabled ? 85 : nil,
+            targetPercent: enabled ? 85 : nil,
+            chargingLatch: false,
+            phase: enabled ? "charging" : "off",
+            bypassEngaged: false,
+            originalFeatureState: enabled ? 1 : nil,
+            originalLimitPercent: enabled ? 80 : nil,
+            originalOptimizedChargingEnabled: nil
+        )
+    }
 }
 
 private final class FakeChargeLimitRuntime: ChargeLimitRuntimeControlling, @unchecked Sendable {
@@ -179,5 +215,23 @@ private final class FakeChargeLimitRuntime: ChargeLimitRuntimeControlling, @unch
         restoreCalled = true
         if let restoreFailure { return .failure(restoreFailure) }
         return .success(())
+    }
+}
+
+private final class FakeChargeLimitInstallerClient: ChargeLimitClientProtocol, @unchecked Sendable {
+    let status: ChargeLimitHelperStatus?
+    var restoreResult = true
+    var restoreCalls = 0
+
+    init(status: ChargeLimitHelperStatus?) {
+        self.status = status
+    }
+
+    func chargeLimitStatus() -> ChargeLimitHelperStatus? { status }
+    func setChargeLimit(percent: Int) -> Bool { false }
+
+    func restoreChargeLimit() -> Bool {
+        restoreCalls += 1
+        return restoreResult
     }
 }

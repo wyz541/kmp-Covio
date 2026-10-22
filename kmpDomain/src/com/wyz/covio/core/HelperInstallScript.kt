@@ -60,12 +60,21 @@ object HelperInstallScript {
     /**
      * 卸载脚本。
      *
-     * 先清 `disablesleep`：helper 删掉之后，这个标志没有任何进程能清，
+     * 充电状态文件存在时拒绝继续。应用必须先恢复原 MCL 策略。否则删除
+     * `state.json` 会丢失恢复所需的信息，系统可能一直保留错误的充电目标。
+     *
+     * 通过检查后先清 `disablesleep`：helper 删掉之后，这个标志没有任何进程能清，
      * 机器会一直不睡。
      */
     fun uninstallScript(): String = buildString {
         val plistPath = shellEscaped(HELPER_PLIST_PATH)
+        val statePath = shellEscaped(HELPER_CHARGE_LIMIT_STATE_PATH)
+        val runtimePath = shellEscaped(HELPER_CHARGE_LIMIT_RUNTIME_PATH)
         append("set -e\n")
+        append("if [ -e '$statePath' ] || [ -e '$runtimePath' ]; then\n")
+        append("  printf '%s\\n' 'Covio charge limit state is still active. Restore it in Covio before uninstalling the helper.' >&2\n")
+        append("  exit 1\n")
+        append("fi\n")
         append("/usr/bin/pmset -a disablesleep 0 || true\n")
         append("/bin/launchctl bootout system '$plistPath' 2>/dev/null || true\n")
         append("rm -f '$plistPath'\n")

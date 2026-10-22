@@ -15,7 +15,10 @@ enum AgentAppServices {
     ) -> AgentServiceHandlers {
         let monitor = MonitorSampler()
         let inspector = AgentFileInspector()
-        let namingPolicy = AutoNamingPolicySnapshot(fileNamingPolicy)
+        let namingService = AgentFileNamingService(
+            autoNaming: autoNaming,
+            policy: fileNamingPolicy
+        )
         return AgentServiceHandlers(
             monitorSnapshot: {
                 let snapshot = await monitor.sample()
@@ -73,24 +76,13 @@ enum AgentAppServices {
                         code: .fileUnavailable
                     )
                 }
-                do {
-                    let items = try await autoNaming.preview(
-                        urls: files.map(\.url),
-                        policy: namingPolicy.makePolicy()
-                    )
-                    return namingPreviewResult(
-                        files: files,
-                        items: items,
-                        maxResults: maxResults
-                    )
-                } catch AutoNamingPreviewError.busy {
-                    return .failure(
-                        "File naming analysis is already running.",
-                        code: .executionFailed
-                    )
-                } catch {
-                    return .failure("File naming preview failed.", code: .executionFailed)
-                }
+                return await namingService.preview(files: files, maxResults: maxResults)
+            },
+            applyFileRenames: { previewIds in
+                await namingService.apply(previewIds: previewIds)
+            },
+            undoRenameRun: { runId in
+                await namingService.undo(runId: runId)
             }
         )
     }
@@ -240,54 +232,7 @@ enum AgentAppServices {
         )
     }
 
-    nonisolated private static func namingPreviewResult(
-        files: [ResolvedAgentFile],
-        items: [AutoNamingPreviewItem],
-        maxResults: Int
-    ) -> AgentServiceResult {
-        var fileByPath: [String: ResolvedAgentFile] = [:]
-        for file in files where fileByPath[file.url.standardizedFileURL.path] == nil {
-            fileByPath[file.url.standardizedFileURL.path] = file
-        }
-        let selected = items.prefix(min(20, max(1, maxResults))).map { item in
-            let fileId = fileByPath[item.sourceURL.standardizedFileURL.path]?.fileId ?? ""
-            let promptInjection = item.risks.contains(.promptInjection)
-            return JSONValue.object([
-                "fileId": .string(fileId),
-                "originalName": .string(item.originalName),
-                "suggestedName": item.targetName.map(JSONValue.string) ?? .null,
-                "status": .string(item.status.rawValue),
-                "confidence": .double(item.confidence),
-                "riskLevels": .array(
-                    item.risks.map(\.rawValue).sorted().map(JSONValue.string)
-                ),
-                "warnings": .array(item.warnings.sorted().map(JSONValue.string)),
-                "canApply": .bool(item.canSelect && !promptInjection),
-                "errorCode": item.errorCode.map(JSONValue.string) ?? .null,
-            ])
-        }
-        let lines = selected.compactMap { value -> String? in
-            guard case .object(let object) = value,
-                  case .string(let original)? = object["originalName"]
-            else { return nil }
-            let target: String
-            if case .string(let name)? = object["suggestedName"] {
-                target = name
-            } else {
-                target = "blocked"
-            }
-            return "\(original) → \(target)"
-        }
-        let summary = (
-            ["Generated \(selected.count) file naming previews. No files were changed."]
-                + lines
-        ).joined(separator: "\n")
-        return AgentServiceResult(
-            ok: true,
-            summary: summary,
-            data: .object(["items": .array(selected)])
-        )
-    }
+
 
     private static func clipboardResult(_ items: [ClipItem], limit: Int) -> AgentServiceResult {
         let matches = items.suffix(limit).map { item in

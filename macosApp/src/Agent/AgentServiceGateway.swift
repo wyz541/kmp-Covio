@@ -58,6 +58,8 @@ actor AgentServiceGateway {
             }
             let summary = pendingSummary(name: name, arguments: call.function.arguments)
             let text = stringValue(call.function.arguments["text"])
+            let previewText = stringArrayValue(call.function.arguments["previewIds"])?
+                .joined(separator: "\n")
             let action = AgentPendingAction(
                 id: UUID().uuidString,
                 toolName: name,
@@ -65,7 +67,7 @@ actor AgentServiceGateway {
                 characterCount: name == "copy_text"
                     ? text?.count
                     : nil,
-                textPreview: text.map { String($0.prefix(500)) },
+                textPreview: text.map { String($0.prefix(500)) } ?? previewText,
                 risk: descriptor.risk,
                 toolCallID: call.id
             )
@@ -243,6 +245,16 @@ actor AgentServiceGateway {
                 fileIds,
                 boundedLimit(arguments["maxResults"], defaultValue: 8)
             )
+        case "apply_file_renames":
+            guard let previewIds = stringArrayValue(arguments["previewIds"]), !previewIds.isEmpty else {
+                return .failure("Preview IDs are required.", code: .invalidArguments)
+            }
+            return await handlers.applyFileRenames(previewIds)
+        case "undo_rename_run":
+            guard let runId = stringValue(arguments["runId"]) else {
+                return .failure("Run ID is required.", code: .invalidArguments)
+            }
+            return await handlers.undoRenameRun(runId)
         case "list_screenshots":
             return await handlers.screenshots(boundedLimit(arguments["limit"], defaultValue: 8))
         case "list_clipboard_metadata":
@@ -271,6 +283,10 @@ actor AgentServiceGateway {
             allowed = ["fileId", "maxCharacters"]
         case "preview_file_names":
             allowed = ["fileIds", "maxResults"]
+        case "apply_file_renames":
+            allowed = ["previewIds"]
+        case "undo_rename_run":
+            allowed = ["runId"]
         case "list_screenshots", "list_clipboard_metadata":
             allowed = ["limit"]
         case "copy_text":
@@ -310,6 +326,20 @@ actor AgentServiceGateway {
                 }
             }
         }
+        if descriptor.name == "apply_file_renames" {
+            guard let previewIds = stringArrayValue(arguments["previewIds"]),
+                  !previewIds.isEmpty,
+                  previewIds.count <= 20,
+                  previewIds.allSatisfy({ !$0.isEmpty && $0.count <= 128 })
+            else { return false }
+        }
+        if descriptor.name == "undo_rename_run" {
+            guard let runId = stringValue(arguments["runId"]),
+                  !runId.isEmpty,
+                  runId.count <= 128,
+                  runId.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" })
+            else { return false }
+        }
         if descriptor.name == "copy_text" {
             guard let text = stringValue(arguments["text"]),
                   !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
@@ -322,6 +352,12 @@ actor AgentServiceGateway {
     private func pendingSummary(name: String, arguments: [String: JSONValue]) -> String {
         if name == "copy_text", let text = stringValue(arguments["text"]) {
             return "Copy \(text.count) characters to the clipboard."
+        }
+        if name == "apply_file_renames" {
+            return "Rename \(stringArrayValue(arguments["previewIds"])?.count ?? 0) files from previews."
+        }
+        if name == "undo_rename_run" {
+            return "Undo the selected Agent rename run."
         }
         return "Run \(name)."
     }

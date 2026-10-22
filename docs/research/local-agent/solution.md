@@ -80,6 +80,8 @@ flowchart LR
 6. `copy_text`
 7. `inspect_file`
 8. `preview_file_names`
+9. `apply_file_renames`
+10. `undo_rename_run`
 
 ## 错误码
 
@@ -126,6 +128,8 @@ tool call -> validate -> queue -> finish response -> release model lease
 10. 文件正文标记为不可信数据。
 11. 模型绑定工具必须在模型租约释放后执行。
 12. 延迟自动执行只允许只读工具。
+13. Agent 重命名只允许用户授权附件，不允许直接修改工作区副本。
+14. 重命名前复核文件身份，同名目标必须拒绝。
 
 ## 可靠性与失败模式
 

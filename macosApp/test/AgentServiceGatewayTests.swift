@@ -202,6 +202,30 @@ final class AgentServiceGatewayTests: XCTestCase {
         XCTAssertEqual(audits.map(\.status), [.queued, .completed])
     }
 
+    func testRenameRequiresConfirmationBeforeCallingService() async {
+        let counter = Counter()
+        let gateway = AgentServiceGateway(
+            handlers: handlers(counter: counter, applyFileRenames: { ids in
+                await counter.increment(text: ids.joined(separator: ","))
+                return AgentServiceResult(ok: true, summary: "renamed", data: nil)
+            })
+        )
+
+        _ = await gateway.handle(
+            call(name: "apply_file_renames", arguments: [
+                "previewIds": .array([.string("preview-1")]),
+            ])
+        )
+        let beforeConfirm = await counter.value
+        XCTAssertEqual(beforeConfirm, 0)
+        let pending = await gateway.pendingAction()
+        XCTAssertEqual(pending?.toolName, "apply_file_renames")
+
+        _ = await gateway.confirmPending()
+        let afterConfirm = await counter.value
+        XCTAssertEqual(afterConfirm, 1)
+    }
+
     private func call(name: String, arguments: [String: JSONValue]) -> ToolCall {
         ToolCall(function: .init(name: name, arguments: arguments))
     }
@@ -212,6 +236,12 @@ final class AgentServiceGatewayTests: XCTestCase {
             .failure("unused", code: .fileUnavailable)
         },
         previewFileNames: @escaping @Sendable ([String], Int) async -> AgentServiceResult = { _, _ in
+            .failure("unused", code: .executionFailed)
+        },
+        applyFileRenames: @escaping @Sendable ([String]) async -> AgentServiceResult = { _ in
+            .failure("unused", code: .executionFailed)
+        },
+        undoRenameRun: @escaping @Sendable (String) async -> AgentServiceResult = { _ in
             .failure("unused", code: .executionFailed)
         }
     ) -> AgentServiceHandlers {
@@ -246,7 +276,9 @@ final class AgentServiceGatewayTests: XCTestCase {
                 return AgentServiceResult(ok: true, summary: "copied", data: nil)
             },
             inspectFile: inspectFile,
-            previewFileNames: previewFileNames
+            previewFileNames: previewFileNames,
+            applyFileRenames: applyFileRenames,
+            undoRenameRun: undoRenameRun
         )
     }
 }

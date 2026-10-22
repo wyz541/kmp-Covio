@@ -68,6 +68,8 @@ final class ChargeLimitMCLTests: XCTestCase {
         XCTAssertEqual(state.targetPercent, 70)
         XCTAssertEqual(preferences.writeCounts[DirectMCLPreference.keyFeatureState], 1)
         XCTAssertEqual(preferences.writeCounts[DirectMCLPreference.keyLimitValue], 1)
+        XCTAssertEqual(preferences.writeCounts[DirectMCLPreference.keyOptimizedChargingEnabled], 1)
+        XCTAssertEqual(preferences.bools[DirectMCLPreference.keyOptimizedChargingEnabled], false)
         XCTAssertEqual(preferences.ints[DirectMCLPreference.keyLimitValue], 70)
         XCTAssertEqual(preferences.ints[DirectMCLPreference.keyFeatureState], 1)
         XCTAssertEqual(preferences.notifications, 1)
@@ -115,6 +117,7 @@ final class ChargeLimitMCLTests: XCTestCase {
     func testRestoreReappliesTheOriginalNativeLimit() throws {
         powerUI.enabled = true
         powerUI.currentPercent = 80
+        preferences.bools[DirectMCLPreference.keyOptimizedChargingEnabled] = true
         let controller = makeController()
         _ = controller.apply(targetPercent: 85)
 
@@ -124,6 +127,7 @@ final class ChargeLimitMCLTests: XCTestCase {
         XCTAssertEqual(powerUI.currentPercent, 80)
         XCTAssertTrue(powerUI.enabled == true)
         XCTAssertEqual(powerUI.disableCalls, 1)
+        XCTAssertEqual(preferences.bools[DirectMCLPreference.keyOptimizedChargingEnabled], true)
         XCTAssertNil(try stateStore.load())
     }
 
@@ -282,16 +286,28 @@ final class ChargeLimitMCLTests: XCTestCase {
 
 private final class FakeChargeLimitPreferences: ChargeLimitPreferenceStore, @unchecked Sendable {
     var ints: [String: Int] = [:]
+    var bools: [String: Bool] = [:]
     var writeCounts: [String: Int] = [:]
     var syncResult = true
     var notifications = 0
     var onNotify: (() -> Void)?
 
     func readInt(_ key: String) -> Int? { ints[key] }
+    func readBool(_ key: String) -> Bool? { bools[key] }
 
     func writeInt(_ key: String, value: Int) {
         ints[key] = value
         writeCounts[key, default: 0] += 1
+    }
+
+    func writeBool(_ key: String, value: Bool) {
+        bools[key] = value
+        writeCounts[key, default: 0] += 1
+    }
+
+    func remove(_ key: String) {
+        ints.removeValue(forKey: key)
+        bools.removeValue(forKey: key)
     }
     func synchronize() -> Bool { syncResult }
     func notifyChanged() {

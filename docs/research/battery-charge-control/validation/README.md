@@ -51,7 +51,7 @@
 4. V17 已有恢复顺序和状态文件保护测试。真实卸载尚未执行。
 5. `2026-10-22` 真机进入冲突态。显式重新应用仍保持 `80%` 目标。
 6. 该问题已补测试：显式应用覆盖一次冲突，自动刷新继续保护外部修改。
-7. 新 helper 还需验证 `MCLFeatureState=1` 与 `mclLimitValue` 同时写入后的 powerd 回读。
+7. 新 helper 还需验证 `enabled=false`、`MCLFeatureState=1` 与 `mclLimitValue` 同时写入后的 powerd 回读。
 
 ## 风险
 

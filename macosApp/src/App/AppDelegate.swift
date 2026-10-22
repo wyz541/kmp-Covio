@@ -58,6 +58,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let runtime = AppRuntime()
             self.runtime = runtime
             runtime.start()
+            if ProcessInfo.processInfo.environment["COVIO_POWER_LIVE_AUTOSTART_LID"] == "1" {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(500))
+                    _ = runtime.startSession(mode: .lid, duration: .oneHour)
+                }
+            }
             let preview = MonitorPreviewWindowController(
                 startsInPower: true,
                 powerModel: runtime

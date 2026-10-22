@@ -238,6 +238,20 @@ final class AgentChatRuntime {
         }
     }
 
+    func prepareForModelSwitch() async -> Bool {
+        guard !isBusy, pendingAction == nil else { return false }
+        generationTask?.cancel()
+        generationTask = nil
+        executionTask = nil
+        generationID = UUID()
+        await gateway.reset()
+        await model.prepareForModelSwitch()
+        pendingAction = nil
+        toolAudits = []
+        stage = .idle
+        return true
+    }
+
     func clearAllHistory() {
         guard !isBusy else { return }
         stop()

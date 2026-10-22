@@ -39,6 +39,15 @@ final class AppPathsTests: XCTestCase {
         )
     }
 
+    func testLocalModelRegistrySitsInTheSupportDirectory() {
+        XCTAssertEqual(AppPaths.localModelPackagesFile.deletingLastPathComponent().lastPathComponent, "Models")
+        XCTAssertEqual(AppPaths.localModelPackagesFile.lastPathComponent, "imported-packages.json")
+        XCTAssertEqual(
+            AppPaths.localModelPackagesFile.deletingLastPathComponent().deletingLastPathComponent(),
+            AppPaths.supportDirectory
+        )
+    }
+
     func testAgentHistorySitsInTheSupportDirectory() {
         XCTAssertEqual(
             AppPaths.agentHistoryFile.deletingLastPathComponent().lastPathComponent,

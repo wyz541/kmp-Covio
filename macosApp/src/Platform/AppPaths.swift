@@ -62,6 +62,13 @@ enum AppPaths {
         supportDirectory.appendingPathComponent("workbench.json")
     }
 
+    /// 用户导入的本地模型包注册表。
+    static var localModelPackagesFile: URL {
+        supportDirectory
+            .appendingPathComponent("Models", isDirectory: true)
+            .appendingPathComponent("imported-packages.json")
+    }
+
     /// Agent 会话与工具审计的本地 SQLite 数据库。
     static var agentHistoryFile: URL {
         supportDirectory

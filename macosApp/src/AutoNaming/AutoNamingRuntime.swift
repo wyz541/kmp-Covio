@@ -110,6 +110,12 @@ final class AutoNamingRuntime {
         try await model.preheat()
     }
 
+    func prepareForModelSwitch() async -> Bool {
+        guard !busy else { return false }
+        await model.prepareForModelSwitch()
+        return true
+    }
+
     func preview(
         urls: [URL],
         policy: FileNamingPolicy

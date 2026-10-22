@@ -195,7 +195,8 @@ com.apple.private.usernotifications.bundle-identifiers
 | --- | --- |
 | 原生 `85%` | `PowerUI` 与 `pmset` 均显示 `85` |
 | 原生恢复 `80%` | `PowerUI` 返回 `80`，MCL 保持启用 |
-| root `70%` | `PowerUI`、`pmset` 与 helper 均显示 `70` |
+| root `70%`（早期记录） | `PowerUI`、`pmset` 与 helper 均显示 `70` |
+| root `70%`（2026-10-22 复测） | 目标未稳定登记到 powerd；等待下一次电量 `1%` 步进复核 |
 | 电量高于上限 | 目标保持当前电量，没有主动放电 |
 | 睡眠与唤醒 | 多轮事件后 App 仍存活 |
 
@@ -208,5 +209,5 @@ com.apple.private.usernotifications.bundle-identifiers
 3. 未重启 `powerd`。
 4. 未验证真实系统重启。
 5. 未验证真实 Apple 校准周期。
-6. 未验证真实 helper 卸载。
+6. 未验证 macOS 26、Intel 和无电池设备上的 helper 卸载。
 7. 未执行 Intel 和无电池测试。

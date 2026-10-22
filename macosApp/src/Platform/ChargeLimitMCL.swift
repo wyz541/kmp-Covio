@@ -3,6 +3,7 @@ import kmpDomain
 
 enum DirectMCLPreference {
     static let domain = "com.apple.smartcharging.topoffprotection"
+    static let keyOptimizedChargingEnabled = "enabled"
     static let keyFeatureState = "MCLFeatureState"
     static let keyLimitValue = "mclLimitValue"
     static let changedNotification = "com.apple.smartcharging.defaultschanged"
@@ -11,7 +12,10 @@ enum DirectMCLPreference {
 /// 直接偏好端口。`80%` 以下使用与真机验证一致的值写入路径。
 protocol ChargeLimitPreferenceStore: Sendable {
     func readInt(_ key: String) -> Int?
+    func readBool(_ key: String) -> Bool?
     func writeInt(_ key: String, value: Int)
+    func writeBool(_ key: String, value: Bool)
+    func remove(_ key: String)
     func synchronize() -> Bool
     func notifyChanged()
 }
@@ -24,9 +28,35 @@ final class DefaultsChargeLimitPreferenceStore: ChargeLimitPreferenceStore, @unc
         run(["read", DirectMCLPreference.domain, key]).flatMap(Int.init)
     }
 
+    func readBool(_ key: String) -> Bool? {
+        switch run(["read", DirectMCLPreference.domain, key])?.lowercased() {
+        case "1", "true", "yes": true
+        case "0", "false", "no": false
+        default: nil
+        }
+    }
+
     func writeInt(_ key: String, value: Int) {
         lock.withLock {
             _ = run(["write", DirectMCLPreference.domain, key, "-int", String(value)])
+        }
+    }
+
+    func writeBool(_ key: String, value: Bool) {
+        lock.withLock {
+            _ = run([
+                "write", DirectMCLPreference.domain, key,
+                "-bool", value ? "true" : "false",
+            ])
+        }
+    }
+
+    func remove(_ key: String) {
+        lock.withLock {
+            _ = run(
+                ["delete", DirectMCLPreference.domain, key],
+                acceptsFailure: true
+            )
         }
     }
 
@@ -305,6 +335,9 @@ final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
         if state.original.featureState == 1,
            let originalLimit = state.original.limitPercent,
            originalLimit >= powerUIMinimum {
+            guard restoreDirectPreferences(state.original) else {
+                return .failure(.readbackFailed("original preferences"))
+            }
             _ = powerUI.disableMCL()
             guard applyWithPowerUI(originalLimit) else {
                 return .failure(.readbackFailed("original MCL target"))
@@ -315,7 +348,13 @@ final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
             guard applyDirect(originalLimit) else {
                 return .failure(.readbackFailed("original MCL target"))
             }
+            guard restoreOptimizedCharging(state.original.optimizedChargingEnabled) else {
+                return .failure(.readbackFailed("original optimized charging"))
+            }
         } else {
+            guard restoreDirectPreferences(state.original) else {
+                return .failure(.readbackFailed("original preferences"))
+            }
             guard powerUI.disableMCL(), powerUI.isMCLEnabled() == false else {
                 return .failure(.readbackFailed("MCL release"))
             }
@@ -335,7 +374,9 @@ final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
         let featureState = enabled.map { $0 ? 1 : 0 }
             ?? preferences.readInt(DirectMCLPreference.keyFeatureState)
         return ChargeLimitOriginals(
-            optimizedChargingEnabled: nil,
+            optimizedChargingEnabled: preferences.readBool(
+                DirectMCLPreference.keyOptimizedChargingEnabled
+            ),
             featureState: featureState,
             limitPercent: enabled == true
                 ? powerUI.currentLimit()
@@ -355,11 +396,13 @@ final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
         if powerUI.isMCLEnabled() != true {
             guard applyWithPowerUI(powerUIMinimum) else { return false }
         }
+        preferences.writeBool(DirectMCLPreference.keyOptimizedChargingEnabled, value: false)
         preferences.writeInt(DirectMCLPreference.keyFeatureState, value: 1)
         preferences.writeInt(DirectMCLPreference.keyLimitValue, value: targetPercent)
         guard preferences.synchronize() else { return false }
         preferences.notifyChanged()
-        guard preferences.readInt(DirectMCLPreference.keyFeatureState) == 1,
+        guard preferences.readBool(DirectMCLPreference.keyOptimizedChargingEnabled) == false,
+              preferences.readInt(DirectMCLPreference.keyFeatureState) == 1,
               preferences.readInt(DirectMCLPreference.keyLimitValue) == targetPercent
         else {
             return false
@@ -373,5 +416,44 @@ final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
             if Date() >= deadline { return false }
             Thread.sleep(forTimeInterval: 0.05)
         } while true
+    }
+
+    /// 恢复第一次覆盖前的直接偏好。`nil` 表示原键不存在，必须删除。
+    private func restoreDirectPreferences(_ original: ChargeLimitOriginals) -> Bool {
+        restoreInt(DirectMCLPreference.keyFeatureState, value: original.featureState)
+        restoreInt(DirectMCLPreference.keyLimitValue, value: original.limitPercent)
+        restoreBool(
+            DirectMCLPreference.keyOptimizedChargingEnabled,
+            value: original.optimizedChargingEnabled
+        )
+        guard preferences.synchronize() else { return false }
+        preferences.notifyChanged()
+        return preferences.readInt(DirectMCLPreference.keyFeatureState) == original.featureState &&
+            preferences.readInt(DirectMCLPreference.keyLimitValue) == original.limitPercent &&
+            preferences.readBool(DirectMCLPreference.keyOptimizedChargingEnabled) ==
+                original.optimizedChargingEnabled
+    }
+
+    private func restoreOptimizedCharging(_ value: Bool?) -> Bool {
+        restoreBool(DirectMCLPreference.keyOptimizedChargingEnabled, value: value)
+        guard preferences.synchronize() else { return false }
+        preferences.notifyChanged()
+        return preferences.readBool(DirectMCLPreference.keyOptimizedChargingEnabled) == value
+    }
+
+    private func restoreInt(_ key: String, value: Int?) {
+        if let value {
+            preferences.writeInt(key, value: value)
+        } else {
+            preferences.remove(key)
+        }
+    }
+
+    private func restoreBool(_ key: String, value: Bool?) {
+        if let value {
+            preferences.writeBool(key, value: value)
+        } else {
+            preferences.remove(key)
+        }
     }
 }

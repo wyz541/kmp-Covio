@@ -103,7 +103,7 @@ Feature #137 首期采用混合路径。
 | 项目 | 现状 | 下一步 |
 | --- | --- | --- |
 | `20%` 到 `79%` | 本机 `70%` 路径通过 | 补完整机型与系统矩阵 |
-| 低档位偏好一致性 | 写入 `MCLFeatureState` 与 `mclLimitValue` 已有单元测试 | 验证 powerd 回读 |
+| 低档位偏好一致性 | 写入 `enabled`、`MCLFeatureState` 与 `mclLimitValue` 已有单元测试 | 验证 powerd 回读 |
 | 显式冲突覆盖 | 已有状态机测试 | 验证 UI 重试和 powerd 目标 |
 | Apple 校准周期 | 状态处理和恢复逻辑已有单元测试 | 等真实周期验证 |
 | 5% 回差 | Covio 状态机已实现 | 验证固件恢复充电的时机 |

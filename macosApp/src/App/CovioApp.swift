@@ -28,6 +28,9 @@ enum CovioMain {
         if arguments.contains(MaintenanceCommand.helperVersion) {
             exit(printHelperVersion())
         }
+        if arguments.contains(MaintenanceCommand.helperProtocolVersion) {
+            exit(printHelperProtocolVersion())
+        }
         CovioApp.main()
     }
 
@@ -41,7 +44,7 @@ enum CovioMain {
         FileHandle.standardError.write(Data((message + "\n").utf8))
     }
 
-    /// 打印 helper 自己报告的版本号。
+    /// 打印 helper 自己报告的应用版本号。
     ///
     /// 退出码：0 成功，1 连不上 helper。
     /// 版本是否等于本版由调用方比较，脚本里比更清楚。
@@ -53,6 +56,16 @@ enum CovioMain {
         print(version)
         return 0
     }
+
+    /// 打印 helper 自己报告的协议版本号。
+    private static func printHelperProtocolVersion() -> Int32 {
+        guard let protocolVersion = HelperClient().versionInfo()?.protocolVersion else {
+            log("Helper did not report a protocol version")
+            return 1
+        }
+        print(protocolVersion)
+        return 0
+    }
 }
 
 /// 迁移与排查用的命令行开关。只影响启动分流，不影响正常运行。
@@ -61,8 +74,10 @@ enum MaintenanceCommand {
     static let installHelper = "--install-helper"
     /// 卸载特权 helper。会弹出管理员授权对话框。
     static let uninstallHelper = "--uninstall-helper"
-    /// 打印 helper 报告的版本号。
+    /// 打印 helper 报告的应用版本号。
     static let helperVersion = "--helper-version"
+    /// 打印 helper 报告的协议版本号。
+    static let helperProtocolVersion = "--helper-protocol-version"
 }
 
 struct CovioApp: App {

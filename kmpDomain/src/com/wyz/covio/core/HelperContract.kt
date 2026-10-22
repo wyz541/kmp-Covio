@@ -39,6 +39,24 @@ const val HELPER_VERSION_PATH = "$HELPER_DIRECTORY/version"
 /** 记录应用的位置。卸载时用。 */
 const val HELPER_APP_PATH_FILE = "$HELPER_DIRECTORY/Covio.app"
 
+/** 记录 Covio 是否拥有当前 `SleepDisabled`。只有 root helper 能写。 */
+const val HELPER_SLEEP_OWNER_PATH = "$HELPER_DIRECTORY/sleep_owner"
+
+/** 所有权 marker 的固定内容。 */
+const val HELPER_SLEEP_OWNER_VALUE = "covio-sleep-disabled-v2"
+
+/** helper 租约的有效期，单位秒。 */
+const val HELPER_LEASE_DURATION_SECONDS = 60L
+
+/** 应用续租间隔，单位秒。 */
+const val HELPER_LEASE_RENEW_SECONDS = 15L
+
+/** 租约 ID 的最大长度。 */
+const val HELPER_LEASE_ID_MAX_LENGTH = 128
+
+/** 同时有效的租约上限。用于限制异常客户端占用的内存。 */
+const val HELPER_LEASE_MAX_ACTIVE = 16
+
 /** helper 的日志。 */
 const val HELPER_LOG_PATH = "$HELPER_DIRECTORY/helper.log"
 
@@ -61,4 +79,8 @@ val HELPER_ALLOWED_COMMANDS: Set<String> = setOf(
     "chargeLimitStatus",
     "chargeLimitConfigure",
     "chargeLimitRestore",
+    "lidLeaseAcquire",
+    "lidLeaseRenew",
+    "lidLeaseRelease",
+    "lidLeaseStatus",
 )

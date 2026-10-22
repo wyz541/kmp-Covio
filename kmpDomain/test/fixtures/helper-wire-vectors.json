@@ -176,6 +176,46 @@
       "validate": null,
       "pmsetArguments": null,
       "reencoded": null
+    },
+    {
+      "name": "helper v2 acquire lid lease",
+      "line": "{\"version\":\"4\",\"requestId\":\"r20\",\"command\":\"lidLeaseAcquire\",\"payload\":{\"leaseId\":\"lease-a\",\"externalDisplayCount\":\"0\"}}",
+      "decode": "ok",
+      "validate": null,
+      "pmsetArguments": null,
+      "reencoded": "{\"version\":\"4\",\"requestId\":\"r20\",\"command\":\"lidLeaseAcquire\",\"payload\":{\"leaseId\":\"lease-a\",\"externalDisplayCount\":\"0\"}}"
+    },
+    {
+      "name": "helper v2 renew lid lease",
+      "line": "{\"version\":\"4\",\"requestId\":\"r21\",\"command\":\"lidLeaseRenew\",\"payload\":{\"leaseId\":\"lease-a\",\"externalDisplayCount\":\"1\"}}",
+      "decode": "ok",
+      "validate": null,
+      "pmsetArguments": null,
+      "reencoded": "{\"version\":\"4\",\"requestId\":\"r21\",\"command\":\"lidLeaseRenew\",\"payload\":{\"leaseId\":\"lease-a\",\"externalDisplayCount\":\"1\"}}"
+    },
+    {
+      "name": "lease id cannot be blank",
+      "line": "{\"version\":\"4\",\"requestId\":\"r22\",\"command\":\"lidLeaseAcquire\",\"payload\":{\"leaseId\":\" \",\"externalDisplayCount\":\"0\"}}",
+      "decode": "ok",
+      "validate": "Invalid leaseId",
+      "pmsetArguments": null,
+      "reencoded": "{\"version\":\"4\",\"requestId\":\"r22\",\"command\":\"lidLeaseAcquire\",\"payload\":{\"leaseId\":\" \",\"externalDisplayCount\":\"0\"}}"
+    },
+    {
+      "name": "lease release needs only lease id",
+      "line": "{\"version\":\"4\",\"requestId\":\"r23\",\"command\":\"lidLeaseRelease\",\"payload\":{\"leaseId\":\"lease-a\"}}",
+      "decode": "ok",
+      "validate": null,
+      "pmsetArguments": null,
+      "reencoded": "{\"version\":\"4\",\"requestId\":\"r23\",\"command\":\"lidLeaseRelease\",\"payload\":{\"leaseId\":\"lease-a\"}}"
+    },
+    {
+      "name": "lease status has no payload",
+      "line": "{\"version\":\"4\",\"requestId\":\"r24\",\"command\":\"lidLeaseStatus\"}",
+      "decode": "ok",
+      "validate": null,
+      "pmsetArguments": null,
+      "reencoded": "{\"version\":\"4\",\"requestId\":\"r24\",\"command\":\"lidLeaseStatus\"}"
     }
   ],
   "replies": [

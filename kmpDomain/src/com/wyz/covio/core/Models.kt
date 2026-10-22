@@ -435,6 +435,7 @@ data class AppState(
     val darkWake: DarkWakeStatus = DarkWakeStatus(),
     val shelf: ShelfState = ShelfState(),
     val helperStatus: HelperStatus = HelperStatus.NOT_INSTALLED,
+    val lidLeaseStatus: LidLeaseStatus = LidLeaseStatus(),
     val lastError: String? = null,
 )
 

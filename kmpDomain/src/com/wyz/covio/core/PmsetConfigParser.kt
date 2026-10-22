@@ -12,6 +12,8 @@ object PmsetConfigParser {
     private val SLEEP_PATTERN = Regex("""^\s*sleep\s+(\d+)\s*$""", RegexOption.MULTILINE)
     private val HIBERNATE_MODE_PATTERN =
         Regex("""^\s*hibernatemode\s+(\d+)\s*$""", RegexOption.MULTILINE)
+    private val DISABLE_SLEEP_PATTERN =
+        Regex("""^\s*disablesleep\s+([01])\s*$""", RegexOption.MULTILINE)
 
     /**
      * 系统空闲睡眠超时，单位秒。
@@ -33,5 +35,15 @@ object PmsetConfigParser {
     fun hibernateMode(text: String?): Int? {
         if (text == null) return null
         return HIBERNATE_MODE_PATTERN.find(text)?.groupValues?.get(1)?.toIntOrNull()
+    }
+
+    /** 当前 `disablesleep` 值。输出不含该键时返回 null。取第一个匹配。 */
+    fun sleepDisabled(text: String?): Boolean? {
+        if (text == null) return null
+        return when (DISABLE_SLEEP_PATTERN.find(text)?.groupValues?.get(1)) {
+            "0" -> false
+            "1" -> true
+            else -> null
+        }
     }
 }

@@ -20,12 +20,16 @@ final class HelperClient: @unchecked Sendable {
         self.timeout = TimeInterval(timeoutMillis) / 1_000
     }
 
-    func request(command: String, payload: [String: String] = [:]) -> HelperReply? {
+    func request(
+        command: String,
+        payload: [String: String] = [:],
+        protocolVersion: String = HelperProtocol.protocolVersion
+    ) -> HelperReply? {
         guard timeout > 0 else { return nil }
         guard FileManager.default.fileExists(atPath: socketPath) else { return nil }
 
         let request = HelperRequest(
-            version: HelperProtocol.protocolVersion,
+            version: protocolVersion,
             requestId: UUID().uuidString,
             command: command,
             payload: payload
@@ -33,17 +37,111 @@ final class HelperClient: @unchecked Sendable {
         return transact(HelperWire.shared.encodeRequest(request: request) + "\n")
     }
 
-    func version() -> String? {
-        guard let reply = request(command: "version"), reply.ok else { return nil }
-        return reply.result?["version"]
+    /// 使用 v1 `version` 探测旧 helper。新 helper 保留这一条只读兼容路径。
+    func versionInfo() -> HelperVersionInfo? {
+        guard let reply = request(command: HelperWire.shared.COMMAND_VERSION, protocolVersion: "1"),
+              reply.ok,
+              let version = reply.result?["version"] else {
+            return nil
+        }
+        return HelperVersionInfo(
+            version: version,
+            protocolVersion: reply.result?["protocolVersion"]
+        )
+    }
+
+    func version() -> String? { versionInfo()?.version }
+
+    func acquireLidLease(leaseId: String, externalDisplayCount: Int) -> LidLeaseStatus {
+        leaseRequest(
+            command: HelperWire.shared.COMMAND_LID_LEASE_ACQUIRE,
+            leaseId: leaseId,
+            externalDisplayCount: externalDisplayCount
+        )
+    }
+
+    func renewLidLease(leaseId: String, externalDisplayCount: Int) -> LidLeaseStatus {
+        leaseRequest(
+            command: HelperWire.shared.COMMAND_LID_LEASE_RENEW,
+            leaseId: leaseId,
+            externalDisplayCount: externalDisplayCount
+        )
+    }
+
+    func releaseLidLease(leaseId: String) -> LidLeaseStatus {
+        lidLeaseStatus(from: request(
+            command: HelperWire.shared.COMMAND_LID_LEASE_RELEASE,
+            payload: ["leaseId": leaseId]
+        ))
+    }
+
+    func lidLeaseStatus() -> LidLeaseStatus {
+        lidLeaseStatus(from: request(command: HelperWire.shared.COMMAND_LID_LEASE_STATUS))
+    }
+
+    func setHibernateMode(mode: Int) -> Bool {
+        request(command: "setHibernateMode", payload: ["mode": String(mode)])?.ok == true
     }
 
     func setDisableSleep(disabled: Bool) -> Bool {
         request(command: "setDisableSleep", payload: ["disabled": disabled ? "true" : "false"])?.ok == true
     }
 
-    func setHibernateMode(mode: Int) -> Bool {
-        request(command: "setHibernateMode", payload: ["mode": String(mode)])?.ok == true
+    private func leaseRequest(
+        command: String,
+        leaseId: String,
+        externalDisplayCount: Int
+    ) -> LidLeaseStatus {
+        lidLeaseStatus(from: request(
+            command: command,
+            payload: [
+                "leaseId": leaseId,
+                "externalDisplayCount": String(externalDisplayCount),
+            ]
+        ))
+    }
+
+    private func lidLeaseStatus(from reply: HelperReply?) -> LidLeaseStatus {
+        guard let reply else {
+            return LidLeaseStatus(
+                available: FileManager.default.fileExists(atPath: socketPath),
+                protocolVersion: HelperProtocol.protocolVersion,
+                sleepDisabled: nil,
+                covioOwned: nil,
+                activeLeaseCount: 0,
+                expiresAtEpochSeconds: nil,
+                error: "Helper did not respond"
+            )
+        }
+        guard reply.ok else {
+            return LidLeaseStatus(
+                available: true,
+                protocolVersion: HelperProtocol.protocolVersion,
+                sleepDisabled: nil,
+                covioOwned: nil,
+                activeLeaseCount: 0,
+                expiresAtEpochSeconds: nil,
+                error: reply.error
+            )
+        }
+        let result = reply.result ?? [:]
+        return LidLeaseStatus(
+            available: true,
+            protocolVersion: result["protocolVersion"] ?? HelperProtocol.protocolVersion,
+            sleepDisabled: boolValue(result["sleepDisabled"]).map { KotlinBoolean(bool: $0) },
+            covioOwned: boolValue(result["covioOwned"]).map { KotlinBoolean(bool: $0) },
+            activeLeaseCount: Int32(result["activeLeaseCount"] ?? "0") ?? 0,
+            expiresAtEpochSeconds: Int64(result["expiresAtEpochSeconds"] ?? "").map { KotlinLong(longLong: $0) },
+            error: nil
+        )
+    }
+
+    private func boolValue(_ value: String?) -> Bool? {
+        switch value {
+        case "true": return true
+        case "false": return false
+        default: return nil
+        }
     }
 
     func chargeLimitStatus() -> ChargeLimitHelperStatus? {
@@ -118,6 +216,11 @@ final class HelperClient: @unchecked Sendable {
         }
         return descriptor
     }
+}
+
+struct HelperVersionInfo {
+    let version: String
+    let protocolVersion: String?
 }
 
 /// 充电上限 helper 客户端端口。测试替换这个端口，避免连接真实 helper。

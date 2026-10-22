@@ -28,8 +28,23 @@ class HelperWireTest {
     @Test
     fun `an unknown protocol version is rejected`() {
         assertEquals(
-            "Unsupported protocol version",
+            HelperWire.ERROR_UNSUPPORTED_PROTOCOL,
             HelperWire.validate(request(HelperWire.COMMAND_VERSION, version = "3")),
+        )
+    }
+
+    @Test
+    fun `version one is accepted only for version discovery`() {
+        assertNull(HelperWire.validate(request(HelperWire.COMMAND_VERSION, version = "1")))
+        assertEquals(
+            HelperWire.ERROR_UNSUPPORTED_PROTOCOL,
+            HelperWire.validate(
+                request(
+                    HelperWire.COMMAND_LID_LEASE_ACQUIRE,
+                    leasePayload(),
+                    version = "1",
+                ),
+            ),
         )
     }
 
@@ -45,22 +60,25 @@ class HelperWireTest {
     }
 
     @Test
-    fun `a missing disabled value is rejected`() {
-        assertEquals(
-            "Missing disabled value",
-            HelperWire.validate(request(HelperWire.COMMAND_SET_DISABLE_SLEEP)),
-        )
-    }
-
-    @Test
-    fun `a disabled value other than true and false is rejected`() {
-        for (value in listOf("1", "TRUE", "yes", "")) {
+    fun `lease commands require a valid lease id and display count`() {
+        for (command in listOf(HelperWire.COMMAND_LID_LEASE_ACQUIRE, HelperWire.COMMAND_LID_LEASE_RENEW)) {
+            assertEquals("Missing leaseId", HelperWire.validate(request(command)))
             assertEquals(
-                "Invalid disabled value",
-                HelperWire.validate(request(HelperWire.COMMAND_SET_DISABLE_SLEEP, mapOf("disabled" to value))),
-                "disabled=$value 应当被拒绝",
+                "Invalid leaseId",
+                HelperWire.validate(request(command, mapOf("leaseId" to " ", "externalDisplayCount" to "0"))),
+            )
+            assertEquals(
+                "Missing external display count",
+                HelperWire.validate(request(command, mapOf("leaseId" to "lease"))),
+            )
+            assertEquals(
+                "Invalid external display count",
+                HelperWire.validate(
+                    request(command, mapOf("leaseId" to "lease", "externalDisplayCount" to "-1")),
+                ),
             )
         }
+        assertNull(HelperWire.validate(request(HelperWire.COMMAND_LID_LEASE_ACQUIRE, leasePayload())))
     }
 
     @Test
@@ -148,8 +166,8 @@ class HelperWireTest {
      */
     @Test
     fun `validation reports the first problem in a fixed order`() {
-        val everythingWrong = HelperRequest("2", "", "runShell", emptyMap())
-        assertEquals("Unsupported protocol version", HelperWire.validate(everythingWrong))
+        val everythingWrong = HelperRequest("3", "", "runShell", emptyMap())
+        assertEquals(HelperWire.ERROR_UNSUPPORTED_PROTOCOL, HelperWire.validate(everythingWrong))
 
         val versionOk = HelperRequest(HELPER_PROTOCOL_VERSION, "", "runShell", emptyMap())
         assertEquals("Missing requestId", HelperWire.validate(versionOk))
@@ -268,14 +286,23 @@ class HelperWireTest {
     }
 
     @Test
-    fun `disabling sleep becomes a pmset argument`() {
+    fun `the direct disable command remains an explicit wire command`() {
         assertEquals(
             listOf("-a", "disablesleep", "1"),
             HelperWire.pmsetArguments(request(HelperWire.COMMAND_SET_DISABLE_SLEEP, mapOf("disabled" to "true"))),
         )
+        assertNull(HelperWire.validate(request(HelperWire.COMMAND_SET_DISABLE_SLEEP, mapOf("disabled" to "true"))))
+    }
+
+    @Test
+    fun `lease coordinator has explicit disable sleep arguments`() {
+        assertEquals(
+            listOf("-a", "disablesleep", "1"),
+            HelperWire.disableSleepArguments(true),
+        )
         assertEquals(
             listOf("-a", "disablesleep", "0"),
-            HelperWire.pmsetArguments(request(HelperWire.COMMAND_SET_DISABLE_SLEEP, mapOf("disabled" to "false"))),
+            HelperWire.disableSleepArguments(false),
         )
     }
 
@@ -291,25 +318,6 @@ class HelperWireTest {
     fun `a hibernate mode that is not a number produces no arguments`() {
         assertNull(
             HelperWire.pmsetArguments(request(HelperWire.COMMAND_SET_HIBERNATE_MODE, mapOf("mode" to "abc"))),
-        )
-    }
-
-    /**
-     * `setDisableSleep` 少了 `disabled` 时按 `false` 处理。
-     *
-     * 两个宿主历来都是这个行为，所以照抄。
-     * 这条路径实际走不到：`validate` 先拒绝，服务器不会拿它去跑 pmset。
-     * 钉住它只是为了让两侧的行为永远一致。
-     */
-    @Test
-    fun `a missing disabled value falls back to zero`() {
-        assertEquals(
-            listOf("-a", "disablesleep", "0"),
-            HelperWire.pmsetArguments(request(HelperWire.COMMAND_SET_DISABLE_SLEEP)),
-        )
-        assertEquals(
-            listOf("-a", "disablesleep", "0"),
-            HelperWire.pmsetArguments(request(HelperWire.COMMAND_SET_DISABLE_SLEEP, mapOf("disabled" to "1"))),
         )
     }
 
@@ -347,9 +355,25 @@ class HelperWireTest {
                 HelperWire.COMMAND_CHARGE_LIMIT_STATUS,
                 HelperWire.COMMAND_CHARGE_LIMIT_CONFIGURE,
                 HelperWire.COMMAND_CHARGE_LIMIT_RESTORE,
+                HelperWire.COMMAND_LID_LEASE_ACQUIRE,
+                HelperWire.COMMAND_LID_LEASE_RENEW,
+                HelperWire.COMMAND_LID_LEASE_RELEASE,
+                HelperWire.COMMAND_LID_LEASE_STATUS,
             ),
             HELPER_ALLOWED_COMMANDS,
         )
+    }
+
+    private fun leasePayload(): Map<String, String> = mapOf(
+        "leaseId" to "lease",
+        "externalDisplayCount" to "0",
+    )
+
+    @Test
+    fun `lease timing keeps the shipped values`() {
+        assertEquals(60, HELPER_LEASE_DURATION_SECONDS)
+        assertEquals(15, HELPER_LEASE_RENEW_SECONDS)
+        assertEquals("covio-sleep-disabled-v2", HELPER_SLEEP_OWNER_VALUE)
     }
 
     @Test

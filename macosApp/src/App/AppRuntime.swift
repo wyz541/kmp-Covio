@@ -729,6 +729,7 @@ final class AppRuntime {
             darkWake: engine.currentState.darkWake,
             shelf: engine.currentState.shelf,
             helperStatus: helperStatus,
+            lidLeaseStatus: engine.currentState.lidLeaseStatus,
             lastError: engine.currentState.lastError
         )
     }
@@ -779,6 +780,15 @@ final class AppRuntime {
             ),
             shelf: ShelfState(items: [], visible: false, revealed: true, takeoverActive: false),
             helperStatus: .notInstalled,
+            lidLeaseStatus: LidLeaseStatus(
+                available: false,
+                protocolVersion: nil,
+                sleepDisabled: nil,
+                covioOwned: nil,
+                activeLeaseCount: 0,
+                expiresAtEpochSeconds: nil,
+                error: nil
+            ),
             lastError: nil
         )
     }

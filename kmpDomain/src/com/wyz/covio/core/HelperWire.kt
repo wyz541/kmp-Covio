@@ -30,9 +30,22 @@ object HelperWire {
     const val COMMAND_VERSION = "version"
     const val COMMAND_SET_DISABLE_SLEEP = "setDisableSleep"
     const val COMMAND_SET_HIBERNATE_MODE = "setHibernateMode"
+    const val COMMAND_LID_LEASE_ACQUIRE = "lidLeaseAcquire"
+    const val COMMAND_LID_LEASE_RENEW = "lidLeaseRenew"
+    const val COMMAND_LID_LEASE_RELEASE = "lidLeaseRelease"
+    const val COMMAND_LID_LEASE_STATUS = "lidLeaseStatus"
     const val COMMAND_CHARGE_LIMIT_STATUS = "chargeLimitStatus"
     const val COMMAND_CHARGE_LIMIT_CONFIGURE = "chargeLimitConfigure"
     const val COMMAND_CHARGE_LIMIT_RESTORE = "chargeLimitRestore"
+
+    const val ERROR_UNSUPPORTED_PROTOCOL = "Unsupported protocol version"
+    const val ERROR_EXTERNAL_DISPLAY = "Closed lid lease is blocked while an external display is connected"
+    const val ERROR_CANNOT_READ_EXTERNAL_DISPLAY = "Cannot read external display count"
+    const val ERROR_EXTERNAL_SLEEP_CONFLICT = "SleepDisabled is owned by an external tool"
+    const val ERROR_CANNOT_READ_SLEEP_DISABLED = "Cannot read SleepDisabled"
+    const val ERROR_CANNOT_WRITE_SLEEP_DISABLED = "Cannot write SleepDisabled"
+    const val ERROR_CANNOT_READ_OWNERSHIP = "Cannot read SleepDisabled ownership"
+    const val ERROR_TOO_MANY_LEASES = "Too many active lid leases"
 
     /**
      * 线上 JSON 的形状。
@@ -80,8 +93,29 @@ object HelperWire {
     fun failure(requestId: String, message: String): HelperReply =
         HelperReply(HELPER_PROTOCOL_VERSION, requestId, false, null, message)
 
-    fun versionReply(requestId: String): HelperReply =
-        success(requestId, mapOf("version" to APP_VERSION))
+    fun versionReply(requestId: String): HelperReply = success(
+        requestId,
+        mapOf(
+            "version" to APP_VERSION,
+            "protocolVersion" to HELPER_PROTOCOL_VERSION,
+        ),
+    )
+
+    fun leaseStatusReply(
+        requestId: String,
+        sleepDisabled: Boolean?,
+        covioOwned: Boolean?,
+        activeLeaseCount: Int,
+        expiresAtEpochSeconds: Long?,
+    ): HelperReply {
+        val result = buildMap {
+            put("activeLeaseCount", activeLeaseCount.coerceAtLeast(0).toString())
+            put("sleepDisabled", sleepDisabled?.toString() ?: "unknown")
+            put("covioOwned", covioOwned?.toString() ?: "unknown")
+            expiresAtEpochSeconds?.let { put("expiresAtEpochSeconds", it.toString()) }
+        }
+        return success(requestId, result)
+    }
 
     // MARK: 校验
 
@@ -92,16 +126,41 @@ object HelperWire {
      * uid 校验不在这里，它属于宿主。
      */
     fun validate(request: HelperRequest): String? {
-        if (request.version != HELPER_PROTOCOL_VERSION) return "Unsupported protocol version"
+        // 旧版只能探测版本。它不能再获得任何写权限。
+        val legacyVersionProbe = request.version == "1" && request.command == COMMAND_VERSION
+        if (request.version != HELPER_PROTOCOL_VERSION && !legacyVersionProbe) {
+            return ERROR_UNSUPPORTED_PROTOCOL
+        }
         if (request.requestId.isBlank()) return "Missing requestId"
         if (request.command !in HELPER_ALLOWED_COMMANDS) return "Command is not allowed"
-        if (request.command == COMMAND_SET_DISABLE_SLEEP) {
-            val value = request.payload["disabled"] ?: return "Missing disabled value"
-            if (value != "true" && value != "false") return "Invalid disabled value"
-        }
-        if (request.command == COMMAND_SET_HIBERNATE_MODE) {
-            val mode = request.payload["mode"]?.toIntOrNull() ?: return "Missing hibernate mode"
-            if (mode !in SUPPORTED_HIBERNATE_MODES) return "Invalid hibernate mode"
+
+        when (request.command) {
+            COMMAND_SET_DISABLE_SLEEP -> {
+                val value = request.payload["disabled"] ?: return "Missing disabled value"
+                if (value != "true" && value != "false") return "Invalid disabled value"
+            }
+
+            COMMAND_SET_HIBERNATE_MODE -> {
+                val mode = request.payload["mode"]?.toIntOrNull() ?: return "Missing hibernate mode"
+                if (mode !in SUPPORTED_HIBERNATE_MODES) return "Invalid hibernate mode"
+            }
+
+            COMMAND_LID_LEASE_ACQUIRE, COMMAND_LID_LEASE_RENEW -> {
+                val leaseId = request.payload["leaseId"] ?: return "Missing leaseId"
+                if (leaseId.isBlank() || leaseId.length > HELPER_LEASE_ID_MAX_LENGTH) {
+                    return "Invalid leaseId"
+                }
+                val externalDisplays = request.payload["externalDisplayCount"]?.toIntOrNull()
+                    ?: return "Missing external display count"
+                if (externalDisplays < 0) return "Invalid external display count"
+            }
+
+            COMMAND_LID_LEASE_RELEASE -> {
+                val leaseId = request.payload["leaseId"] ?: return "Missing leaseId"
+                if (leaseId.isBlank() || leaseId.length > HELPER_LEASE_ID_MAX_LENGTH) {
+                    return "Invalid leaseId"
+                }
+            }
         }
         if (request.command == COMMAND_CHARGE_LIMIT_CONFIGURE) {
             val percent = request.payload["percent"]?.toIntOrNull() ?: return "Missing charge limit"
@@ -136,6 +195,10 @@ object HelperWire {
 
         else -> null
     }
+
+    /** 直接写 `disablesleep` 的参数。只能由 helper 的租约协调器调用。 */
+    fun disableSleepArguments(disabled: Boolean): List<String> =
+        listOf("-a", "disablesleep", if (disabled) "1" else "0")
 
     /**
      * `pmset` 跑完之后的回复。

@@ -264,7 +264,14 @@ final class HelperContractMirrorTests: XCTestCase {
         XCTAssertEqual(HelperProtocol.plistPath, HelperContractKt.HELPER_PLIST_PATH)
         XCTAssertEqual(HelperProtocol.logPath, HelperContractKt.HELPER_LOG_PATH)
         XCTAssertEqual(HelperProtocol.appPathFile, HelperContractKt.HELPER_APP_PATH_FILE)
+        XCTAssertEqual(HelperProtocol.sleepOwnerPath, HelperContractKt.HELPER_SLEEP_OWNER_PATH)
         XCTAssertFalse(HelperProtocol.socketPath.isEmpty, "路径为空会让 helper 装到奇怪的位置")
+    }
+
+    func testLeaseTimingComesFromKotlin() {
+        XCTAssertEqual(HelperProtocol.leaseDurationSeconds, 60)
+        XCTAssertEqual(HelperProtocol.leaseRenewSeconds, 15)
+        XCTAssertEqual(HelperProtocol.sleepOwnerValue, "covio-sleep-disabled-v2")
     }
 
     func testProtocolVersionComesFromKotlin() {

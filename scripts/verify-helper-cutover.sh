@@ -35,6 +35,7 @@ SOCKET_PATH="$HELPER_DIR/helper.sock"
 ALLOWED_UID_PATH="$HELPER_DIR/allowed_uid"
 VERSION_PATH="$HELPER_DIR/version"
 APP_PATH_FILE="$HELPER_DIR/Covio.app"
+SLEEP_OWNER_PATH="$HELPER_DIR/sleep_owner"
 LOG_PATH="$HELPER_DIR/helper.log"
 PLIST_PATH="${COVIO_HELPER_PLIST:-/Library/LaunchDaemons/com.wyz.covio.helper.plist}"
 LABEL="${COVIO_HELPER_LABEL:-com.wyz.covio.helper}"
@@ -66,6 +67,10 @@ expected_version() {
   "$APP_BINARY" --helper-version >/dev/null 2>&1 || true
   # 常量在 Kotlin 侧。从源码读一次，避免在脚本里写死。
   sed -n 's/^const val APP_VERSION = "\(.*\)"$/\1/p' "$ROOT/kmpDomain/src/com/wyz/covio/core/Models.kt"
+}
+
+expected_protocol_version() {
+  sed -n 's/^const val HELPER_PROTOCOL_VERSION = "\(.*\)"$/\1/p' "$ROOT/kmpDomain/src/com/wyz/covio/core/HelperContract.kt"
 }
 
 # ---------------------------------------------------------------- preflight
@@ -106,7 +111,7 @@ cmd_preflight() {
     info "socket 不存在：$SOCKET_PATH"
   fi
 
-  for file in "$ALLOWED_UID_PATH" "$VERSION_PATH" "$APP_PATH_FILE"; do
+  for file in "$ALLOWED_UID_PATH" "$VERSION_PATH" "$APP_PATH_FILE" "$SLEEP_OWNER_PATH"; do
     if [[ -f "$file" ]]; then
       info "$(basename "$file") = $(cat "$file")"
     else
@@ -138,13 +143,19 @@ cmd_preflight() {
 cmd_verify() {
   step "验证 helper 安装"
 
-  local expected
+  local expected expected_protocol
   expected="$(expected_version)"
+  expected_protocol="$(expected_protocol_version)"
   if [[ -z "$expected" ]]; then
     printf 'Could not read APP_VERSION from Models.kt\n' >&2
     exit 1
   fi
+  if [[ -z "$expected_protocol" ]]; then
+    printf 'Could not read HELPER_PROTOCOL_VERSION from HelperContract.kt\n' >&2
+    exit 1
+  fi
   info "本版版本号：$expected"
+  info "本版协议版本：$expected_protocol"
 
   # 1. plist
   if [[ -f "$PLIST_PATH" ]]; then
@@ -223,6 +234,14 @@ cmd_verify() {
     pass "helper 在线应答的版本是 $expected"
   else
     fail "helper 在线应答 '$reported'，期望 $expected"
+  fi
+
+  local reported_protocol
+  reported_protocol="$("$APP_BINARY" --helper-protocol-version 2>/dev/null || echo '')"
+  if [[ "$reported_protocol" == "$expected_protocol" ]]; then
+    pass "helper 在线应答的协议版本是 $expected_protocol"
+  else
+    fail "helper 在线协议 '$reported_protocol'，期望 $expected_protocol"
   fi
 
   # 6. 正在跑的进程必须是本版二进制
@@ -316,15 +335,21 @@ cmd_selftest() {
   mkdir -p "$helper_dir"
 
   # 桩二进制。`verify` 用 `--helper-version` 问版本，桩照抄 Models.kt 的值。
-  local version
+  local version protocol_version
   version="$(expected_version)"
+  protocol_version="$(expected_protocol_version)"
   if [[ -z "$version" ]]; then
     printf 'Could not read APP_VERSION from Models.kt\n' >&2
+    exit 1
+  fi
+  if [[ -z "$protocol_version" ]]; then
+    printf 'Could not read HELPER_PROTOCOL_VERSION from HelperContract.kt\n' >&2
     exit 1
   fi
   cat > "$stub" <<STUB
 #!/bin/bash
 if [[ "\${1:-}" == "--helper-version" ]]; then printf '%s\n' "$version"; fi
+if [[ "\${1:-}" == "--helper-protocol-version" ]]; then printf '%s\n' "$protocol_version"; fi
 STUB
   chmod +x "$stub"
 

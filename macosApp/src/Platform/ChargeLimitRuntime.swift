@@ -27,8 +27,6 @@ struct ChargeLimitRuntimeState: Codable, Equatable {
     var calibrationTargetPercent: Int? = nil
     /// 已写入 PowerUI，但 powerd 尚未确认的目标。
     var pendingTargetPercent: Int? = nil
-    var pendingStartedAtEpochSeconds: Int64? = nil
-    var pendingStartPercent: Int? = nil
     var lastPhase = "off"
 }
 
@@ -302,8 +300,6 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
             chargingLatch: decision.chargingLatch,
             calibrationTargetPercent: reading.calibrationActive ? observedTarget : nil,
             pendingTargetPercent: hasPendingTarget ? pendingTarget : nil,
-            pendingStartedAtEpochSeconds: hasPendingTarget ? state.pendingStartedAtEpochSeconds : nil,
-            pendingStartPercent: hasPendingTarget ? state.pendingStartPercent : nil,
             lastPhase: phaseName(decision.phase)
         )
         do {
@@ -319,8 +315,7 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
             case .success:
                 return markPendingIfNeededLocked(
                     state: updated,
-                    targetPercent: Int(target),
-                    currentPercent: reading.currentPercent
+                    targetPercent: Int(target)
                 )
             case .failure(let failure):
                 return .failure(failure)
@@ -341,8 +336,7 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
             case .success:
                 return markPendingIfNeededLocked(
                     state: updated,
-                    targetPercent: Int(target),
-                    currentPercent: reading.currentPercent
+                    targetPercent: Int(target)
                 )
             case .failure(let failure):
                 return .failure(failure)
@@ -353,8 +347,7 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
 
     private func markPendingIfNeededLocked(
         state: ChargeLimitRuntimeState,
-        targetPercent: Int,
-        currentPercent: Int?
+        targetPercent: Int
     ) -> Result<Void, ChargeLimitMCLFailure> {
         if backend.observedTargetPercent() == targetPercent {
             return .success(())
@@ -364,8 +357,6 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
             chargingLatch: state.chargingLatch,
             calibrationTargetPercent: state.calibrationTargetPercent,
             pendingTargetPercent: targetPercent,
-            pendingStartedAtEpochSeconds: Int64(Date().timeIntervalSince1970),
-            pendingStartPercent: currentPercent,
             lastPhase: "applying"
         )
         do {

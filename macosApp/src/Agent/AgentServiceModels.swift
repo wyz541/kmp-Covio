@@ -141,6 +141,8 @@ struct AgentServiceHandlers: Sendable {
     let workspaceFiles: @Sendable (String?, Int) async -> AgentServiceResult
     let inspectFile: @Sendable (String, Int) async -> AgentServiceResult
     let previewFileNames: @Sendable ([String], Int) async -> AgentServiceResult
+    let applyFileRenames: @Sendable ([String]) async -> AgentServiceResult
+    let undoRenameRun: @Sendable (String) async -> AgentServiceResult
     let screenshots: @Sendable (Int) async -> AgentServiceResult
     let clipboardMetadata: @Sendable (Int) async -> AgentServiceResult
     let copyText: @Sendable (String) async -> AgentServiceResult
@@ -157,6 +159,12 @@ struct AgentServiceHandlers: Sendable {
         },
         previewFileNames: @escaping @Sendable ([String], Int) async -> AgentServiceResult = { _, _ in
             .failure("File naming preview is unavailable.", code: .executionFailed)
+        },
+        applyFileRenames: @escaping @Sendable ([String]) async -> AgentServiceResult = { _ in
+            .failure("File rename is unavailable.", code: .executionFailed)
+        },
+        undoRenameRun: @escaping @Sendable (String) async -> AgentServiceResult = { _ in
+            .failure("Rename undo is unavailable.", code: .executionFailed)
         }
     ) {
         self.monitorSnapshot = monitorSnapshot
@@ -164,6 +172,8 @@ struct AgentServiceHandlers: Sendable {
         self.workspaceFiles = workspaceFiles
         self.inspectFile = inspectFile
         self.previewFileNames = previewFileNames
+        self.applyFileRenames = applyFileRenames
+        self.undoRenameRun = undoRenameRun
         self.screenshots = screenshots
         self.clipboardMetadata = clipboardMetadata
         self.copyText = copyText
@@ -175,6 +185,8 @@ private struct AgentToolAck: Codable { let ok = true }
 private struct WorkspaceToolInput: Codable { let query: String?; let limit: Int? }
 private struct InspectFileToolInput: Codable { let fileId: String; let maxCharacters: Int? }
 private struct PreviewFileNamesToolInput: Codable { let fileIds: [String]; let maxResults: Int? }
+private struct ApplyFileRenamesToolInput: Codable { let previewIds: [String] }
+private struct UndoRenameRunToolInput: Codable { let runId: String }
 private struct LimitToolInput: Codable { let limit: Int? }
 private struct CopyTextToolInput: Codable { let text: String }
 
@@ -261,6 +273,40 @@ enum AgentToolCatalog {
                         type: .int,
                         description: "Maximum preview count.",
                         extraProperties: ["minimum": 1, "maximum": 20]
+                    ),
+                ]
+            ) { _ in AgentToolAck() }
+        ),
+        descriptor(
+            name: "apply_file_renames",
+            summary: "Apply previously previewed file names after user confirmation.",
+            risk: .sideEffect,
+            tool: Tool<ApplyFileRenamesToolInput, AgentToolAck>(
+                name: "apply_file_renames",
+                description: "Rename authorized attachment files using valid preview IDs. The user must confirm before execution.",
+                parameters: [
+                    .required(
+                        "previewIds",
+                        type: .array(elementType: .string),
+                        description: "Preview IDs returned by preview_file_names.",
+                        extraProperties: ["minItems": 1, "maxItems": 20]
+                    ),
+                ]
+            ) { _ in AgentToolAck() }
+        ),
+        descriptor(
+            name: "undo_rename_run",
+            summary: "Undo one Agent rename run after user confirmation.",
+            risk: .sideEffect,
+            tool: Tool<UndoRenameRunToolInput, AgentToolAck>(
+                name: "undo_rename_run",
+                description: "Undo a rename run created by the Agent. The user must confirm before execution.",
+                parameters: [
+                    .required(
+                        "runId",
+                        type: .string,
+                        description: "Run ID returned by apply_file_renames.",
+                        extraProperties: ["minLength": 1, "maxLength": 128]
                     ),
                 ]
             ) { _ in AgentToolAck() }

@@ -251,6 +251,26 @@ enum ContractCopy {
     static let copyGeneralLanguageEnglish = LocalizedCopy(key: "copy/general/language/english", en: "English", zhHans: "English")
     /// `copy/general/launch-at-login`
     static let copyGeneralLaunchAtLogin = LocalizedCopy(key: "copy/general/launch-at-login", en: "Launch at login", zhHans: "登录时启动")
+    /// `copy/general/local-model/active`
+    static let copyGeneralLocalModelActive = LocalizedCopy(key: "copy/general/local-model/active", en: "Active", zhHans: "已启用")
+    /// `copy/general/local-model/agent-disabled`
+    static let copyGeneralLocalModelAgentDisabled = LocalizedCopy(key: "copy/general/local-model/agent-disabled", en: "Agent tool calling is unavailable while the 30B-A3B model is active.", zhHans: "30B-A3B 模型启用时不能使用 Agent 工具调用。")
+    /// `copy/general/local-model/failed`
+    static let copyGeneralLocalModelFailed = LocalizedCopy(key: "copy/general/local-model/failed", en: "The model package could not be loaded.", zhHans: "无法加载模型包。")
+    /// `copy/general/local-model/import`
+    static let copyGeneralLocalModelImport = LocalizedCopy(key: "copy/general/local-model/import", en: "Import…", zhHans: "导入…")
+    /// `copy/general/local-model/minimum`
+    static let copyGeneralLocalModelMinimum = LocalizedCopy(key: "copy/general/local-model/minimum", en: "Requires %d GB RAM", zhHans: "需要 %d GB 内存")
+    /// `copy/general/local-model/summary`
+    static let copyGeneralLocalModelSummary = LocalizedCopy(key: "copy/general/local-model/summary", en: "Import an offline model package. The model files stay on this Mac.", zhHans: "导入离线模型包。模型文件只保存在这台 Mac 上。")
+    /// `copy/general/local-model/title`
+    static let copyGeneralLocalModelTitle = LocalizedCopy(key: "copy/general/local-model/title", en: "Local model", zhHans: "本地模型")
+    /// `copy/general/local-model/unsupported`
+    static let copyGeneralLocalModelUnsupported = LocalizedCopy(key: "copy/general/local-model/unsupported", en: "Not supported on this Mac", zhHans: "这台 Mac 不支持")
+    /// `copy/general/local-model/use`
+    static let copyGeneralLocalModelUse = LocalizedCopy(key: "copy/general/local-model/use", en: "Use", zhHans: "使用")
+    /// `copy/general/local-model/verifying`
+    static let copyGeneralLocalModelVerifying = LocalizedCopy(key: "copy/general/local-model/verifying", en: "Verifying…", zhHans: "正在验证…")
     /// `copy/general/notifications`
     static let copyGeneralNotifications = LocalizedCopy(key: "copy/general/notifications", en: "Notifications", zhHans: "通知")
     /// `copy/general/sleep-mode`
@@ -1247,6 +1267,16 @@ enum ContractCopy {
         copyGeneralLanguageChinese,
         copyGeneralLanguageEnglish,
         copyGeneralLaunchAtLogin,
+        copyGeneralLocalModelActive,
+        copyGeneralLocalModelAgentDisabled,
+        copyGeneralLocalModelFailed,
+        copyGeneralLocalModelImport,
+        copyGeneralLocalModelMinimum,
+        copyGeneralLocalModelSummary,
+        copyGeneralLocalModelTitle,
+        copyGeneralLocalModelUnsupported,
+        copyGeneralLocalModelUse,
+        copyGeneralLocalModelVerifying,
         copyGeneralNotifications,
         copyGeneralSleepMode,
         copyGeneralSleepModeDefault,

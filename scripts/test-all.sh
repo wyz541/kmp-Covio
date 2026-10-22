@@ -32,7 +32,7 @@ step "helper 割接脚本"
 bash "$ROOT/scripts/verify-helper-cutover.sh" selftest
 
 step "文件自动命名模型清单"
-python3 -I "$ROOT/scripts/file_naming_model.py" verify-manifest
+python3 -I "$ROOT/scripts/file_naming_model.py" verify-all
 
 step "macOS SwiftUI 宿主"
 bash "$ROOT/scripts/test-macos-swift.sh"

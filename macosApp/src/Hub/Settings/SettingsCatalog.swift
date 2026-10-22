@@ -37,6 +37,7 @@ enum SettingsRowID {
     static let generalDarkWake = "general.darkwake"
     static let generalSleepMode = "general.sleep-mode"
     static let generalLanguage = "general.language"
+    static let generalLocalModel = "general.local-model"
     static let generalLogin = "general.login"
     static let generalNotifications = "general.notifications"
     static let generalUpdates = "general.updates"
@@ -223,6 +224,13 @@ enum SettingsCatalog {
             title: ContractCopy.copyGeneralLanguage,
             summary: nil,
             keywords: ["language", "locale", "english", "chinese", "语言", "英文", "中文"]
+        ),
+        SettingsCatalogEntry(
+            rowID: SettingsRowID.generalLocalModel,
+            section: .general,
+            title: ContractCopy.copyGeneralLocalModelTitle,
+            summary: ContractCopy.copyGeneralLocalModelSummary,
+            keywords: ["model", "mlx", "qwen", "offline", "local", "模型", "离线", "本地"]
         ),
         SettingsCatalogEntry(
             rowID: SettingsRowID.generalLogin,

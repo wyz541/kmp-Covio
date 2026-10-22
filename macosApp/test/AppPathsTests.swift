@@ -39,6 +39,15 @@ final class AppPathsTests: XCTestCase {
         )
     }
 
+    func testLocalModelRegistrySitsInTheSupportDirectory() {
+        XCTAssertEqual(AppPaths.localModelPackagesFile.deletingLastPathComponent().lastPathComponent, "Models")
+        XCTAssertEqual(AppPaths.localModelPackagesFile.lastPathComponent, "imported-packages.json")
+        XCTAssertEqual(
+            AppPaths.localModelPackagesFile.deletingLastPathComponent().deletingLastPathComponent(),
+            AppPaths.supportDirectory
+        )
+    }
+
     func testBothVersionsShareTheSameConfigFile() {
         // M2 要求 config.json 与 0.4.2 双向兼容，所以必须指向同一个文件。
         XCTAssertEqual(AppPaths.configFile.lastPathComponent, "config.json")

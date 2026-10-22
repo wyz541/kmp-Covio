@@ -16,6 +16,7 @@ enum NamingModelErrorCode: String, Error, Sendable, Equatable {
     case malformedOutput
     case unsafeOutput
     case modelNotLoaded
+    case agentModelUnsupported
 }
 
 struct NamingModelError: Error, Sendable, Equatable {

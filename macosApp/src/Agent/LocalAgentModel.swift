@@ -29,17 +29,20 @@ actor LocalAgentModel: AgentModelServing {
     private let gateway: AgentServiceGateway
     private let containerRuntime: any LocalModelContainerProviding
     private let ownsContainerRuntime: Bool
+    private let agentToolCallingAvailable: @Sendable () async -> Bool
     private var session: ChatSession?
 
     init(
         modelDirectory: URL,
         gateway: AgentServiceGateway,
-        containerRuntime: (any LocalModelContainerProviding)? = nil
+        containerRuntime: (any LocalModelContainerProviding)? = nil,
+        agentToolCallingAvailable: @escaping @Sendable () async -> Bool = { true }
     ) {
         self.gateway = gateway
         self.containerRuntime = containerRuntime
             ?? LocalModelRuntime(modelDirectory: modelDirectory)
         self.ownsContainerRuntime = containerRuntime == nil
+        self.agentToolCallingAvailable = agentToolCallingAvailable
     }
 
     func respond(
@@ -48,6 +51,9 @@ actor LocalAgentModel: AgentModelServing {
     ) async throws -> String {
         guard !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw NamingModelError(.emptyInput)
+        }
+        guard await agentToolCallingAvailable() else {
+            throw NamingModelError(.agentModelUnsupported)
         }
         return try await withContainer { container in
             let session = try await sessionIfNeeded(container: container)
@@ -71,7 +77,10 @@ actor LocalAgentModel: AgentModelServing {
         result: AgentServiceResult,
         onChunk: @Sendable @escaping (String) async -> Void
     ) async throws -> String {
-        try await withContainer { container in
+        guard await agentToolCallingAvailable() else {
+            throw NamingModelError(.agentModelUnsupported)
+        }
+        return try await withContainer { container in
             let session = try await sessionIfNeeded(container: container)
             let outcome = result.ok ? "completed" : "failed"
             let errorCode = result.errorCode?.rawValue ?? "none"

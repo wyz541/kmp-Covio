@@ -68,6 +68,7 @@ final class SettingsCatalogTests: XCTestCase {
             SettingsRowID.generalDarkWake,
             SettingsRowID.generalSleepMode,
             SettingsRowID.generalLanguage,
+            SettingsRowID.generalLocalModel,
             SettingsRowID.generalLogin,
             SettingsRowID.generalNotifications,
             SettingsRowID.generalUpdates,

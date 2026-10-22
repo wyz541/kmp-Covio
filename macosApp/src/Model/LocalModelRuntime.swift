@@ -4,7 +4,7 @@ import MLXLMCommon
 import MLXVLM
 import Tokenizers
 
-enum LocalModelTier: String, CaseIterable, Sendable {
+enum LocalModelTier: String, CaseIterable, Codable, Sendable {
     case compact2B = "2b"
     case balanced4B = "4b"
     case highQuality8B = "8b"
@@ -26,6 +26,19 @@ enum LocalModelTier: String, CaseIterable, Sendable {
         case .highQuality8B: 24 * 1_024 * 1_024 * 1_024
         case .heavy30BA3B: 32 * 1_024 * 1_024 * 1_024
         }
+    }
+
+    var estimatedWorkingSetBytes: UInt64 {
+        switch self {
+        case .compact2B: 4 * 1_024 * 1_024 * 1_024
+        case .balanced4B: 6 * 1_024 * 1_024 * 1_024
+        case .highQuality8B: 9 * 1_024 * 1_024 * 1_024
+        case .heavy30BA3B: 20 * 1_024 * 1_024 * 1_024
+        }
+    }
+
+    var supportsAgentToolCalling: Bool {
+        self != .heavy30BA3B
     }
 
     var runtimeDirectoryName: String {
@@ -82,7 +95,7 @@ struct SharedModelRuntimeLease<Resource: Sendable>: Sendable {
 actor SharedModelRuntime<Resource: Sendable> {
     typealias Loader = @Sendable () async throws -> Resource
 
-    private let loader: Loader
+    private var loader: Loader
     private var resource: Resource?
     private var leased = false
     private var waiters: [CheckedContinuation<Void, Never>] = []
@@ -107,6 +120,13 @@ actor SharedModelRuntime<Resource: Sendable> {
     func unload() async {
         await acquireLock()
         resource = nil
+        releaseLock()
+    }
+
+    func replaceLoader(_ next: @escaping Loader) async {
+        await acquireLock()
+        resource = nil
+        loader = next
         releaseLock()
     }
 
@@ -174,6 +194,12 @@ extension SharedModelRuntime: LocalModelContainerProviding where Resource == Mod
 
     func unloadModelContainer() async {
         await unload()
+    }
+
+    func replaceModelDirectory(_ directory: URL) async {
+        await replaceLoader {
+            try await loadLocalModelContainer(from: directory)
+        }
     }
 }
 

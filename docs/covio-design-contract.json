@@ -6359,6 +6359,46 @@
     "copy/hub/files/state/local": {
       "en": "Available on this Mac",
       "zh-Hans": "本机可用"
+    },
+    "copy/general/local-model/title": {
+      "en": "Local model",
+      "zh-Hans": "本地模型"
+    },
+    "copy/general/local-model/summary": {
+      "en": "Import an offline model package. The model files stay on this Mac.",
+      "zh-Hans": "导入离线模型包。模型文件只保存在这台 Mac 上。"
+    },
+    "copy/general/local-model/active": {
+      "en": "Active",
+      "zh-Hans": "已启用"
+    },
+    "copy/general/local-model/import": {
+      "en": "Import…",
+      "zh-Hans": "导入…"
+    },
+    "copy/general/local-model/use": {
+      "en": "Use",
+      "zh-Hans": "使用"
+    },
+    "copy/general/local-model/unsupported": {
+      "en": "Not supported on this Mac",
+      "zh-Hans": "这台 Mac 不支持"
+    },
+    "copy/general/local-model/verifying": {
+      "en": "Verifying…",
+      "zh-Hans": "正在验证…"
+    },
+    "copy/general/local-model/failed": {
+      "en": "The model package could not be loaded.",
+      "zh-Hans": "无法加载模型包。"
+    },
+    "copy/general/local-model/minimum": {
+      "en": "Requires %d GB RAM",
+      "zh-Hans": "需要 %d GB 内存"
+    },
+    "copy/general/local-model/agent-disabled": {
+      "en": "Agent tool calling is unavailable while the 30B-A3B model is active.",
+      "zh-Hans": "30B-A3B 模型启用时不能使用 Agent 工具调用。"
     }
   },
   "platformMapping": {

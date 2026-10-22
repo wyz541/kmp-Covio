@@ -62,6 +62,13 @@ enum AppPaths {
         supportDirectory.appendingPathComponent("workbench.json")
     }
 
+    /// 用户导入的本地模型包注册表。
+    static var localModelPackagesFile: URL {
+        supportDirectory
+            .appendingPathComponent("Models", isDirectory: true)
+            .appendingPathComponent("imported-packages.json")
+    }
+
     /// 文件重命名的撤销计划。每条计划在改名之前写入。
     static var renameUndoDirectory: URL {
         supportDirectory.appendingPathComponent("rename-undo", isDirectory: true)

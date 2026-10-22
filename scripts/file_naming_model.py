@@ -12,9 +12,37 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_MANIFEST = ROOT / "macosApp/src/AutoNaming/FileNamingModelManifest.json"
-MODEL_LICENSE = ROOT / "third_party/models/Qwen3-VL-2B-Instruct/LICENSE"
-MODEL_NOTICE = ROOT / "third_party/models/Qwen3-VL-2B-Instruct/NOTICE"
+MANIFESTS = {
+    "2b": ROOT / "macosApp/src/AutoNaming/FileNamingModelManifest.json",
+    "4b": ROOT / "macosApp/src/AutoNaming/FileNamingModelManifest-balanced4B.json",
+    "8b": ROOT / "macosApp/src/AutoNaming/FileNamingModelManifest-highQuality8B.json",
+    "30b-a3b": ROOT / "macosApp/src/AutoNaming/FileNamingModelManifest-heavy30BA3B.json",
+}
+DEFAULT_MANIFEST = MANIFESTS["2b"]
+EXPECTED_MODELS = {
+    "2b": (
+        "mlx-community/Qwen3-VL-2B-Instruct-4bit",
+        "9c4f5209e57b31f4b9dfba735de3fb983739c9cc",
+    ),
+    "4b": (
+        "mlx-community/Qwen3-VL-4B-Instruct-4bit",
+        "2fd8dacbdb8f1e54b8c005f081ec5bf79c56376b",
+    ),
+    "8b": (
+        "mlx-community/Qwen3-VL-8B-Instruct-4bit",
+        "defcdea7cc7a4b0858fea563cbbce171d328e457",
+    ),
+    "30b-a3b": (
+        "lmstudio-community/Qwen3-VL-30B-A3B-Instruct-MLX-4bit",
+        "61c11f42d7bc01e00f5ea7f2e667c0a216f48397",
+    ),
+}
+ATTRIBUTION = {
+    "2b": ROOT / "third_party/models/Qwen3-VL-2B-Instruct",
+    "4b": ROOT / "third_party/models/Qwen3-VL-4B-Instruct",
+    "8b": ROOT / "third_party/models/Qwen3-VL-8B-Instruct",
+    "30b-a3b": ROOT / "third_party/models/Qwen3-VL-30B-A3B-Instruct",
+}
 HF_BASE = "https://huggingface.co"
 
 
@@ -34,6 +62,7 @@ def load_manifest(path: Path) -> dict:
 def validate_manifest(manifest: dict) -> None:
     required = {
         "schemaVersion",
+        "tier",
         "modelID",
         "revision",
         "displayName",
@@ -48,6 +77,14 @@ def validate_manifest(manifest: dict) -> None:
         raise ModelError("manifest keys do not match schema")
     if manifest["schemaVersion"] != 1:
         raise ModelError("unsupported manifest schema")
+    tier = manifest["tier"]
+    if tier not in EXPECTED_MODELS:
+        raise ModelError(f"unknown model tier: {tier!r}")
+    expected_model, expected_revision = EXPECTED_MODELS[tier]
+    if manifest["modelID"] != expected_model:
+        raise ModelError("modelID does not match the tier allowlist")
+    if manifest["revision"] != expected_revision:
+        raise ModelError("revision does not match the pinned model revision")
     if manifest["license"] != "Apache-2.0":
         raise ModelError("unexpected model license")
     for key in ("licenseFile", "noticeFile"):
@@ -82,7 +119,9 @@ def validate_manifest(manifest: dict) -> None:
 
     if total != manifest["totalBytes"]:
         raise ModelError("manifest totalBytes does not match file sizes")
-    for path in (MODEL_LICENSE, MODEL_NOTICE):
+    attribution = ATTRIBUTION[tier]
+    for name in ("LICENSE", "NOTICE"):
+        path = attribution / name
         if not path.is_file():
             raise ModelError(f"missing model attribution file: {path.relative_to(ROOT)}")
 
@@ -161,8 +200,9 @@ def download(directory: Path, manifest_path: Path) -> None:
             check=True,
         )
     shutil.copy2(manifest_path, directory / "FileNamingModelManifest.json")
-    shutil.copy2(MODEL_LICENSE, directory / manifest["licenseFile"])
-    shutil.copy2(MODEL_NOTICE, directory / manifest["noticeFile"])
+    attribution = ATTRIBUTION[manifest["tier"]]
+    shutil.copy2(attribution / "LICENSE", directory / manifest["licenseFile"])
+    shutil.copy2(attribution / "NOTICE", directory / manifest["noticeFile"])
     verify_directory(directory, manifest_path)
 
 
@@ -171,6 +211,7 @@ def main() -> int:
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("verify-manifest")
+    subparsers.add_parser("verify-all")
     verify_parser = subparsers.add_parser("verify-directory")
     verify_parser.add_argument("directory", type=Path)
     fetch_parser = subparsers.add_parser("download")
@@ -184,6 +225,13 @@ def main() -> int:
                 f"Manifest valid: {len(manifest['files'])} files, "
                 f"{manifest['totalBytes']} bytes"
             )
+        elif args.command == "verify-all":
+            for tier, path in MANIFESTS.items():
+                manifest = load_manifest(path)
+                print(
+                    f"{tier}: {len(manifest['files'])} files, "
+                    f"{manifest['totalBytes']} bytes"
+                )
         elif args.command == "verify-directory":
             verify_directory(args.directory, args.manifest)
         else:

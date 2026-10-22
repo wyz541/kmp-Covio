@@ -4,7 +4,7 @@
 
 本文推荐 `20%` 到 `100%` 的混合路径。
 `80%` 到 `100%` 使用原生 MCL。
-`20%` 到 `79%` 使用 root `defaults` 与 `notifyutil`。
+`20%` 到 `79%` 使用 root `CFPreferences` 与 Darwin 通知。
 本文不批准写入 SMC。
 本文不批准 root 策略重载。
 
@@ -13,7 +13,7 @@
 | 条件 | 路径 |
 | --- | --- |
 | MCL 支持，目标不低于 `80%` | 原生 MCL |
-| MCL 支持，目标低于 `80%` | root `defaults` 与 `notifyutil` |
+| MCL 支持，目标低于 `80%` | root `CFPreferences` 与 Darwin 通知 |
 | MCL 不支持，旧 SMC 键可用 | 单独评估 SMC |
 | MCL 不支持，旧 SMC 键不可用 | 显示不支持 |
 | 无电池 | 隐藏入口 |
@@ -41,11 +41,13 @@
 1. 保存原 MCL 开关和上限。
 2. 写入 Covio 配置。
 3. 目标不低于 `80%` 时调用 `enableMCL:error:` 与 `setMCLLimit:error:`。
-4. 目标低于 `80%` 时先保持 MCL 开启，再写入 `MCLFeatureState=1` 与 `mclLimitValue`。
-5. 目标低于 `80%` 时执行 `notifyutil -p com.apple.smartcharging.defaultschanged`。
+4. 目标低于 `80%` 时先保持 MCL 开启，再写入 `enabled=false`、`MCLFeatureState=1` 与 `mclLimitValue`。
+5. 目标低于 `80%` 时发送 `com.apple.smartcharging.defaultschanged` Darwin 通知。
 6. 等待系统注册策略。
 7. 读取 `PowerUI getMCLLimitWithError:` 与 `pmset -g battlimit`。
 8. 校验目标值、电池充电状态和功率。
+9. `pmset` 在 `4` 秒内未显示目标时，恢复原策略。
+10. 恢复成功后返回错误，不把 PowerUI 的临时值当成已生效。
 
 如果任一步失败，执行恢复流程。
 

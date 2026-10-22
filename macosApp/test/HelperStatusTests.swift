@@ -143,6 +143,20 @@ final class HelperStatusTests: XCTestCase {
             ["chargeLimitConfigure", "chargeLimitRestore"]
         )
     }
+
+    func testChargeLimitCommandsCanOutliveTheDefaultSocketTimeout() throws {
+        let helper = try FakeHelper(
+            socketPath: socketPath,
+            version: ModelsKt.APP_VERSION,
+            responseDelayMilliseconds: 500
+        )
+        defer { helper.stop() }
+
+        let client = HelperClient(socketPath: socketPath, timeoutMillis: 100)
+
+        XCTAssertTrue(client.setChargeLimit(percent: 85))
+        XCTAssertEqual(helper.commands.last, "chargeLimitConfigure")
+    }
 }
 
 /// 只在测试里存在的假 helper。
@@ -160,7 +174,8 @@ private final class FakeHelper {
     init(
         socketPath: String,
         version: String,
-        protocolVersion: String? = HelperProtocol.protocolVersion
+        protocolVersion: String? = HelperProtocol.protocolVersion,
+        responseDelayMilliseconds: Int = 0
     ) throws {
         // 全程用局部变量。在 `thread` 赋值前读 `descriptor` 或 `port`
         // 等于读 `self`，Swift 不允许，闭包捕获更不行。
@@ -187,6 +202,7 @@ private final class FakeHelper {
         let state = FakeHelperState()
         state.version = version
         state.protocolVersion = protocolVersion
+        state.responseDelayMilliseconds = responseDelayMilliseconds
 
         descriptor = fd
         port = state
@@ -263,6 +279,11 @@ private final class FakeHelper {
             } else {
                 reply = HelperWire.shared.success(requestId: request.requestId, result: [:])
             }
+            if port.responseDelayMilliseconds > 0 {
+                Thread.sleep(
+                    forTimeInterval: Double(port.responseDelayMilliseconds) / 1_000
+                )
+            }
             UnixSocketIO.writeAll(client, HelperWire.shared.encodeReply(reply: reply) + "\n")
         }
     }
@@ -273,6 +294,7 @@ private final class FakeHelperState: @unchecked Sendable {
     private let lock = NSLock()
     private var versionStorage = ""
     private var protocolVersionStorage: String?
+    private var responseDelayMillisecondsStorage = 0
     private var commandsStorage: [String] = []
     private var stoppedStorage = false
 
@@ -287,6 +309,11 @@ private final class FakeHelperState: @unchecked Sendable {
     }
 
     var commands: [String] { lock.withLock { commandsStorage } }
+
+    var responseDelayMilliseconds: Int {
+        get { lock.withLock { responseDelayMillisecondsStorage } }
+        set { lock.withLock { responseDelayMillisecondsStorage = newValue } }
+    }
 
     var stopped: Bool {
         get { lock.withLock { stoppedStorage } }

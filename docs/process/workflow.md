@@ -2,7 +2,7 @@
 
 **把想法变成可追踪的 issue。七步，只用 GitHub 原生能力。**
 
-版本 0.7 · 2026-10-14
+版本 0.9 · 2026-10-22
 
 ---
 
@@ -46,7 +46,8 @@
 
 issue 的创建人默认担任负责人。改派时换 assignee。
 Project 的权限单独授予，与仓库权限无关。
-ADR 的 PR 与本文件的 PR，都需要一名非作者的成员批准。维护人空缺时，由团队成员轮流担任。
+ADR 的 PR 与本文件的 PR，通常需要一名非作者批准。
+单人仓库只有一名协作者时，作者自查并记录结论后可以合并。非作者评审不阻塞合并。
 
 ---
 
@@ -158,12 +159,13 @@ flowchart LR
 4. 用 blocked by 记录顺序。被阻塞的 issue 会自动显示标记。
 5. 涉及 UI 变化时，第一个 sub-issue 是预览。验收标准写成「预览可打开，主路径可点」。
 6. 实施 sub-issue 用 blocked by 指向预览 sub-issue。评审通过前不动工。
+7. UI 决策或 UI 代码变更完成后，按「UI 证据」补截图。截图缺失时，不关闭 issue。
 
 **判断「大功能」：** 需要 2 个以上 PR；预计超过 5 个工作日；需要先改设计。满足任一条就建 Feature。
 
 **层级：** 不超过 3 层，从 Feature 数起。工具支持 8 层，但第 4 层开始没人看。层级不表示工期。
 
-**完成标准：** 每个 sub-issue 都有验收标准，且工期不超过 3 天。涉及 UI 变化时，预览已通过评审。
+**完成标准：** 每个 sub-issue 都有验收标准，且工期不超过 3 天。涉及 UI 变化时，预览已通过评审，UI 截图证据齐全。
 
 **小功能的预览：** 小功能涉及 UI 变化时，预览与结论写在同一个 issue 正文里。不另建 sub-issue。
 
@@ -302,6 +304,25 @@ GitHub 默认只有 task、bug、feature 三种 issue type，且只在组织账�
 
 **依据：** Amper 0.12.1 能建 `wasm-js/app` 模块并在浏览器里渲染 Compose 内容。实测见 #103。
 
+### UI 证据
+
+**何时用：** issue 涉及 UI 决策或 UI 代码变更。
+**谁做：** 负责人补齐证据。评审人核对截图。
+
+| 类型 | issue 正文必须包含 |
+|---|---|
+| UI 决策 | 当前界面或候选方案截图，以及选定方案截图 |
+| UI 代码变更 | 同一页面、同一状态的真机变更前后截图 |
+
+1. 截图归档到仓库内的 `docs/design/previews/`。此目录保存 UI 证据。
+2. 文件名遵守该目录的 `README.md`。UI 决策使用 `candidate`、`selected` 或 `current` 角色。UI 代码变更使用 `before` 或 `after` 角色。
+3. Issue 正文嵌入同一文件的固定 commit GitHub 图片地址。不写本机路径，不上传第二份权威副本。
+4. Issue 正文记录截图来源、日期、设备型号、系统版本、页面、状态和 commit。
+5. 旧图不删除。同一场景重截后，序号加一。
+6. 不涉及 UI 的 issue 在 UI 证据栏写「不适用」。
+7. UI issue 缺少截图或证据链接失效时，不得关闭。
+8. 仓库是公开仓库。截图必须使用测试数据，并遮挡用户名、文件名、通知和其他个人信息。
+
 ### 目录
 
 ADR 与流程文件放在同一个仓库。跨仓库的对象用 `owner/repo#123` 引用。
@@ -311,13 +332,16 @@ ADR 与流程文件放在同一个仓库。跨仓库的对象用 `owner/repo#123
 ```text
 repo/
 ├─ .github/ISSUE_TEMPLATE/
+│  ├─ feature.yml
 │  ├─ research.yml
-│  └─ feature.yml
+│  └─ task.yml
 └─ docs/
    ├─ adr/
    │  ├─ adr-template.md
    │  ├─ adr-0001-macos-ui-swiftui.md
    │  └─ adr-NNNN-<slug>.md
+   ├─ design/
+   │  └─ previews/              ← UI 截图
    ├─ process/
    │  └─ workflow.md          ← 本文件
    └─ research/

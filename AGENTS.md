@@ -7,7 +7,7 @@
 Covio 是 macOS 菜单栏应用。界面是 SwiftUI 宿主，放在 `macosApp/`。
 共享领域逻辑是 KMP 模块，放在 `kmpDomain/`。
 构建系统是 Amper 0.12.1，不是 Gradle。
-改完跑 `bash scripts/test-all.sh`。改了 UI 的还要在真机验收。
+改完跑 `bash scripts/test-all.sh`。改了 UI 的还要在真机验收，并按 `docs/process/workflow.md` 的「UI 证据」补截图。截图缺失时，不得关闭 issue。
 主干是 `main`。
 
 ## 2. 流程
@@ -58,6 +58,7 @@ Covio 是 macOS 菜单栏应用。界面是 SwiftUI 宿主，放在 `macosApp/`�
 | 架构决策 | `docs/adr/` |
 | 目标架构 | `docs/design/` |
 | 界面打样 | `designPreview/`，读法见 `docs/design/design-preview.md` |
+| UI 截图 | `docs/design/previews/` |
 | 研究结论 | `docs/research/` |
 | 工作流规则 | `docs/process/workflow.md` |
 | Project 字段 | `docs/process/project-fields.md` |

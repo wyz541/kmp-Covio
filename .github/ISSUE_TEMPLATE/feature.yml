@@ -8,7 +8,7 @@ body:
         判断大功能：需要 2 个以上 PR；预计超过 5 个工作日；需要先改设计。满足任一条就用本表单。
         标题写成「动词 对象」，例如「Add the workbench store」。
         涉及 UI 变化时，先出 web 预览并通过评审，再拆实施 sub-issue。
-        拆法与回链格式见 [研发工作流](../../docs/process/workflow.md) 的 S5、S6 与设计闸门。
+        拆法、回链与截图格式见 [研发工作流](../../docs/process/workflow.md) 的 S5、S6、设计闸门与 UI 证据。
 
   - type: textarea
     id: goal
@@ -28,6 +28,41 @@ body:
       placeholder: |
         - <界面变化一：可判断的描述>
         - <界面变化二：可判断的描述>
+    validations:
+      required: true
+
+  - type: dropdown
+    id: ui_type
+    attributes:
+      label: UI 类型
+      description: 选择本 issue 的 UI 证据类型。
+      options:
+        - 不涉及 UI
+        - UI 决策
+        - UI 代码变更
+    validations:
+      required: true
+
+  - type: textarea
+    id: ui_evidence
+    attributes:
+      label: UI 证据
+      description: |
+        创建时写计划，结题前补图。
+        UI 决策附当前界面或候选方案，以及选定方案。
+        UI 代码变更附同一页面、同一状态的真机前后截图。
+        截图归档到 docs/design/previews/。命名遵守该目录的 README。
+        Issue 正文使用同一文件的固定 commit GitHub 图片地址。
+        不涉及 UI 时填「不适用」。
+        截图缺失或链接失效时，不得关闭 issue。
+      placeholder: |
+        变更前：
+        ![变更前](截图)
+
+        变更后：
+        ![变更后](截图)
+
+        归档：docs/design/previews/
     validations:
       required: true
 

@@ -62,7 +62,7 @@ class PowerPolicyTest {
     }
 
     @Test
-    fun `closed lid lease applies all three holds when safe`() {
+    fun `closed lid lease holds the system and lid but not the display account`() {
         val decision = decide(
             config = config(keepAwakeOnAdapter = false),
             lease = lease(HoldLeaseLevel.CLOSED_LID),
@@ -70,10 +70,28 @@ class PowerPolicyTest {
         )
 
         assertTrue(decision.preventUserIdleSystemSleep)
-        assertTrue(decision.preventUserIdleDisplaySleep)
+        assertFalse(decision.preventUserIdleDisplaySleep)
         assertTrue(decision.preventLidSleep)
         assertEquals(HoldLeaseLevel.CLOSED_LID, decision.appliedLeaseLevel)
         assertTrue(decision.safetyVetoes.isEmpty())
+    }
+
+    @Test
+    fun `closed lid lease keeps a separate display lease`() {
+        val decision = decide(
+            config = config(keepAwakeOnAdapter = false),
+            leases = listOf(
+                lease(HoldLeaseLevel.SYSTEM_AND_DISPLAY, id = "display"),
+                lease(HoldLeaseLevel.CLOSED_LID, id = "lid"),
+            ),
+            snapshot = safeClosedLidSnapshot(),
+        )
+
+        assertTrue(decision.preventUserIdleSystemSleep)
+        assertTrue(decision.preventUserIdleDisplaySleep)
+        assertTrue(decision.preventLidSleep)
+        assertEquals(HoldLeaseLevel.CLOSED_LID, decision.appliedLeaseLevel)
+        assertEquals(listOf("display", "lid"), decision.activeLeaseIds)
     }
 
     @Test

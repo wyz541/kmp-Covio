@@ -164,6 +164,10 @@ struct PowerManagementView: View {
             .labelsHidden()
             .accessibilityLabel(ContractCopy.copyPowerSectionSession.text(for: language))
 
+            if sessionMode == .lid {
+                MacStatusLine(text: ContractCopy.copyPowerSessionLidDisplayOffHint.text(for: language))
+            }
+
             HStack(spacing: MacTheme.space2) {
                 Text(ContractCopy.copyPowerSessionExpires.text(for: language))
                     .font(.system(size: 11))
@@ -641,7 +645,7 @@ struct PowerManagementView: View {
         switch mode {
         case .system: ContractCopy.copyPowerSessionSystem.text(for: language)
         case .display: ContractCopy.copyPowerSessionDisplay.text(for: language)
-        case .lid: ContractCopy.copyPowerSessionLid.text(for: language)
+        case .lid: ContractCopy.copyPowerSessionLidDisplayOff.text(for: language)
         }
     }
 

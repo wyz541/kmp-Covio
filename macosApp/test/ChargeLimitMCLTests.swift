@@ -286,6 +286,23 @@ final class ChargeLimitMCLTests: XCTestCase {
         XCTAssertFalse(SystemPowerUIChargeClient.isBypassEngaged(status: ["Timeline": []]))
     }
 
+    func testPmsetTargetParsingUsesChargeSocLimit() {
+        let output = """
+        Battery level limits:
+        (
+                {
+                chargeSocLimitReason = manualChargeLimit;
+                chargeSocLimitSoc = 70;
+            }
+        )
+        """
+
+        XCTAssertEqual(PmsetChargeLimitSystemTargetReader.parseTargetPercent(from: output), 70)
+        XCTAssertNil(PmsetChargeLimitSystemTargetReader.parseTargetPercent(
+            from: "No battery level limits set"
+        ))
+    }
+
     private func makeController(directReadbackTimeout: TimeInterval = 2) -> ChargeLimitMCLController {
         ChargeLimitMCLController(
             preferences: preferences,

@@ -109,12 +109,22 @@ final class PmsetChargeLimitSystemTargetReader: ChargeLimitSystemTargetReading, 
         else {
             return nil
         }
+        return Self.parseTargetPercent(from: output)
+    }
+
+    static func parseTargetPercent(from output: String) -> Int? {
         for line in output.split(whereSeparator: \.isNewline) {
             let parts = line.split(separator: "=", maxSplits: 1)
+            let rawValue = parts.count == 2
+                ? parts[1].trimmingCharacters(in: .whitespacesAndNewlines)
+                : ""
+            let normalizedValue = rawValue.hasSuffix(";")
+                ? String(rawValue.dropLast())
+                : rawValue
             guard parts.count == 2,
                   parts[0].trimmingCharacters(in: .whitespaces)
                     .caseInsensitiveCompare("chargeSocLimitSoc") == .orderedSame,
-                  let value = Int(parts[1].trimmingCharacters(in: .whitespacesAndNewlines))
+                  let value = Int(normalizedValue)
             else {
                 continue
             }

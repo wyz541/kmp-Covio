@@ -227,7 +227,7 @@ final class AppRuntime {
             modelDirectory: modelConfiguration.modelDirectory
         )
         self.localModelRuntime = localModelRuntime
-        self.autoNaming = autoNaming ?? AutoNamingRuntime(
+        let resolvedAutoNaming = autoNaming ?? AutoNamingRuntime(
             model: NamingModelCoordinator(
                 primary: MLXNamingModel(
                     configuration: modelConfiguration,
@@ -235,6 +235,7 @@ final class AppRuntime {
                 )
             )
         )
+        self.autoNaming = resolvedAutoNaming
         let agentAttachments = AgentAttachmentStore()
         self.agentAttachments = agentAttachments
         let agentGateway = AgentServiceGateway(
@@ -242,7 +243,9 @@ final class AppRuntime {
                 shelf: resolvedShelf,
                 clipboard: resolvedClipboard,
                 workspace: resolvedWorkspace,
-                attachments: agentAttachments
+                attachments: agentAttachments,
+                autoNaming: resolvedAutoNaming,
+                fileNamingPolicy: loaded.fileNaming
             )
         )
         self.agent = AgentChatRuntime(

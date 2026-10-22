@@ -5,11 +5,18 @@ actor AgentServiceGateway {
     private let handlers: AgentServiceHandlers
     private let timeout: Duration
     private var pending: PendingCall?
+    private var deferred: [DeferredCall] = []
+    private var activeDeferred: DeferredCall?
     private var audits: [AgentToolAudit] = []
     private let maxAuditEntries = 40
 
     private struct PendingCall: Sendable {
         let action: AgentPendingAction
+        let arguments: [String: JSONValue]
+    }
+
+    private struct DeferredCall: Sendable {
+        let action: AgentDeferredAction
         let arguments: [String: JSONValue]
     }
 
@@ -76,6 +83,26 @@ actor AgentServiceGateway {
             ).jsonString()
         }
 
+        if descriptor.executionMode == .afterModelResponse {
+            let action = AgentDeferredAction(
+                id: UUID().uuidString,
+                toolName: name,
+                summary: deferredSummary(name: name, arguments: call.function.arguments)
+            )
+            deferred.append(DeferredCall(action: action, arguments: call.function.arguments))
+            record(
+                name: name,
+                risk: descriptor.risk,
+                status: .queued,
+                detail: "Queued until the current model response finishes"
+            )
+            return AgentServiceResult(
+                ok: true,
+                summary: "File naming preview queued.",
+                data: nil
+            ).jsonString()
+        }
+
         let result = await executeWithTimeout(name: name, arguments: call.function.arguments)
         record(
             name: name,
@@ -89,6 +116,32 @@ actor AgentServiceGateway {
 
     func pendingAction() -> AgentPendingAction? {
         pending?.action
+    }
+
+    func takeDeferredAction() -> AgentDeferredAction? {
+        guard activeDeferred == nil, !deferred.isEmpty else { return nil }
+        let call = deferred.removeFirst()
+        activeDeferred = call
+        return call.action
+    }
+
+    func executeDeferred(_ action: AgentDeferredAction) async -> AgentServiceResult {
+        guard let call = activeDeferred, call.action.id == action.id else {
+            return .failure("Deferred action was not found.", code: .executionFailed)
+        }
+        activeDeferred = nil
+        let result = await executeWithTimeout(
+            name: call.action.toolName,
+            arguments: call.arguments
+        )
+        record(
+            name: call.action.toolName,
+            risk: .readOnly,
+            status: result.ok ? .completed : .failed,
+            detail: result.ok ? "Deferred action completed" : result.summary,
+            errorCode: result.errorCode
+        )
+        return result
     }
 
     func confirmPending() async -> AgentServiceResult {
@@ -127,6 +180,8 @@ actor AgentServiceGateway {
 
     func reset() {
         pending = nil
+        deferred = []
+        activeDeferred = nil
         audits = []
     }
 
@@ -180,6 +235,14 @@ actor AgentServiceGateway {
                 fileId,
                 boundedCharacterLimit(arguments["maxCharacters"], defaultValue: 6_000)
             )
+        case "preview_file_names":
+            guard let fileIds = stringArrayValue(arguments["fileIds"]), !fileIds.isEmpty else {
+                return .failure("File IDs are required.", code: .invalidArguments)
+            }
+            return await handlers.previewFileNames(
+                fileIds,
+                boundedLimit(arguments["maxResults"], defaultValue: 8)
+            )
         case "list_screenshots":
             return await handlers.screenshots(boundedLimit(arguments["limit"], defaultValue: 8))
         case "list_clipboard_metadata":
@@ -206,6 +269,8 @@ actor AgentServiceGateway {
             allowed = ["query", "limit"]
         case "inspect_file":
             allowed = ["fileId", "maxCharacters"]
+        case "preview_file_names":
+            allowed = ["fileIds", "maxResults"]
         case "list_screenshots", "list_clipboard_metadata":
             allowed = ["limit"]
         case "copy_text":
@@ -233,6 +298,18 @@ actor AgentServiceGateway {
                 }
             }
         }
+        if descriptor.name == "preview_file_names" {
+            guard let fileIds = stringArrayValue(arguments["fileIds"]),
+                  !fileIds.isEmpty,
+                  fileIds.count <= 20,
+                  fileIds.allSatisfy({ AgentFileReference(fileId: $0) != nil })
+            else { return false }
+            if let maxResults = arguments["maxResults"], maxResults != .null {
+                guard let value = intValue(maxResults), (1...20).contains(value) else {
+                    return false
+                }
+            }
+        }
         if descriptor.name == "copy_text" {
             guard let text = stringValue(arguments["text"]),
                   !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
@@ -249,9 +326,21 @@ actor AgentServiceGateway {
         return "Run \(name)."
     }
 
+    private func deferredSummary(name: String, arguments: [String: JSONValue]) -> String {
+        if name == "preview_file_names" {
+            return "Preview names for \(stringArrayValue(arguments["fileIds"])?.count ?? 0) files."
+        }
+        return "Run \(name) after the model response."
+    }
+
     private func stringValue(_ value: JSONValue?) -> String? {
         guard case .string(let value)? = value else { return nil }
         return value
+    }
+
+    private func stringArrayValue(_ value: JSONValue?) -> [String]? {
+        guard case .array(let values)? = value else { return nil }
+        return values.compactMap(stringValue)
     }
 
     private func intValue(_ value: JSONValue?) -> Int? {

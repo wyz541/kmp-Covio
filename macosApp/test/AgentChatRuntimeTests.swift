@@ -82,6 +82,43 @@ final class AgentChatRuntimeTests: XCTestCase {
         XCTAssertEqual(recordedTool, "copy_text")
     }
 
+    func testDeferredPreviewRunsAfterModelResponse() async {
+        let counter = PreviewCounter()
+        let fileId = "workspace:\(String(repeating: "c", count: 64))"
+        let gateway = AgentServiceGateway(
+            handlers: AgentServiceHandlers(
+                monitorSnapshot: { .failure("unused") },
+                powerStatus: { .failure("unused") },
+                workspaceFiles: { _, _ in .failure("unused") },
+                screenshots: { _ in .failure("unused") },
+                clipboardMetadata: { _ in .failure("unused") },
+                copyText: { _ in .failure("unused") },
+                previewFileNames: { ids, _ in
+                    await counter.increment()
+                    return AgentServiceResult(
+                        ok: true,
+                        summary: "Generated \(ids.count) previews. No files were changed.",
+                        data: nil
+                    )
+                }
+            )
+        )
+        let model = DeferredPreviewAgentModel(gateway: gateway, fileId: fileId)
+        let runtime = AgentChatRuntime(model: model, gateway: gateway)
+
+        runtime.send("preview")
+        await waitUntil { runtime.stage == .idle }
+
+        let count = await counter.value
+        XCTAssertEqual(count, 1)
+        XCTAssertTrue(runtime.messages.contains {
+            $0.role == .service && $0.text.contains("Generated 1 previews")
+        })
+        XCTAssertEqual(runtime.messages.last?.text, "Preview ready.")
+        let recordedTool = await model.recordedToolName
+        XCTAssertEqual(recordedTool, "preview_file_names")
+    }
+
     private func waitUntil(_ condition: @escaping @MainActor () -> Bool) async {
         for _ in 0..<100 {
             if condition() { return }
@@ -105,6 +142,14 @@ final class AgentChatRuntimeTests: XCTestCase {
 }
 
 private actor CopyCounter {
+    private(set) var value = 0
+
+    func increment() {
+        value += 1
+    }
+}
+
+private actor PreviewCounter {
     private(set) var value = 0
 
     func increment() {
@@ -144,6 +189,43 @@ private actor PendingCopyAgentModel: AgentModelServing {
         recordedToolName = toolName
         return ""
     }
+}
+
+private actor DeferredPreviewAgentModel: AgentModelServing {
+    private let gateway: AgentServiceGateway
+    private let fileId: String
+    private(set) var recordedToolName: String?
+
+    init(gateway: AgentServiceGateway, fileId: String) {
+        self.gateway = gateway
+        self.fileId = fileId
+    }
+
+    func respond(
+        to prompt: String,
+        onChunk: @Sendable @escaping (String) async -> Void
+    ) async throws -> String {
+        _ = await gateway.handle(
+            ToolCall(function: .init(
+                name: "preview_file_names",
+                arguments: ["fileIds": .array([.string(fileId)])]
+            ))
+        )
+        return "queued"
+    }
+
+    func respondAfterServiceResult(
+        toolName: String,
+        result: AgentServiceResult,
+        onChunk: @Sendable @escaping (String) async -> Void
+    ) async throws -> String {
+        recordedToolName = toolName
+        await onChunk("Preview ready.")
+        return "Preview ready."
+    }
+
+    func reset() async {}
+    func release() async {}
 }
 
 private actor FakeAgentModel: AgentModelServing {

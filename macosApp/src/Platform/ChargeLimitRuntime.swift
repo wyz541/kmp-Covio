@@ -25,6 +25,8 @@ struct ChargeLimitRuntimeState: Codable, Equatable {
     var chargingLatch = false
     /// 校准开始时看到的系统目标。校准结束后只恢复匹配此值的临时覆盖。
     var calibrationTargetPercent: Int? = nil
+    /// 已写入 PowerUI，但 powerd 尚未确认的目标。
+    var pendingTargetPercent: Int? = nil
     var lastPhase = "off"
 }
 
@@ -258,12 +260,17 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
         }
         let observedTarget = backend.observedTargetPercent()
         let expectedTarget = effectiveTarget(backendState?.targetPercent)
+        let pendingTarget = state.pendingTargetPercent
+        let pendingMatchesBackend = pendingTarget != nil && backendState?.targetPercent == pendingTarget
+        let pendingSettled = pendingMatchesBackend && observedTarget == pendingTarget
+        let hasPendingTarget = pendingMatchesBackend && !pendingSettled
         let returningFromCalibration = state.lastPhase == "calibration" &&
             !reading.calibrationActive &&
             state.calibrationTargetPercent == observedTarget
         let targetMayBeReplaced = recoveringFromStartup ||
             returningFromCalibration ||
-            explicitUserRequest
+            explicitUserRequest ||
+            hasPendingTarget
         let observation = ChargeLimitObservation(
             enabled: true,
             upperLimitPercent: Int32(state.userLimitPercent),
@@ -280,7 +287,7 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
             observedTargetPercent: observedTarget.map {
                 KotlinInt(int: Int32($0))
             },
-            writePending: false,
+            writePending: hasPendingTarget,
             bypassEngaged: reading.bypassEngaged
         )
         let decision = ChargeLimitPolicy.shared.evaluate(
@@ -292,6 +299,7 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
             userLimitPercent: state.userLimitPercent,
             chargingLatch: decision.chargingLatch,
             calibrationTargetPercent: reading.calibrationActive ? observedTarget : nil,
+            pendingTargetPercent: hasPendingTarget ? pendingTarget : nil,
             lastPhase: phaseName(decision.phase)
         )
         do {
@@ -305,7 +313,10 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
         if decision.action == .setTarget, let target = decision.targetPercent?.int32Value {
             switch backend.apply(targetPercent: Int(target)) {
             case .success:
-                return .success(())
+                return markPendingIfNeededLocked(
+                    state: updated,
+                    targetPercent: Int(target)
+                )
             case .failure(let failure):
                 return .failure(failure)
             }
@@ -323,12 +334,39 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
            let target = decision.targetPercent?.int32Value {
             switch backend.apply(targetPercent: Int(target)) {
             case .success:
-                return .success(())
+                return markPendingIfNeededLocked(
+                    state: updated,
+                    targetPercent: Int(target)
+                )
             case .failure(let failure):
                 return .failure(failure)
             }
         }
         return .success(())
+    }
+
+    private func markPendingIfNeededLocked(
+        state: ChargeLimitRuntimeState,
+        targetPercent: Int
+    ) -> Result<Void, ChargeLimitMCLFailure> {
+        if backend.observedTargetPercent() == targetPercent {
+            return .success(())
+        }
+        let pending = ChargeLimitRuntimeState(
+            userLimitPercent: state.userLimitPercent,
+            chargingLatch: state.chargingLatch,
+            calibrationTargetPercent: state.calibrationTargetPercent,
+            pendingTargetPercent: targetPercent,
+            lastPhase: "applying"
+        )
+        do {
+            try stateStore.save(pending)
+            return .success(())
+        } catch let failure as ChargeLimitMCLFailure {
+            return .failure(failure)
+        } catch {
+            return .failure(.stateWriteFailed)
+        }
     }
 
     /// 新设置失败时停止自动重试，并清除用户意图。后端会恢复首次覆盖前的状态。

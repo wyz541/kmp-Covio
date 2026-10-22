@@ -255,7 +255,7 @@ final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
     private let powerUI: PowerUIChargeReading
     private let systemTarget: ChargeLimitSystemTargetReading
     private let lock = NSLock()
-    private let supportedTargetPercent = 20...100
+    private let supportedTargetPercent = 40...100
     private let powerUIMinimum = 80
     private let directReadbackTimeout: TimeInterval
 
@@ -426,7 +426,7 @@ final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
 
     private func applyWithPowerUI(_ targetPercent: Int) -> Bool {
         guard powerUI.applyLimit(targetPercent) else { return false }
-        return waitForTarget(targetPercent)
+        return waitForPowerUITarget(targetPercent)
     }
 
     private func applyDirect(_ targetPercent: Int) -> Bool {
@@ -447,16 +447,15 @@ final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
             return false
         }
 
-        return waitForTarget(targetPercent)
+        return waitForPowerUITarget(targetPercent)
     }
 
-    /// PowerUI、pmset 和 MCL 开关必须同时确认，才认为目标已经生效。
-    private func waitForTarget(_ targetPercent: Int) -> Bool {
+    /// PowerUI 先确认写入。powerd 可能等到下一个 1% 步进才执行。
+    private func waitForPowerUITarget(_ targetPercent: Int) -> Bool {
         let deadline = Date().addingTimeInterval(directReadbackTimeout)
         repeat {
             if powerUI.isMCLEnabled() == true,
-               powerUI.currentLimit() == targetPercent,
-               systemTarget.readTargetPercent() == targetPercent {
+               powerUI.currentLimit() == targetPercent {
                 return true
             }
             if Date() >= deadline { return false }

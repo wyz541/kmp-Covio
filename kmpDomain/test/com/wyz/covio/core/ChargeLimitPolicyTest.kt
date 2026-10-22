@@ -41,11 +41,11 @@ class ChargeLimitPolicyTest {
     )
 
     @Test
-    fun `limits use five point steps from twenty to one hundred`() {
-        assertTrue(ChargeLimitPolicy.isValidUpperLimit(20))
+    fun `limits use five point steps from forty to one hundred`() {
+        assertTrue(ChargeLimitPolicy.isValidUpperLimit(40))
         assertTrue(ChargeLimitPolicy.isValidUpperLimit(75))
         assertTrue(ChargeLimitPolicy.isValidUpperLimit(100))
-        assertFalse(ChargeLimitPolicy.isValidUpperLimit(19))
+        assertFalse(ChargeLimitPolicy.isValidUpperLimit(39))
         assertFalse(ChargeLimitPolicy.isValidUpperLimit(79))
         assertFalse(ChargeLimitPolicy.isValidUpperLimit(101))
         assertEquals(80, ChargeLimitPolicy.normalizeUpperLimit(79))
@@ -53,8 +53,8 @@ class ChargeLimitPolicyTest {
     }
 
     @Test
-    fun `the resume threshold is five points lower with a floor of fifteen`() {
-        assertEquals(15, ChargeLimitPolicy.resumeThreshold(20))
+    fun `the resume threshold is five points lower with a floor of thirty five`() {
+        assertEquals(35, ChargeLimitPolicy.resumeThreshold(40))
         assertEquals(45, ChargeLimitPolicy.resumeThreshold(50))
         assertEquals(95, ChargeLimitPolicy.resumeThreshold(100))
     }

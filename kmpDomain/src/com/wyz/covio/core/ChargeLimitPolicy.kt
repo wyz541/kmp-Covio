@@ -1,7 +1,7 @@
 package com.wyz.covio.core
 
 /** 充电上限的最小值。 */
-const val CHARGE_LIMIT_MIN_PERCENT = 20
+const val CHARGE_LIMIT_MIN_PERCENT = 40
 
 /** 充电上限的最大值。 */
 const val CHARGE_LIMIT_MAX_PERCENT = 100
@@ -12,8 +12,8 @@ const val CHARGE_LIMIT_STEP_PERCENT = 5
 /** 从上限回到恢复充电所需的电量差。 */
 const val CHARGE_LIMIT_HYSTERESIS_PERCENT = 5
 
-/** 最低恢复阈值。上限为 20% 时，从 15% 恢复充电。 */
-const val CHARGE_LIMIT_MIN_RESUME_PERCENT = 15
+/** 最低恢复阈值。上限为 40% 时，从 35% 恢复充电。 */
+const val CHARGE_LIMIT_MIN_RESUME_PERCENT = 35
 
 /** 首次启用时的默认上限。 */
 const val DEFAULT_CHARGE_LIMIT_PERCENT = 80
@@ -98,7 +98,7 @@ data class ChargeLimitDecision(
  * helper 负责把动作去重、节流和校验；本对象只保证同一组输入得到同一组输出。
  */
 object ChargeLimitPolicy {
-    /** 判断上限是否合法。合法值必须在 20 到 100 之间，并能被 5 整除。 */
+    /** 判断上限是否合法。合法值必须在 40 到 100 之间，并能被 5 整除。 */
     fun isValidUpperLimit(percent: Int): Boolean =
         percent in CHARGE_LIMIT_MIN_PERCENT..CHARGE_LIMIT_MAX_PERCENT &&
             percent % CHARGE_LIMIT_STEP_PERCENT == 0
@@ -144,7 +144,7 @@ object ChargeLimitPolicy {
         )
 
         if (!isValidUpperLimit(upper)) {
-            return decision(ChargeLimitPhase.ERROR, errorMessage = "充电上限必须是 20 到 100 之间的 5% 档位")
+            return decision(ChargeLimitPhase.ERROR, errorMessage = "充电上限必须是 40 到 100 之间的 5% 档位")
         }
         if (!observation.enabled) return decision(ChargeLimitPhase.OFF, latch = false)
         if (!observation.helperInstalled) return decision(ChargeLimitPhase.HELPER_MISSING)

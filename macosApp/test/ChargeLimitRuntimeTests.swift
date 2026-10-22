@@ -103,6 +103,26 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         XCTAssertEqual(try runtime.status().get().effectiveTargetPercent, 75)
     }
 
+    func testPendingTargetWaitsForPowerdWithoutBecomingConflict() throws {
+        let backend = FakeChargeLimitBackend()
+        backend.observedTargetOverride = 80
+        let reader = FakeChargeLimitPowerReader(reading: reading(current: 66))
+        let runtime = makeRuntime(backend: backend, reader: reader)
+        defer { _ = runtime.restore() }
+
+        let pending = try runtime.configure(userLimitPercent: 70).get()
+
+        XCTAssertEqual(pending.phase, "applying")
+        XCTAssertEqual(pending.effectiveTargetPercent, 66)
+        XCTAssertEqual(backend.appliedTargets, [66])
+
+        backend.observedTargetOverride = 66
+        let settled = try runtime.evaluateNow().get()
+
+        XCTAssertEqual(settled.phase, "sailing")
+        XCTAssertEqual(settled.effectiveTargetPercent, 66)
+    }
+
     func testOneHundredPercentReleasesMclOnlyOnce() throws {
         let backend = FakeChargeLimitBackend()
         let reader = FakeChargeLimitPowerReader(reading: reading(current: 90))
@@ -322,6 +342,7 @@ final class ChargeLimitRuntimeTests: XCTestCase {
             reader: FakeChargeLimitPowerReader(reading: reading(current: 85))
         )
 
+        XCTAssertEqual(runtime.configure(userLimitPercent: 39), .failure(.invalidTarget(39)))
         XCTAssertEqual(runtime.configure(userLimitPercent: 79), .failure(.invalidTarget(79)))
         XCTAssertTrue(backend.appliedTargets.isEmpty)
     }

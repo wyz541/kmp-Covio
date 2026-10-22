@@ -126,7 +126,7 @@ class HelperWireTest {
                 request(HelperWire.COMMAND_CHARGE_LIMIT_CONFIGURE, mapOf("percent" to "abc")),
             ),
         )
-        for (percent in listOf("19", "79", "101")) {
+        for (percent in listOf("39", "79", "101")) {
             assertEquals(
                 "Invalid charge limit",
                 HelperWire.validate(
@@ -134,7 +134,7 @@ class HelperWireTest {
                 ),
             )
         }
-        for (percent in listOf("20", "70", "80", "100")) {
+        for (percent in listOf("40", "70", "80", "100")) {
             assertNull(
                 HelperWire.validate(
                     request(HelperWire.COMMAND_CHARGE_LIMIT_CONFIGURE, mapOf("percent" to percent)),

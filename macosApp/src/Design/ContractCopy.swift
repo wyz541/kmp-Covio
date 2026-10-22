@@ -279,22 +279,50 @@ enum ContractCopy {
     static let copyHubEditWidgetCount = LocalizedCopy(key: "copy/hub/edit/widget-count", en: "widgets", zhHans: "块组件")
     /// `copy/hub/edit/workspace-count`
     static let copyHubEditWorkspaceCount = LocalizedCopy(key: "copy/hub/edit/workspace-count", en: "workspaces", zhHans: "个工作区")
+    /// `copy/hub/files/action/add`
+    static let copyHubFilesActionAdd = LocalizedCopy(key: "copy/hub/files/action/add", en: "Add…", zhHans: "加入…")
+    /// `copy/hub/files/action/cancel-transfer`
+    static let copyHubFilesActionCancelTransfer = LocalizedCopy(key: "copy/hub/files/action/cancel-transfer", en: "Cancel Transfer", zhHans: "取消传输")
+    /// `copy/hub/files/action/clear-filter`
+    static let copyHubFilesActionClearFilter = LocalizedCopy(key: "copy/hub/files/action/clear-filter", en: "Clear Filter", zhHans: "清除筛选")
+    /// `copy/hub/files/action/copy`
+    static let copyHubFilesActionCopy = LocalizedCopy(key: "copy/hub/files/action/copy", en: "Copy", zhHans: "复制")
+    /// `copy/hub/files/action/copy-text`
+    static let copyHubFilesActionCopyText = LocalizedCopy(key: "copy/hub/files/action/copy-text", en: "Copy Text", zhHans: "复制正文")
+    /// `copy/hub/files/action/download`
+    static let copyHubFilesActionDownload = LocalizedCopy(key: "copy/hub/files/action/download", en: "Download", zhHans: "下载")
     /// `copy/hub/files/action/import`
     static let copyHubFilesActionImport = LocalizedCopy(key: "copy/hub/files/action/import", en: "Import Files…", zhHans: "放入文件…")
+    /// `copy/hub/files/action/markup`
+    static let copyHubFilesActionMarkup = LocalizedCopy(key: "copy/hub/files/action/markup", en: "Mark Up", zhHans: "标注")
+    /// `copy/hub/files/action/more`
+    static let copyHubFilesActionMore = LocalizedCopy(key: "copy/hub/files/action/more", en: "More", zhHans: "更多")
+    /// `copy/hub/files/action/new-text`
+    static let copyHubFilesActionNewText = LocalizedCopy(key: "copy/hub/files/action/new-text", en: "New Text…", zhHans: "新建文本…")
     /// `copy/hub/files/action/open`
     static let copyHubFilesActionOpen = LocalizedCopy(key: "copy/hub/files/action/open", en: "Open", zhHans: "打开")
     /// `copy/hub/files/action/pin`
     static let copyHubFilesActionPin = LocalizedCopy(key: "copy/hub/files/action/pin", en: "Pin", zhHans: "置顶")
     /// `copy/hub/files/action/remove`
     static let copyHubFilesActionRemove = LocalizedCopy(key: "copy/hub/files/action/remove", en: "Remove", zhHans: "删除")
+    /// `copy/hub/files/action/retry`
+    static let copyHubFilesActionRetry = LocalizedCopy(key: "copy/hub/files/action/retry", en: "Retry", zhHans: "重试")
     /// `copy/hub/files/action/reveal`
     static let copyHubFilesActionReveal = LocalizedCopy(key: "copy/hub/files/action/reveal", en: "Show in Finder", zhHans: "在访达中显示")
+    /// `copy/hub/files/action/save-to-workspace`
+    static let copyHubFilesActionSaveToWorkspace = LocalizedCopy(key: "copy/hub/files/action/save-to-workspace", en: "Save to Workspace", zhHans: "存入工作区")
     /// `copy/hub/files/action/sweep`
     static let copyHubFilesActionSweep = LocalizedCopy(key: "copy/hub/files/action/sweep", en: "Clean Up", zhHans: "清理过期")
     /// `copy/hub/files/action/unpin`
     static let copyHubFilesActionUnpin = LocalizedCopy(key: "copy/hub/files/action/unpin", en: "Unpin", zhHans: "取消置顶")
+    /// `copy/hub/files/count/items`
+    static let copyHubFilesCountItems = LocalizedCopy(key: "copy/hub/files/count/items", en: "items", zhHans: "项")
     /// `copy/hub/files/empty`
     static let copyHubFilesEmpty = LocalizedCopy(key: "copy/hub/files/empty", en: "The workspace is empty", zhHans: "工作区还是空的")
+    /// `copy/hub/files/empty/hint`
+    static let copyHubFilesEmptyHint = LocalizedCopy(key: "copy/hub/files/empty/hint", en: "Screenshots, files, and text stay in recent use.", zhHans: "截图、文件或文本会停在最近使用的位置。")
+    /// `copy/hub/files/empty/title`
+    static let copyHubFilesEmptyTitle = LocalizedCopy(key: "copy/hub/files/empty/title", en: "Drop the next item here", zhHans: "把下一件内容放进来")
     /// `copy/hub/files/error/import`
     static let copyHubFilesErrorImport = LocalizedCopy(key: "copy/hub/files/error/import", en: "Cannot read this file.", zhHans: "读不到这个文件。")
     /// `copy/hub/files/error/missing`
@@ -305,14 +333,40 @@ enum ContractCopy {
     static let copyHubFilesErrorSave = LocalizedCopy(key: "copy/hub/files/error/save", en: "Cannot write to the workspace.", zhHans: "写不进工作区。")
     /// `copy/hub/files/error/too-large`
     static let copyHubFilesErrorTooLarge = LocalizedCopy(key: "copy/hub/files/error/too-large", en: "This file is over the single entry limit.", zhHans: "这个文件超过单条目上限。")
+    /// `copy/hub/files/filter/all`
+    static let copyHubFilesFilterAll = LocalizedCopy(key: "copy/hub/files/filter/all", en: "All", zhHans: "全部")
+    /// `copy/hub/files/filter/files`
+    static let copyHubFilesFilterFiles = LocalizedCopy(key: "copy/hub/files/filter/files", en: "Files", zhHans: "文件")
+    /// `copy/hub/files/filter/screenshots`
+    static let copyHubFilesFilterScreenshots = LocalizedCopy(key: "copy/hub/files/filter/screenshots", en: "Screenshots", zhHans: "截图")
+    /// `copy/hub/files/filter/text`
+    static let copyHubFilesFilterText = LocalizedCopy(key: "copy/hub/files/filter/text", en: "Text", zhHans: "文本")
+    /// `copy/hub/files/filter/transfers`
+    static let copyHubFilesFilterTransfers = LocalizedCopy(key: "copy/hub/files/filter/transfers", en: "Transfers", zhHans: "传输")
     /// `copy/hub/files/hint`
     static let copyHubFilesHint = LocalizedCopy(key: "copy/hub/files/hint", en: "Drop files here, or use Import Files.", zhHans: "把文件拖到这里，或点「放入文件」。")
+    /// `copy/hub/files/no-match/hint`
+    static let copyHubFilesNoMatchHint = LocalizedCopy(key: "copy/hub/files/no-match/hint", en: "Try another keyword or clear the current filter.", zhHans: "换一个关键词，或清除当前筛选。")
+    /// `copy/hub/files/no-match/title`
+    static let copyHubFilesNoMatchTitle = LocalizedCopy(key: "copy/hub/files/no-match/title", en: "No matching files", zhHans: "没有匹配的文件")
     /// `copy/hub/files/notice/duplicate`
     static let copyHubFilesNoticeDuplicate = LocalizedCopy(key: "copy/hub/files/notice/duplicate", en: "The workspace already has this content.", zhHans: "工作区里已经有这份内容。")
     /// `copy/hub/files/notice/saved`
     static let copyHubFilesNoticeSaved = LocalizedCopy(key: "copy/hub/files/notice/saved", en: "Saved to the workspace.", zhHans: "已存入工作区。")
     /// `copy/hub/files/notice/swept`
     static let copyHubFilesNoticeSwept = LocalizedCopy(key: "copy/hub/files/notice/swept", en: "Removed expired entries.", zhHans: "已清理过期条目。")
+    /// `copy/hub/files/state/fetching`
+    static let copyHubFilesStateFetching = LocalizedCopy(key: "copy/hub/files/state/fetching", en: "Retrieving", zhHans: "正在取回")
+    /// `copy/hub/files/state/local`
+    static let copyHubFilesStateLocal = LocalizedCopy(key: "copy/hub/files/state/local", en: "Available on this Mac", zhHans: "本机可用")
+    /// `copy/hub/files/state/on-other-device`
+    static let copyHubFilesStateOnOtherDevice = LocalizedCopy(key: "copy/hub/files/state/on-other-device", en: "On another device", zhHans: "在另一台设备")
+    /// `copy/hub/files/state/transfer-failed`
+    static let copyHubFilesStateTransferFailed = LocalizedCopy(key: "copy/hub/files/state/transfer-failed", en: "Transfer failed", zhHans: "传输失败")
+    /// `copy/hub/files/state/unavailable`
+    static let copyHubFilesStateUnavailable = LocalizedCopy(key: "copy/hub/files/state/unavailable", en: "Content unavailable", zhHans: "内容不可用")
+    /// `copy/hub/files/status/active`
+    static let copyHubFilesStatusActive = LocalizedCopy(key: "copy/hub/files/status/active", en: "active", zhHans: "进行中")
     /// `copy/hub/files/usage`
     static let copyHubFilesUsage = LocalizedCopy(key: "copy/hub/files/usage", en: "In use", zhHans: "已占用")
     /// `copy/hub/home/empty-hint`
@@ -1067,23 +1121,50 @@ enum ContractCopy {
         copyHubEditReorder,
         copyHubEditWidgetCount,
         copyHubEditWorkspaceCount,
+        copyHubFilesActionAdd,
+        copyHubFilesActionCancelTransfer,
+        copyHubFilesActionClearFilter,
+        copyHubFilesActionCopy,
+        copyHubFilesActionCopyText,
+        copyHubFilesActionDownload,
         copyHubFilesActionImport,
+        copyHubFilesActionMarkup,
+        copyHubFilesActionMore,
+        copyHubFilesActionNewText,
         copyHubFilesActionOpen,
         copyHubFilesActionPin,
         copyHubFilesActionRemove,
+        copyHubFilesActionRetry,
         copyHubFilesActionReveal,
+        copyHubFilesActionSaveToWorkspace,
         copyHubFilesActionSweep,
         copyHubFilesActionUnpin,
+        copyHubFilesCountItems,
         copyHubFilesEmpty,
+        copyHubFilesEmptyHint,
+        copyHubFilesEmptyTitle,
         copyHubFilesErrorImport,
         copyHubFilesErrorMissing,
         copyHubFilesErrorQuota,
         copyHubFilesErrorSave,
         copyHubFilesErrorTooLarge,
+        copyHubFilesFilterAll,
+        copyHubFilesFilterFiles,
+        copyHubFilesFilterScreenshots,
+        copyHubFilesFilterText,
+        copyHubFilesFilterTransfers,
         copyHubFilesHint,
+        copyHubFilesNoMatchHint,
+        copyHubFilesNoMatchTitle,
         copyHubFilesNoticeDuplicate,
         copyHubFilesNoticeSaved,
         copyHubFilesNoticeSwept,
+        copyHubFilesStateFetching,
+        copyHubFilesStateLocal,
+        copyHubFilesStateOnOtherDevice,
+        copyHubFilesStateTransferFailed,
+        copyHubFilesStateUnavailable,
+        copyHubFilesStatusActive,
         copyHubFilesUsage,
         copyHubHomeEmptyHint,
         copyHubHomeEmptyHintEditing,

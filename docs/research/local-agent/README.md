@@ -69,6 +69,7 @@ Agent 提供普通对话和受控本地服务。
 | [solution.md](solution.md) | 推荐架构、接口、安全和验收 |
 | [evidence.md](evidence.md) | 工具矩阵、运行环境和证据 |
 | [model-tiers.md](model-tiers.md) | 2B、4B、8B、30B-A3B 对比与档位决策 |
+| [external-protocol.md](external-protocol.md) | 外部 Agent 的 MCP loopback 协议决策 |
 | [validation/README.md](validation/README.md) | 验证矩阵和清理要求 |
 | [validation/case-tool-calling.md](validation/case-tool-calling.md) | 30 个工具调用样本 |
 | [validation/case-service-boundary.md](validation/case-service-boundary.md) | 服务协议和权限比较 |
@@ -80,9 +81,10 @@ Agent 提供普通对话和受控本地服务。
 2. [investigation.md](investigation.md)：确认候选协议和源码事实。
 3. [evidence.md](evidence.md)：读取工具矩阵结果。
 4. [model-tiers.md](model-tiers.md)：确认模型档位。
-5. [conclusion.md](conclusion.md)：确认条件性 go。
-6. [solution.md](solution.md)：确认实现和权限模型。
-7. 验证案例：读取实际结果。
+5. [external-protocol.md](external-protocol.md)：确认外部服务协议。
+6. [conclusion.md](conclusion.md)：确认条件性 go。
+7. [solution.md](solution.md)：确认实现和权限模型。
+8. 验证案例：读取实际结果。
 
 ## 更新规则
 

@@ -173,6 +173,54 @@ final class ContractConstantsTests: XCTestCase {
         }
     }
 
+    /// 第三版文件区的组件、尺寸、状态、文案和动效必须在合同里。
+    func testUnifiedFileAreaContractCarriesTheThirdPreview() throws {
+        let components = try XCTUnwrap(try contract()["components"] as? [String: [String: Any]])
+        let componentKeys = [
+            "component/file-area",
+            "component/file-focus-card",
+            "component/file-quiet-tile",
+            "component/file-filter-menu",
+            "component/file-empty-state",
+            "component/file-context-menu",
+        ]
+        for key in componentKeys {
+            XCTAssertNotNil(components[key], "合同缺少 \(key)")
+        }
+
+        let focusSize = try XCTUnwrap(components["component/file-focus-card"]?["nativeSize"] as? [String: NSNumber])
+        XCTAssertEqual(focusSize["width"]?.doubleValue, 912)
+        XCTAssertEqual(focusSize["height"]?.doubleValue, 176)
+
+        let tileSize = try XCTUnwrap(components["component/file-quiet-tile"]?["nativeSize"] as? [String: NSNumber])
+        XCTAssertEqual(tileSize["width"]?.doubleValue, 217.5)
+        XCTAssertEqual(tileSize["height"]?.doubleValue, 146)
+
+        let fileAreaStates = try XCTUnwrap(components["component/file-area"]?["states"] as? [String])
+        XCTAssertTrue(fileAreaStates.contains("state/component/file-area/default"))
+        XCTAssertTrue(fileAreaStates.contains("state/component/file-area/empty"))
+        XCTAssertTrue(fileAreaStates.contains("state/component/file-area/no-match"))
+
+        let copy = try copySection()
+        let copyKeys = [
+            "copy/hub/files/filter/all",
+            "copy/hub/files/filter/screenshots",
+            "copy/hub/files/filter/files",
+            "copy/hub/files/filter/text",
+            "copy/hub/files/filter/transfers",
+            "copy/hub/files/empty/title",
+            "copy/hub/files/no-match/title",
+        ]
+        for key in copyKeys {
+            XCTAssertNotNil(copy[key], "合同缺少 \(key)")
+        }
+
+        let tokens = try XCTUnwrap(try contract()["tokens"] as? [String: [String: Any]])
+        let focusSwitch = try XCTUnwrap(tokens["token/motion/file-focus-switch"])
+        XCTAssertEqual((focusSwitch["durationMs"] as? NSNumber)?.doubleValue, 120)
+        XCTAssertEqual((focusSwitch["reducedMotionMs"] as? NSNumber)?.doubleValue, 80)
+    }
+
     /// 状态机的 Swift 映射表要指向真实存在的文件。
     func testSwiftStateMappingPointsAtRealFiles() throws {
         let states = try XCTUnwrap(try contract()["states"] as? [String: Any])
@@ -219,9 +267,9 @@ final class ContractConstantsTests: XCTestCase {
         XCTAssertTrue(result.isValid, "合同校验失败：\(errorText)")
 
         let contract = try XCTUnwrap(result.contract)
-        XCTAssertEqual(contract.components.count, 24)
-        XCTAssertEqual(contract.platformMappings.count, 27)
-        XCTAssertEqual(contract.motionTokens.count, 10)
+        XCTAssertEqual(contract.components.count, 30)
+        XCTAssertEqual(contract.platformMappings.count, 33)
+        XCTAssertEqual(contract.motionTokens.count, 11)
         XCTAssertEqual(contract.entry(key: "copy/app/name")?.en, "Covio")
 
         // 枚举导出成类，所以用 `==` 比较，不写 `switch`。

@@ -303,7 +303,14 @@ struct HubTabContent: View {
             case .clipboard:
                 ClipboardHeadingActions(clipboard: runtime.clipboard, language: language)
             case .files:
-                FilesHeadingActions(workspace: runtime.workspace, language: language)
+                FilesHeadingActions(
+                    workspace: runtime.workspace,
+                    autoNaming: runtime.autoNaming,
+                    policy: runtime.config.fileNaming,
+                    language: language
+                )
+            case .agent:
+                AgentHeadingActions(agent: runtime.agent, language: language)
             default:
                 EmptyView()
             }
@@ -313,7 +320,7 @@ struct HubTabContent: View {
     @ViewBuilder
     private func body(width: CGFloat) -> some View {
         if tab == .devices {
-            MonitorTabView(language: language)
+            MonitorTabView(language: language, runtime: runtime)
         } else if let runtime, tab == .settings {
             SettingsTabView(runtime: runtime, section: chrome.settingsSection, chrome: chrome)
         } else if let runtime, tab == .screenshots {
@@ -325,7 +332,14 @@ struct HubTabContent: View {
         } else if let runtime, tab == .clipboard {
             ClipboardTabView(clipboard: runtime.clipboard, runtime: runtime)
         } else if let runtime, tab == .files {
-            FilesTabView(workspace: runtime.workspace, language: language)
+            FilesTabView(
+                workspace: runtime.workspace,
+                autoNaming: runtime.autoNaming,
+                policy: runtime.config.fileNaming,
+                language: language
+            )
+        } else if let runtime, tab == .agent {
+            AgentTabView(agent: runtime.agent, language: language)
         } else {
             HubPlaceholderView(
                 tab: tab,

@@ -1,4 +1,5 @@
 import SwiftUI
+import kmpDomain
 
 /// Stats 风格的实时监控页。
 ///
@@ -6,22 +7,29 @@ import SwiftUI
 /// `.task`，采样器随之停止。
 struct MonitorTabView: View {
     let language: AppLanguage
+    let runtime: AppRuntime?
     private let runsSampling: Bool
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var snapshot: MonitorSnapshot
     @State private var history: MonitorHistory
+    @State private var powerHistory = MonitorPowerHistory()
     @State private var sampler = MonitorSampler()
 
     init(
         language: AppLanguage,
+        runtime: AppRuntime? = nil,
         initialSnapshot: MonitorSnapshot = .empty,
         initialHistory: MonitorHistory = MonitorHistory(),
+        initialPowerHistory: MonitorPowerHistory = MonitorPowerHistory(),
         runsSampling: Bool = true
     ) {
         self.language = language
+        self.runtime = runtime
         self.runsSampling = runsSampling
         _snapshot = State(initialValue: initialSnapshot)
         _history = State(initialValue: initialHistory)
+        _powerHistory = State(initialValue: initialPowerHistory)
     }
 
     private let columns = Array(
@@ -38,15 +46,17 @@ struct MonitorTabView: View {
                 memoryCard
                 diskCard
                 networkCard
-                if snapshot.battery != nil {
-                    batteryCard
-                }
+                powerCard
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .task {
             guard runsSampling else { return }
             await runSamples()
+        }
+        .task {
+            guard runsSampling else { return }
+            await runPowerSamples()
         }
     }
 
@@ -62,6 +72,23 @@ struct MonitorTabView: View {
             }
             do {
                 try await Task.sleep(for: .seconds(MonitorCadence.interval(for: next)))
+            } catch {
+                break
+            }
+        }
+    }
+
+    /// 电源数据独立刷新。耗电窗口内部每 10 秒扫描一次进程。
+    private func runPowerSamples() async {
+        while !Task.isCancelled {
+            let power = await sampler.samplePowerOnly()
+            guard !Task.isCancelled else { break }
+            await MainActor.run {
+                snapshot = snapshot.replacingPower(power)
+                powerHistory.append(power)
+            }
+            do {
+                try await Task.sleep(for: .seconds(MonitorPowerFormat.powerRefreshSeconds))
             } catch {
                 break
             }
@@ -208,20 +235,24 @@ struct MonitorTabView: View {
     }
 
     @ViewBuilder
-    private var batteryCard: some View {
-        if let battery = snapshot.battery {
-            MonitorGaugeCard(
-                kind: .battery,
-                fraction: battery.percent / 100,
-                value: MonitorFormat.percent(battery.percent / 100),
-                history: history.battery,
-                accent: MonitorCardKind.battery.accent,
+    private var powerCard: some View {
+        if let power = snapshot.power {
+            MonitorPowerCard(
+                power: power,
+                history: powerHistory,
                 language: language,
-                perCore: nil,
-                details: [
-                    .init(ContractCopy.copyMonitorBatteryState.text(for: language), batteryStateText(battery.state)),
-                    .init(ContractCopy.copyMonitorBatteryRemaining.text(for: language), MonitorFormat.duration(battery.remaining)),
-                ]
+                reduceMotion: reduceMotion,
+                runtime: runtime,
+                onOpenApp: openApplication
+            )
+        } else {
+            MonitorPowerCard(
+                power: MonitorSnapshot.Power.empty,
+                history: powerHistory,
+                language: language,
+                reduceMotion: reduceMotion,
+                runtime: runtime,
+                onOpenApp: openApplication
             )
         }
     }
@@ -248,14 +279,12 @@ struct MonitorTabView: View {
         }
     }
 
-    private func batteryStateText(_ state: MonitorSnapshot.BatteryState) -> String {
-        switch state {
-        case .charging: ContractCopy.copyMonitorStateCharging.text(for: language)
-        case .discharging: ContractCopy.copyMonitorStateOnBattery.text(for: language)
-        case .charged: ContractCopy.copyMonitorStateCharged.text(for: language)
-        case .acPower: ContractCopy.copyMonitorStateAcPower.text(for: language)
-        case .unknown: ContractCopy.copyMonitorStateUnknown.text(for: language)
-        }
+    private func openApplication(at path: String) {
+        let url = URL(fileURLWithPath: path)
+        NSWorkspace.shared.openApplication(
+            at: url,
+            configuration: NSWorkspace.OpenConfiguration()
+        ) { _, _ in }
     }
 }
 
@@ -267,7 +296,7 @@ private enum MonitorCardKind {
     case memory
     case disk
     case network
-    case battery
+    case power
 
     var title: LocalizedCopy {
         switch self {
@@ -276,7 +305,7 @@ private enum MonitorCardKind {
         case .memory: ContractCopy.copyMonitorTitleMemory
         case .disk: ContractCopy.copyMonitorTitleDisk
         case .network: ContractCopy.copyMonitorTitleNetwork
-        case .battery: ContractCopy.copyMonitorTitleBattery
+        case .power: ContractCopy.copyMonitorTitleBattery
         }
     }
 
@@ -287,7 +316,7 @@ private enum MonitorCardKind {
         case .memory: "memorychip"
         case .disk: "internaldrive"
         case .network: "network"
-        case .battery: "battery.75percent"
+        case .power: "powerplug.fill"
         }
     }
 
@@ -298,7 +327,1055 @@ private enum MonitorCardKind {
         case .memory: MacTheme.color(ContractColors.tokenColorSuccessFill)
         case .disk: MacTheme.color(ContractColors.tokenColorWarningFill)
         case .network: MacTheme.color(ContractColors.tokenColorErrorText)
-        case .battery: MacTheme.color(ContractColors.tokenColorSuccessFill)
+        case .power: MacTheme.color(ContractColors.tokenColorSuccessFill)
+        }
+    }
+}
+
+// MARK: - 电源卡片
+
+private struct MonitorPowerCard: View {
+    let power: MonitorSnapshot.Power
+    let history: MonitorPowerHistory
+    let language: AppLanguage
+    let reduceMotion: Bool
+    let runtime: AppRuntime?
+    let onOpenApp: (String) -> Void
+
+    @AppStorage("monitor.power.detailsExpanded") private var detailsExpanded = false
+    @State private var detailsPresented = false
+    @State private var chargingPulse = false
+    @FocusState private var isFocused: Bool
+
+    private var lowBattery: Bool {
+        guard let percent = power.batteryPercent else { return false }
+        return percent < MonitorPowerFormat.lowBatteryPercent
+    }
+
+    private var criticalBattery: Bool {
+        guard let percent = power.batteryPercent else { return false }
+        return percent < MonitorPowerFormat.criticalBatteryPercent
+    }
+
+    private var highTemperature: Bool {
+        guard let value = power.temperatureCelsius else { return false }
+        return value >= MonitorPowerFormat.highTemperatureCelsius
+    }
+
+    private var accent: Color {
+        switch power.supply {
+        case .charging, .adapter:
+            MacTheme.successText
+        case .battery:
+            lowBattery ? MacTheme.errorText : MacTheme.brand
+        case .unknown:
+            MacTheme.textSecondary
+        }
+    }
+
+    private var temperatureAccent: Color {
+        highTemperature ? MacTheme.errorText : MacTheme.warningText
+    }
+
+    private var batteryColor: Color {
+        lowBattery ? MacTheme.errorText : MacTheme.textPrimary
+    }
+
+    private var statusText: String {
+        switch power.supply {
+        case .battery: ContractCopy.copyMonitorPowerStateBattery.text(for: language)
+        case .charging: ContractCopy.copyMonitorStateCharging.text(for: language)
+        case .adapter: ContractCopy.copyMonitorPowerStateConnected.text(for: language)
+        case .unknown: ContractCopy.copyMonitorStateUnknown.text(for: language)
+        }
+    }
+
+    private var detailActionText: String {
+        detailsPresented
+            ? ContractCopy.copyMonitorPowerDetailsCollapse.text(for: language)
+            : ContractCopy.copyMonitorPowerDetailsExpand.text(for: language)
+    }
+
+    var body: some View {
+        Button {
+            toggleDetails()
+        } label: {
+            MonitorCardShell(
+                kind: .power,
+                accent: accent,
+                language: language,
+                combinesAccessibility: false
+            ) {
+                VStack(alignment: .leading, spacing: 6) {
+                    primaryRow
+                    MonitorPowerTrendSection(
+                        power: power,
+                        history: history,
+                        language: language,
+                        powerAccent: accent,
+                        temperatureAccent: temperatureAccent
+                    )
+                    Spacer(minLength: 0)
+                    HStack(spacing: 4) {
+                        Text(detailActionText)
+                            .font(.system(size: 8, weight: .medium))
+                            .foregroundStyle(MacTheme.textSecondary)
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(accent)
+                            .rotationEffect(detailsPresented ? .degrees(90) : .zero)
+                            .animation(
+                                .easeInOut(duration: MonitorPowerFormat.detailAnimationSeconds),
+                                value: detailsPresented
+                            )
+                    }
+                    .frame(height: 12)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            }
+        }
+        .buttonStyle(.plain)
+        .focused($isFocused)
+        .onKeyPress(.return) {
+            toggleDetails()
+            return .handled
+        }
+        .onKeyPress(.space) {
+            toggleDetails()
+            return .handled
+        }
+        .onAppear {
+            detailsPresented = detailsExpanded
+        }
+        .onChange(of: detailsPresented) { _, presented in
+            detailsExpanded = presented
+        }
+        .popover(isPresented: $detailsPresented, arrowEdge: .trailing) {
+            MonitorPowerDetailPanel(
+                power: power,
+                history: history,
+                language: language,
+                reduceMotion: reduceMotion,
+                runtime: runtime,
+                onOpenApp: onOpenApp,
+                onClose: { detailsPresented = false }
+            )
+        }
+        .overlay {
+            if isFocused {
+                RoundedRectangle(cornerRadius: MacTheme.cardRadius, style: .continuous)
+                    .stroke(MacTheme.focusRing, lineWidth: 2)
+                    .padding(1)
+                    .allowsHitTesting(false)
+            }
+        }
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint(detailActionText)
+        .task(id: power.supply) {
+            chargingPulse = false
+            guard power.supply == .charging, !reduceMotion else { return }
+            while !Task.isCancelled {
+                withAnimation(.easeInOut(duration: 0.7)) {
+                    chargingPulse.toggle()
+                }
+                do {
+                    try await Task.sleep(for: .milliseconds(700))
+                } catch {
+                    break
+                }
+            }
+        }
+    }
+
+    private var accessibilityLabel: String {
+        let percent = MonitorPowerFormat.percent(power.batteryPercent)
+        let temperature = MonitorPowerFormat.temperature(power.temperatureCelsius)
+        return "\(ContractCopy.copyMonitorTitleBattery.text(for: language)), \(statusText), \(percent), \(temperature)"
+    }
+
+    private func toggleDetails() {
+        detailsPresented.toggle()
+    }
+
+    private var primaryRow: some View {
+        HStack(alignment: .center, spacing: MacTheme.space2) {
+            MonitorPowerSymbol(
+                power: power,
+                accent: accent,
+                chargingPulse: chargingPulse,
+                reduceMotion: reduceMotion
+            )
+
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 4) {
+                    Text(statusText)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(accent)
+                        .lineLimit(1)
+                    if lowBattery {
+                        Image(systemName: criticalBattery ? "exclamationmark.octagon.fill" : "exclamationmark.triangle.fill")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(MacTheme.errorText)
+                    }
+                }
+
+                if power.hasBattery {
+                    Text(MonitorPowerFormat.percent(power.batteryPercent))
+                        .font(.system(size: 29, weight: .semibold, design: .rounded))
+                        .foregroundStyle(batteryColor)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                } else {
+                    Text(ContractCopy.copyMonitorPowerNoBattery.text(for: language))
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(MacTheme.textSecondary)
+                        .lineLimit(1)
+                }
+
+                if let hint = warningHint {
+                    Label(hint.text, systemImage: hint.symbol)
+                        .font(.system(size: 8, weight: .medium))
+                        .foregroundStyle(hint.color)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var warningHint: (text: String, symbol: String, color: Color)? {
+        if criticalBattery {
+            return (
+                ContractCopy.copyMonitorPowerCriticalBattery.text(for: language),
+                "exclamationmark.octagon.fill",
+                MacTheme.errorText
+            )
+        }
+        if lowBattery {
+            return (
+                ContractCopy.copyMonitorPowerLowBattery.text(for: language),
+                "exclamationmark.triangle.fill",
+                MacTheme.errorText
+            )
+        }
+        if highTemperature {
+            return (
+                ContractCopy.copyMonitorPowerHighTemperature.text(for: language),
+                "thermometer.high",
+                MacTheme.errorText
+            )
+        }
+        if power.hasReadFailure {
+            return (
+                ContractCopy.copyMonitorPowerReadFailed.text(for: language),
+                "exclamationmark.triangle.fill",
+                MacTheme.warningText
+            )
+        }
+        return nil
+    }
+}
+
+private struct MonitorPowerTrendSection: View {
+    let power: MonitorSnapshot.Power
+    let history: MonitorPowerHistory
+    let language: AppLanguage
+    let powerAccent: Color
+    let temperatureAccent: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 4) {
+                Text(ContractCopy.copyMonitorPowerTrendTitle.text(for: language))
+                    .font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(MacTheme.textSecondary)
+                Spacer(minLength: 0)
+                Text(ContractCopy.copyMonitorPowerTrendWindow.text(for: language))
+                    .font(.system(size: 7, weight: .medium))
+                    .foregroundStyle(MacTheme.textSecondary)
+            }
+
+            HStack(spacing: 8) {
+                trendLegend(
+                    symbol: "bolt.fill",
+                    value: MonitorPowerFormat.watts(power.watts),
+                    color: powerAccent
+                )
+                trendLegend(
+                    symbol: "thermometer.medium",
+                    value: MonitorPowerFormat.temperature(power.temperatureCelsius),
+                    color: temperatureAccent
+                )
+                Spacer(minLength: 0)
+            }
+
+            MonitorPowerDualLineChart(
+                powerValues: history.recentPower.map(Optional.some),
+                temperatureValues: power.hasBattery
+                    ? history.recentTemperature.map(Optional.some)
+                    : [],
+                powerAccent: powerAccent,
+                temperatureAccent: temperatureAccent,
+                emptyText: ContractCopy.copyMonitorPowerHistoryAccumulating.text(for: language)
+            )
+            .frame(height: 48)
+        }
+        .padding(7)
+        .background(
+            MacTheme.surface.opacity(0.28),
+            in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+        )
+    }
+
+    private func trendLegend(symbol: String, value: String, color: Color) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: symbol)
+                .font(.system(size: 7, weight: .semibold))
+                .foregroundStyle(color)
+            Text(value)
+                .font(.system(size: 8, weight: .semibold, design: .rounded))
+                .foregroundStyle(MacTheme.textPrimary)
+                .monospacedDigit()
+        }
+    }
+}
+
+private struct MonitorPowerDualLineChart: View {
+    let powerValues: [Double?]
+    let temperatureValues: [Double?]
+    let powerAccent: Color
+    let temperatureAccent: Color
+    let emptyText: String
+
+    var body: some View {
+        GeometryReader { proxy in
+            let powerCount = validCount(powerValues)
+            let temperatureCount = validCount(temperatureValues)
+            let hasAnyData = powerCount + temperatureCount > 0
+            let hasEnoughData = max(powerCount, temperatureCount) >= 2
+            ZStack {
+                linePath(values: powerValues, in: proxy.size, zeroBaseline: true)
+                    .stroke(
+                        powerAccent,
+                        style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round)
+                    )
+                linePath(values: temperatureValues, in: proxy.size, zeroBaseline: false)
+                    .stroke(
+                        temperatureAccent.opacity(0.9),
+                        style: StrokeStyle(lineWidth: 1.2, lineCap: .round, lineJoin: .round)
+                    )
+                markerPath(values: powerValues, in: proxy.size, zeroBaseline: true)
+                    .fill(powerAccent)
+                markerPath(values: temperatureValues, in: proxy.size, zeroBaseline: false)
+                    .fill(temperatureAccent)
+
+                if !hasAnyData {
+                    Text(emptyText)
+                        .font(.system(size: 8, weight: .medium))
+                        .foregroundStyle(MacTheme.textSecondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if !hasEnoughData {
+                    Text(emptyText)
+                        .font(.system(size: 7, weight: .medium))
+                        .foregroundStyle(MacTheme.textSecondary)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(MacTheme.surface.opacity(0.72), in: Capsule())
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                }
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    private func validCount(_ values: [Double?]) -> Int {
+        values.filter { $0?.isFinite == true }.count
+    }
+
+    private func markerPath(
+        values: [Double?],
+        in size: CGSize,
+        zeroBaseline: Bool
+    ) -> Path {
+        let finiteValues = values.compactMap { value -> Double? in
+            guard let value, value.isFinite else { return nil }
+            return value
+        }
+        guard let lastIndex = values.lastIndex(where: { $0?.isFinite == true }),
+              let lastValue = values[lastIndex],
+              !finiteValues.isEmpty
+        else { return Path() }
+
+        let minimum = zeroBaseline ? 0 : (finiteValues.min() ?? 0) - 1
+        let maximum = zeroBaseline
+            ? max(finiteValues.max() ?? 1, 0.1)
+            : max((finiteValues.max() ?? 1) + 1, minimum + 1)
+        let span = max(0.001, maximum - minimum)
+        let denominator = max(1, values.count - 1)
+        let x = values.count == 1
+            ? size.width
+            : size.width * CGFloat(lastIndex) / CGFloat(denominator)
+        let normalized = min(1, max(0, (lastValue - minimum) / span))
+        let y = size.height - CGFloat(normalized) * max(0, size.height - 2) - 1
+        var path = Path()
+        path.addEllipse(in: CGRect(x: x - 1.8, y: y - 1.8, width: 3.6, height: 3.6))
+        return path
+    }
+
+    private func linePath(
+        values: [Double?],
+        in size: CGSize,
+        zeroBaseline: Bool
+    ) -> Path {
+        let finiteValues = values.compactMap { value -> Double? in
+            guard let value, value.isFinite else { return nil }
+            return value
+        }
+        guard !finiteValues.isEmpty else { return Path() }
+
+        let minimum = zeroBaseline ? 0 : (finiteValues.min() ?? 0) - 1
+        let maximum = zeroBaseline
+            ? max(finiteValues.max() ?? 1, 0.1)
+            : max((finiteValues.max() ?? 1) + 1, minimum + 1)
+        let span = max(0.001, maximum - minimum)
+        let denominator = max(1, values.count - 1)
+        var path = Path()
+        var hasCurrentPoint = false
+
+        for (index, raw) in values.enumerated() {
+            guard let value = raw, value.isFinite else {
+                hasCurrentPoint = false
+                continue
+            }
+            let x = values.count == 1
+                ? size.width
+                : size.width * CGFloat(index) / CGFloat(denominator)
+            let normalized = min(1, max(0, (value - minimum) / span))
+            let y = size.height - CGFloat(normalized) * max(0, size.height - 2) - 1
+            let point = CGPoint(x: x, y: y)
+            if hasCurrentPoint {
+                path.addLine(to: point)
+            } else {
+                path.move(to: point)
+            }
+            hasCurrentPoint = true
+        }
+        return path
+    }
+}
+
+// MARK: - 可展开详情
+
+struct MonitorPowerDetailPanel: View {
+    let power: MonitorSnapshot.Power
+    let history: MonitorPowerHistory
+    let language: AppLanguage
+    let reduceMotion: Bool
+    let runtime: AppRuntime?
+    let onOpenApp: (String) -> Void
+    let onClose: () -> Void
+
+    private var detailHeight: CGFloat {
+        let available = NSScreen.main?.visibleFrame.height ?? 800
+        return min(MonitorPowerDetailLayoutPolicy.fullHeight, max(300, available - 140))
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let visibility = MonitorPowerDetailLayoutPolicy.resolve(height: proxy.size.height)
+            VStack(alignment: .leading, spacing: 8) {
+                header
+                if power.hasBattery {
+                    MonitorPowerChargeLimitControls(
+                        runtime: runtime,
+                        power: power,
+                        language: language
+                    )
+                }
+                if visibility.showsTopApps {
+                    topAppsSection
+                }
+                if visibility.showsHistory {
+                    historySection
+                }
+                if visibility.showsEstimate, power.hasBattery {
+                    estimateSection
+                }
+                if visibility.showsCharging,
+                   power.hasBattery,
+                   power.supply == .charging || power.supply == .adapter {
+                    chargingSection
+                }
+                if visibility.showsEvents {
+                    eventsSection
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(MacTheme.space4)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+        .frame(width: 480, height: detailHeight)
+        .background(
+            MacTheme.surface.opacity(0.97),
+            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(MacTheme.divider.opacity(0.8), lineWidth: 1)
+        )
+    }
+
+    private var header: some View {
+        HStack(spacing: MacTheme.space2) {
+            Image(systemName: "powerplug.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(accent)
+            Text(ContractCopy.copyMonitorPowerDetailsTitle.text(for: language))
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(MacTheme.textPrimary)
+            Spacer(minLength: 0)
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 10, weight: .bold))
+                    .frame(width: 24, height: 24)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(MacTheme.textSecondary)
+            .accessibilityLabel(ContractCopy.copyMonitorPowerDetailsClose.text(for: language))
+        }
+        .frame(height: 26)
+    }
+
+    private var accent: Color {
+        switch power.supply {
+        case .charging, .adapter: MacTheme.successText
+        case .battery: MacTheme.brand
+        case .unknown: MacTheme.textSecondary
+        }
+    }
+
+    private var topAppsSection: some View {
+        MonitorPowerDetailSection(
+            title: ContractCopy.copyMonitorPowerTopApps.text(for: language)
+        ) {
+            if power.energyDataAvailable, !power.topApps.isEmpty {
+                VStack(spacing: 0) {
+                    ForEach(Array(power.topApps.prefix(3))) { app in
+                        if let bundlePath = app.bundlePath {
+                            Button {
+                                onOpenApp(bundlePath)
+                            } label: {
+                                topAppRow(app)
+                            }
+                            .buttonStyle(.plain)
+                            .contentShape(Rectangle())
+                            .frame(height: 28)
+                            .accessibilityLabel(
+                                "\(app.name), \(MonitorPowerFormat.energy(app.energyMilliwattHours)), \(MonitorPowerFormat.share(app.share))"
+                            )
+                        } else {
+                            topAppRow(app)
+                                .frame(height: 28)
+                        }
+                    }
+                }
+            } else {
+                emptyRow(ContractCopy.copyMonitorPowerNoData.text(for: language))
+            }
+        }
+    }
+
+    private func topAppRow(_ app: MonitorSnapshot.Power.TopApp) -> some View {
+        HStack(spacing: MacTheme.space2) {
+            Text(app.name)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(MacTheme.textPrimary)
+                .lineLimit(1)
+            Spacer(minLength: 4)
+            Text(MonitorPowerFormat.energy(app.energyMilliwattHours))
+                .font(.system(size: 9, weight: .medium, design: .rounded))
+                .foregroundStyle(MacTheme.textSecondary)
+                .monospacedDigit()
+            Text(MonitorPowerFormat.share(app.share))
+                .font(.system(size: 9, weight: .semibold, design: .rounded))
+                .foregroundStyle(accent)
+                .monospacedDigit()
+                .frame(width: 36, alignment: .trailing)
+        }
+    }
+
+    private var historySection: some View {
+        let points = history.minutePoints
+        return MonitorPowerDetailSection(
+            title: ContractCopy.copyMonitorPowerHistoryTitle.text(for: language)
+        ) {
+            HStack(spacing: 10) {
+                detailLegend(
+                    symbol: "bolt.fill",
+                    value: MonitorPowerFormat.watts(points.last?.watts),
+                    color: MacTheme.successText
+                )
+                if power.hasBattery {
+                    detailLegend(
+                        symbol: "thermometer.medium",
+                        value: MonitorPowerFormat.temperature(points.last?.temperatureCelsius),
+                        color: MacTheme.warningText
+                    )
+                }
+                Spacer(minLength: 0)
+            }
+            MonitorPowerDualLineChart(
+                powerValues: points.map(\.watts),
+                temperatureValues: power.hasBattery ? points.map(\.temperatureCelsius) : [],
+                powerAccent: MacTheme.successText,
+                temperatureAccent: MacTheme.warningText,
+                emptyText: ContractCopy.copyMonitorPowerHistoryAccumulating.text(for: language)
+            )
+            .frame(height: 104)
+        }
+    }
+
+    private var estimateSection: some View {
+        MonitorPowerDetailSection(
+            title: ContractCopy.copyMonitorPowerRemaining.text(for: language)
+        ) {
+            MonitorPowerDetailRow(
+                label: ContractCopy.copyMonitorPowerRemaining.text(for: language),
+                value: MonitorPowerFormat.remaining(power.remainingSeconds, language: language),
+                symbol: "hourglass"
+            )
+            MonitorPowerDetailRow(
+                label: ContractCopy.copyMonitorPowerAverageDraw.text(for: language),
+                value: MonitorPowerFormat.watts(power.averageWatts),
+                symbol: "chart.line.uptrend.xyaxis"
+            )
+            Text(ContractCopy.copyMonitorPowerEstimateBasis.text(for: language))
+                .font(.system(size: 8, weight: .medium))
+                .foregroundStyle(MacTheme.textSecondary)
+        }
+    }
+
+    private var chargingSection: some View {
+        MonitorPowerDetailSection(
+            title: ContractCopy.copyMonitorPowerChargeTitle.text(for: language)
+        ) {
+            MonitorPowerDetailRow(
+                label: ContractCopy.copyMonitorPowerChargePower.text(for: language),
+                value: MonitorPowerFormat.watts(power.chargePowerWatts),
+                symbol: "bolt.fill",
+                color: MacTheme.successText
+            )
+            MonitorPowerDetailRow(
+                label: ContractCopy.copyMonitorPowerChargeTimeToFull.text(for: language),
+                value: MonitorPowerFormat.remaining(power.timeToFullSeconds, language: language),
+                symbol: "timer"
+            )
+            MonitorPowerDetailRow(
+                label: ContractCopy.copyMonitorPowerChargeHealth.text(for: language),
+                value: MonitorPowerFormat.percent(power.batteryHealthPercent),
+                symbol: "heart.text.square"
+            )
+        }
+    }
+
+    private var eventsSection: some View {
+        MonitorPowerDetailSection(
+            title: ContractCopy.copyMonitorPowerEventsTitle.text(for: language)
+        ) {
+            if power.events.isEmpty {
+                emptyRow(ContractCopy.copyMonitorPowerNoData.text(for: language))
+            } else {
+                ForEach(Array(power.events.suffix(3).reversed())) { event in
+                    HStack(spacing: MacTheme.space2) {
+                        Image(systemName: eventSymbol(event.kind))
+                            .font(.system(size: 8, weight: .semibold))
+                            .foregroundStyle(eventColor(event.kind))
+                            .frame(width: 12)
+                        Text(eventText(event.kind))
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(MacTheme.textPrimary)
+                        Spacer(minLength: 4)
+                        Text(MonitorPowerFormat.eventTime(event.at, language: language))
+                            .font(.system(size: 8, weight: .medium, design: .rounded))
+                            .foregroundStyle(MacTheme.textSecondary)
+                    }
+                    .frame(height: 22)
+                }
+            }
+        }
+    }
+
+    private func detailLegend(symbol: String, value: String, color: Color) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: symbol)
+                .font(.system(size: 7, weight: .semibold))
+                .foregroundStyle(color)
+            Text(value)
+                .font(.system(size: 8, weight: .semibold, design: .rounded))
+                .foregroundStyle(MacTheme.textPrimary)
+                .monospacedDigit()
+        }
+    }
+
+    private func emptyRow(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 9, weight: .medium))
+            .foregroundStyle(MacTheme.textSecondary)
+            .frame(maxWidth: .infinity, minHeight: 42, alignment: .center)
+    }
+
+    private func eventText(_ kind: MonitorPowerEvent.Kind) -> String {
+        switch kind {
+        case .connected: ContractCopy.copyMonitorPowerEventsConnected.text(for: language)
+        case .disconnected: ContractCopy.copyMonitorPowerEventsDisconnected.text(for: language)
+        case .fullyCharged: ContractCopy.copyMonitorPowerEventsFullyCharged.text(for: language)
+        }
+    }
+
+    private func eventSymbol(_ kind: MonitorPowerEvent.Kind) -> String {
+        switch kind {
+        case .connected: "powerplug.fill"
+        case .disconnected: "powerplug"
+        case .fullyCharged: "battery.100percent.bolt"
+        }
+    }
+
+    private func eventColor(_ kind: MonitorPowerEvent.Kind) -> Color {
+        switch kind {
+        case .connected, .fullyCharged: MacTheme.successText
+        case .disconnected: MacTheme.textSecondary
+        }
+    }
+}
+
+private struct MonitorPowerChargeLimitControls: View {
+    let runtime: AppRuntime?
+    let power: MonitorSnapshot.Power
+    let language: AppLanguage
+
+    @State private var pendingLimit: Double
+    @State private var busy = false
+    @State private var localError: String?
+
+    init(runtime: AppRuntime?, power: MonitorSnapshot.Power, language: AppLanguage) {
+        self.runtime = runtime
+        self.power = power
+        self.language = language
+        _pendingLimit = State(initialValue: Double(runtime?.config.chargeLimitPercent ?? 80))
+    }
+
+    private var isEnabled: Bool { runtime?.config.chargeLimitEnabled == true }
+
+    private var status: ChargeLimitHelperStatus? { runtime?.chargeLimitStatus }
+
+    private var controlsDisabled: Bool {
+        busy || runtime?.helperStatus != .installed || status?.phase == "unsupported"
+    }
+
+    private var statusSymbol: String {
+        guard runtime != nil, runtime?.helperStatus == .installed else {
+            return "exclamationmark.triangle.fill"
+        }
+        if localError != nil { return "exclamationmark.triangle.fill" }
+        guard runtime?.config.chargeLimitEnabled == true else { return "gearshape.fill" }
+        guard let status else { return "exclamationmark.triangle.fill" }
+        if status.bypassEngaged { return "powerplug.fill" }
+        return switch status.phase {
+        case "charging", "full": "bolt.fill"
+        case "holding", "sailing", "aboveLimit": "pause.circle.fill"
+        case "applying", "calibration", "systemProtection": "arrow.triangle.2.circlepath"
+        case "unplugged": "powerplug"
+        case "unsupported", "conflict", "error": "exclamationmark.triangle.fill"
+        default: "gearshape.fill"
+        }
+    }
+
+    private var statusColor: Color {
+        guard runtime?.helperStatus == .installed else { return MacTheme.warningText }
+        if localError != nil { return MacTheme.errorText }
+        guard runtime?.config.chargeLimitEnabled == true else { return MacTheme.textSecondary }
+        guard let status else { return MacTheme.warningText }
+        if status.bypassEngaged { return MacTheme.successText }
+        return switch status.phase {
+        case "charging", "full", "holding", "sailing", "aboveLimit":
+            MacTheme.successText
+        case "applying", "calibration", "systemProtection", "unplugged":
+            MacTheme.warningText
+        case "unsupported", "conflict", "error": MacTheme.errorText
+        default: MacTheme.textSecondary
+        }
+    }
+
+    private var statusText: String {
+        guard let runtime else {
+            return ContractCopy.copyMonitorPowerChargeLimitHelperRequired.text(for: language)
+        }
+        guard runtime.helperStatus == .installed else {
+            return ContractCopy.copyMonitorPowerChargeLimitHelperRequired.text(for: language)
+        }
+        if let localError { return localError }
+        guard runtime.config.chargeLimitEnabled else {
+            return ContractCopy.copyMonitorPowerChargeLimitStateSystem.text(for: language)
+        }
+        guard let status, status.enabled else {
+            return ContractCopy.copyMonitorPowerChargeLimitFailed.text(for: language)
+        }
+        if status.bypassEngaged {
+            return ContractCopy.copyMonitorPowerChargeLimitStateBypass.text(for: language)
+        }
+        return switch status.phase {
+        case "applying":
+            ContractCopy.copyMonitorPowerChargeLimitApplying.text(for: language)
+        case "charging":
+            ContractCopy.copyMonitorStateCharging.text(for: language)
+        case "holding":
+            ContractCopy.copyMonitorPowerChargeLimitStateHolding.text(for: language)
+        case "sailing":
+            ContractCopy.copyMonitorPowerChargeLimitStateSailing.text(for: language)
+        case "aboveLimit":
+            ContractCopy.copyMonitorPowerChargeLimitStateAboveLimit.text(for: language)
+        case "full":
+            ContractCopy.copyMonitorStateCharged.text(for: language)
+        case "calibration":
+            ContractCopy.copyMonitorPowerChargeLimitStateCalibration.text(for: language)
+        case "systemProtection":
+            ContractCopy.copyMonitorPowerChargeLimitStateProtection.text(for: language)
+        case "conflict":
+            ContractCopy.copyMonitorPowerChargeLimitStateConflict.text(for: language)
+        case "unplugged":
+            ContractCopy.copyMonitorPowerChargeLimitStateUnplugged.text(for: language)
+        case "unsupported":
+            ContractCopy.copyMonitorPowerChargeLimitUnsupported.text(for: language)
+        case "helperMissing":
+            ContractCopy.copyMonitorPowerChargeLimitHelperRequired.text(for: language)
+        case "error":
+            ContractCopy.copyMonitorPowerChargeLimitStateError.text(for: language)
+        default:
+            ContractCopy.copyMonitorPowerChargeLimitStateSystem.text(for: language)
+        }
+    }
+
+    var body: some View {
+        MonitorPowerDetailSection(
+            title: ContractCopy.copyMonitorPowerChargeLimitTitle.text(for: language)
+        ) {
+            HStack(spacing: MacTheme.space2) {
+                Image(systemName: statusSymbol)
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(statusColor)
+                Text(statusText)
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(MacTheme.textPrimary)
+                    .lineLimit(2)
+                Spacer(minLength: 0)
+            }
+            .accessibilityElement(children: .combine)
+
+            HStack(spacing: MacTheme.space2) {
+                Text("\(Int(pendingLimit))%")
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .foregroundStyle(MacTheme.textPrimary)
+                    .monospacedDigit()
+                    .frame(width: 46, alignment: .leading)
+                Slider(value: $pendingLimit, in: 20...100, step: 5)
+                    .disabled(controlsDisabled)
+                    .accessibilityLabel(ContractCopy.copyMonitorPowerChargeLimitTitle.text(for: language))
+            }
+            .frame(height: 24)
+
+            HStack(spacing: 5) {
+                ForEach([50, 60, 80, 100], id: \.self) { value in
+                    Button("\(value)%") {
+                        pendingLimit = Double(value)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.mini)
+                    .frame(minWidth: 48, minHeight: 24)
+                    .contentShape(Rectangle())
+                    .disabled(controlsDisabled)
+                    .accessibilityLabel("\(value)%")
+                }
+                Spacer(minLength: 0)
+            }
+
+            MonitorPowerDetailRow(
+                label: ContractCopy.copyMonitorPowerChargeLimitCurrentCharge.text(for: language),
+                value: MonitorPowerFormat.percent(power.batteryPercent),
+                symbol: "battery.75percent"
+            )
+            MonitorPowerDetailRow(
+                label: ContractCopy.copyMonitorPowerChargeLimitCurrentTarget.text(for: language),
+                value: MonitorPowerFormat.percent(status?.targetPercent.map(Double.init)),
+                symbol: "scope"
+            )
+            MonitorPowerDetailRow(
+                label: ContractCopy.copyMonitorPowerChargeLimitResumeAt.text(for: language),
+                value: resumeText,
+                symbol: "arrow.clockwise"
+            )
+
+            HStack(spacing: MacTheme.space2) {
+                Button(isEnabled
+                    ? ContractCopy.copyMonitorPowerChargeLimitApply.text(for: language)
+                    : ContractCopy.copyMonitorPowerChargeLimitEnable.text(for: language)
+                ) {
+                    apply()
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .disabled(controlsDisabled)
+
+                if isEnabled || status?.enabled == true {
+                    Button(ContractCopy.copyMonitorPowerChargeLimitRestore.text(for: language)) {
+                        restore()
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(busy || runtime?.helperStatus != .installed)
+                }
+                Spacer(minLength: 0)
+            }
+        }
+        .task {
+            guard let runtime else { return }
+            while !Task.isCancelled {
+                runtime.refreshChargeLimitStatusInBackground()
+                do {
+                    try await Task.sleep(for: .seconds(5))
+                } catch {
+                    break
+                }
+            }
+        }
+        .onChange(of: runtime?.config.chargeLimitPercent) { _, value in
+            if let value { pendingLimit = Double(value) }
+        }
+        .onChange(of: runtime?.helperStatus) { _, _ in
+            runtime?.refreshChargeLimitStatus()
+        }
+    }
+
+    private var resumeText: String {
+        guard let limit = status?.userLimitPercent ?? runtime.map({ Int($0.config.chargeLimitPercent) })
+        else { return "—" }
+        let resume = ChargeLimitPolicy.shared.resumeThreshold(upperLimitPercent: Int32(limit))
+        return "\(resume)%"
+    }
+
+    private func apply() {
+        guard let runtime else { return }
+        busy = true
+        let success = runtime.applyChargeLimit(Int(pendingLimit))
+        busy = false
+        localError = success ? nil : ContractCopy.copyMonitorPowerChargeLimitFailed.text(for: language)
+    }
+
+    private func restore() {
+        guard let runtime else { return }
+        busy = true
+        let success = runtime.restoreChargeLimit()
+        busy = false
+        localError = success ? nil : ContractCopy.copyMonitorPowerChargeLimitFailed.text(for: language)
+    }
+}
+
+private struct MonitorPowerDetailSection<Content: View>: View {
+    let title: String
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(MacTheme.textSecondary)
+                .lineLimit(1)
+            content
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            MacTheme.elevated.opacity(0.82),
+            in: RoundedRectangle(cornerRadius: 9, style: .continuous)
+        )
+    }
+}
+
+private struct MonitorPowerDetailRow: View {
+    let label: String
+    let value: String
+    let symbol: String
+    var color: Color = MacTheme.textPrimary
+
+    var body: some View {
+        HStack(spacing: MacTheme.space2) {
+            Image(systemName: symbol)
+                .font(.system(size: 8, weight: .semibold))
+                .foregroundStyle(color)
+                .frame(width: 12)
+            Text(label)
+                .font(.system(size: 9, weight: .medium))
+                .foregroundStyle(MacTheme.textSecondary)
+            Spacer(minLength: 4)
+            Text(value)
+                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                .foregroundStyle(color)
+                .monospacedDigit()
+        }
+        .frame(height: 18)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+private struct MonitorPowerSymbol: View {
+    let power: MonitorSnapshot.Power
+    let accent: Color
+    let chargingPulse: Bool
+    let reduceMotion: Bool
+
+    var body: some View {
+        ZStack(alignment: .bottomTrailing) {
+            Image(systemName: symbolName)
+                .font(.system(size: 26, weight: .medium))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(accent)
+                .frame(width: 42, height: 32)
+
+            if power.supply == .charging {
+                Image(systemName: "bolt.fill")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(MacTheme.successText)
+                    .padding(3)
+                    .background(MacTheme.successText.opacity(0.14), in: Circle())
+                    .opacity(reduceMotion || chargingPulse ? 1 : 0.38)
+                    .scaleEffect(reduceMotion || chargingPulse ? 1 : 0.86)
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    private var symbolName: String {
+        switch power.supply {
+        case .battery:
+            batterySymbol
+        case .charging, .adapter:
+            "powerplug.fill"
+        case .unknown:
+            "questionmark.circle"
+        }
+    }
+
+    private var batterySymbol: String {
+        let fraction = min(1, max(0, (power.batteryPercent ?? 0) / 100))
+        return switch fraction {
+        case ..<0.125: "battery.0percent"
+        case ..<0.375: "battery.25percent"
+        case ..<0.625: "battery.50percent"
+        case ..<0.875: "battery.75percent"
+        default: "battery.100percent"
         }
     }
 }
@@ -457,6 +1534,7 @@ private struct MonitorCardShell<Content: View>: View {
     let kind: MonitorCardKind
     let accent: Color
     let language: AppLanguage
+    var combinesAccessibility = true
     @ViewBuilder var content: Content
 
     var body: some View {
@@ -486,7 +1564,7 @@ private struct MonitorCardShell<Content: View>: View {
         .background(cardBackground, in: shape)
         .glassSurface(cornerRadius: MacTheme.cardRadius)
         .overlay(shape.strokeBorder(accent.opacity(0.22), lineWidth: 1))
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: combinesAccessibility ? .combine : .contain)
         .accessibilityLabel(kind.title.text(for: language))
     }
 

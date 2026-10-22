@@ -42,6 +42,9 @@ data class AppConfig(
     @SerialName("clipboardPasteStackHotKey") val clipboardPasteStackHotKey: String = DEFAULT_PASTE_STACK_HOT_KEY,
     @SerialName("clipboardCaptureHotKey") val clipboardCaptureHotKey: String = DEFAULT_CAPTURE_HOT_KEY,
     @SerialName("power") val power: PowerConfig = PowerConfig(),
+    @SerialName("chargeLimitEnabled") val chargeLimitEnabled: Boolean = false,
+    @SerialName("chargeLimitPercent") val chargeLimitPercent: Int = DEFAULT_CHARGE_LIMIT_PERCENT,
+    @SerialName("fileNaming") val fileNaming: FileNamingPolicy = FileNamingPolicy(),
 ) {
     fun normalized(): AppConfig = copy(
         schemaVersion = 3,
@@ -53,6 +56,8 @@ data class AppConfig(
         clipboardPasteStackHotKey = normalizeHotKeyBinding(clipboardPasteStackHotKey, DEFAULT_PASTE_STACK_HOT_KEY),
         clipboardCaptureHotKey = normalizeHotKeyBinding(clipboardCaptureHotKey, DEFAULT_CAPTURE_HOT_KEY),
         power = power.normalized(),
+        chargeLimitPercent = ChargeLimitPolicy.normalizeUpperLimit(chargeLimitPercent),
+        fileNaming = fileNaming.normalized(),
     )
 }
 

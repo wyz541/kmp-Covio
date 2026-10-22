@@ -26,6 +26,8 @@ class VersionAndConfigTest {
             assertEquals(6, defaults.lowBatteryCapacity)
             assertEquals(10, defaults.lowTimeRemainingMinutes)
             assertEquals(null, defaults.hibernateMode)
+            assertFalse(defaults.chargeLimitEnabled)
+            assertEquals(80, defaults.chargeLimitPercent)
             assertTrue(path.exists)
         }
 
@@ -88,6 +90,43 @@ class VersionAndConfigTest {
         assertEquals(25, AppConfig(hibernateMode = 25).normalized().hibernateMode)
         assertEquals(null, AppConfig(hibernateMode = 7).normalized().hibernateMode)
     }
+
+    @Test
+    fun `charge limit settings survive a save and load`() =
+        withTemporaryDirectory("config") { directory ->
+            val path = directory.resolve("config.json")
+            val store = ConfigStore(path.toString())
+            store.save(
+                AppConfig(
+                    chargeLimitEnabled = true,
+                    chargeLimitPercent = 85,
+                ),
+            )
+
+            val loaded = store.load()
+
+            assertTrue(loaded.chargeLimitEnabled)
+            assertEquals(85, loaded.chargeLimitPercent)
+        }
+
+    @Test
+    fun `an invalid charge limit falls back to eighty`() {
+        assertEquals(80, AppConfig(chargeLimitPercent = 79).normalized().chargeLimitPercent)
+        assertEquals(80, AppConfig(chargeLimitPercent = 15).normalized().chargeLimitPercent)
+        assertEquals(100, AppConfig(chargeLimitPercent = 100).normalized().chargeLimitPercent)
+    }
+
+    @Test
+    fun `an older config gains the charge limit defaults`() =
+        withTemporaryDirectory("config") { directory ->
+            val path = directory.resolve("config.json")
+            path.writeText("""{"schemaVersion":3,"enabled":true}""")
+
+            val loaded = ConfigStore(path.toString()).load()
+
+            assertFalse(loaded.chargeLimitEnabled)
+            assertEquals(80, loaded.chargeLimitPercent)
+        }
 
     /// M4：剪切板默认开启，两个快捷键是出厂组合。
     @Test

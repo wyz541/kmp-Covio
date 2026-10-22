@@ -276,6 +276,8 @@ struct ContractMotionToken: Sendable, Equatable {
 enum ContractMotion {
     /// `token/motion/error-appear` — 错误出现。160 毫秒，淡入和轻微位移。
     static let tokenMotionErrorAppear = ContractMotionToken(key: "token/motion/error-appear", seconds: 0.16, minSeconds: 0.16, maxSeconds: 0.16, reducedSeconds: nil, curve: "淡入和轻微位移")
+    /// `token/motion/file-focus-switch` — Switch the detailed file focus with a short fade.
+    static let tokenMotionFileFocusSwitch = ContractMotionToken(key: "token/motion/file-focus-switch", seconds: 0.12, minSeconds: 0.1, maxSeconds: 0.16, reducedSeconds: 0.08, curve: "缓出")
     /// `token/motion/hub-collapse` — Hub 收起。160 至 220 毫秒，缓出曲线。
     static let tokenMotionHubCollapse = ContractMotionToken(key: "token/motion/hub-collapse", seconds: 0.19, minSeconds: 0.16, maxSeconds: 0.22, reducedSeconds: 0.12, curve: "缓出曲线")
     /// `token/motion/hub-expand` — Hub 展开。220 至 280 毫秒，弹性曲线。
@@ -298,6 +300,7 @@ enum ContractMotion {
     /// 全部条目。供测试遍历。
     static let all: [ContractMotionToken] = [
         tokenMotionErrorAppear,
+        tokenMotionFileFocusSwitch,
         tokenMotionHubCollapse,
         tokenMotionHubExpand,
         tokenMotionPointerExitCollapse,

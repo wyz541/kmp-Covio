@@ -40,6 +40,8 @@ jobs:
       # selftest 在临时目录里跑同一批断言，不需要授权。
       - name: Helper cutover assertions
         run: bash scripts/verify-helper-cutover.sh selftest
+      - name: File naming model manifest
+        run: python3 -I scripts/file_naming_model.py verify-manifest
 
   macos-swift:
     name: macOS SwiftUI

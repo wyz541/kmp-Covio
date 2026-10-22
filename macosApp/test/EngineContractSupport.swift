@@ -4,7 +4,7 @@ import kmpDomain
 
 /// `AppConfig` 的构造助手。
 ///
-/// Kotlin 的默认参数不导出到 Swift，`AppConfig` 的所有字段都要写。
+/// Kotlin 的默认参数不导出到 Swift，`AppConfig` 的全部字段都要写。
 /// 这里不抄默认值：默认值从 Kotlin 自己生成的一份配置里取，见 `DefaultConfig`。
 /// 抄写会漂移，而漂移的默认值会让两版写出不同的 `config.json`。
 enum AppConfigs {
@@ -40,7 +40,9 @@ enum AppConfigs {
         darkWakeAwarenessEnabled: Bool? = nil,
         lidSleepImmediateOnClose: Bool? = nil,
         enabled: Bool? = nil,
-        power: PowerConfig? = nil
+        power: PowerConfig? = nil,
+        chargeLimitEnabled: Bool? = nil,
+        chargeLimitPercent: Int32? = nil
     ) -> AppConfig {
         base.doCopy(
             schemaVersion: base.schemaVersion,
@@ -67,7 +69,10 @@ enum AppConfigs {
             clipboardEnabled: base.clipboardEnabled,
             clipboardPasteStackHotKey: base.clipboardPasteStackHotKey,
             clipboardCaptureHotKey: base.clipboardCaptureHotKey,
-            power: power ?? base.power
+            power: power ?? base.power,
+            chargeLimitEnabled: chargeLimitEnabled ?? base.chargeLimitEnabled,
+            chargeLimitPercent: chargeLimitPercent ?? base.chargeLimitPercent,
+            fileNaming: base.fileNaming
         )
     }
 }

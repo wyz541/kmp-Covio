@@ -1,5 +1,4 @@
 import Foundation
-import Vision
 
 /// 识别图片里的文字。
 ///
@@ -10,7 +9,7 @@ import Vision
 /// 结果回到主队列，调用方直接改界面状态。
 enum ClipboardOCR {
     /// 识别语言。中文与英文两种，与产品的语言范围一致。
-    static let languages = ["zh-Hans", "en-US"]
+    static let languages = VisionTextRecognizer.languages
 
     /// 识别一个图片文件里的文字。识别不出或读不到文件时回调空串。
     ///
@@ -26,21 +25,6 @@ enum ClipboardOCR {
 
     /// 同步版本。跑在调用它的线程上。
     static func recognizeTextSynchronously(in fileURL: URL) -> String {
-        let request = VNRecognizeTextRequest()
-        request.recognitionLevel = .accurate
-        request.recognitionLanguages = languages
-        // 语言纠正会把网址、路径这类内容改坏，关掉。
-        request.usesLanguageCorrection = false
-
-        let handler = VNImageRequestHandler(url: fileURL, options: [:])
-        do {
-            try handler.perform([request])
-        } catch {
-            return ""
-        }
-
-        let observations = request.results ?? []
-        let lines = observations.compactMap { $0.topCandidates(1).first?.string }
-        return lines.joined(separator: "\n")
+        VisionTextRecognizer.recognizeText(in: fileURL)
     }
 }

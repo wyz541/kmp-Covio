@@ -12,7 +12,6 @@ enum HubTab: String, CaseIterable, Sendable {
     case agent
     case clipboard
     case files
-    case screenshots
     case devices
     case settings
     /// 用户自建的工作区。没有模块页面，只显示组件网格。
@@ -28,7 +27,6 @@ enum HubTab: String, CaseIterable, Sendable {
         case .agent: PaneKind.agent
         case .clipboard: PaneKind.clipboard
         case .files: PaneKind.files
-        case .screenshots: PaneKind.screenshots
         case .devices: PaneKind.devices
         case .settings: PaneKind.settings
         case .board: PaneKind.board
@@ -42,7 +40,6 @@ enum HubTab: String, CaseIterable, Sendable {
         case .agent: ContractCopy.copyHubTabAgent
         case .clipboard: ContractCopy.copyHubTabClipboard
         case .files: ContractCopy.copyHubTabFiles
-        case .screenshots: ContractCopy.copyHubTabScreenshots
         case .devices: ContractCopy.copyHubTabDevices
         case .settings: ContractCopy.copyHubTabSettings
         case .board: ContractCopy.copyHubTabBoard
@@ -56,7 +53,6 @@ enum HubTab: String, CaseIterable, Sendable {
         case .agent: ContractCopy.copyHubTabAgentSummary
         case .clipboard: ContractCopy.copyHubTabClipboardSummary
         case .files: ContractCopy.copyHubTabFilesSummary
-        case .screenshots: ContractCopy.copyHubTabScreenshotsSummary
         case .devices: ContractCopy.copyHubTabDevicesSummary
         case .settings: ContractCopy.copyHubTabSettingsSummary
         case .board: ContractCopy.copyHubTabBoardSummary
@@ -73,7 +69,6 @@ enum HubTab: String, CaseIterable, Sendable {
         case .agent: "✦"
         case .clipboard: "▤"
         case .files: "▢"
-        case .screenshots: "▣"
         case .devices: "▭"
         case .settings: "⚙"
         case .board: "◇"

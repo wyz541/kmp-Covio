@@ -111,6 +111,11 @@ final class ContractConstantsTests: XCTestCase {
         XCTAssertEqual(HubMotion.tabSwitch, ContractMotion.tokenMotionTabSwitch.seconds)
         XCTAssertEqual(HubMotion.screenshotCapture, ContractMotion.tokenMotionScreenshotCapture.seconds)
         XCTAssertEqual(HubMotion.screenshotCopy, ContractMotion.tokenMotionScreenshotCopy.seconds)
+        XCTAssertEqual(HubMotion.fileFocusSwitch, ContractMotion.tokenMotionFileFocusSwitch.seconds)
+        XCTAssertEqual(
+            HubMotion.fileFocusSwitchReduced,
+            ContractMotion.tokenMotionFileFocusSwitch.reducedSeconds
+        )
         XCTAssertEqual(HubMotion.transferStart, ContractMotion.tokenMotionTransferStart.seconds)
         XCTAssertEqual(HubMotion.transferComplete, ContractMotion.tokenMotionTransferComplete.seconds)
         XCTAssertEqual(HubMotion.errorAppear, ContractMotion.tokenMotionErrorAppear.seconds)
@@ -210,6 +215,10 @@ final class ContractConstantsTests: XCTestCase {
             "copy/hub/files/filter/transfers",
             "copy/hub/files/empty/title",
             "copy/hub/files/no-match/title",
+            "copy/hub/files/kind/image",
+            "copy/hub/files/kind/pdf",
+            "copy/hub/files/kind/audio",
+            "copy/hub/files/error/copy",
         ]
         for key in copyKeys {
             XCTAssertNotNil(copy[key], "合同缺少 \(key)")
@@ -369,12 +378,12 @@ final class SettingsSectionTests: XCTestCase {
             )
         }
 
-        // 设置页最高，其次是剪切板页与文件页、截图页、占位页。
-        XCTAssertEqual(HubMetrics.bodyHeight(for: .pane(.settings)), HubMetrics.settingsBodyHeight)
+        // 文件区按合同固定为 538 点；其余页仍按各自内容计算。
         XCTAssertEqual(HubMetrics.bodyHeight(for: .pane(.files)), HubMetrics.filesBodyHeight)
-        XCTAssertGreaterThan(HubMetrics.settingsBodyHeight, HubMetrics.clipboardBodyHeight)
-        XCTAssertGreaterThan(HubMetrics.clipboardBodyHeight, HubMetrics.screenshotsBodyHeight)
-        XCTAssertGreaterThan(HubMetrics.screenshotsBodyHeight, HubMetrics.placeholderBodyHeight)
+        XCTAssertEqual(HubMetrics.filesBodyHeight, FileAreaMetrics.areaHeight)
+        XCTAssertGreaterThan(HubMetrics.filesBodyHeight, HubMetrics.clipboardBodyHeight)
+        XCTAssertGreaterThan(HubMetrics.filesBodyHeight, HubMetrics.settingsBodyHeight)
+        XCTAssertGreaterThan(HubMetrics.filesBodyHeight, HubMetrics.placeholderBodyHeight)
 
         // 还没落地的页签用占位高度。
         for tab in [HubTab.now, .board] {

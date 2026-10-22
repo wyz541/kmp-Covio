@@ -24,6 +24,11 @@ enum HubMotion {
     /// 截图复制：1200 毫秒提示。
     static let screenshotCopy: TimeInterval = ContractMotion.tokenMotionScreenshotCopy.seconds
 
+    /// 文件焦点切换：120 毫秒；减弱动态效果时 80 毫秒。
+    static let fileFocusSwitch: TimeInterval = ContractMotion.tokenMotionFileFocusSwitch.seconds
+    static let fileFocusSwitchReduced: TimeInterval =
+        ContractMotion.tokenMotionFileFocusSwitch.reducedSeconds ?? 0.08
+
     /// 传输开始：180 毫秒。
     static let transferStart: TimeInterval = ContractMotion.tokenMotionTransferStart.seconds
 

@@ -3,99 +3,288 @@ import SwiftUI
 import UniformTypeIdentifiers
 import kmpDomain
 
-/// 文件页签。工作区条目的列表。
+/// 一次渲染要用的只读文件区快照。
+private struct FileAreaSnapshot {
+    let items: [FileAreaItem]
+    let filteredItems: [FileAreaItem]
+    let selectedItem: FileAreaItem?
+    let quietItems: [FileAreaItem]
+    let filterCounts: [FileAreaFilterChoice: Int]
+    let activeTransferCount: Int
+}
+
+/// 统一文件区。
 ///
-/// 一行一条条目。左边是类型图标与名称，右边是这一条的动作。
-/// 放入文件与清理过期在页标题行右端，见 [FilesHeadingActions]。
-/// 失败与说明留在页内，因为它属于内容。
-///
-/// 内容只读工作区的索引与内容目录，不引用用户的原文件路径。
+/// 一级导航里只有一个文件工作区。截图、工作区文件和传输状态都从同一份
+/// `FileAreaItem` 投影读取。详细操作只占用一个焦点位，其余内容退到四列安静网格。
 struct FilesTabView: View {
+    let shelf: ShelfRuntime
     let workspace: WorkspaceRuntime
     let autoNaming: AutoNamingRuntime
     let policy: FileNamingPolicy
     let language: AppLanguage
+    let searchText: String
+    var requestedFilter: FileAreaFilterChoice?
+    var onConsumeRequestedFilter: () -> Void = {}
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var selection: FileAreaFilterChoice = .all
+    @State private var selectedItemID: String?
+    @State private var dropTargeted = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: MacTheme.space3) {
+        let snapshot = makeSnapshot()
+        return Group {
             if autoNaming.stage == .idle {
-                content
-
-                if let notice {
-                    MacAlert(message: notice, kind: noticeKind)
-                }
+                fileArea(snapshot)
             } else {
                 AutoNamingPreviewView(runtime: autoNaming, language: language)
             }
         }
         // 内边距由内容列给，这里不再加一层。
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .onDrop(of: [.fileURL], isTargeted: nil) { providers in
+        .onDrop(of: [.fileURL], isTargeted: $dropTargeted) { providers in
             intake(providers)
+        }
+        .onAppear(perform: consumeRequestedFilter)
+        .onChange(of: requestedFilter) { _, _ in consumeRequestedFilter() }
+        .onChange(of: snapshot.filteredItems.map(\.id)) { _, ids in
+            guard let firstID = ids.first else {
+                selectedItemID = nil
+                return
+            }
+            if let selectedItemID, ids.contains(selectedItemID) { return }
+            selectedItemID = firstID
+        }
+        .background {
+            // 空状态和无匹配也遵守同一组快捷键。
+            HStack {
+                Button("") { chooseFiles() }
+                    .keyboardShortcut("o", modifiers: .command)
+                Button("") { showNewTextDialog() }
+                    .keyboardShortcut("n", modifiers: .command)
+            }
+            .opacity(0)
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
         }
     }
 
     @ViewBuilder
-    private var content: some View {
-        if workspace.entries.isEmpty {
-            emptyState
+    private func fileArea(_ snapshot: FileAreaSnapshot) -> some View {
+        if snapshot.items.isEmpty {
+            FileEmptyStateView(
+                state: .empty,
+                language: language,
+                onImport: chooseFiles,
+                onNewText: showNewTextDialog,
+                onClearFilter: clearFilters
+            )
+            .frame(maxHeight: .infinity)
+        } else if snapshot.filteredItems.isEmpty {
+            FileEmptyStateView(
+                state: .noMatch,
+                language: language,
+                onImport: chooseFiles,
+                onNewText: showNewTextDialog,
+                onClearFilter: clearFilters
+            )
+            .frame(maxHeight: .infinity)
         } else {
-            list
+            populatedArea(snapshot)
         }
     }
 
-    private var emptyState: some View {
-        VStack(spacing: MacTheme.space2) {
-            Image(systemName: "folder")
-                .font(.system(size: 22))
-                .foregroundStyle(.tertiary)
-            Text(ContractCopy.copyHubFilesEmpty.text(for: language))
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-            Text(ContractCopy.copyHubFilesHint.text(for: language))
-                .font(.system(size: 11))
-                .foregroundStyle(.tertiary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: MacTheme.mediumRadius, style: .continuous)
-                .fill(MacTheme.surface)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: MacTheme.mediumRadius, style: .continuous)
-                .strokeBorder(MacTheme.divider, lineWidth: 1)
-        )
-    }
+    private func populatedArea(_ snapshot: FileAreaSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: FileAreaMetrics.toolbarGap) {
+            utilityBar(snapshot)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    if let selectedItem = snapshot.selectedItem {
+                        FileFocusCardView(
+                            item: selectedItem,
+                            url: url(for: selectedItem),
+                            language: language
+                        ) { action in
+                            perform(action, on: selectedItem)
+                        }
+                        .id(selectedItem.id)
+                        .transition(.opacity)
 
-    private var list: some View {
-        ScrollView {
-            LazyVStack(spacing: MacTheme.space2) {
-                ForEach(workspace.entries, id: \.entryId) { entry in
-                    FilesRow(
-                        entry: entry,
-                        hasContent: workspace.contentURL(entry.entryId) != nil,
-                        language: language,
-                        onOpen: { workspace.open(entry.entryId) },
-                        onReveal: { workspace.reveal(entry.entryId) },
-                        onPin: { workspace.togglePin(entry.entryId) },
-                        onRemove: { workspace.remove(entry.entryId) }
-                    )
+                        if !snapshot.quietItems.isEmpty {
+                            LazyVGrid(columns: quietColumns, alignment: .leading, spacing: FileAreaMetrics.quietGap) {
+                                ForEach(snapshot.quietItems, id: \.id) { item in
+                                    FileQuietTileView(
+                                        item: item,
+                                        url: url(for: item),
+                                        language: language,
+                                        onSelect: { select(item.id) }
+                                    ) { action in
+                                        perform(action, on: item)
+                                    }
+                                }
+                            }
+                            .padding(.top, FileAreaMetrics.stageGap)
+                        }
+                    }
                 }
+                .padding(.bottom, 2)
             }
-            .padding(MacTheme.space2)
+            .scrollIndicators(.hidden)
         }
-        .frame(height: Self.listHeight)
-        .background(
-            RoundedRectangle(cornerRadius: MacTheme.mediumRadius, style: .continuous)
-                .fill(MacTheme.surface)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: MacTheme.mediumRadius, style: .continuous)
-                .strokeBorder(MacTheme.divider, lineWidth: 1)
+        .frame(height: FileAreaMetrics.areaHeight, alignment: .top)
+        .animation(focusAnimation, value: snapshot.selectedItem?.id)
+        .overlay(alignment: .bottom) {
+            if let notice {
+                MacAlert(message: notice, kind: noticeKind)
+                    .padding(.top, MacTheme.space2)
+                    .transition(.opacity)
+            }
+        }
+        .overlay {
+            if dropTargeted {
+                RoundedRectangle(cornerRadius: FileAreaMetrics.contentCornerRadius, style: .continuous)
+                    .strokeBorder(MacTheme.brand, style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
+                    .background(
+                        MacTheme.brand.opacity(0.07),
+                        in: RoundedRectangle(cornerRadius: FileAreaMetrics.contentCornerRadius, style: .continuous)
+                    )
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+
+    private func utilityBar(_ snapshot: FileAreaSnapshot) -> some View {
+        HStack(spacing: 10) {
+            FileFilterMenuView(
+                selection: selection,
+                counts: snapshot.filterCounts,
+                language: language
+            ) { option in
+                selection = option
+            }
+
+            Text("\(snapshot.filteredItems.count) \(ContractCopy.copyHubFilesCountItems.text(for: language))")
+                .font(.system(size: 9))
+                .foregroundStyle(MacTheme.textSecondary)
+
+            if snapshot.activeTransferCount > 0 {
+                HStack(spacing: 5) {
+                    Circle()
+                        .fill(MacTheme.brand)
+                        .frame(width: 5, height: 5)
+                    Text("\(snapshot.activeTransferCount) \(ContractCopy.copyHubFilesStatusActive.text(for: language))")
+                        .font(.system(size: 9))
+                        .foregroundStyle(MacTheme.textSecondary)
+                }
+                .accessibilityElement(children: .combine)
+            }
+
+            Spacer(minLength: 0)
+            addMenu
+        }
+        .frame(height: FileAreaMetrics.toolbarHeight)
+    }
+
+    private var addMenu: some View {
+        Menu {
+            Button {
+                chooseFiles()
+            } label: {
+                Label(ContractCopy.copyHubFilesActionImport.text(for: language), systemImage: "folder.badge.plus")
+            }
+            Button {
+                showNewTextDialog()
+            } label: {
+                Label(ContractCopy.copyHubFilesActionNewText.text(for: language), systemImage: "text.badge.plus")
+            }
+            Divider()
+            Button {
+                chooseAutoNameFiles()
+            } label: {
+                Label(ContractCopy.copyAutoNamingActionAutoName.text(for: language), systemImage: "wand.and.stars")
+            }
+            .disabled(autoNaming.stage != .idle || autoNaming.busy)
+            Button {
+                workspace.sweep()
+            } label: {
+                Label(ContractCopy.copyHubFilesActionSweep.text(for: language), systemImage: "clock.arrow.circlepath")
+            }
+            .disabled(workspace.entries.isEmpty)
+        } label: {
+            Image(systemName: "plus")
+                .font(.system(size: 14, weight: .regular))
+                .foregroundStyle(MacTheme.textPrimary)
+                .frame(width: FileAreaMetrics.toolbarHeight, height: FileAreaMetrics.toolbarHeight)
+                .background(
+                    MacTheme.elevated.opacity(0.72),
+                    in: RoundedRectangle(cornerRadius: 7, style: .continuous)
+                )
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .accessibilityLabel(ContractCopy.copyHubFilesActionAdd.text(for: language))
+    }
+
+    /// 一次渲染只做一次投影、筛选和计数。文件区最多几十条，但不应在每次子视图取值时重算。
+    private func makeSnapshot() -> FileAreaSnapshot {
+        let items = projectionItems()
+        let filtered = FileAreaProjection.shared
+            .filter(items: items, filter: selection.filter)
+            .filter {
+                FileAreaPresentation.matches(item: $0, query: searchText, language: language)
+            }
+        let selected = selectedItemID.flatMap { id in
+            filtered.first(where: { $0.id == id })
+        } ?? filtered.first
+        let quiet = selected.map { selected in
+            filtered.filter { $0.id != selected.id }
+        } ?? filtered
+        let counts = Dictionary(uniqueKeysWithValues: FileAreaFilterChoice.allCases.map { option in
+            (option, FileAreaProjection.shared.filter(items: items, filter: option.filter).count)
+        })
+        let activeTransfers = items.count {
+            $0.availability == FileAreaAvailability.remote ||
+                $0.availability == FileAreaAvailability.fetching
+        }
+        return FileAreaSnapshot(
+            items: items,
+            filteredItems: filtered,
+            selectedItem: selected,
+            quietItems: quiet,
+            filterCounts: counts,
+            activeTransferCount: activeTransfers
         )
     }
 
-    /// 当前要提示的那一条。错误优先于说明。
+    /// 投影保留两个底层来源。页面只在渲染时拼接，不复制持久化模型。
+    private func projectionItems() -> [FileAreaItem] {
+        let existingScreenshots = shelf.items.compactMap { item -> String? in
+            FileManager.default.fileExists(atPath: item.path) ? item.path : nil
+        }
+        return FileAreaProjection.shared.build(
+            shelfItems: shelf.items,
+            workspaceEntries: workspace.entries,
+            existingScreenshotPaths: existingScreenshots
+        )
+    }
+
+    private var quietColumns: [GridItem] {
+        Array(
+            repeating: GridItem(.flexible(minimum: 72), spacing: FileAreaMetrics.quietGap, alignment: .top),
+            count: FileAreaMetrics.quietColumns
+        )
+    }
+
+    private var focusAnimation: Animation {
+        let duration = reduceMotion
+            ? HubMotion.fileFocusSwitchReduced
+            : HubMotion.fileFocusSwitch
+        return .easeOut(duration: duration)
+    }
+
     private var notice: String? {
         if let error = workspace.errorMessage {
             return error.text(for: language)
@@ -108,6 +297,69 @@ struct FilesTabView: View {
 
     private var noticeKind: MacAlertKind {
         workspace.errorMessage == nil ? .info : .error
+    }
+
+    private func select(_ id: String) {
+        withAnimation(focusAnimation) {
+            selectedItemID = id
+        }
+    }
+
+    private func clearFilters() {
+        selection = .all
+        selectedItemID = nil
+    }
+
+    private func consumeRequestedFilter() {
+        guard let requestedFilter else { return }
+        selection = requestedFilter
+        selectedItemID = nil
+        onConsumeRequestedFilter()
+    }
+
+    private func url(for item: FileAreaItem) -> URL? {
+        if item.origin == FileAreaOrigin.screenshot {
+            let url = URL(fileURLWithPath: item.itemId)
+            return FileManager.default.fileExists(atPath: url.path) ? url : nil
+        }
+        return workspace.contentURL(item.itemId)
+    }
+
+    private func perform(_ action: FileAreaAction, on item: FileAreaItem) {
+        switch action {
+        case .open:
+            if item.origin == FileAreaOrigin.screenshot {
+                shelf.openItem(shelfItem(item))
+            } else {
+                workspace.open(item.itemId)
+            }
+        case .copy:
+            if item.origin == FileAreaOrigin.screenshot {
+                shelf.copyItem(shelfItem(item))
+            } else {
+                workspace.copy(item.itemId)
+            }
+        case .copyText:
+            workspace.copyText(item.itemId)
+        case .markup:
+            shelf.markupItem(shelfItem(item))
+        case .saveToWorkspace:
+            _ = workspace.save(filesAt: [item.itemId])
+        case .reveal:
+            workspace.reveal(item.itemId)
+        case .pin:
+            workspace.togglePin(item.itemId)
+        case .remove:
+            if item.origin == FileAreaOrigin.screenshot {
+                shelf.removeItem(shelfItem(item))
+            } else {
+                workspace.remove(item.itemId)
+            }
+        }
+    }
+
+    private func shelfItem(_ item: FileAreaItem) -> ShelfItem {
+        ShelfItem(path: item.itemId, addedAtEpochSeconds: item.createdAtEpochSeconds)
     }
 
     /// 接收拖进来的文件。
@@ -137,54 +389,15 @@ struct FilesTabView: View {
         return nil
     }
 
-    /// 列表高度。`HubMetrics.filesPageContentHeight` 按它相加。
-    nonisolated static let listHeight: CGFloat = 268
-
-    /// 提示条的高度：`MacAlert` 的上下内边距加一行 11 点文字。
-    nonisolated static let noticeHeight: CGFloat = 40
-
-    /// 列表与提示条之间的间距。`HubMetrics` 按它相加。
-    nonisolated static let noticeGap: CGFloat = MacTheme.space3
-}
-
-/// 文件页的胶囊动作：放入文件、清理过期、占用。
-struct FilesHeadingActions: View {
-    let workspace: WorkspaceRuntime
-    let autoNaming: AutoNamingRuntime
-    let policy: FileNamingPolicy
-    let language: AppLanguage
-
-    var body: some View {
-        HStack(spacing: MacTheme.space2) {
-            MacButton(
-                title: ContractCopy.copyAutoNamingActionAutoName.text(for: language),
-                kind: .primary,
-                isEnabled: autoNaming.stage == .idle && !autoNaming.busy,
-                action: chooseAutoNameFiles
-            )
-            MacButton(
-                title: ContractCopy.copyHubFilesActionImport.text(for: language),
-                kind: .plain,
-                action: chooseFiles
-            )
-            MacButton(
-                title: ContractCopy.copyHubFilesActionSweep.text(for: language),
-                isEnabled: !workspace.entries.isEmpty
-            ) {
-                workspace.sweep()
-            }
-            MacStatusLine(text: statusText)
-        }
+    private func chooseFiles() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        guard panel.runModal() == .OK else { return }
+        workspace.intake(urls: panel.urls)
     }
 
-    /// 占用与上限。文案取合同，数字与单位由 `ByteCountFormatter` 给。
-    private var statusText: String {
-        let used = ByteCountFormatter.string(fromByteCount: workspace.totalBytes, countStyle: .file)
-        let limit = ByteCountFormatter.string(fromByteCount: workspace.policy.maxTotalBytes, countStyle: .file)
-        return "\(ContractCopy.copyHubFilesUsage.text(for: language)) \(used) / \(limit)"
-    }
-
-    /// 选择要自动命名的原始文件。文件留在原目录。
     private func chooseAutoNameFiles() {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
@@ -196,122 +409,26 @@ struct FilesHeadingActions: View {
         }
     }
 
-    /// 打开系统文件选择面板。多选。
-    private func chooseFiles() {
-        let panel = NSOpenPanel()
-        panel.allowsMultipleSelection = true
-        panel.canChooseDirectories = false
-        panel.canChooseFiles = true
-        guard panel.runModal() == .OK else { return }
-        workspace.intake(urls: panel.urls)
+    /// 使用原生编辑器输入临时文本。保存后进入工作区，正文不再复制到其它位置。
+    private func showNewTextDialog() {
+        let alert = NSAlert()
+        alert.messageText = ContractCopy.copyHubFilesActionNewText.text(for: language)
+        alert.informativeText = ContractCopy.copyHubFilesEmptyHint.text(for: language)
+        alert.addButton(withTitle: ContractCopy.copyHubFilesActionNewText.text(for: language))
+        alert.addButton(withTitle: ContractCopy.copyStateCancel.text(for: language))
+
+        let scrollView = NSScrollView(frame: NSRect(x: 0, y: 0, width: 360, height: 180))
+        scrollView.hasVerticalScroller = true
+        scrollView.drawsBackground = true
+        let textView = NSTextView(frame: scrollView.bounds)
+        textView.isRichText = false
+        textView.font = .systemFont(ofSize: 13)
+        textView.isAutomaticQuoteSubstitutionEnabled = false
+        textView.textContainerInset = NSSize(width: 8, height: 8)
+        scrollView.documentView = textView
+        alert.accessoryView = scrollView
+
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        _ = workspace.save(text: textView.string)
     }
-}
-
-/// 工作区的一条条目。
-private struct FilesRow: View {
-    let entry: WorkspaceEntry
-    let hasContent: Bool
-    let language: AppLanguage
-    let onOpen: () -> Void
-    let onReveal: () -> Void
-    let onPin: () -> Void
-    let onRemove: () -> Void
-
-    var body: some View {
-        HStack(alignment: .center, spacing: MacTheme.space3) {
-            Image(systemName: symbol)
-                .font(.system(size: 14))
-                .foregroundStyle(.secondary)
-                .frame(width: Self.thumb, height: Self.thumb)
-
-            details
-            Spacer(minLength: 0)
-            controls
-        }
-        .padding(MacTheme.space2)
-        .background(
-            RoundedRectangle(cornerRadius: MacTheme.smallRadius, style: .continuous)
-                .fill(MacTheme.elevated)
-        )
-        .contentShape(Rectangle())
-        .onTapGesture(count: 2, perform: onOpen)
-    }
-
-    private var details: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: MacTheme.space1) {
-                if entry.pinned {
-                    Image(systemName: "pin.fill")
-                        .font(.system(size: 9))
-                        .foregroundStyle(MacTheme.brand)
-                }
-                Text(entry.displayName.isEmpty ? entry.entryId : entry.displayName)
-                    .font(.system(size: 12))
-                    .lineLimit(1)
-                    .foregroundStyle(MacTheme.textPrimary)
-            }
-            Text(subtitle)
-                .font(.system(size: 10))
-                .foregroundStyle(.tertiary)
-        }
-    }
-
-    private var controls: some View {
-        HStack(spacing: MacTheme.space1) {
-            MacButton(
-                title: ContractCopy.copyHubFilesActionOpen.text(for: language),
-                kind: .plain,
-                isEnabled: hasContent,
-                action: onOpen
-            )
-            MacButton(
-                title: ContractCopy.copyHubFilesActionReveal.text(for: language),
-                kind: .plain,
-                isEnabled: hasContent,
-                action: onReveal
-            )
-            MacButton(
-                title: (entry.pinned ? ContractCopy.copyHubFilesActionUnpin : ContractCopy.copyHubFilesActionPin)
-                    .text(for: language),
-                kind: .plain,
-                action: onPin
-            )
-            MacButton(
-                title: ContractCopy.copyHubFilesActionRemove.text(for: language),
-                kind: .plain,
-                action: onRemove
-            )
-        }
-    }
-
-    /// 大小、过期时间与来源设备。三段之间用间隔号分开。
-    ///
-    /// 本机没有内容时改为说明这一条只剩索引。
-    private var subtitle: String {
-        var parts: [String] = []
-        if hasContent {
-            parts.append(ByteCountFormatter.string(fromByteCount: entry.byteSize, countStyle: .file))
-            if entry.expiresAtEpochSeconds > 0 {
-                let date = Date(timeIntervalSince1970: TimeInterval(entry.expiresAtEpochSeconds))
-                parts.append(date.formatted(date: .abbreviated, time: .omitted))
-            }
-        } else {
-            parts.append(ContractCopy.copyHubFilesErrorMissing.text(for: language))
-        }
-        if !entry.originDeviceId.isEmpty {
-            parts.append(entry.originDeviceId)
-        }
-        return parts.joined(separator: " · ")
-    }
-
-    /// 类型图标。只按类别，不看扩展名。
-    private var symbol: String {
-        if entry.kind == WorkspaceKind.image { return "photo" }
-        if entry.kind == WorkspaceKind.audio { return "waveform" }
-        if entry.kind == WorkspaceKind.pdf { return "doc.richtext" }
-        if entry.kind == WorkspaceKind.text { return "text.alignleft" }
-        return "doc"
-    }
-
-    private static let thumb: CGFloat = 30
 }

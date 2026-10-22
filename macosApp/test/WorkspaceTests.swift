@@ -311,13 +311,10 @@ final class WorkspaceTests: XCTestCase {
 
     // MARK: - 页高
 
-    /// 文件页的主体高按各段相加，与剪切板页的算法一致。
-    func testTheFilesPageHeightIsTheSumOfItsParts() {
-        // 页自己的上下内边距没了：内边距现在由内容列统一给。
-        let expected = FilesTabView.listHeight
-            + FilesTabView.noticeGap
-            + FilesTabView.noticeHeight
-        XCTAssertEqual(HubMetrics.bodyHeight(for: .pane(.files)), expected)
+    /// 文件区使用合同里的固定高度。内容超出时在区域内滚动。
+    func testTheFilesPageUsesTheContractHeight() {
+        XCTAssertEqual(HubMetrics.bodyHeight(for: .pane(.files)), FileAreaMetrics.areaHeight)
+        XCTAssertEqual(FileAreaMetrics.areaHeight, 538)
         XCTAssertGreaterThan(
             HubMetrics.bodyHeight(for: .pane(.files)),
             HubMetrics.placeholderBodyHeight

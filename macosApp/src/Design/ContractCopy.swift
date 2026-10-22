@@ -323,6 +323,8 @@ enum ContractCopy {
     static let copyHubFilesEmptyHint = LocalizedCopy(key: "copy/hub/files/empty/hint", en: "Screenshots, files, and text stay in recent use.", zhHans: "截图、文件或文本会停在最近使用的位置。")
     /// `copy/hub/files/empty/title`
     static let copyHubFilesEmptyTitle = LocalizedCopy(key: "copy/hub/files/empty/title", en: "Drop the next item here", zhHans: "把下一件内容放进来")
+    /// `copy/hub/files/error/copy`
+    static let copyHubFilesErrorCopy = LocalizedCopy(key: "copy/hub/files/error/copy", en: "Cannot copy this item.", zhHans: "无法复制这件内容。")
     /// `copy/hub/files/error/import`
     static let copyHubFilesErrorImport = LocalizedCopy(key: "copy/hub/files/error/import", en: "Cannot read this file.", zhHans: "读不到这个文件。")
     /// `copy/hub/files/error/missing`
@@ -345,6 +347,12 @@ enum ContractCopy {
     static let copyHubFilesFilterTransfers = LocalizedCopy(key: "copy/hub/files/filter/transfers", en: "Transfers", zhHans: "传输")
     /// `copy/hub/files/hint`
     static let copyHubFilesHint = LocalizedCopy(key: "copy/hub/files/hint", en: "Drop files here, or use Import Files.", zhHans: "把文件拖到这里，或点「放入文件」。")
+    /// `copy/hub/files/kind/audio`
+    static let copyHubFilesKindAudio = LocalizedCopy(key: "copy/hub/files/kind/audio", en: "Audio", zhHans: "音频")
+    /// `copy/hub/files/kind/image`
+    static let copyHubFilesKindImage = LocalizedCopy(key: "copy/hub/files/kind/image", en: "Image", zhHans: "图片")
+    /// `copy/hub/files/kind/pdf`
+    static let copyHubFilesKindPdf = LocalizedCopy(key: "copy/hub/files/kind/pdf", en: "PDF", zhHans: "PDF")
     /// `copy/hub/files/no-match/hint`
     static let copyHubFilesNoMatchHint = LocalizedCopy(key: "copy/hub/files/no-match/hint", en: "Try another keyword or clear the current filter.", zhHans: "换一个关键词，或清除当前筛选。")
     /// `copy/hub/files/no-match/title`
@@ -1249,6 +1257,7 @@ enum ContractCopy {
         copyHubFilesEmpty,
         copyHubFilesEmptyHint,
         copyHubFilesEmptyTitle,
+        copyHubFilesErrorCopy,
         copyHubFilesErrorImport,
         copyHubFilesErrorMissing,
         copyHubFilesErrorQuota,
@@ -1260,6 +1269,9 @@ enum ContractCopy {
         copyHubFilesFilterText,
         copyHubFilesFilterTransfers,
         copyHubFilesHint,
+        copyHubFilesKindAudio,
+        copyHubFilesKindImage,
+        copyHubFilesKindPdf,
         copyHubFilesNoMatchHint,
         copyHubFilesNoMatchTitle,
         copyHubFilesNoticeDuplicate,

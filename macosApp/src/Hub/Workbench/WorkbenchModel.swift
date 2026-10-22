@@ -32,6 +32,9 @@ final class WorkbenchModel {
     /// 编辑模式。顶栏右端那个按钮切换它。
     var isEditing = false
 
+    /// 一次性的文件筛选请求。旧「截图」目的地经这里进入文件区，消费后清空。
+    private(set) var pendingFileFilter: FileAreaFilterChoice?
+
     /// 界面语言。页签名字按合同取，换语言要重算一次。
     var language: AppLanguage = CopyLocale.language
 
@@ -116,6 +119,17 @@ final class WorkbenchModel {
         default:
             destination = .pane(id: PaneKind.settings.defaultId)
         }
+    }
+
+    /// 打开文件区，并可附带一次筛选请求。截图入口使用截图筛选。
+    func showFileArea(filter: FileAreaFilterChoice? = nil) {
+        pendingFileFilter = filter
+        destination = .pane(id: PaneKind.files.defaultId)
+    }
+
+    /// 文件页读到请求后清空，避免下次进入时重复套用旧筛选。
+    func consumeFileFilterRequest() {
+        pendingFileFilter = nil
     }
 
     /// 换一个工作区。编辑模式里不换，与打样一致。

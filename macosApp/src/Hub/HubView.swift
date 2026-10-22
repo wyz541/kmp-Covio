@@ -298,17 +298,8 @@ struct HubTabContent: View {
     private var headingActions: some View {
         if let runtime {
             switch tab {
-            case .screenshots:
-                ScreenshotsHeadingActions(shelf: runtime.shelf, language: language)
             case .clipboard:
                 ClipboardHeadingActions(clipboard: runtime.clipboard, language: language)
-            case .files:
-                FilesHeadingActions(
-                    workspace: runtime.workspace,
-                    autoNaming: runtime.autoNaming,
-                    policy: runtime.config.fileNaming,
-                    language: language
-                )
             case .agent:
                 AgentHeadingActions(agent: runtime.agent, language: language)
             default:
@@ -323,20 +314,18 @@ struct HubTabContent: View {
             MonitorTabView(language: language, runtime: runtime)
         } else if let runtime, tab == .settings {
             SettingsTabView(runtime: runtime, section: chrome.settingsSection, chrome: chrome)
-        } else if let runtime, tab == .screenshots {
-            ScreenshotsTabView(
-                shelf: runtime.shelf,
-                language: language,
-                onSaveToWorkspace: { item in _ = runtime.workspace.save(filesAt: [item.path]) }
-            )
         } else if let runtime, tab == .clipboard {
             ClipboardTabView(clipboard: runtime.clipboard, runtime: runtime)
         } else if let runtime, tab == .files {
             FilesTabView(
+                shelf: runtime.shelf,
                 workspace: runtime.workspace,
                 autoNaming: runtime.autoNaming,
                 policy: runtime.config.fileNaming,
-                language: language
+                language: language,
+                searchText: chrome.searchText,
+                requestedFilter: workbench.pendingFileFilter,
+                onConsumeRequestedFilter: workbench.consumeFileFilterRequest
             )
         } else if let runtime, tab == .agent {
             AgentTabView(agent: runtime.agent, language: language)

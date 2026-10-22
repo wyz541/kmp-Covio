@@ -226,6 +226,94 @@ final class AgentServiceGatewayTests: XCTestCase {
         XCTAssertEqual(afterConfirm, 1)
     }
 
+    func testOpenPaneRejectsUnknownPagesBeforeTheHandlerRuns() async {
+        let counter = Counter()
+        let gateway = AgentServiceGateway(
+            handlers: handlers(counter: counter, openPane: { pane in
+                await counter.increment(text: pane)
+                return AgentServiceResult(ok: true, summary: "opened", data: nil)
+            })
+        )
+
+        _ = await gateway.handle(call(name: "open_pane", arguments: ["pane": .string("files")]))
+        let rejected = await gateway.handle(call(name: "open_pane", arguments: ["pane": .string("mars")]))
+
+        XCTAssertTrue(rejected.contains("invalidArguments"))
+        let count = await counter.value
+        let pane = await counter.lastText
+        XCTAssertEqual(count, 1)
+        XCTAssertEqual(pane, "files")
+    }
+
+    func testReadSettingRejectsUnknownKeys() async {
+        let counter = Counter()
+        let gateway = AgentServiceGateway(
+            handlers: handlers(counter: counter, readSetting: { key in
+                await counter.increment(text: key)
+                return AgentServiceResult(ok: true, summary: "read", data: nil)
+            })
+        )
+
+        _ = await gateway.handle(
+            call(name: "read_setting", arguments: ["key": .string("notifications.enabled")])
+        )
+        let rejected = await gateway.handle(
+            call(name: "read_setting", arguments: ["key": .string("system.anything")])
+        )
+
+        XCTAssertTrue(rejected.contains("invalidArguments"))
+        let count = await counter.value
+        let key = await counter.lastText
+        XCTAssertEqual(count, 1)
+        XCTAssertEqual(key, "notifications.enabled")
+    }
+
+    func testSettingChangeWaitsForConfirmationAndRunsOnce() async {
+        let counter = Counter()
+        let gateway = AgentServiceGateway(
+            handlers: handlers(counter: counter, requestSettingChange: { key, value in
+                await counter.increment(text: "\(key)=\(value)")
+                return AgentServiceResult(ok: true, summary: "changed", data: nil)
+            })
+        )
+
+        _ = await gateway.handle(
+            call(name: "request_setting_change", arguments: [
+                "key": .string("power.batteryFloorPercent"),
+                "value": .string("65"),
+            ])
+        )
+        let before = await counter.value
+        XCTAssertEqual(before, 0)
+        let pending = await gateway.pendingAction()
+        XCTAssertEqual(pending?.toolName, "request_setting_change")
+        XCTAssertEqual(pending?.summary, "Change power.batteryFloorPercent to 65.")
+
+        let result = await gateway.confirmPending()
+
+        XCTAssertTrue(result.ok)
+        let after = await counter.value
+        let value = await counter.lastText
+        XCTAssertEqual(after, 1)
+        XCTAssertEqual(value, "power.batteryFloorPercent=65")
+    }
+
+    func testSettingChangeRejectsTypeMismatch() async {
+        let counter = Counter()
+        let gateway = AgentServiceGateway(handlers: handlers(counter: counter))
+
+        let rejected = await gateway.handle(
+            call(name: "request_setting_change", arguments: [
+                "key": .string("power.batteryFloorPercent"),
+                "value": .string("high"),
+            ])
+        )
+
+        XCTAssertTrue(rejected.contains("invalidArguments"))
+        let count = await counter.value
+        XCTAssertEqual(count, 0)
+    }
+
     private func call(name: String, arguments: [String: JSONValue]) -> ToolCall {
         ToolCall(function: .init(name: name, arguments: arguments))
     }
@@ -242,6 +330,15 @@ final class AgentServiceGatewayTests: XCTestCase {
             .failure("unused", code: .executionFailed)
         },
         undoRenameRun: @escaping @Sendable (String) async -> AgentServiceResult = { _ in
+            .failure("unused", code: .executionFailed)
+        },
+        openPane: @escaping @Sendable (String) async -> AgentServiceResult = { _ in
+            .failure("unused", code: .executionFailed)
+        },
+        readSetting: @escaping @Sendable (String) async -> AgentServiceResult = { _ in
+            .failure("unused", code: .executionFailed)
+        },
+        requestSettingChange: @escaping @Sendable (String, String) async -> AgentServiceResult = { _, _ in
             .failure("unused", code: .executionFailed)
         }
     ) -> AgentServiceHandlers {
@@ -278,7 +375,10 @@ final class AgentServiceGatewayTests: XCTestCase {
             inspectFile: inspectFile,
             previewFileNames: previewFileNames,
             applyFileRenames: applyFileRenames,
-            undoRenameRun: undoRenameRun
+            undoRenameRun: undoRenameRun,
+            openPane: openPane,
+            readSetting: readSetting,
+            requestSettingChange: requestSettingChange
         )
     }
 }

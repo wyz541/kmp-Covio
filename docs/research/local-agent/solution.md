@@ -83,6 +83,9 @@ flowchart LR
 9. `apply_file_renames`
 10. `undo_rename_run`
 11. `search_file_content`
+12. `open_pane`
+13. `read_setting`
+14. `request_setting_change`
 
 ## 错误码
 
@@ -140,6 +143,9 @@ question -> queue search -> index or reuse cached chunks -> rank excerpts
 14. 重命名前复核文件身份，同名目标必须拒绝。
 15. 文件问答只返回片段和 citation，不返回整份文件。
 16. 文件变化后必须使旧索引失效。
+17. 页面只能使用固定枚举。
+18. 设置键只能使用 allowlist。
+19. 设置修改必须经过确认卡并只执行一次。
 
 ## 可靠性与失败模式
 
@@ -165,6 +171,9 @@ question -> queue search -> index or reuse cached chunks -> rank excerpts
 - [x] 设计预览完成。
 - [x] 7 GB Apple Silicon 完成安装包验收。
 - [x] 运行时没有非 loopback 网络连接。
+- [x] Agent 只能打开固定页面。
+- [x] Agent 只能读取和修改 allowlist 设置。
+- [x] 未确认的设置修改不改变配置。
 
 ## 实施计划
 

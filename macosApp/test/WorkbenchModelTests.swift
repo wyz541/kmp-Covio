@@ -60,6 +60,22 @@ final class WorkbenchModelTests: XCTestCase {
         XCTAssertEqual(model.tab(for: model.destination), .clipboard)
     }
 
+    /// The Agent opens only built-in pages and leaves editing first.
+    func testOpeningAFixedAgentPageLeavesEditingAndChangesTheDestination() {
+        let model = model()
+        model.isEditing = true
+
+        XCTAssertTrue(model.open(.files))
+        XCTAssertFalse(model.isEditing)
+        XCTAssertEqual(model.destination, .pane(id: PaneKind.files.defaultId))
+    }
+
+    func testOpeningTheCustomBoardIsRejected() {
+        let model = model()
+        XCTAssertFalse(model.open(.board))
+        XCTAssertEqual(model.destination, .home)
+    }
+
     /// 找不到的工作区停在原地，不崩也不换页。
     func testSelectingAnUnknownPaneDoesNothing() {
         let model = model()

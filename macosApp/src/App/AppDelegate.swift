@@ -192,6 +192,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let runtime = AppRuntime()
         self.runtime = runtime
         shell.runtime = runtime
+        runtime.agentUIActions.setOpenPaneAction { [weak self] pane in
+            guard let self, self.shell.workbench.open(pane.hubTab) else { return false }
+            self.shell.show()
+            return true
+        }
         // 工作台配置落盘。文件不存在时 `load()` 给默认值，所以首次启动就有六块组件。
         shell.workbench.attach(
             store: WorkbenchStore.companion.create(path: AppPaths.workbenchFile.path)

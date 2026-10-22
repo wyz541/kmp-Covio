@@ -11,7 +11,8 @@ enum AgentAppServices {
         workspace: WorkspaceRuntime,
         attachments: AgentAttachmentStore,
         autoNaming: AutoNamingRuntime,
-        fileNamingPolicy: FileNamingPolicy
+        fileNamingPolicy: FileNamingPolicy,
+        uiActions: AgentUIActionRouter
     ) -> AgentServiceHandlers {
         let monitor = MonitorSampler()
         let inspector = AgentFileInspector()
@@ -104,6 +105,15 @@ enum AgentAppServices {
                     )
                 }
                 return await searchIndex.search(files: files, query: query, limit: limit)
+            },
+            openPane: { pane in
+                await uiActions.openPane(pane)
+            },
+            readSetting: { key in
+                await uiActions.readSetting(key)
+            },
+            requestSettingChange: { key, value in
+                await uiActions.requestSettingChange(key, valueText: value)
             }
         )
     }

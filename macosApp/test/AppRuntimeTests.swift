@@ -80,6 +80,23 @@ final class AppRuntimeTests: XCTestCase {
         return created
     }
 
+    func testAgentUIActionsUseOnlyAllowlistedSettings() {
+        let created = makeRuntime()
+
+        let read = created.agentUIActions.readSetting("notifications.enabled")
+        let unknown = created.agentUIActions.readSetting("system.anything")
+        let changed = created.agentUIActions.requestSettingChange(
+            "notifications.enabled",
+            valueText: "false"
+        )
+
+        XCTAssertTrue(read.ok)
+        XCTAssertTrue(changed.ok)
+        XCTAssertFalse(created.config.notificationsEnabled)
+        XCTAssertFalse(unknown.ok)
+        XCTAssertEqual(unknown.errorCode, .invalidArguments)
+    }
+
     /// 挂帘运行时。存储、系统偏好、监视器全指向临时目录或假实现。
     ///
     /// 不接替身的话，`start()` 会去动真实的 `~/Library/Application Support/Covio`，

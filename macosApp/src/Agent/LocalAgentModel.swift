@@ -1,8 +1,5 @@
 import Foundation
-import MLXHuggingFace
 import MLXLMCommon
-import MLXVLM
-import Tokenizers
 
 protocol AgentModelServing: Sendable {
     func respond(
@@ -14,14 +11,20 @@ protocol AgentModelServing: Sendable {
 }
 
 actor LocalAgentModel: AgentModelServing {
-    private let modelDirectory: URL
     private let gateway: AgentServiceGateway
-    private var container: ModelContainer?
+    private let containerRuntime: any LocalModelContainerProviding
+    private let ownsContainerRuntime: Bool
     private var session: ChatSession?
 
-    init(modelDirectory: URL, gateway: AgentServiceGateway) {
-        self.modelDirectory = modelDirectory
+    init(
+        modelDirectory: URL,
+        gateway: AgentServiceGateway,
+        containerRuntime: (any LocalModelContainerProviding)? = nil
+    ) {
         self.gateway = gateway
+        self.containerRuntime = containerRuntime
+            ?? LocalModelRuntime(modelDirectory: modelDirectory)
+        self.ownsContainerRuntime = containerRuntime == nil
     }
 
     func respond(
@@ -31,15 +34,17 @@ actor LocalAgentModel: AgentModelServing {
         guard !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw NamingModelError(.emptyInput)
         }
-        let session = try await sessionIfNeeded()
-        var output = ""
-        for try await chunk in session.streamResponse(to: prompt) {
-            if Task.isCancelled { break }
-            output += chunk
-            await onChunk(chunk)
+        return try await withContainer { container in
+            let session = try await sessionIfNeeded(container: container)
+            var output = ""
+            for try await chunk in session.streamResponse(to: prompt) {
+                if Task.isCancelled { break }
+                output += chunk
+                await onChunk(chunk)
+            }
+            try Task.checkCancellation()
+            return output
         }
-        try Task.checkCancellation()
-        return output
     }
 
     func reset() async {
@@ -48,12 +53,13 @@ actor LocalAgentModel: AgentModelServing {
 
     func release() async {
         session = nil
-        container = nil
+        if ownsContainerRuntime {
+            await containerRuntime.unloadModelContainer()
+        }
     }
 
-    private func sessionIfNeeded() async throws -> ChatSession {
+    private func sessionIfNeeded(container: ModelContainer) async throws -> ChatSession {
         if let session { return session }
-        let container = try await containerIfNeeded()
         let gateway = gateway
         let session = ChatSession(
             container,
@@ -73,40 +79,17 @@ actor LocalAgentModel: AgentModelServing {
         return session
     }
 
-    private func containerIfNeeded() async throws -> ModelContainer {
-        if let container { return container }
-        try Self.validate(modelDirectory)
+    private func withContainer<T>(
+        _ operation: (ModelContainer) async throws -> T
+    ) async throws -> T {
+        let lease = try await containerRuntime.acquireModelContainer()
         do {
-            let loaded = try await VLMModelFactory.shared.loadContainer(
-                from: modelDirectory,
-                using: #huggingFaceTokenizerLoader()
-            )
-            container = loaded
-            return loaded
+            let result = try await operation(lease.container)
+            await lease.release()
+            return result
         } catch {
-            throw NamingModelError(.modelLoadFailed, detail: error.localizedDescription)
-        }
-    }
-
-    private static func validate(_ directory: URL) throws {
-        var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: directory.path, isDirectory: &isDirectory),
-              isDirectory.boolValue
-        else {
-            throw NamingModelError(.modelDirectoryMissing)
-        }
-        for name in ["config.json", "tokenizer.json", "tokenizer_config.json"] {
-            let url = directory.appendingPathComponent(name)
-            guard FileManager.default.fileExists(atPath: url.path) else {
-                throw NamingModelError(.modelFilesMissing, detail: name)
-            }
-        }
-        let files = (try? FileManager.default.contentsOfDirectory(
-            at: directory,
-            includingPropertiesForKeys: nil
-        )) ?? []
-        guard files.contains(where: { $0.pathExtension == "safetensors" }) else {
-            throw NamingModelError(.modelFilesMissing, detail: "safetensors")
+            await lease.release()
+            throw error
         }
     }
 

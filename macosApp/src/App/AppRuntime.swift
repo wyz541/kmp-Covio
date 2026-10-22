@@ -51,6 +51,9 @@ final class AppRuntime {
     /// 离线本地服务 Agent。Hub 的 Agent 页签读它。
     let agent: AgentChatRuntime
 
+    /// 文件自动命名和 Agent 共用同一个本地模型容器。
+    private let localModelRuntime: LocalModelRuntime
+
     private let configStore: ConfigStore
     /// 挂帘读配置的中间人。理由见 `ShelfBridge`。
     private let shelfBridge: ShelfBridge
@@ -188,16 +191,27 @@ final class AppRuntime {
         // 工作区没有配置依赖，也没有要交出去的闭包。直接建。
         let resolvedWorkspace = workspace ?? WorkspaceRuntime()
         self.workspace = resolvedWorkspace
-        self.autoNaming = autoNaming ?? AutoNamingRuntime()
 
         let resourceRoot = Bundle.main.resourceURL ?? Bundle.main.bundleURL
-        let agentModelConfiguration = NamingModelConfiguration.bundled(
+        let modelConfiguration = NamingModelConfiguration.bundled(
             resourceDirectory: resourceRoot,
             environment: ProcessInfo.processInfo.environment
         ) ?? NamingModelConfiguration(
             modelDirectory: resourceRoot
                 .appendingPathComponent("Models", isDirectory: true)
                 .appendingPathComponent("Qwen3VL-2B-Instruct-4bit", isDirectory: true)
+        )
+        let localModelRuntime = LocalModelRuntime(
+            modelDirectory: modelConfiguration.modelDirectory
+        )
+        self.localModelRuntime = localModelRuntime
+        self.autoNaming = autoNaming ?? AutoNamingRuntime(
+            model: NamingModelCoordinator(
+                primary: MLXNamingModel(
+                    configuration: modelConfiguration,
+                    containerRuntime: localModelRuntime
+                )
+            )
         )
         let agentGateway = AgentServiceGateway(
             handlers: AgentAppServices.handlers(
@@ -208,8 +222,9 @@ final class AppRuntime {
         )
         self.agent = AgentChatRuntime(
             model: LocalAgentModel(
-                modelDirectory: agentModelConfiguration.modelDirectory,
-                gateway: agentGateway
+                modelDirectory: modelConfiguration.modelDirectory,
+                gateway: agentGateway,
+                containerRuntime: localModelRuntime
             ),
             gateway: agentGateway
         )

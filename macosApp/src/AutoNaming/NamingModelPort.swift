@@ -43,6 +43,7 @@ enum NamingModelWarning: String, Sendable, Hashable {
 
 struct NamingModelConfiguration: Sendable, Equatable {
     let modelDirectory: URL
+    var tier: LocalModelTier = .compact2B
     var maxInputTokens = 4_096
     var maxOutputTokens = 160
     var maxTextCharacters = 9_000
@@ -51,16 +52,36 @@ struct NamingModelConfiguration: Sendable, Equatable {
 
     static func bundled(
         resourceDirectory: URL? = Bundle.main.resourceURL,
-        environment: [String: String] = ProcessInfo.processInfo.environment
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        physicalMemoryBytes: UInt64 = ProcessInfo.processInfo.physicalMemory,
+        fileExists: (URL) -> Bool = { FileManager.default.fileExists(atPath: $0.path) }
     ) -> NamingModelConfiguration? {
         if let override = environment["COVIO_FILE_NAMING_MODEL_DIR"], !override.isEmpty {
-            return NamingModelConfiguration(modelDirectory: URL(fileURLWithPath: override))
+            let tier = environment["COVIO_LOCAL_MODEL_TIER"]
+                .flatMap(LocalModelTier.init(rawValue:)) ?? .compact2B
+            guard physicalMemoryBytes >= tier.minimumPhysicalMemoryBytes else { return nil }
+            return NamingModelConfiguration(
+                modelDirectory: URL(fileURLWithPath: override),
+                tier: tier
+            )
         }
         guard let resourceDirectory else { return nil }
+        let modelsDirectory = resourceDirectory.appendingPathComponent("Models", isDirectory: true)
+        let candidates: [LocalModelCandidate] = LocalModelTier.allCases.compactMap { tier in
+            let directory = modelsDirectory.appendingPathComponent(
+                tier.runtimeDirectoryName,
+                isDirectory: true
+            )
+            guard fileExists(directory) else { return nil }
+            return LocalModelCandidate(tier: tier, directory: directory)
+        }
+        guard let selected = LocalModelSelector.select(
+            candidates: candidates,
+            physicalMemoryBytes: physicalMemoryBytes
+        ) else { return nil }
         return NamingModelConfiguration(
-            modelDirectory: resourceDirectory
-                .appendingPathComponent("Models", isDirectory: true)
-                .appendingPathComponent("Qwen3VL-2B-Instruct-4bit", isDirectory: true)
+            modelDirectory: selected.directory,
+            tier: selected.tier
         )
     }
 }

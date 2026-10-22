@@ -140,6 +140,19 @@ final class WorkbenchModel {
         destination = .pane(id: paneID)
     }
 
+    /// Opens one built-in page from a fixed Agent enum.
+    ///
+    /// Returns false when the page is hidden or the enum maps to a custom board.
+    @discardableResult
+    func open(_ tab: HubTab) -> Bool {
+        guard tab != .board,
+              let pane = config.visiblePanes.first(where: { $0.kind.key == tab.rawValue })
+        else { return false }
+        isEditing = false
+        destination = .pane(id: pane.id)
+        return true
+    }
+
     /// 换工作区的顺序。参数是可见工作区里的下标。
     func movePane(from: Int, to: Int) {
         let visible = config.visiblePanes

@@ -105,13 +105,15 @@ actor AgentServiceGateway {
             ).jsonString()
         }
 
+        let started = ContinuousClock.now
         let result = await executeWithTimeout(name: name, arguments: call.function.arguments)
         record(
             name: name,
             risk: descriptor.risk,
             status: result.ok ? .completed : .failed,
             detail: result.ok ? "Completed" : result.summary,
-            errorCode: result.errorCode
+            errorCode: result.errorCode,
+            durationMilliseconds: Self.milliseconds(since: started)
         )
         return result.jsonString()
     }
@@ -132,6 +134,7 @@ actor AgentServiceGateway {
             return .failure("Deferred action was not found.", code: .executionFailed)
         }
         activeDeferred = nil
+        let started = ContinuousClock.now
         let result = await executeWithTimeout(
             name: call.action.toolName,
             arguments: call.arguments
@@ -141,7 +144,8 @@ actor AgentServiceGateway {
             risk: .readOnly,
             status: result.ok ? .completed : .failed,
             detail: result.ok ? "Deferred action completed" : result.summary,
-            errorCode: result.errorCode
+            errorCode: result.errorCode,
+            durationMilliseconds: Self.milliseconds(since: started)
         )
         return result
     }
@@ -151,6 +155,7 @@ actor AgentServiceGateway {
             return .failure("There is no pending local action.", code: .executionFailed)
         }
         self.pending = nil
+        let started = ContinuousClock.now
         let result = await executeWithTimeout(
             name: pending.action.toolName,
             arguments: pending.arguments
@@ -160,7 +165,8 @@ actor AgentServiceGateway {
             risk: .sideEffect,
             status: result.ok ? .completed : .failed,
             detail: result.ok ? "Confirmed and completed" : result.summary,
-            errorCode: result.errorCode
+            errorCode: result.errorCode,
+            durationMilliseconds: Self.milliseconds(since: started)
         )
         return result
     }
@@ -176,7 +182,7 @@ actor AgentServiceGateway {
         )
     }
 
-    func recentAudits(limit: Int = 8) -> [AgentToolAudit] {
+    func recentAudits(limit: Int = 40) -> [AgentToolAudit] {
         Array(audits.suffix(max(0, limit)))
     }
 
@@ -267,6 +273,23 @@ actor AgentServiceGateway {
                 query,
                 min(12, boundedLimit(arguments["limit"], defaultValue: 6))
             )
+        case "open_pane":
+            guard let pane = stringValue(arguments["pane"]) else {
+                return .failure("Pane is required.", code: .invalidArguments)
+            }
+            return await handlers.openPane(pane)
+        case "read_setting":
+            guard let key = stringValue(arguments["key"]) else {
+                return .failure("Setting key is required.", code: .invalidArguments)
+            }
+            return await handlers.readSetting(key)
+        case "request_setting_change":
+            guard let key = stringValue(arguments["key"]),
+                  let value = stringValue(arguments["value"])
+            else {
+                return .failure("Setting key and value are required.", code: .invalidArguments)
+            }
+            return await handlers.requestSettingChange(key, value)
         case "list_screenshots":
             return await handlers.screenshots(boundedLimit(arguments["limit"], defaultValue: 8))
         case "list_clipboard_metadata":
@@ -301,6 +324,12 @@ actor AgentServiceGateway {
             allowed = ["runId"]
         case "search_file_content":
             allowed = ["fileIds", "query", "limit"]
+        case "open_pane":
+            allowed = ["pane"]
+        case "read_setting":
+            allowed = ["key"]
+        case "request_setting_change":
+            allowed = ["key", "value"]
         case "list_screenshots", "list_clipboard_metadata":
             allowed = ["limit"]
         case "copy_text":
@@ -367,6 +396,25 @@ actor AgentServiceGateway {
                 guard let value = intValue(limit), (1...12).contains(value) else { return false }
             }
         }
+        if descriptor.name == "open_pane" {
+            guard let pane = stringValue(arguments["pane"]),
+                  AgentPane(rawValue: pane) != nil
+            else { return false }
+        }
+        if descriptor.name == "read_setting" {
+            guard let key = stringValue(arguments["key"]),
+                  AgentSettingKey(rawValue: key) != nil
+            else { return false }
+        }
+        if descriptor.name == "request_setting_change" {
+            guard let key = stringValue(arguments["key"]),
+                  let settingKey = AgentSettingKey(rawValue: key),
+                  let value = stringValue(arguments["value"]),
+                  !value.isEmpty,
+                  value.count <= 32,
+                  settingKey.parse(value) != nil
+            else { return false }
+        }
         if descriptor.name == "copy_text" {
             guard let text = stringValue(arguments["text"]),
                   !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
@@ -385,6 +433,11 @@ actor AgentServiceGateway {
         }
         if name == "undo_rename_run" {
             return "Undo the selected Agent rename run."
+        }
+        if name == "request_setting_change" {
+            let key = stringValue(arguments["key"]) ?? "setting"
+            let value = stringValue(arguments["value"]) ?? ""
+            return "Change \(key) to \(value)."
         }
         return "Run \(name)."
     }
@@ -433,7 +486,8 @@ actor AgentServiceGateway {
         risk: AgentToolRisk,
         status: AgentToolAuditStatus,
         detail: String,
-        errorCode: AgentServiceErrorCode? = nil
+        errorCode: AgentServiceErrorCode? = nil,
+        durationMilliseconds: Int? = nil
     ) {
         audits.append(
             AgentToolAudit(
@@ -442,12 +496,20 @@ actor AgentServiceGateway {
                 risk: risk,
                 status: status,
                 detail: detail,
-                errorCode: errorCode
+                errorCode: errorCode,
+                durationMilliseconds: durationMilliseconds
             )
         )
         if audits.count > maxAuditEntries {
             audits.removeFirst(audits.count - maxAuditEntries)
         }
+    }
+
+    private static func milliseconds(since start: ContinuousClock.Instant) -> Int {
+        let components = start.duration(to: .now).components
+        let milliseconds = components.seconds * 1_000
+            + components.attoseconds / 1_000_000_000_000_000
+        return Int(max(0, milliseconds))
     }
 }
 

@@ -73,11 +73,31 @@ final class AppRuntimeTests: XCTestCase {
             closedLidBrightnessBackend: brightnessBackend,
             closedLidBrightnessStore: FakeClosedLidBrightnessRecoveryStore(),
             shelf: makeShelf(),
-            workspace: makeWorkspace()
+            workspace: makeWorkspace(),
+            agentHistoryStore: AgentHistoryStore(
+                path: directory.appendingPathComponent("agent-history.sqlite3")
+            )
         )
         runtime = created
         if engineStarted { created.start() }
         return created
+    }
+
+    func testAgentUIActionsUseOnlyAllowlistedSettings() {
+        let created = makeRuntime()
+
+        let read = created.agentUIActions.readSetting("notifications.enabled")
+        let unknown = created.agentUIActions.readSetting("system.anything")
+        let changed = created.agentUIActions.requestSettingChange(
+            "notifications.enabled",
+            valueText: "false"
+        )
+
+        XCTAssertTrue(read.ok)
+        XCTAssertTrue(changed.ok)
+        XCTAssertFalse(created.config.notificationsEnabled)
+        XCTAssertFalse(unknown.ok)
+        XCTAssertEqual(unknown.errorCode, .invalidArguments)
     }
 
     /// 挂帘运行时。存储、系统偏好、监视器全指向临时目录或假实现。

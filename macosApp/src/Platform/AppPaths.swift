@@ -69,6 +69,13 @@ enum AppPaths {
             .appendingPathComponent("imported-packages.json")
     }
 
+    /// Agent 会话与工具审计的本地 SQLite 数据库。
+    static var agentHistoryFile: URL {
+        supportDirectory
+            .appendingPathComponent("Agent", isDirectory: true)
+            .appendingPathComponent("history.sqlite3")
+    }
+
     /// 文件重命名的撤销计划。每条计划在改名之前写入。
     static var renameUndoDirectory: URL {
         supportDirectory.appendingPathComponent("rename-undo", isDirectory: true)

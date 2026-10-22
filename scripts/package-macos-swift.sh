@@ -21,6 +21,9 @@ ICON="$ROOT/macosApp/src/Covio.icns"
 MODELS="$ROOT/kmpDomain/src/com/wyz/covio/core/Models.kt"
 APP_IMAGE="$DIST/$APP_NAME.app"
 PLIST_BUDDY="/usr/libexec/PlistBuddy"
+FILE_NAMING_MODEL_DIR="${COVIO_FILE_NAMING_MODEL_DIR:-}"
+MODEL_MANIFEST="$ROOT/macosApp/src/AutoNaming/FileNamingModelManifest.json"
+MODEL_VERIFY="$ROOT/scripts/file_naming_model.py"
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
   printf 'This script requires macOS.\n' >&2
@@ -36,6 +39,12 @@ if [[ ! -f "$ICON" ]]; then
   printf 'Missing icon: %s\n' "$ICON" >&2
   exit 1
 fi
+if [[ -z "$FILE_NAMING_MODEL_DIR" ]]; then
+  printf 'Set COVIO_FILE_NAMING_MODEL_DIR to the verified local model directory.\n' >&2
+  printf 'Run python3 scripts/file_naming_model.py download <directory> first.\n' >&2
+  exit 1
+fi
+python3 -I "$MODEL_VERIFY" --manifest "$MODEL_MANIFEST" verify-directory "$FILE_NAMING_MODEL_DIR"
 
 VERSION="$(sed -n 's/^const val APP_VERSION = "\(.*\)"$/\1/p' "$MODELS")"
 if [[ -z "$VERSION" ]]; then
@@ -61,6 +70,8 @@ xcodebuild \
   -scheme "$SCHEME" \
   -configuration "$CONFIGURATION" \
   -derivedDataPath "$DERIVED_DATA" \
+  -skipMacroValidation \
+  -skipPackagePluginValidation \
   -archivePath "$ARCHIVE" \
   -destination 'generic/platform=macOS' \
   ARCHS=arm64 \
@@ -76,6 +87,23 @@ fi
 
 # ditto 保留符号链接与扩展属性。cp -R 会丢掉 framework 里的版本链接。
 /usr/bin/ditto "$ARCHIVED_APP" "$APP_IMAGE"
+
+# 模型随应用内置。运行时只读取应用资源，不需要网络或额外安装步骤。
+if ! cmp -s "$MODEL_MANIFEST" "$APP_IMAGE/Contents/Resources/FileNamingModelManifest.json"; then
+  printf 'Bundled model manifest is missing or differs from the source manifest.\n' >&2
+  exit 1
+fi
+MODEL_RESOURCE="$APP_IMAGE/Contents/Resources/Models/Qwen3VL-2B-Instruct-4bit"
+mkdir -p "$MODEL_RESOURCE"
+/usr/bin/ditto "$FILE_NAMING_MODEL_DIR" "$MODEL_RESOURCE"
+python3 -I "$MODEL_VERIFY" --manifest "$MODEL_MANIFEST" verify-directory "$MODEL_RESOURCE"
+
+NOTICES_DIR="$APP_IMAGE/Contents/Resources/ThirdPartyNotices"
+mkdir -p "$NOTICES_DIR/licenses" "$NOTICES_DIR/model"
+/usr/bin/ditto "$ROOT/LICENSE" "$APP_IMAGE/Contents/Resources/LICENSE"
+/usr/bin/ditto "$ROOT/THIRD_PARTY_NOTICES.md" "$NOTICES_DIR/THIRD_PARTY_NOTICES.md"
+/usr/bin/ditto "$ROOT/third_party/licenses" "$NOTICES_DIR/licenses"
+/usr/bin/ditto "$ROOT/third_party/models/Qwen3-VL-2B-Instruct" "$NOTICES_DIR/model/Qwen3-VL-2B-Instruct"
 
 PLIST="$APP_IMAGE/Contents/Info.plist"
 
@@ -149,5 +177,9 @@ fi
 
 /usr/bin/hdiutil verify "$DMG_PATH" >/dev/null
 
+APP_BYTES="$(du -sk "$APP_IMAGE" | awk '{print $1 * 1024}')"
+DMG_BYTES="$(stat -f %z "$DMG_PATH")"
 printf 'Created %s\n' "$APP_IMAGE"
+printf 'App bytes: %s\n' "$APP_BYTES"
 printf 'Created %s\n' "$DMG_PATH"
+printf 'DMG bytes: %s\n' "$DMG_BYTES"

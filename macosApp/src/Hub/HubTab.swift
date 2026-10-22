@@ -9,6 +9,7 @@ import kmpDomain
 /// 文案键与顺序由 `DesignContractTests` 守住。
 enum HubTab: String, CaseIterable, Sendable {
     case now
+    case agent
     case clipboard
     case files
     case screenshots
@@ -24,6 +25,7 @@ enum HubTab: String, CaseIterable, Sendable {
     var paneKind: PaneKind {
         switch self {
         case .now: PaneKind.now
+        case .agent: PaneKind.agent
         case .clipboard: PaneKind.clipboard
         case .files: PaneKind.files
         case .screenshots: PaneKind.screenshots
@@ -37,6 +39,7 @@ enum HubTab: String, CaseIterable, Sendable {
     var title: LocalizedCopy {
         switch self {
         case .now: ContractCopy.copyHubTabNow
+        case .agent: ContractCopy.copyHubTabAgent
         case .clipboard: ContractCopy.copyHubTabClipboard
         case .files: ContractCopy.copyHubTabFiles
         case .screenshots: ContractCopy.copyHubTabScreenshots
@@ -50,6 +53,7 @@ enum HubTab: String, CaseIterable, Sendable {
     var summary: LocalizedCopy {
         switch self {
         case .now: ContractCopy.copyHubTabNowSummary
+        case .agent: ContractCopy.copyHubTabAgentSummary
         case .clipboard: ContractCopy.copyHubTabClipboardSummary
         case .files: ContractCopy.copyHubTabFilesSummary
         case .screenshots: ContractCopy.copyHubTabScreenshotsSummary
@@ -66,6 +70,7 @@ enum HubTab: String, CaseIterable, Sendable {
     var glyph: String {
         switch self {
         case .now: "◉"
+        case .agent: "✦"
         case .clipboard: "▤"
         case .files: "▢"
         case .screenshots: "▣"

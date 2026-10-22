@@ -1,8 +1,8 @@
+import AppKit
 import Darwin
 import Foundation
 @preconcurrency import IOKit
 import SystemConfiguration
-import kmpDomain
 
 /// macOS 公开接口的监控读取器。
 ///
@@ -23,25 +23,66 @@ final class MacMonitorReader {
         let time: UInt64
     }
 
+    private struct BatteryRegistryMetrics {
+        let temperatureCelsius: Double?
+        let capacityWattHours: Double?
+        let batteryPowerMilliwatts: Double?
+        let systemPowerMilliwatts: Double?
+        let chargePowerMilliwatts: Double?
+        let healthPercent: Double?
+    }
+
+    private struct IOPSBatteryAggregate {
+        let hasBattery: Bool
+        let percent: Double?
+        let supply: MonitorSnapshot.Power.Supply
+        let isCharged: Bool
+        let timeToEmptySeconds: TimeInterval?
+        let timeToFullSeconds: TimeInterval?
+    }
+
+    private struct AppIdentity: Equatable {
+        let id: String
+        let name: String
+        let bundlePath: String?
+    }
+
     private var previousCPUInfo: processor_info_array_t?
     private var previousCPUInfoCount: mach_msg_type_number_t = 0
     private var previousCPULoad = host_cpu_load_info()
     private var hasPreviousCPULoad = false
     private var previousDisk: DiskCounters?
     private var previousNetwork: NetworkCounters?
+    private var powerAverage = MonitorPowerAverage()
+    private var previousPowerSupply: MonitorSnapshot.Power.Supply?
+    private var energyWindow = MonitorEnergyWindow()
+    private var lastEnergyScanAt = Date.distantPast
+    private var lastEnergyApps: [MonitorSnapshot.Power.TopApp] = []
+    private var energyDataAvailable = false
+    private var identityCache: [Int32: AppIdentity] = [:]
+    private var mainApplications: [AppIdentity] = []
+    private var lastIdentityRefreshAt = Date.distantPast
+    private let powerEventStore = MonitorPowerEventStore()
 
     func read() -> MonitorSnapshot {
         let memory = readMemory()
+        let reading = readPower()
         return MonitorSnapshot(
             cpu: readCPU(),
             gpu: readGPU(),
             memory: memory,
             disk: readDisk(),
             network: readNetwork(),
-            battery: readBattery(),
+            battery: reading.battery,
+            power: reading.power,
             thermal: readThermal(),
             sampledAt: Date()
         )
+    }
+
+    /// 电源卡片每秒只读 IOPS、IOKit 与能耗窗口，不重复扫描无关指标。
+    func readPowerOnly() -> MonitorSnapshot.Power {
+        readPower().power
     }
 
     // MARK: - CPU
@@ -366,25 +407,456 @@ final class MacMonitorReader {
         return (value as? [String: Any])?["PrimaryInterface"] as? String
     }
 
-    // MARK: - Battery
+    // MARK: - Power
 
-    private func readBattery() -> MonitorSnapshot.Battery? {
-        guard let battery = MacPowerSource.readBattery() else { return nil }
-        return MonitorSnapshot.Battery(
-            percent: Double(battery.percent),
-            state: batteryState(battery.state),
-            remaining: battery.remainingSeconds.map { TimeInterval($0.int64Value) }
+    private func readPower() -> (
+        power: MonitorSnapshot.Power,
+        battery: MonitorSnapshot.Battery?
+    ) {
+        let now = Date()
+        let iops = readIOPSBattery()
+        let registry = readBatteryRegistryMetrics()
+        let measuredWatts: Double?
+
+        switch iops.supply {
+        case .battery:
+            measuredWatts = MonitorPowerFormat.watts(fromMilliwatts: registry.batteryPowerMilliwatts)
+        case .charging, .adapter, .unknown:
+            measuredWatts = MonitorPowerFormat.watts(fromMilliwatts: registry.systemPowerMilliwatts)
+        }
+
+        if previousPowerSupply != iops.supply, iops.supply == .battery {
+            powerAverage.reset()
+        }
+        previousPowerSupply = iops.supply
+        let averageWatts = powerAverage.append(measuredWatts)
+
+        let calculatedRemaining = MonitorPowerFormat.estimatedRemainingSeconds(
+            capacityWattHours: registry.capacityWattHours,
+            percent: iops.percent,
+            averageWatts: averageWatts
+        )
+        let remaining = iops.supply == .battery
+            ? (calculatedRemaining ?? iops.timeToEmptySeconds)
+            : nil
+        let topApps = readEnergyUsage(at: now)
+        let isAdapter = iops.supply == .charging || iops.supply == .adapter
+
+        let power = MonitorSnapshot.Power(
+            supply: iops.supply,
+            hasBattery: iops.hasBattery,
+            batteryPercent: iops.percent,
+            temperatureCelsius: registry.temperatureCelsius,
+            watts: measuredWatts,
+            averageWatts: averageWatts,
+            remainingSeconds: remaining,
+            chargePowerWatts: isAdapter
+                ? MonitorPowerFormat.watts(fromMilliwatts: registry.chargePowerMilliwatts)
+                : nil,
+            timeToFullSeconds: isAdapter ? iops.timeToFullSeconds : nil,
+            batteryHealthPercent: registry.healthPercent,
+            topApps: topApps,
+            events: powerEventStore.observe(
+                supply: iops.supply,
+                batteryPercent: iops.percent,
+                at: now
+            ),
+            batteryDataAvailable: iops.hasBattery
+                && iops.percent != nil
+                && registry.temperatureCelsius != nil,
+            powerDataAvailable: measuredWatts != nil,
+            energyDataAvailable: energyDataAvailable
+        )
+
+        let battery = iops.percent.map { percent in
+            MonitorSnapshot.Battery(
+                percent: percent,
+                state: batteryState(for: iops),
+                remaining: iops.supply == .battery ? remaining : nil
+            )
+        }
+
+        return (power, battery)
+    }
+
+    private func readIOPSBattery() -> IOPSBatteryAggregate {
+        guard let blob = IOPSCopyPowerSourcesInfo()?.takeRetainedValue() else {
+            return IOPSBatteryAggregate(
+                hasBattery: false,
+                percent: nil,
+                supply: .unknown,
+                isCharged: false,
+                timeToEmptySeconds: nil,
+                timeToFullSeconds: nil
+            )
+        }
+
+        let provider = IOPSGetProvidingPowerSourceType(blob)?
+            .takeUnretainedValue() as String? ?? ""
+        let sources = IOPSCopyPowerSourcesList(blob)?
+            .takeRetainedValue() as? [CFTypeRef] ?? []
+
+        var currentCapacities: [Double] = []
+        var maximumCapacities: [Double] = []
+        var hasBattery = false
+        var isCharging = false
+        var isCharged = true
+        var adapterConnected = provider.caseInsensitiveCompare("AC Power") == .orderedSame
+        var timeToEmptySeconds: TimeInterval?
+        var timeToFullSeconds: TimeInterval?
+
+        for source in sources {
+            guard let description = IOPSGetPowerSourceDescription(blob, source)?
+                .takeUnretainedValue() as? [String: Any] else { continue }
+            let type = description["Type"] as? String ?? ""
+            guard type.caseInsensitiveCompare("InternalBattery") == .orderedSame else { continue }
+
+            hasBattery = true
+            let current = description["Current Capacity"] as? Int ?? 0
+            let maximum = description["Max Capacity"] as? Int ?? 0
+            currentCapacities.append(Double(max(0, current)))
+            maximumCapacities.append(Double(max(0, maximum)))
+            isCharging = isCharging || (description["Is Charging"] as? Bool ?? false)
+            isCharged = isCharged && (description["Is Charged"] as? Bool ?? false)
+
+            let powerState = description["Power Source State"] as? String ?? ""
+            adapterConnected = adapterConnected
+                || powerState.caseInsensitiveCompare("AC Power") == .orderedSame
+
+            if powerState.caseInsensitiveCompare("Battery Power") == .orderedSame,
+               timeToEmptySeconds == nil,
+               let minutes = description["Time to Empty"] as? Int,
+               minutes > 0,
+               minutes < 65_535 {
+                timeToEmptySeconds = TimeInterval(minutes) * 60
+            }
+            if powerState.caseInsensitiveCompare("AC Power") == .orderedSame,
+               timeToFullSeconds == nil,
+               let minutes = description["Time to Full Charge"] as? Int,
+               minutes > 0,
+               minutes < 65_535 {
+                timeToFullSeconds = TimeInterval(minutes) * 60
+            }
+        }
+
+        let percent = MonitorPowerFormat.aggregateBatteryPercent(
+            currentCapacities: currentCapacities,
+            maximumCapacities: maximumCapacities
+        )
+        let batteryProvider = provider.caseInsensitiveCompare("Battery Power") == .orderedSame
+        let supply = MonitorPowerFormat.batterySupply(
+            adapterConnected: adapterConnected,
+            isCharging: isCharging,
+            isCharged: isCharged || (percent ?? 0) >= 99.5,
+            hasBattery: hasBattery || batteryProvider
+        )
+
+        return IOPSBatteryAggregate(
+            hasBattery: hasBattery,
+            percent: percent,
+            supply: supply,
+            isCharged: hasBattery && isCharged,
+            timeToEmptySeconds: timeToEmptySeconds,
+            timeToFullSeconds: timeToFullSeconds
         )
     }
 
-    private func batteryState(_ state: PowerState) -> MonitorSnapshot.BatteryState {
-        switch state {
-        case .discharging: .discharging
+    private func batteryState(for battery: IOPSBatteryAggregate) -> MonitorSnapshot.BatteryState {
+        switch battery.supply {
+        case .battery: .discharging
         case .charging: .charging
-        case .charged: .charged
-        case .acPower: .acPower
-        default: .unknown
+        case .adapter: battery.isCharged ? .charged : .acPower
+        case .unknown: .unknown
         }
+    }
+
+    private func readBatteryRegistryMetrics() -> BatteryRegistryMetrics {
+        guard let matching = IOServiceMatching("AppleSmartBattery") else {
+            return BatteryRegistryMetrics(
+                temperatureCelsius: nil,
+                capacityWattHours: nil,
+                batteryPowerMilliwatts: nil,
+                systemPowerMilliwatts: nil,
+                chargePowerMilliwatts: nil,
+                healthPercent: nil
+            )
+        }
+
+        var iterator: io_iterator_t = 0
+        guard IOServiceGetMatchingServices(kIOMainPortDefault, matching, &iterator) == KERN_SUCCESS else {
+            return BatteryRegistryMetrics(
+                temperatureCelsius: nil,
+                capacityWattHours: nil,
+                batteryPowerMilliwatts: nil,
+                systemPowerMilliwatts: nil,
+                chargePowerMilliwatts: nil,
+                healthPercent: nil
+            )
+        }
+        defer { IOObjectRelease(iterator) }
+
+        var temperatureCelsius: Double?
+        var capacityWattHours = 0.0
+        var fullChargeCapacity = 0.0
+        var designCapacity = 0.0
+        var batteryPowerMilliwatts: Double?
+        var systemPowerMilliwatts: Double?
+        var chargePowerMilliwatts: Double?
+
+        var service = IOIteratorNext(iterator)
+        while service != 0 {
+            defer {
+                IOObjectRelease(service)
+                service = IOIteratorNext(iterator)
+            }
+
+            let voltage = registryNumber(service, key: "AppleRawBatteryVoltage")
+                ?? registryNumber(service, key: "Voltage")
+            if let data = registryDictionary(service, key: "BatteryData"),
+               let voltage,
+               voltage > 0 {
+                let currentFullCharge = Double(number(data["FullChargeCapacity"]))
+                let currentDesignCapacity = Double(number(data["DesignCapacity"]))
+                fullChargeCapacity += currentFullCharge
+                designCapacity += currentDesignCapacity
+                if currentFullCharge > 0 {
+                    capacityWattHours += currentFullCharge * voltage / 1_000_000
+                }
+            }
+
+            if let temperature = readBatteryTemperature(service, depth: 0) {
+                temperatureCelsius = max(temperatureCelsius ?? temperature, temperature)
+            }
+
+            if let measuredChargePower = readChargePowerMilliwatts(service, depth: 0) {
+                chargePowerMilliwatts = max(
+                    chargePowerMilliwatts ?? 0,
+                    measuredChargePower
+                )
+            }
+
+            if let telemetry = registryDictionary(service, key: "PowerTelemetryData") {
+                let systemLoad = number(telemetry["SystemLoad"])
+                let systemPowerIn = number(telemetry["SystemPowerIn"])
+                let measuredSystem = systemLoad > 0 ? systemLoad : systemPowerIn
+                if measuredSystem > 0 {
+                    systemPowerMilliwatts = max(systemPowerMilliwatts ?? 0, Double(measuredSystem))
+                }
+
+                if let rawBatteryPower = signedNumber(telemetry["BatteryPower"]),
+                   abs(rawBatteryPower) > 0 {
+                    batteryPowerMilliwatts = max(
+                        batteryPowerMilliwatts ?? 0,
+                        abs(rawBatteryPower)
+                    )
+                }
+            }
+
+            if batteryPowerMilliwatts == nil,
+               let amperage = registryNumber(service, key: "Amperage"),
+               let voltage,
+               amperage != 0,
+               voltage > 0 {
+                batteryPowerMilliwatts = abs(amperage * voltage / 1_000)
+            }
+        }
+
+        let healthPercent = designCapacity > 0
+            ? min(100, max(0, fullChargeCapacity / designCapacity * 100))
+            : nil
+        return BatteryRegistryMetrics(
+            temperatureCelsius: temperatureCelsius,
+            capacityWattHours: capacityWattHours > 0 ? capacityWattHours : nil,
+            batteryPowerMilliwatts: batteryPowerMilliwatts,
+            systemPowerMilliwatts: systemPowerMilliwatts,
+            chargePowerMilliwatts: chargePowerMilliwatts,
+            healthPercent: healthPercent
+        )
+    }
+
+    private func readBatteryTemperature(_ service: io_object_t, depth: Int) -> Double? {
+        guard depth <= 6 else { return nil }
+        var maximum: Double?
+
+        if let raw = registryNumber(service, key: "Temperature"),
+           let value = MonitorPowerFormat.batteryTemperatureCelsius(raw: raw) {
+            maximum = value
+        }
+
+        if let data = registryDictionary(service, key: "BatteryData") {
+            for key in ["Temperature", "VirtualTemperature"] {
+                if let raw = signedNumber(data[key]),
+                   let value = MonitorPowerFormat.batteryTemperatureCelsius(raw: raw) {
+                    maximum = max(maximum ?? value, value)
+                }
+            }
+        }
+
+        var children: io_iterator_t = 0
+        guard IORegistryEntryGetChildIterator(service, kIOServicePlane, &children) == KERN_SUCCESS else {
+            return maximum
+        }
+        defer { IOObjectRelease(children) }
+
+        var child = IOIteratorNext(children)
+        while child != 0 {
+            defer {
+                IOObjectRelease(child)
+                child = IOIteratorNext(children)
+            }
+            if let value = readBatteryTemperature(child, depth: depth + 1) {
+                maximum = max(maximum ?? value, value)
+            }
+        }
+        return maximum
+    }
+
+    private func readChargePowerMilliwatts(_ service: io_object_t, depth: Int) -> Double? {
+        guard depth <= 6 else { return nil }
+        if let data = registryDictionary(service, key: "ChargerData"),
+           let current = signedNumber(data["ChargingCurrent"]),
+           let voltage = signedNumber(data["ChargingVoltage"]),
+           current > 0,
+           voltage > 0 {
+            return current * voltage / 1_000
+        }
+        var children: io_iterator_t = 0
+        guard IORegistryEntryGetChildIterator(service, kIOServicePlane, &children) == KERN_SUCCESS else {
+            return nil
+        }
+        defer { IOObjectRelease(children) }
+
+        var child = IOIteratorNext(children)
+        while child != 0 {
+            defer {
+                IOObjectRelease(child)
+                child = IOIteratorNext(children)
+            }
+            if let value = readChargePowerMilliwatts(child, depth: depth + 1) {
+                return value
+            }
+        }
+        return nil
+    }
+
+    // MARK: - Energy
+
+    private func readEnergyUsage(at now: Date) -> [MonitorSnapshot.Power.TopApp] {
+        let elapsed = now.timeIntervalSince(lastEnergyScanAt)
+        guard lastEnergyScanAt == .distantPast
+            || elapsed >= MonitorPowerFormat.estimateRefreshSeconds
+        else { return lastEnergyApps }
+
+        refreshApplicationIdentitiesIfNeeded(at: now)
+        let samples = readProcessEnergySamples(at: now)
+        lastEnergyApps = energyWindow.update(samples: samples, at: now)
+        lastEnergyScanAt = now
+        energyDataAvailable = !samples.isEmpty
+        return lastEnergyApps
+    }
+
+    private func readProcessEnergySamples(at now: Date) -> [MonitorProcessEnergySample] {
+        var pids = [pid_t](repeating: 0, count: 16_384)
+        let count = proc_listallpids(
+            &pids,
+            Int32(pids.count * MemoryLayout<pid_t>.size)
+        )
+        guard count > 0 else { return [] }
+
+        var samples: [MonitorProcessEnergySample] = []
+        samples.reserveCapacity(Int(count))
+
+        for pid in pids.prefix(Int(count)) where pid > 1 {
+            var usage = rusage_info_v6()
+            let result = withUnsafeMutablePointer(to: &usage) { pointer in
+                pointer.withMemoryRebound(to: rusage_info_t?.self, capacity: 1) {
+                    proc_pid_rusage(pid, RUSAGE_INFO_V6, $0)
+                }
+            }
+            guard result == 0, usage.ri_energy_nj > 0 else { continue }
+
+            let identity = resolveApplicationIdentity(pid: pid, at: now)
+            samples.append(
+                MonitorProcessEnergySample(
+                    processIdentifier: pid,
+                    applicationID: identity.id,
+                    applicationName: identity.name,
+                    bundlePath: identity.bundlePath,
+                    cumulativeNanojoules: usage.ri_energy_nj
+                )
+            )
+        }
+        return samples
+    }
+
+    private func refreshApplicationIdentitiesIfNeeded(at now: Date) {
+        guard now.timeIntervalSince(lastIdentityRefreshAt) >= 30 else { return }
+        lastIdentityRefreshAt = now
+        identityCache.removeAll(keepingCapacity: true)
+
+        mainApplications = NSWorkspace.shared.runningApplications.compactMap { app in
+            guard let name = app.localizedName, !name.isEmpty else { return nil }
+            let bundlePath = app.bundleURL?.path
+            let id = bundlePath ?? app.bundleIdentifier ?? name
+            return AppIdentity(id: id, name: name, bundlePath: bundlePath)
+        }
+    }
+
+    private func resolveApplicationIdentity(pid: Int32, at now: Date) -> AppIdentity {
+        if let cached = identityCache[pid] { return cached }
+
+        let running = NSRunningApplication(processIdentifier: pid)
+        let executable = executablePath(for: pid)
+        let directBundle = executable.flatMap(containingApplicationPath)
+            ?? running?.bundleURL?.path
+        let runningName = running?.localizedName
+
+        let identity: AppIdentity
+        if let directBundle {
+            identity = AppIdentity(
+                id: directBundle,
+                name: bundleName(for: directBundle) ?? runningName ?? URL(fileURLWithPath: directBundle).deletingPathExtension().lastPathComponent,
+                bundlePath: directBundle
+            )
+        } else if let runningName,
+                  let main = mainApplications.first(where: { runningName.hasPrefix($0.name) }) {
+            identity = main
+        } else if let executable {
+            identity = AppIdentity(
+                id: "process:\(executable)",
+                name: runningName ?? URL(fileURLWithPath: executable).lastPathComponent,
+                bundlePath: nil
+            )
+        } else {
+            identity = AppIdentity(
+                id: "pid:\(pid)",
+                name: runningName ?? "PID \(pid)",
+                bundlePath: nil
+            )
+        }
+
+        identityCache[pid] = identity
+        return identity
+    }
+
+    private func executablePath(for pid: Int32) -> String? {
+        var buffer = [CChar](repeating: 0, count: 4_096)
+        let length = proc_pidpath(pid, &buffer, UInt32(buffer.count))
+        guard length > 0 else { return nil }
+        let bytes = buffer.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }
+        return String(decoding: bytes, as: UTF8.self)
+    }
+
+    private func containingApplicationPath(from executable: String) -> String? {
+        guard let range = executable.range(of: ".app/") else { return nil }
+        let end = executable.index(range.lowerBound, offsetBy: 4)
+        return String(executable[..<end])
+    }
+
+    private func bundleName(for path: String) -> String? {
+        guard let bundle = Bundle(path: path) else { return nil }
+        return (bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)
+            ?? (bundle.object(forInfoDictionaryKey: "CFBundleName") as? String)
     }
 
     // MARK: - System
@@ -423,6 +895,26 @@ final class MacMonitorReader {
         return property.takeRetainedValue() as? String
     }
 
+    private func registryDictionary(_ service: io_object_t, key: String) -> [String: Any]? {
+        guard let property = IORegistryEntryCreateCFProperty(
+            service,
+            key as CFString,
+            kCFAllocatorDefault,
+            0
+        ) else { return nil }
+        return property.takeRetainedValue() as? [String: Any]
+    }
+
+    private func registryNumber(_ service: io_object_t, key: String) -> Double? {
+        guard let property = IORegistryEntryCreateCFProperty(
+            service,
+            key as CFString,
+            kCFAllocatorDefault,
+            0
+        ) else { return nil }
+        return signedNumber(property.takeRetainedValue())
+    }
+
     private func number(_ value: Any?) -> UInt64 {
         switch value {
         case let value as NSNumber: value.uint64Value
@@ -431,6 +923,56 @@ final class MacMonitorReader {
         case let value as Int64: UInt64(max(0, value))
         default: 0
         }
+    }
+
+    private func signedNumber(_ value: Any?) -> Double? {
+        switch value {
+        case let value as NSNumber: value.doubleValue
+        case let value as Double: value
+        case let value as Float: Double(value)
+        case let value as Int: Double(value)
+        case let value as Int64: Double(value)
+        case let value as UInt64: Double(value)
+        default: nil
+        }
+    }
+}
+
+/// 供电事件的本地持久化。
+///
+/// 只保存事件类型和时间。数据留在本机，不上传。
+private final class MonitorPowerEventStore {
+    private static let key = "monitor.power.events.v1"
+
+    private let defaults: UserDefaults
+    private var history: MonitorPowerEventHistory
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        if let data = defaults.data(forKey: Self.key),
+           let events = try? JSONDecoder().decode([MonitorPowerEvent].self, from: data) {
+            history = MonitorPowerEventHistory(events: events)
+        } else {
+            history = MonitorPowerEventHistory()
+        }
+    }
+
+    func observe(
+        supply: MonitorSnapshot.Power.Supply,
+        batteryPercent: Double?,
+        at date: Date
+    ) -> [MonitorPowerEvent] {
+        let previous = history.events
+        let events = history.observe(
+            supply: supply,
+            batteryPercent: batteryPercent,
+            at: date
+        )
+        if events != previous,
+           let data = try? JSONEncoder().encode(events) {
+            defaults.set(data, forKey: Self.key)
+        }
+        return events
     }
 }
 
@@ -444,5 +986,9 @@ actor MonitorSampler {
 
     func sample() -> MonitorSnapshot {
         reader.read()
+    }
+
+    func samplePowerOnly() -> MonitorSnapshot.Power {
+        reader.readPowerOnly()
     }
 }

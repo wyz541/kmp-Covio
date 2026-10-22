@@ -2,6 +2,7 @@ package com.wyz.covio.core
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -28,7 +29,7 @@ class HelperWireTest {
     fun `an unknown protocol version is rejected`() {
         assertEquals(
             "Unsupported protocol version",
-            HelperWire.validate(request(HelperWire.COMMAND_VERSION, version = "2")),
+            HelperWire.validate(request(HelperWire.COMMAND_VERSION, version = "1")),
         )
     }
 
@@ -95,6 +96,50 @@ class HelperWireTest {
         }
     }
 
+    @Test
+    fun `charge limit configuration requires a five point limit`() {
+        assertEquals(
+            "Missing charge limit",
+            HelperWire.validate(request(HelperWire.COMMAND_CHARGE_LIMIT_CONFIGURE)),
+        )
+        assertEquals(
+            "Missing charge limit",
+            HelperWire.validate(
+                request(HelperWire.COMMAND_CHARGE_LIMIT_CONFIGURE, mapOf("percent" to "abc")),
+            ),
+        )
+        for (percent in listOf("19", "79", "101")) {
+            assertEquals(
+                "Invalid charge limit",
+                HelperWire.validate(
+                    request(HelperWire.COMMAND_CHARGE_LIMIT_CONFIGURE, mapOf("percent" to percent)),
+                ),
+            )
+        }
+        for (percent in listOf("20", "55", "100")) {
+            assertNull(
+                HelperWire.validate(
+                    request(HelperWire.COMMAND_CHARGE_LIMIT_CONFIGURE, mapOf("percent" to percent)),
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `charge limit status and restore need no payload`() {
+        assertNull(HelperWire.validate(request(HelperWire.COMMAND_CHARGE_LIMIT_STATUS)))
+        assertNull(HelperWire.validate(request(HelperWire.COMMAND_CHARGE_LIMIT_RESTORE)))
+    }
+
+    @Test
+    fun `only charge commands require client signature verification`() {
+        assertTrue(HelperWire.isChargeLimitCommand(HelperWire.COMMAND_CHARGE_LIMIT_STATUS))
+        assertTrue(HelperWire.isChargeLimitCommand(HelperWire.COMMAND_CHARGE_LIMIT_CONFIGURE))
+        assertTrue(HelperWire.isChargeLimitCommand(HelperWire.COMMAND_CHARGE_LIMIT_RESTORE))
+        assertFalse(HelperWire.isChargeLimitCommand(HelperWire.COMMAND_VERSION))
+        assertFalse(HelperWire.isChargeLimitCommand(HelperWire.COMMAND_SET_DISABLE_SLEEP))
+    }
+
     /**
      * 校验顺序是协议的一部分。
      *
@@ -103,7 +148,7 @@ class HelperWireTest {
      */
     @Test
     fun `validation reports the first problem in a fixed order`() {
-        val everythingWrong = HelperRequest("2", "", "runShell", emptyMap())
+        val everythingWrong = HelperRequest("1", "", "runShell", emptyMap())
         assertEquals("Unsupported protocol version", HelperWire.validate(everythingWrong))
 
         val versionOk = HelperRequest(HELPER_PROTOCOL_VERSION, "", "runShell", emptyMap())
@@ -119,7 +164,7 @@ class HelperWireTest {
     fun `an empty payload is left out of the request`() {
         val line = HelperWire.encodeRequest(request(HelperWire.COMMAND_VERSION))
 
-        assertEquals("""{"version":"1","requestId":"r1","command":"version"}""", line)
+        assertEquals("""{"version":"2","requestId":"r1","command":"version"}""", line)
     }
 
     @Test
@@ -129,7 +174,7 @@ class HelperWireTest {
         )
 
         assertEquals(
-            """{"version":"1","requestId":"r1","command":"setDisableSleep","payload":{"disabled":"true"}}""",
+            """{"version":"2","requestId":"r1","command":"setDisableSleep","payload":{"disabled":"true"}}""",
             line,
         )
     }
@@ -137,7 +182,7 @@ class HelperWireTest {
     @Test
     fun `a request without a payload key decodes with an empty one`() {
         val decoded = assertNotNull(
-            HelperWire.decodeRequest("""{"version":"1","requestId":"r","command":"version"}"""),
+            HelperWire.decodeRequest("""{"version":"2","requestId":"r","command":"version"}"""),
         )
 
         assertTrue(decoded.payload.isEmpty())
@@ -146,28 +191,28 @@ class HelperWireTest {
     @Test
     fun `unknown keys are ignored on the way in and gone on the way out`() {
         val decoded = assertNotNull(
-            HelperWire.decodeRequest("""{"version":"1","requestId":"r","command":"version","future":7}"""),
+            HelperWire.decodeRequest("""{"version":"2","requestId":"r","command":"version","future":7}"""),
         )
 
-        assertEquals("""{"version":"1","requestId":"r","command":"version"}""", HelperWire.encodeRequest(decoded))
+        assertEquals("""{"version":"2","requestId":"r","command":"version"}""", HelperWire.encodeRequest(decoded))
     }
 
     @Test
     fun `a line that is not a request decodes to null`() {
         assertNull(HelperWire.decodeRequest("这不是 JSON"))
         assertNull(HelperWire.decodeRequest("{}"))
-        assertNull(HelperWire.decodeRequest("""{"version":"1","requestId":"r"}"""))
+        assertNull(HelperWire.decodeRequest("""{"version":"2","requestId":"r"}"""))
     }
 
     @Test
     fun `a successful reply leaves an empty result out`() {
-        assertEquals("""{"version":"1","requestId":"r","ok":true}""", HelperWire.encodeReply(HelperWire.success("r")))
+        assertEquals("""{"version":"2","requestId":"r","ok":true}""", HelperWire.encodeReply(HelperWire.success("r")))
     }
 
     @Test
     fun `a successful reply keeps a non empty result`() {
         assertEquals(
-            """{"version":"1","requestId":"r","ok":true,"result":{"a":"b"}}""",
+            """{"version":"2","requestId":"r","ok":true,"result":{"a":"b"}}""",
             HelperWire.encodeReply(HelperWire.success("r", mapOf("a" to "b"))),
         )
     }
@@ -175,14 +220,14 @@ class HelperWireTest {
     @Test
     fun `a failure reply carries only the message`() {
         assertEquals(
-            """{"version":"1","requestId":"r","ok":false,"error":"boom"}""",
+            """{"version":"2","requestId":"r","ok":false,"error":"boom"}""",
             HelperWire.encodeReply(HelperWire.failure("r", "boom")),
         )
     }
 
     @Test
     fun `a reply without result and error decodes with both null`() {
-        val reply = assertNotNull(HelperWire.decodeReply("""{"version":"1","requestId":"r","ok":true}"""))
+        val reply = assertNotNull(HelperWire.decodeReply("""{"version":"2","requestId":"r","ok":true}"""))
 
         assertTrue(reply.ok)
         assertNull(reply.result)
@@ -204,10 +249,10 @@ class HelperWireTest {
      */
     @Test
     fun `a quoted boolean is accepted by the lenient decoder`() {
-        val reply = assertNotNull(HelperWire.decodeReply("""{"version":"1","requestId":"r","ok":"true"}"""))
+        val reply = assertNotNull(HelperWire.decodeReply("""{"version":"2","requestId":"r","ok":"true"}"""))
 
         assertTrue(reply.ok)
-        assertEquals("""{"version":"1","requestId":"r","ok":true}""", HelperWire.encodeReply(reply))
+        assertEquals("""{"version":"2","requestId":"r","ok":true}""", HelperWire.encodeReply(reply))
     }
 
     // MARK: pmset
@@ -293,9 +338,16 @@ class HelperWireTest {
     // MARK: 协议值
 
     @Test
-    fun `the allow list is exactly the three commands the wire knows`() {
+    fun `the allow list is exactly the commands the wire knows`() {
         assertEquals(
-            setOf(HelperWire.COMMAND_VERSION, HelperWire.COMMAND_SET_DISABLE_SLEEP, HelperWire.COMMAND_SET_HIBERNATE_MODE),
+            setOf(
+                HelperWire.COMMAND_VERSION,
+                HelperWire.COMMAND_SET_DISABLE_SLEEP,
+                HelperWire.COMMAND_SET_HIBERNATE_MODE,
+                HelperWire.COMMAND_CHARGE_LIMIT_STATUS,
+                HelperWire.COMMAND_CHARGE_LIMIT_CONFIGURE,
+                HelperWire.COMMAND_CHARGE_LIMIT_RESTORE,
+            ),
             HELPER_ALLOWED_COMMANDS,
         )
     }

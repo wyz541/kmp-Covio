@@ -1,0 +1,68 @@
+---
+title: 电源管理工作区
+description: 用真机实例解释电源状态、保持唤醒和自动规则。
+component:
+  id: power-management
+  kind: surface
+  status: preview
+  definition: 电源管理工作区把当前供电、保持唤醒和安全规则放在同一张界面里。
+  capabilities:
+    - id: inspect
+      title: 查看当前供电
+      description: 页面显示电池、适配器、外接屏、热状态和低电量模式。
+    - id: hold
+      title: 保持唤醒
+      description: 用户可切换只保持系统唤醒，或同时保持屏幕唤醒。
+    - id: guard
+      title: 设置自动规则
+      description: 用户可按电源来源启用保持唤醒规则。
+    - id: confirm
+      title: 确认运行结果
+      description: 状态行和完成提示报告当前模式与剩余时间。
+  states:
+    - 实时监测
+    - 保持唤醒
+    - 已完成
+    - 安全规则开启
+  platforms:
+    - macOS 27.0.1
+evidence:
+  - id: EV-POWER-001
+    image: ./evidence/2026-10-21__macbookpro18-2__macos-27.0.1__light__EV-POWER-001.png
+    alt: Covio 电源管理工作区的真机截图，显示电池 80%、保持唤醒和自动规则
+    capturedAt: 2026-10-21
+    device: MacBook Pro 16-inch (M1 Max, 2021, 64 GB)
+    os: macOS 27.0.1 (26A434)
+    appearance: light
+    scene: 保持唤醒与完成提示
+    sourceCommit: 9b99b2d9fbc0
+    sourceBranch: task/power-lid-zero-brightness-203
+    sha256: acd3033aec84593aaeb50c76efdcaa2fb4d9f3e4de3c91ae7e87d01bf51ca22d
+    status: real-device
+---
+
+import ComponentFacts from '../../../../components/guide/ComponentFacts.astro';
+import EvidenceFigure from '../../../../components/guide/EvidenceFigure.astro';
+import Legend from '../../../../components/guide/Legend.astro';
+
+<ComponentFacts />
+
+## 界面解决的问题
+
+用户需要在一个页面里回答三个问题：当前供电是什么，保持唤醒是否开启，自动规则是否会介入。页面把答案放在同一层级，减少来回切页。
+
+<Legend />
+
+## 真机实例
+
+<EvidenceFigure />
+
+:::caution[预览素材来源]
+这张截图来自 `task/power-lid-zero-brightness-203` 的当前构建。它用于验证真机证据管线，不代表最终发布内容。正式内容必须从 `main` 重新采集。
+:::
+
+## 读图提示
+
+- 绿色状态文字表示当前操作已有结果。
+- 开关显示自动规则状态。颜色不是唯一线索。
+- “剩余 11 分”只描述当前实例，不是固定规则。

@@ -34,6 +34,7 @@ private const val MAX_TITLE_LENGTH = 24
 @Serializable
 enum class PaneKind {
     @SerialName("now") NOW,
+    @SerialName("agent") AGENT,
     @SerialName("clipboard") CLIPBOARD,
     @SerialName("files") FILES,
     @SerialName("screenshots") SCREENSHOTS,
@@ -271,9 +272,9 @@ data class WorkbenchConfig(
 }
 
 /**
- * 六个内置工作区，按需求文档第 5 节的顺序。
+ * 七个内置工作区，按需求文档第 5 节的顺序。
  *
- * 顺序在所有平台上一致：Now、Clipboard、Files、Screenshots、Devices、Settings。
+ * 顺序在所有平台上一致：Now、Agent、Clipboard、Files、Screenshots、Devices、Settings。
  * 用户可以改顺序，默认值只有这一份。
  */
 fun defaultPanes(): List<PaneInstance> = PaneKind.entries

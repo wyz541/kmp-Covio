@@ -132,7 +132,8 @@ interface HardwareMetricsPort {
 | `cpu.temperature` | 摄氏度 | CPU | 否 |
 | `sensor.fanRpm` | 转每分 | CPU | 否 |
 | `cpu.frequency` | 赫兹 | CPU | 否 |
-| `power.systemWatts` | 瓦 | POWER | 否 |
+| `power.systemWatts` | 瓦 | POWER | 是（`AppleSmartBattery` 遥测） |
+| `power.appEnergy60m` | 毫瓦时 | POWER | 是（`proc_pid_rusage`） |
 
 ### 2.5 错误码
 
@@ -152,8 +153,9 @@ interface HardwareMetricsPort {
 | 内存 | 轮询 | 2 秒 | 10 秒 | 变化慢 |
 | 磁盘 | 轮询取差值 | 2 秒 | 10 秒 | 变化慢 |
 | 网络 | 轮询取差值 | 1 秒 | 5 秒 | 变化快 |
-| 电池 | 推送加轮询 | 5 秒 | 30 秒 | 有系统推送 |
-| 电源与合盖 | 推送 | 事件 | 事件 | 系统有通知 |
+| 电池与电源遥测 | 轮询 | 1 秒 | 1 秒 | Monitor 电源卡片要求 1 秒内切换状态 |
+| 进程能耗 | 累计差值加分钟桶 | 10 秒 | 10 秒 | 计算近 60 分钟 Top3 |
+| 合盖 | 推送 | 事件 | 事件 | 系统有通知 |
 | GPU | 轮询 | 1 秒 | 5 秒 | 变化快 |
 | 系统信息 | 一次 | 启动时 | 启动时 | 不变 |
 | 进程列表 | 轮询 | 5 秒 | 30 秒 | 开销大 |
@@ -201,7 +203,7 @@ interface HardwareMetricsPort {
 | 4 | 实现 `MetricSampler` 与供电降频 | 阶段 2 |
 | 5 | 监控页接端口，替换占位 | 阶段 4 |
 | 6 | GPU 与进程分组 | 阶段 5 |
-| 7 | 温度与风扇，需要 SMC | 未决项解决后 |
+| 7 | CPU 温度与风扇，需要 SMC | 未决项解决后 |
 
 每个阶段一条分支一个 PR。
 
@@ -216,4 +218,4 @@ interface HardwareMetricsPort {
 1. 五组指标在 Apple Silicon 与 Intel 机型都验证过。
 2. 采样开销实测通过。
 3. 设计合同补上监控页的文案与组件条目。
-4. 温度与风扇的未决项有结论。
+4. CPU 温度与风扇的未决项有结论。

@@ -5,6 +5,7 @@ import kmpDomain
 ///
 /// 主入口是菜单栏上的品牌胶囊（`MenuBarCapsulePanel`）。这个状态项留着，
 /// 是为了在胶囊窗口万一没上屏时，仍然有地方打开挂帘、进设置、退出应用。
+/// 状态项图形由 `CovioStatusIcon` 绘制，是随菜单栏明暗外观变化的模板图标。
 ///
 /// 行为来自设计合同 `component/tray-icon.swiftMapping`：左键开合挂帘，右键开菜单。
 @MainActor
@@ -26,11 +27,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     private func configureButton() {
         guard let button = statusItem.button else { return }
-        let image = NSImage(
-            systemSymbolName: Self.defaultSymbolName,
-            accessibilityDescription: ContractCopy.copyStatusItemDefault.text
-        )
-        image?.isTemplate = true
+        let image = CovioStatusIcon.makeImage()
         button.image = image
         button.imagePosition = .imageOnly
         button.toolTip = ContractCopy.copyStatusItemDefault.text
@@ -79,9 +76,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         statusItem.menu = nil
         NSStatusBar.system.removeStatusItem(statusItem)
     }
-
-    /// 合同的 `component/tray-icon` 变体里 DEFAULT 对应的 SF Symbol。
-    private static let defaultSymbolName = "menubar.rectangle"
 
     // MARK: - 点击
 

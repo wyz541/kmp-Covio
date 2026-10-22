@@ -23,7 +23,7 @@ class Engine(
 ) {
     /*
      * 所有可变字段都由这把锁保护。JVM 上是 synchronized，macosArm64 上是
-     * 递归的 pthread 互斥量：reconcilePolicy 会嵌套调用 setIdleSleepAvailable，
+     * 递归的 pthread 互斥量：reconcilePolicy 会嵌套调用 setLidSleepAvailable，
      * 所以锁必须可重入。
      */
     private val lock = EngineLock()
@@ -42,6 +42,7 @@ class Engine(
     private var lastWakeEvent: WakeEvent? = null
     private var wakeScanScheduled = false
     private var cachedWakeLog: WakeLogCache? = null
+    private val holdLeases = HoldLeaseManager(sleepController, clock)
 
     val currentState: AppState get() = lock.withLock { state }
     val currentConfig: AppConfig get() = lock.withLock { config }
@@ -70,6 +71,7 @@ class Engine(
                 helperStatus = helperStatus,
             )
         }
+        syncIdleState(holdLeases.refresh())
         startInitialWakeScan()
         reconcilePolicy(clearStaleLidFlag = true)
         publish()
@@ -92,7 +94,7 @@ class Engine(
             }
         }
         if (!wasStarted) return
-        runCatching { sleepController.setIdleSleepPrevented(false) }
+        syncIdleState(holdLeases.clear())
         if (!currentState.lidSleepAvailable || runCatching { privileged.isInstalled() }.getOrDefault(false)) {
             runCatching { privileged.setDisableSleep(false) }
                 .onFailure { logger.warn("Cannot clear disablesleep on stop", it) }
@@ -102,7 +104,6 @@ class Engine(
         runCatching { sleepWatcher.stop() }
         lock.withLock {
             state = state.copy(
-                idleSleepAvailable = true,
                 lidSleepAvailable = true,
                 idleCancelRemainingSeconds = null,
                 lidCancelRemainingSeconds = null,
@@ -151,9 +152,15 @@ class Engine(
         val deadlines = lock.withLock { Deadlines(idleCancelAtMillis, lidCancelAtMillis) }
         val idleDeadline = deadlines.idle
         val lidDeadline = deadlines.lid
-        if (idleDeadline != null) {
-            val remaining = idleDeadline - nowMillis
-            if (remaining <= 0L) setIdleSleepAvailable(true) else updateCountdowns(nowMillis)
+        val idleSnapshot = if (idleDeadline != null && idleDeadline <= nowMillis) {
+            lock.withLock { idleCancelAtMillis = null }
+            holdLeases.cancel(IDLE_TIMER_LEASE_ID)
+        } else {
+            holdLeases.tick(nowMillis)
+        }
+        syncIdleState(idleSnapshot)
+        if (idleDeadline != null && idleDeadline > nowMillis) {
+            updateCountdowns(nowMillis)
         }
         if (lidDeadline != null) {
             val remaining = lidDeadline - nowMillis
@@ -193,8 +200,9 @@ class Engine(
         }
         if (alreadyApplied) return true
         val success = if (!enabled) {
-            setIdleSleepAvailable(true)
-            applyDesiredLidHold(forceClear = true).success
+            syncIdleState(holdLeases.clear())
+            val idleSuccess = currentState.lastError == null
+            idleSuccess && applyDesiredLidHold(forceClear = true).success
         } else {
             reconcilePolicy()
         }
@@ -202,21 +210,49 @@ class Engine(
         return success
     }
 
+    /**
+     * 兼容旧设置页。关闭时结束手动和定时空闲租约。
+     *
+     * 自动规则由配置控制，本方法不改自动规则。
+     */
     fun setIdleSleepAvailable(available: Boolean) {
-        val changed = lock.withLock {
-            val changed = state.idleSleepAvailable != available
-            state = state.copy(
-                idleSleepAvailable = available,
-                idleCancelRemainingSeconds = if (available) null else state.idleCancelRemainingSeconds,
-            )
-            if (available) idleCancelAtMillis = null
-            changed
+        setIdleSleepPrevention(if (available) IdleSleepPrevention.NONE else IdleSleepPrevention.SYSTEM)
+    }
+
+    /**
+     * 设置手动空闲保持等级。
+     *
+     * [IdleSleepPrevention.NONE] 同时结束手动租约和定时租约。
+     * 自动规则租约不受影响。
+     */
+    fun setIdleSleepPrevention(prevention: IdleSleepPrevention): Boolean {
+        if (prevention == IdleSleepPrevention.UNKNOWN) return false
+        val snapshot = when (prevention) {
+            IdleSleepPrevention.NONE -> {
+                lock.withLock { idleCancelAtMillis = null }
+                holdLeases.cancelSources(listOf(HoldLeaseSource.MANUAL, HoldLeaseSource.TIMER))
+            }
+            IdleSleepPrevention.SYSTEM, IdleSleepPrevention.SYSTEM_AND_DISPLAY -> {
+                holdLeases.upsert(
+                    HoldLease(
+                        id = IDLE_MANUAL_LEASE_ID,
+                        level = if (prevention == IdleSleepPrevention.SYSTEM) {
+                            HoldLeaseLevel.SYSTEM
+                        } else {
+                            HoldLeaseLevel.SYSTEM_AND_DISPLAY
+                        },
+                        source = HoldLeaseSource.MANUAL,
+                        reason = "Manual idle hold",
+                        createdAtEpochSeconds = clock() / 1_000L,
+                    ),
+                )
+            }
+            IdleSleepPrevention.UNKNOWN -> return false
         }
-        if (changed) {
-            runCatching { sleepController.setIdleSleepPrevented(!available) }
-                .onFailure { logger.warn("Cannot update idle sleep assertion", it) }
-        }
+        syncIdleState(snapshot)
+        snapshot.lastError?.let { logger.warn("Cannot update idle sleep assertion: $it") }
         publish()
+        return snapshot.lastError == null
     }
 
     fun setLidSleepAvailable(available: Boolean): Boolean {
@@ -253,9 +289,23 @@ class Engine(
 
     fun scheduleCancelIdle(afterSeconds: Long) {
         require(afterSeconds > 0L) { "afterSeconds must be positive" }
-        setIdleSleepAvailable(false)
-        lock.withLock { idleCancelAtMillis = clock() + afterSeconds * 1_000L }
-        updateCountdowns(clock())
+        val startedAtMillis = clock()
+        val deadlineMillis = startedAtMillis + afterSeconds * 1_000L
+        val expiresAtEpochSeconds = (deadlineMillis + 999L) / 1_000L
+        val snapshot = holdLeases.upsert(
+            HoldLease(
+                id = IDLE_TIMER_LEASE_ID,
+                level = HoldLeaseLevel.SYSTEM,
+                source = HoldLeaseSource.TIMER,
+                reason = "Timed idle hold",
+                createdAtEpochSeconds = startedAtMillis / 1_000L,
+                expiresAtEpochSeconds = expiresAtEpochSeconds,
+            ),
+        )
+        lock.withLock { idleCancelAtMillis = deadlineMillis }
+        syncIdleState(snapshot)
+        snapshot.lastError?.let { logger.warn("Cannot start idle timer: $it") }
+        updateCountdowns(startedAtMillis)
         publish()
     }
 
@@ -289,7 +339,6 @@ class Engine(
                 RestorePoint(
                     restoreIdle = fixIdle,
                     restoreLid = fixLid,
-                    idleDeadline = idleCancelAtMillis,
                     lidDeadline = lidCancelAtMillis,
                 )
             } else {
@@ -297,7 +346,11 @@ class Engine(
             }
             outcome
         }
-        if (plan.fixIdle) setIdleSleepAvailable(true)
+        if (plan.fixIdle) {
+            syncIdleState(
+                if (restoreAfterWake) holdLeases.suspend() else holdLeases.clear(),
+            )
+        }
         if (plan.fixLid) setLidSleepAvailable(true)
         runCatching { sleepController.sleep() }
             .onFailure { logger.error("Sleep request failed", it) }
@@ -322,17 +375,16 @@ class Engine(
         try {
             val snapshot = currentState
             if (!snapshot.enabled) {
-                setIdleSleepAvailable(true)
-                return applyDesiredLidHold(forceClear = clearStaleLidFlag).success
+                syncIdleState(holdLeases.clear())
+                val idleSuccess = currentState.lastError == null
+                return idleSuccess && applyDesiredLidHold(forceClear = clearStaleLidFlag).success
             }
             val battery = snapshot.battery ?: readBattery() ?: run {
                 return applyDesiredLidHold(forceClear = clearStaleLidFlag).success
             }
-            if (config.disableIdleSleepInCharging && battery.state.isCharging) {
-                setIdleSleepAvailable(false)
-            } else if (config.disableIdleSleepInCharging) {
-                setIdleSleepAvailable(true)
-            }
+            val idleSuccess = applyChargingIdleRule(
+                active = config.disableIdleSleepInCharging && battery.state.isCharging,
+            )
 
             val lowBattery = lowBatterySleepRequired(battery)
             if (lowBattery) {
@@ -342,7 +394,7 @@ class Engine(
                     logger.info("Low battery detected: ${battery.percent}% remaining=${battery.remainingSeconds}")
                     requestSleep(restoreAfterWake = false)
                 }
-                return result.success
+                return idleSuccess && result.success
             }
             lowBatterySleepLatched = false
 
@@ -350,7 +402,7 @@ class Engine(
             if (result.released && currentState.lid == LidState.CLOSED && currentConfig.lidSleepImmediateOnClose) {
                 requestSleep(restoreAfterWake = true)
             }
-            return result.success
+            return idleSuccess && result.success
         } finally {
             lock.withLock { reconcileInProgress = false }
         }
@@ -403,6 +455,37 @@ class Engine(
             it <= snapshot.lowTimeRemainingMinutes.toLong() * 60L
         } ?: false
         return lowCapacity || lowRemaining
+    }
+
+    private fun applyChargingIdleRule(active: Boolean): Boolean {
+        val snapshot = if (active) {
+            holdLeases.upsert(
+                HoldLease(
+                    id = IDLE_CHARGING_RULE_LEASE_ID,
+                    level = HoldLeaseLevel.SYSTEM,
+                    source = HoldLeaseSource.RULE,
+                    reason = "Adapter idle rule",
+                    createdAtEpochSeconds = clock() / 1_000L,
+                ),
+            )
+        } else {
+            holdLeases.cancelSource(HoldLeaseSource.RULE)
+        }
+        syncIdleState(snapshot)
+        snapshot.lastError?.let { logger.warn("Cannot update charging idle rule: $it") }
+        return snapshot.lastError == null
+    }
+
+    private fun syncIdleState(snapshot: HoldLeaseSnapshot) {
+        val available = snapshot.actualPrevention == IdleSleepPrevention.NONE ||
+            snapshot.actualPrevention == IdleSleepPrevention.UNKNOWN
+        lock.withLock {
+            state = state.copy(
+                idleSleepAvailable = available,
+                idleSleepPrevention = snapshot.actualPrevention,
+                lastError = snapshot.lastError,
+            )
+        }
     }
 
     private fun onPowerChanged() {
@@ -598,10 +681,9 @@ class Engine(
         }
         if (alreadyRestoring) return true
         try {
-            if (restore.restoreIdle) setIdleSleepAvailable(false)
+            if (restore.restoreIdle) syncIdleState(holdLeases.resume())
             lock.withLock {
                 restoreAfterSleep = null
-                if (restore.idleDeadline != null) idleCancelAtMillis = restore.idleDeadline
                 if (restore.lidDeadline != null) lidCancelAtMillis = restore.lidDeadline
             }
             reconcilePolicy()
@@ -634,7 +716,6 @@ class Engine(
     private data class RestorePoint(
         val restoreIdle: Boolean,
         val restoreLid: Boolean,
-        val idleDeadline: Long?,
         val lidDeadline: Long?,
     )
 
@@ -665,5 +746,8 @@ class Engine(
 
     companion object {
         private const val WAKE_LOG_CACHE_MILLIS = 60_000L
+        private const val IDLE_MANUAL_LEASE_ID = "idle/manual"
+        private const val IDLE_TIMER_LEASE_ID = "idle/timer"
+        private const val IDLE_CHARGING_RULE_LEASE_ID = "idle/rule/charging"
     }
 }

@@ -285,6 +285,19 @@ final class AppRuntimeTests: XCTestCase {
         XCTAssertNil(created.statusMessage)
     }
 
+    /// 闲置开关按真实断言状态切换，连续两次回到原状态。
+    func testIdleToggleUsesTheActualAssertionState() {
+        let created = makeRuntime(engineStarted: true)
+
+        created.toggleIdleSleep()
+        XCTAssertFalse(created.appState.idleSleepAvailable)
+        XCTAssertEqual(created.appState.idleSleepPrevention, .system)
+
+        created.toggleIdleSleep()
+        XCTAssertTrue(created.appState.idleSleepAvailable)
+        XCTAssertEqual(created.appState.idleSleepPrevention, .none)
+    }
+
     /// 装 helper 成功后收起欢迎页，并给出成功提示。
     func testInstallHelperSucceeds() async throws {
         let created = makeRuntime(helperInstalled: true)

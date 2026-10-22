@@ -428,6 +428,7 @@ data class AppState(
     val lid: LidState = LidState.UNKNOWN,
     val enabled: Boolean = true,
     val idleSleepAvailable: Boolean = true,
+    val idleSleepPrevention: IdleSleepPrevention = IdleSleepPrevention.NONE,
     val lidSleepAvailable: Boolean = true,
     val idleCancelRemainingSeconds: Long? = null,
     val lidCancelRemainingSeconds: Long? = null,

@@ -8,7 +8,7 @@ import kotlin.test.assertTrue
  * `EngineLock` 的行为测试。
  *
  * 这些断言在两个平台上都必须通过。`nestedAcquisitionDoesNotDeadlock` 是最关键的一条：
- * `Engine.reconcilePolicy()` 会嵌套调用同样取锁的 `setIdleSleepAvailable()`。
+ * `Engine.reconcilePolicy()` 会嵌套调用同样取锁的 `setLidSleepAvailable()`。
  * 若 macosArm64 侧用非递归互斥量，这条测试会死锁而不是失败。
  */
 class EngineLockTest {

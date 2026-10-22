@@ -420,6 +420,63 @@ class EngineTest {
     }
 
     @Test
+    fun `display idle hold exposes the readback level`() {
+        val fixture = Fixture()
+        fixture.engine.start()
+
+        assertTrue(fixture.engine.setIdleSleepPrevention(IdleSleepPrevention.SYSTEM_AND_DISPLAY))
+
+        assertFalse(fixture.engine.currentState.idleSleepAvailable)
+        assertEquals(
+            IdleSleepPrevention.SYSTEM_AND_DISPLAY,
+            fixture.engine.currentState.idleSleepPrevention,
+        )
+        assertEquals(IdleSleepPrevention.SYSTEM_AND_DISPLAY, fixture.sleep.prevention)
+    }
+
+    @Test
+    fun `assertion failure leaves the real state available and records the error`() {
+        val fixture = Fixture()
+        fixture.engine.start()
+        fixture.sleep.failAssertion = true
+
+        assertFalse(fixture.engine.setIdleSleepPrevention(IdleSleepPrevention.SYSTEM))
+
+        assertTrue(fixture.engine.currentState.idleSleepAvailable)
+        assertEquals(IdleSleepPrevention.NONE, fixture.engine.currentState.idleSleepPrevention)
+        assertEquals("assertion failure", fixture.engine.currentState.lastError)
+    }
+
+    @Test
+    fun `idle timer expiry keeps a separate manual hold`() {
+        var now = 1_000L
+        val fixture = Fixture(clock = { now })
+        fixture.engine.start()
+        fixture.engine.setIdleSleepAvailable(false)
+        fixture.engine.scheduleCancelIdle(300)
+
+        now += 301_000L
+        fixture.engine.tick(now)
+
+        assertFalse(fixture.engine.currentState.idleSleepAvailable)
+        assertEquals(IdleSleepPrevention.SYSTEM, fixture.engine.currentState.idleSleepPrevention)
+    }
+
+    @Test
+    fun `manual idle off leaves the charging rule active`() {
+        val fixture = Fixture(AppConfig(disableIdleSleepInCharging = true))
+        fixture.power.value = BatteryStatus(80, PowerState.CHARGING, null)
+        fixture.engine.start()
+        assertFalse(fixture.engine.currentState.idleSleepAvailable)
+
+        fixture.engine.setIdleSleepAvailable(false)
+        fixture.engine.setIdleSleepAvailable(true)
+
+        assertFalse(fixture.engine.currentState.idleSleepAvailable)
+        assertEquals(IdleSleepPrevention.SYSTEM, fixture.engine.currentState.idleSleepPrevention)
+    }
+
+    @Test
     fun `sleep now temporarily restores restrictions and wake restores them`() {
         val fixture = Fixture()
         fixture.power.value = BatteryStatus(90, PowerState.CHARGING, null)
@@ -532,11 +589,22 @@ private class FakeIdle(var seconds: Long = 0L) : IdleSensor {
 private class FakeSleepController : SleepController {
     var sleepCalls = 0
     var displayCalls = 0
-    var prevented = false
+    var prevention = IdleSleepPrevention.NONE
+    var failAssertion = false
+    val appliedPrevention = mutableListOf<IdleSleepPrevention>()
     var timeoutSeconds: Long? = 600
+    val prevented: Boolean get() = prevention.isActive
     override fun sleep() { sleepCalls++ }
     override fun displaySleep() { displayCalls++ }
-    override fun setIdleSleepPrevented(prevented: Boolean) { this.prevented = prevented }
+    override fun applyIdleSleepPrevention(prevention: IdleSleepPrevention): IdleSleepAssertionResult {
+        appliedPrevention += prevention
+        if (failAssertion) {
+            return IdleSleepAssertionResult(prevention, this.prevention, false, "assertion failure")
+        }
+        this.prevention = prevention
+        return IdleSleepAssertionResult(prevention, prevention, true)
+    }
+    override fun readIdleSleepPrevention() = prevention
     override fun systemIdleSleepTimeoutSeconds() = timeoutSeconds
 }
 

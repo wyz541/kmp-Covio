@@ -4,7 +4,7 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 状态 | 通过，10 天 soak 执行中 |
+| 状态 | 通过，真实 10 天 soak 取消 |
 | 日期 | 2026-10-22 |
 | 执行人 | agent |
 | 复核人 | 待填写 |
@@ -16,7 +16,7 @@
 | Case 1 | macOS 历史数据覆盖 | 通过，有限制 | [case-macos-log-retention.md](case-macos-log-retention.md) |
 | Case 2 | 监控读取成本 | 通过，有限制 | [case-sampler-cost.md](case-sampler-cost.md) |
 | Case 3 | SQLite 容量与查询 | 通过 | [case-sqlite-capacity.md](case-sqlite-capacity.md) |
-| Case 4 | 真实采样、HTML 导出与 soak | 通过，soak 执行中 | [case-macos-performance-history-soak.md](case-macos-performance-history-soak.md) |
+| Case 4 | 真实采样、HTML 导出与 soak | 通过，真实 10 天 soak 取消 | [case-macos-performance-history-soak.md](case-macos-performance-history-soak.md) |
 
 ## 3. 验证目标
 
@@ -94,7 +94,7 @@
 | V03 | 14 天 SQLite 容量与查询 | 已完成 | [Case 3](case-sqlite-capacity.md) |
 | V04 | 1 小时真实后台采样 | 已完成 | [Case 4](case-macos-performance-history-soak.md) |
 | V05 | 10 天合成报告与缺口表达 | 已完成 | [Case 4](case-macos-performance-history-soak.md) |
-| V06 | 真实 10 天覆盖 | 执行中 | [Case 4](case-macos-performance-history-soak.md) |
+| V06 | 真实 10 天覆盖 | 未执行（用户取消） | [Case 4](case-macos-performance-history-soak.md) |
 | V07 | Intel 与台式机矩阵 | 待执行 | 找到设备后补 |
 | V08 | 低电量模式耗电 | 未执行 | 需要电池供电环境 |
 | V09 | 睡眠、暗唤醒、完整唤醒和重启状态机 | 已完成 | [Case 4](case-macos-performance-history-soak.md) |
@@ -117,8 +117,9 @@
 5. 确认临时目录为空。
 
 合成报告和 1 小时结果已保存到 Covio 项目证据目录。
-长期 soak 目录继续保留。
-Scratch 内的临时截图和 Preview 副本在任务结束时清理。
+真实 10 天 soak 已停止并被用户取消。
+部分 soak 运行目录已清理。
+Scratch 内的临时截图和 Preview 副本已清理。
 
 ## 13. 关联文档
 

@@ -118,7 +118,7 @@ SQLite3 的行为更透明，测试更容易确定。
 | Intel Mac 的设备能力 | pending | 用 Intel 真机验收 |
 | 台式机没有电池时的报告表现 | pending | 用台式机验收 |
 | App Sandbox 下的事件补读 | pending | 分发形式确定后验证 |
-| 10 天真实后台采样 | pending | 完成 10 天 soak |
+| 10 天真实后台采样 | accepted risk | 用户取消；以 1 小时真实采样和 10 天合成报告验收 |
 | 低电量模式耗电 | pending | 电池模式对照测试 |
 | 精确报告阈值 | pending | 报告实现 PR 中验证 |
 | PDF 或 CSV 附加导出 | pending | HTML 首版完成后再评估 |

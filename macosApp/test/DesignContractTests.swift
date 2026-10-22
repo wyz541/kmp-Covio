@@ -152,8 +152,9 @@ final class DesignContractTests: XCTestCase {
         }
     }
 
-    /// 每个状态只能声明一种视觉来源。DEFAULT 使用 Covio 专属渲染器。
-    func testDefaultStatusItemUsesTheCovioRenderer() throws {
+    /// 每个状态只能声明一种视觉来源。DEFAULT 使用 Covio 专属预渲染资源。
+    @MainActor
+    func testDefaultStatusItemUsesTheCovioAsset() throws {
         let states = try XCTUnwrap(try contractJSON()["states"] as? [String: Any])
         let hub = try XCTUnwrap(states["menuBarAndNotchHub"] as? [String: Any])
         let entries = try XCTUnwrap(hub["statusItemStates"] as? [[String: Any]])
@@ -161,11 +162,13 @@ final class DesignContractTests: XCTestCase {
         for entry in entries {
             let visualSourceCount = (entry["sfSymbol"] == nil ? 0 : 1)
                 + (entry["renderer"] == nil ? 0 : 1)
+                + (entry["assetName"] == nil ? 0 : 1)
             XCTAssertEqual(visualSourceCount, 1, "状态图标必须且只能声明一种视觉来源")
         }
 
         let defaultState = try XCTUnwrap(entries.first { $0["state"] as? String == "DEFAULT" })
-        XCTAssertEqual(defaultState["renderer"] as? String, CovioStatusIcon.rendererName)
+        XCTAssertEqual(defaultState["assetName"] as? String, CovioStatusIcon.assetName)
+        XCTAssertNil(defaultState["renderer"])
         XCTAssertNil(defaultState["sfSymbol"])
     }
 

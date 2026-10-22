@@ -2529,7 +2529,7 @@
       "sourceAuthority": "macOS 27 (Community)",
       "swiftMapping": {
         "target": "StatusItemController",
-        "behavior": "一级入口由 MenuBarCapsulePanel 绘制 20 点品牌胶囊。StatusItemController 的次级状态项使用 CovioStatusIcon 绘制 18 点模板图标，浅色和深色菜单栏共用同一图形。左键开合挂帘，右键开菜单。"
+        "behavior": "一级入口由 MenuBarCapsulePanel 绘制 20 点品牌胶囊。StatusItemController 的次级状态项加载 CovioStatusIcon 的预渲染 1× 与 2× 拟物玻璃吊卡。运行时复用缓存位图，不计算渐变和阴影。左键开合挂帘，右键开菜单。"
       }
     },
     "component/tray-menu": {
@@ -3715,7 +3715,7 @@
       "statusItemStates": [
         {
           "state": "DEFAULT",
-          "renderer": "CovioStatusIcon",
+          "assetName": "CovioStatusIcon",
           "purpose": "status-icon/default",
           "copyKey": "copy/status-item/default"
         },
@@ -6486,7 +6486,7 @@
     "platform/component/tray-icon": {
       "componentKey": "component/tray-icon",
       "runtimeTarget": "CovioTrayIcon",
-      "behavior": "一级入口由 MenuBarCapsulePanel 绘制 20 点品牌胶囊。StatusItemController 的次级状态项使用 CovioStatusIcon 绘制 18 点模板图标，浅色和深色菜单栏共用同一图形。左键开合挂帘，右键开菜单。",
+      "behavior": "一级入口由 MenuBarCapsulePanel 绘制 20 点品牌胶囊。StatusItemController 的次级状态项加载 CovioStatusIcon 的预渲染 1× 与 2× 拟物玻璃吊卡。运行时复用缓存位图，不计算渐变和阴影。左键开合挂帘，右键开菜单。",
       "status": "native-source-mapped",
       "swiftRuntimeTarget": "StatusItemController"
     },

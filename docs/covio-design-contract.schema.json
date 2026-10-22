@@ -1156,6 +1156,11 @@
                     "required": [
                       "renderer"
                     ]
+                  },
+                  {
+                    "required": [
+                      "assetName"
+                    ]
                   }
                 ],
                 "properties": {
@@ -1168,6 +1173,10 @@
                     "minLength": 1
                   },
                   "renderer": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "assetName": {
                     "type": "string",
                     "minLength": 1
                   },

@@ -2,17 +2,24 @@ import AppKit
 import XCTest
 @testable import Covio
 
-/// 菜单栏默认图标的尺寸、模板模式和实际覆盖率。
+/// 菜单栏默认图标的资源、缓存、尺寸和实际覆盖率。
 @MainActor
 final class CovioStatusIconTests: XCTestCase {
-    func testTheIconUsesTheMenuBarPointSizeAndTemplateMode() {
+    func testTheIconUsesCachedPreRenderedPixels() {
         let image = CovioStatusIcon.makeImage()
 
         XCTAssertEqual(image.size, NSSize(width: 18, height: 18))
-        XCTAssertTrue(image.isTemplate)
+        XCTAssertFalse(image.isTemplate)
+        XCTAssertTrue(image === CovioStatusIcon.makeImage())
+
+        let pixelSizes = Set(image.representations.map {
+            "\($0.pixelsWide)x\($0.pixelsHigh)"
+        })
+        XCTAssertTrue(pixelSizes.contains("18x18"))
+        XCTAssertTrue(pixelSizes.contains("36x36"))
     }
 
-    func testTheIconHasInkAndTransparentMargins() throws {
+    func testTheIconHasColorAndTransparentMargins() throws {
         let image = CovioStatusIcon.makeImage()
         let side = Int(CovioStatusIcon.pointSize)
         let bitmap = try XCTUnwrap(NSBitmapImageRep(
@@ -34,14 +41,20 @@ final class CovioStatusIconTests: XCTestCase {
         NSGraphicsContext.restoreGraphicsState()
 
         var opaquePixels = 0
+        var hasColor = false
         for y in 0..<side {
-            for x in 0..<side where (bitmap.colorAt(x: x, y: y)?.alphaComponent ?? 0) > 0.5 {
+            for x in 0..<side {
+                guard let pixel = bitmap.colorAt(x: x, y: y), pixel.alphaComponent > 0.5 else {
+                    continue
+                }
                 opaquePixels += 1
+                hasColor = hasColor || abs(pixel.redComponent - pixel.blueComponent) > 0.08
             }
         }
 
         XCTAssertGreaterThan(opaquePixels, 30, "图标没有可辨认的前景")
         XCTAssertLessThan(opaquePixels, side * side / 2, "图标不该铺满菜单栏命中区")
+        XCTAssertTrue(hasColor, "拟物图标应保留品牌蓝色")
         let cornerAlpha = try XCTUnwrap(bitmap.colorAt(x: 0, y: 0)?.alphaComponent)
         XCTAssertEqual(cornerAlpha, 0, accuracy: 0.01)
     }

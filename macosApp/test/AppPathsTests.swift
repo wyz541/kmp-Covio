@@ -60,6 +60,18 @@ final class AppPathsTests: XCTestCase {
         )
     }
 
+    func testMonitorHistorySitsInTheSupportDirectory() {
+        XCTAssertEqual(
+            AppPaths.monitorHistoryFile.deletingLastPathComponent().lastPathComponent,
+            "Monitor"
+        )
+        XCTAssertEqual(AppPaths.monitorHistoryFile.lastPathComponent, "history.sqlite")
+        XCTAssertEqual(
+            AppPaths.monitorHistoryFile.deletingLastPathComponent().deletingLastPathComponent(),
+            AppPaths.supportDirectory
+        )
+    }
+
     func testBothVersionsShareTheSameConfigFile() {
         // M2 要求 config.json 与 0.4.2 双向兼容，所以必须指向同一个文件。
         XCTAssertEqual(AppPaths.configFile.lastPathComponent, "config.json")

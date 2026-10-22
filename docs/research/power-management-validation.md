@@ -4,22 +4,24 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | `2.0` |
-| 状态 | helper v4 与最终 RC 通过；分发阻塞已记录 |
+| 文档版本 | `2.1` |
+| 状态 | 最终 RC 通过；低档位充电上限 no-go；分发阻塞已记录 |
 | 日期 | `2026-10-22` |
-| Issue | #269 |
+| Issue | #269、#162 |
 | Feature | #148 |
-| 基线 | `c3045f0` |
-| RC | `0.5.0` |
+| 基线 | `61bf222` |
+| RC | `0.5.0` Release Candidate v07 |
 
 ## 结论
 
-Power 主线已在 `main` 的 `c3045f0` 上完成最终本地验证。
+Power 主线已在 `main` 的 `61bf222` 上完成最终本地验证。
 helper 已切换到当前主线构建，在线版本是 `0.5.0`，协议是 `v4`。
 真实合盖保持运行 `138` 秒，期间续租 `14` 次，系统启动时间没有变化。
 开盖后租约正常释放，`SleepDisabled` 回到 `0`。
-自动测试全部通过。
+自动测试全部通过：790 项 XCTest，1 项跳过，0 项失败。
 本地 RC 的离线文件命名 bundle 验收通过。
+低档位 `20%` 到 `79%` 充电上限在当前 macOS 27 真机为 no-go。
+当前实现会在 powerd 目标未生效时恢复原策略并返回失败。
 Developer ID 签名和公证当前不可执行。
 当前产品范围不能直接进入 Mac App Store。
 
@@ -30,26 +32,29 @@ Developer ID 签名和公证当前不可执行。
 | 硬件 | MacBook Pro，Apple M1 Max |
 | 内存 | 64 GB |
 | macOS | `27.0.1 (26A434)` |
-| 基线 | `c3045f0` |
+| 基线 | `61bf222` |
 | RC | `0.5.0`，arm64 |
 | helper | `0.5.0`，协议 `4` |
 | 签名 | ad-hoc |
 | 当前供电 | AC Power |
-| 电池 | 内置电池，68%，充电中 |
+| 电池 | 内置电池，有电池 |
 | 系统 `SleepDisabled` | `0` |
 
 ## 已验证
 
 | 场景 | 步骤 | 结果 | 证据 |
 | --- | --- | --- | --- |
-| 构建与测试 | 执行 `bash scripts/test-all.sh` | 通过；727 项 XCTest，1 项跳过，0 项失败 | 本地测试日志 |
+| 构建与测试 | 执行 `bash scripts/test-all.sh` | 通过；790 项 XCTest，1 项跳过，0 项失败 | 本地测试日志 |
 | helper v4 割接 | 卸载旧 worktree helper，安装当前主线构建 | LaunchDaemon 在线；版本 `0.5.0`，协议 `4` | `verify-helper-cutover.sh all` |
 | helper 在线应答 | 查询版本和协议 | 版本 `0.5.0`，协议 `4` | `verify-helper-cutover.sh verify` |
 | 租约写入 | 获取、查询、续租、释放 | `SleepDisabled` 从 `0` 变为 `1`，释放后回到 `0` | `helper-lease-roundtrip.log` |
 | 真实合盖保持 | 持有租约后合盖 `138` 秒 | `AppleClamshellState=Yes`，续租 `14` 次，启动时间不变 | `lid-hold.log` 与 `helper.log` |
 | 开盖恢复 | 打开上盖并释放租约 | `AppleClamshellState=No`，活动租约 `0`，`SleepDisabled=0` | 系统复查 |
 | 所有权恢复 | 释放后检查 marker | `sleep_owner` 不存在 | 系统复查 |
-| RC bundle | 执行离线 bundle 验收 | 2 个文件命名成功，2 个撤销成功，非回环网络连接 `0` | `verify-dmg-c3045f0.log` |
+| RC bundle | 执行离线 bundle 验收 | 2 个文件命名成功，2 个撤销成功，非回环网络连接 `0` | `verify-dmg-61bf222.log` |
+| 原生充电上限 | 应用 `85%`，再恢复 `80%` | `pmset` 进入 `85%`，恢复后回到 `80%` | PR #282 真机记录 |
+| 低档位充电上限 | 应用 `70%`，连续采样 60 秒 | helper 返回 `70%`，`pmset` 12 次全部保持 `80%` | 低档位 no-go 记录 |
+| 低档位失败关闭 | powerd 未接受目标 | helper 恢复原策略、停止重试并关闭 App 启用标记 | PR #282 |
 | 键名兼容 | macOS 27 输出 `SleepDisabled` | KMP 两个平台通过 | `PmsetConfigParserTest` |
 | 浅色布局 | 打开 Power 预览 | 内容可读，页面可滚动 | 窗口截图 |
 | 深色布局 | 打开 Power 预览 | 内容可读，页面可滚动 | 窗口截图 |
@@ -104,6 +109,9 @@ Developer ID 签名和公证当前不可执行。
 实验零亮度已由 [合盖显示与最低亮度](lid-display-minimum-brightness.md) 记录。
 该实验路径使用私有 API。本次 helper v4 割接没有重新执行零亮度物理合盖矩阵。
 
+充电上限的低档位结论见 [电池充电控制](battery-charge-control/conclusion.md)。
+当前 macOS 27 Apple Silicon 不支持把 `20%` 到 `79%` 的请求稳定登记到 powerd。
+
 ## 分发结论
 
 | 路径 | 状态 | 证据 | 解除条件 |
@@ -123,3 +131,5 @@ Developer ID 签名和公证当前不可执行。
 6. Developer ID 和公证凭据缺失，因此 Gatekeeper 仍拒绝 ad-hoc RC。
 7. 私有亮度 API 可能随 macOS 更新失效。
 8. App Store 需要独立产品范围和实现方案，不能在当前 RC 上直接验证。
+9. `20%` 到 `79%` 的充电上限在当前 macOS 27 真机为 no-go。
+10. helper 报告的新目标不能替代 powerd 的 `pmset` 回读。

@@ -238,6 +238,24 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         XCTAssertEqual(backend.appliedTargets, [85])
     }
 
+    func testExplicitConfigureOverridesAnExternalTargetConflict() throws {
+        let backend = FakeChargeLimitBackend()
+        let runtime = makeRuntime(
+            backend: backend,
+            reader: FakeChargeLimitPowerReader(reading: reading(current: 79))
+        )
+        defer { _ = runtime.restore() }
+
+        _ = try runtime.configure(userLimitPercent: 85).get()
+        backend.observedTargetOverride = 95
+        XCTAssertEqual(try runtime.evaluateNow().get().phase, "conflict")
+
+        let reapplied = try runtime.configure(userLimitPercent: 85).get()
+
+        XCTAssertEqual(reapplied.phase, "applying")
+        XCTAssertEqual(backend.appliedTargets, [85, 85])
+    }
+
     func testBypassEvidenceIsExposedWhileHolding() throws {
         let backend = FakeChargeLimitBackend()
         let reader = FakeChargeLimitPowerReader(

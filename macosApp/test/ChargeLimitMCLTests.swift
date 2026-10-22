@@ -66,6 +66,8 @@ final class ChargeLimitMCLTests: XCTestCase {
 
         let state = try XCTUnwrap(successState(result))
         XCTAssertEqual(state.targetPercent, 70)
+        XCTAssertEqual(preferences.writeCounts[DirectMCLPreference.keyFeatureState], 1)
+        XCTAssertEqual(preferences.writeCounts[DirectMCLPreference.keyLimitValue], 1)
         XCTAssertEqual(preferences.ints[DirectMCLPreference.keyLimitValue], 70)
         XCTAssertEqual(preferences.ints[DirectMCLPreference.keyFeatureState], 1)
         XCTAssertEqual(preferences.notifications, 1)
@@ -280,13 +282,17 @@ final class ChargeLimitMCLTests: XCTestCase {
 
 private final class FakeChargeLimitPreferences: ChargeLimitPreferenceStore, @unchecked Sendable {
     var ints: [String: Int] = [:]
+    var writeCounts: [String: Int] = [:]
     var syncResult = true
     var notifications = 0
     var onNotify: (() -> Void)?
 
     func readInt(_ key: String) -> Int? { ints[key] }
 
-    func writeInt(_ key: String, value: Int) { ints[key] = value }
+    func writeInt(_ key: String, value: Int) {
+        ints[key] = value
+        writeCounts[key, default: 0] += 1
+    }
     func synchronize() -> Bool { syncResult }
     func notifyChanged() {
         notifications += 1

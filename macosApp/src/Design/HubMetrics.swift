@@ -216,11 +216,6 @@ enum HubMetrics {
     /// 设置页的主体高度。六个分节共用，内容超出时页内滚动。
     static let settingsBodyHeight: CGFloat = 500
 
-    /// 截图页的主体高度：晾衣线区域。上下内边距由内容列给。
-    ///
-    /// `ScreenshotsTabTests` 逐段核对这个和。
-    static var screenshotsBodyHeight: CGFloat { ScreenshotsTabView.areaHeight }
-
     /// 剪切板页的主体高度：列表区、提示条与它们之间的间距。
     ///
     /// 提示条可能出现也可能不出现，所以按它出现算，宁可多留一点也不裁掉。
@@ -228,12 +223,8 @@ enum HubMetrics {
         ClipboardTabView.listHeight + ClipboardTabView.noticeGap + ClipboardTabView.noticeHeight
     }
 
-    /// 文件页的主体高度：列表区、提示条与它们之间的间距。
-    ///
-    /// 与剪切板页同理：提示条可能不出现，按它出现算，宁可多留一点也不裁掉。
-    static var filesBodyHeight: CGFloat {
-        FilesTabView.listHeight + FilesTabView.noticeGap + FilesTabView.noticeHeight
-    }
+    /// 文件区主体高度。`component/file-area` 的合同尺寸是 912 × 538。
+    static let filesBodyHeight: CGFloat = FileAreaMetrics.areaHeight
 
     /// Agent 页的主体高度：对话区、确认卡和输入框。
     static let agentBodyHeight: CGFloat = 580
@@ -250,7 +241,6 @@ enum HubMetrics {
             case .devices: monitorBodyHeight
             case .now, .board: placeholderBodyHeight
             case .settings: settingsBodyHeight
-            case .screenshots: screenshotsBodyHeight
             case .clipboard: clipboardBodyHeight
             case .files: filesBodyHeight
             case .agent: agentBodyHeight

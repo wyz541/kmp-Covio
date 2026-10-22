@@ -67,6 +67,18 @@ final class WorkbenchModelTests: XCTestCase {
         XCTAssertNotEqual(model.destination, .pane(id: "no-such-pane"))
     }
 
+    /// 旧截图入口进入文件区，并携带一次截图筛选。消费后不重复套用。
+    func testTheLegacyScreenshotEntryOpensFilesWithAScreenshotFilter() {
+        let model = model()
+        model.showFileArea(filter: .screenshots)
+
+        XCTAssertEqual(model.destination, .pane(id: PaneKind.files.defaultId))
+        XCTAssertEqual(model.pendingFileFilter, .screenshots)
+
+        model.consumeFileFilterRequest()
+        XCTAssertNil(model.pendingFileFilter)
+    }
+
     /// 编辑模式里不换页。页签与卡片是两个页面的东西，一起编辑会串。
     func testSelectingAPaneIsIgnoredWhileEditing() {
         let model = model()

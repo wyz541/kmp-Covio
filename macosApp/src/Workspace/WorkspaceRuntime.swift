@@ -233,6 +233,40 @@ final class WorkspaceRuntime {
         environment.open(url)
     }
 
+    /// 复制本机内容。与截图卡片共用同一种文件剪贴板写法。
+    func copy(_ entryId: String) {
+        guard let url = contentURL(entryId) else {
+            errorMessage = ContractCopy.copyHubFilesErrorMissing
+            infoMessage = nil
+            return
+        }
+        guard ShelfClipboard.copy(url) else {
+            errorMessage = ContractCopy.copyHubFilesErrorCopy
+            infoMessage = nil
+            return
+        }
+        errorMessage = nil
+    }
+
+    /// 复制文本正文。只有文本条目使用这一条。
+    func copyText(_ entryId: String) {
+        guard let url = contentURL(entryId),
+              let text = try? String(contentsOf: url, encoding: .utf8)
+        else {
+            errorMessage = ContractCopy.copyHubFilesErrorMissing
+            infoMessage = nil
+            return
+        }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        guard pasteboard.setString(text, forType: .string) else {
+            errorMessage = ContractCopy.copyHubFilesErrorCopy
+            infoMessage = nil
+            return
+        }
+        errorMessage = nil
+    }
+
     func reveal(_ entryId: String) {
         guard let url = contentURL(entryId) else {
             errorMessage = ContractCopy.copyHubFilesErrorMissing

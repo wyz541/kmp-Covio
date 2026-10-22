@@ -26,13 +26,13 @@ final class DesignContractTests: XCTestCase {
 
     // MARK: - 页签
 
-    /// 页签与模型的 `PaneKind` 一一对应，合同里也要有文案。
+    /// 页签与 schema 2 的当前 `PaneKind` 一一对应。
     ///
-    /// 页签列表现在由 `WorkbenchConfig` 给，所以这里的枚举是 `PaneKind` 的镜像。
-    /// 两边对不上时，配置里存的键会找不到视图。
-    func testTabsMatchPaneKinds() throws {
+    /// `PaneKind.SCREENSHOTS` 只为读取 schema 1 配置而保留，不再进入界面枚举。
+    func testTabsMatchCurrentPaneKinds() throws {
         let copy = try XCTUnwrap(try contractJSON()["copy"] as? [String: Any])
-        XCTAssertEqual(HubTab.allCases.count, PaneKind.entries.count, "页签数应等于 PaneKind 的取值数")
+        let currentKinds = PaneKind.entries.filter { $0.key != PaneKind.screenshots.key }
+        XCTAssertEqual(HubTab.allCases.count, currentKinds.count, "页签数应等于当前 PaneKind 的取值数")
 
         for tab in HubTab.allCases {
             XCTAssertEqual(
@@ -49,7 +49,7 @@ final class DesignContractTests: XCTestCase {
 
         XCTAssertEqual(
             HubTab.allCases.map(\.rawValue),
-            ["now", "agent", "clipboard", "files", "screenshots", "devices", "settings", "board"]
+            ["now", "agent", "clipboard", "files", "devices", "settings", "board"]
         )
     }
 

@@ -4443,6 +4443,10 @@
       "en": "The workspace is empty",
       "zh-Hans": "工作区还是空的"
     },
+    "copy/hub/files/error/copy": {
+      "en": "Cannot copy this item.",
+      "zh-Hans": "无法复制这件内容。"
+    },
     "copy/hub/files/error/import": {
       "en": "Cannot read this file.",
       "zh-Hans": "读不到这个文件。"
@@ -6222,6 +6226,18 @@
     "copy/hub/files/filter/transfers": {
       "en": "Transfers",
       "zh-Hans": "传输"
+    },
+    "copy/hub/files/kind/image": {
+      "en": "Image",
+      "zh-Hans": "图片"
+    },
+    "copy/hub/files/kind/pdf": {
+      "en": "PDF",
+      "zh-Hans": "PDF"
+    },
+    "copy/hub/files/kind/audio": {
+      "en": "Audio",
+      "zh-Hans": "音频"
     },
     "copy/hub/files/action/add": {
       "en": "Add…",

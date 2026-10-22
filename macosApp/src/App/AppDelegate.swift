@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import kmpDomain
 
 /// 应用代理。装配 Notch Shell、菜单栏图标与全局快捷键。
@@ -16,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var instanceLock: SingleInstanceLock?
     #if DEBUG
     private var monitorPreview: MonitorPreviewWindowController?
+    private var fileAreaPreview: NSWindow?
     #endif
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -99,6 +101,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor in
                 exit(await AgentPreviewRenderer.render(to: path) ? 0 : 1)
             }
+            return
+        }
+        if let path = ProcessInfo.processInfo.environment["COVIO_FILE_AREA_RENDER"], !path.isEmpty {
+            let width = Double(ProcessInfo.processInfo.environment["COVIO_FILE_AREA_WIDTH"] ?? "960") ?? 960
+            Task { @MainActor in
+                exit(FileAreaPreviewRenderer.render(panelWidth: width, to: path) ? 0 : 1)
+            }
+            return
+        }
+        if ProcessInfo.processInfo.environment["COVIO_FILE_AREA_PREVIEW"] == "1" {
+            NSApp.setActivationPolicy(.regular)
+            let width = Double(ProcessInfo.processInfo.environment["COVIO_FILE_AREA_WIDTH"] ?? "960") ?? 960
+            let contentWidth = width - HubMetrics.panelPadding * 2
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: width, height: FileAreaMetrics.areaHeight),
+                styleMask: [.titled, .closable],
+                backing: .buffered,
+                defer: false
+            )
+            window.title = "Covio File Area"
+            window.contentView = NSHostingView(
+                rootView: FileAreaShowcaseView(
+                    contentWidth: contentWidth,
+                    language: .simplifiedChinese
+                )
+            )
+            window.center()
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            fileAreaPreview = window
             return
         }
         #endif

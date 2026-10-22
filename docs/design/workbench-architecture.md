@@ -118,6 +118,8 @@ R7 不做主屏手势。系统不向第三方应用开放 iOS 主屏手势入口
 `Monitor` 使用 `MonitorTabView` 显示 CPU、GPU、内存、磁盘、网络和电池。
 数据源限定为公开接口。指标口径见
 [硬件信息监听能力研究](../research/hardware-monitoring-capability/README.md)。
+Monitor 使用三段式卡片展示主数值、趋势和可展开详情。
+卡片清单与成员设计见 [Monitor 三段式卡片设计](monitor-card-design.md)。
 
 标记「合同暂无条目」的画面，实现前先在合同里加条目。
 改完合同重跑 `scripts/generate-contract-constants.py`。

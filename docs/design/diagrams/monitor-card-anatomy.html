@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monitor 三段式卡片 · 层级图</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #F2F2F7; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 32px 24px;
+      color: #1D1D1F;
+      font-family: 'Geist', 'SF Pro Text', 'PingFang SC', sans-serif;
+    }
+    .frame { width: 100%; max-width: 960px; min-width: 0; }
+    .diagram-container { width: 100%; max-width: 100%; min-width: 0; overflow-x: auto; }
+    svg { width: 100%; min-width: 960px; height: auto; display: block; }
+    text { text-rendering: geometricPrecision; }
+    .sans { font-family: 'Geist', 'SF Pro Text', 'PingFang SC', sans-serif; }
+    .sans-medium { font-family: 'Geist', 'SF Pro Text', 'PingFang SC', sans-serif; font-weight: 500; }
+    .sans-semibold { font-family: 'Geist', 'SF Pro Text', 'PingFang SC', sans-serif; font-weight: 600; }
+    .serif { font-family: 'Instrument Serif', 'Songti SC', serif; }
+    .mono { font-family: 'Geist Mono', 'SF Mono', 'PingFang SC', monospace; }
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="diagram-container">
+      <svg viewBox="0 0 960 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="monitor-card-anatomy-title monitor-card-anatomy-desc">
+        <title id="monitor-card-anatomy-title">Monitor 三段式卡片 · 阅读层级</title>
+        <desc id="monitor-card-anatomy-desc">一张卡片从上到下分为 Primary Value、Context Line 和 Expandable Detail 三层。Primary Value 高亮，显示 CPU 使用率 56%。Context Line 显示最近 60 个采样点。Expandable Detail 显示每核、负载和核心数。</desc>
+
+        <rect width="960" height="600" fill="#F2F2F7"/>
+
+        <text x="48" y="48" class="mono" font-size="10" font-weight="600" letter-spacing="0.18em" fill="#6E6E73">MONITOR / CARD ANATOMY</text>
+        <text x="912" y="48" text-anchor="end" class="mono" font-size="9" letter-spacing="0.08em" fill="#6E6E73">6 CARDS · 3 LAYERS · 60 SAMPLES</text>
+
+        <text x="48" y="92" class="serif" font-size="40" fill="#1D1D1F">三段式卡片</text>
+        <text x="48" y="122" class="sans" font-size="14" fill="#6E6E73">同一张卡片按“当前值 → 最近变化 → 具体成员”阅读。</text>
+
+        <text x="52" y="152" class="mono" font-size="9" font-weight="600" letter-spacing="0.14em" fill="#6E6E73">READ ↓</text>
+        <line x1="80" y1="160" x2="80" y2="476" stroke="#D1D1D6" stroke-width="1"/>
+        <polygon points="76,496 84,496 80,504" fill="#6E6E73"/>
+
+        <rect x="112" y="160" width="800" height="336" rx="16" fill="#FFFFFF" stroke="#D1D1D6" stroke-width="1"/>
+
+        <rect x="113" y="161" width="798" height="110" rx="15" fill="rgba(70,86,164,0.08)"/>
+        <line x1="112" y1="272" x2="912" y2="272" stroke="#D1D1D6" stroke-width="1"/>
+        <line x1="112" y1="384" x2="912" y2="384" stroke="#D1D1D6" stroke-width="1"/>
+        <line x1="552" y1="176" x2="552" y2="480" stroke="rgba(29,29,31,0.08)" stroke-width="1"/>
+
+        <rect x="112" y="160" width="4" height="112" rx="2" fill="#4656A4"/>
+        <text x="136" y="194" class="mono" font-size="9" font-weight="600" letter-spacing="0.14em" fill="#4656A4">01</text>
+        <text x="192" y="196" class="sans-semibold" font-size="18" fill="#1D1D1F">Primary Value</text>
+        <text x="192" y="220" class="sans" font-size="12" fill="#6E6E73">主数值锚点 · 先读当前状态</text>
+
+        <circle cx="640" cy="216" r="26" fill="#FFFFFF" stroke="#D1D1D6" stroke-width="6"/>
+        <circle cx="640" cy="216" r="26" fill="none" stroke="#4656A4" stroke-width="6" stroke-linecap="round" stroke-dasharray="91.5 163.4" transform="rotate(-90 640 216)"/>
+        <text x="640" y="221" text-anchor="middle" class="sans-semibold" font-size="15" fill="#1D1D1F">56%</text>
+        <text x="684" y="208" class="sans-semibold" font-size="14" fill="#1D1D1F">CPU 使用率</text>
+        <text x="684" y="228" class="mono" font-size="9" letter-spacing="0.08em" fill="#6E6E73">主数值 + 单位</text>
+
+        <text x="136" y="306" class="mono" font-size="9" font-weight="600" letter-spacing="0.14em" fill="#6E6E73">02</text>
+        <text x="192" y="308" class="sans-semibold" font-size="18" fill="#1D1D1F">Context Line</text>
+        <text x="192" y="332" class="sans" font-size="12" fill="#6E6E73">Sparkline 趋势线 · 看最近方向</text>
+
+        <path d="M588 340 L620 326 L652 334 L684 304 L716 318 L748 310 L780 330 L812 320 L844 328 L876 316" fill="none" stroke="#6E6E73" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <line x1="588" y1="348" x2="876" y2="348" stroke="#D1D1D6" stroke-width="1"/>
+        <text x="588" y="364" class="mono" font-size="9" letter-spacing="0.06em" fill="#6E6E73">最近 60 个采样点</text>
+
+        <text x="136" y="418" class="mono" font-size="9" font-weight="600" letter-spacing="0.14em" fill="#6E6E73">03</text>
+        <text x="192" y="420" class="sans-semibold" font-size="18" fill="#1D1D1F">Expandable Detail</text>
+        <text x="192" y="444" class="sans" font-size="12" fill="#6E6E73">可展开详情区 · 默认折叠</text>
+
+        <rect x="588" y="392" width="292" height="96" rx="6" fill="#F7F7F9" stroke="#D1D1D6" stroke-width="1"/>
+        <text x="604" y="412" class="mono" font-size="9" letter-spacing="0.08em" fill="#6E6E73">DETAIL SUMMARY</text>
+        <path d="M844 406 L850 412 L856 406" fill="none" stroke="#6E6E73" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="604" y="434" class="sans" font-size="11" fill="#6E6E73">每核</text>
+        <text x="864" y="434" text-anchor="end" class="sans-medium" font-size="11" fill="#1D1D1F">56%</text>
+        <line x1="604" y1="444" x2="864" y2="444" stroke="rgba(29,29,31,0.08)" stroke-width="1"/>
+        <text x="604" y="460" class="sans" font-size="11" fill="#6E6E73">1 分钟负载</text>
+        <text x="864" y="460" text-anchor="end" class="sans-medium" font-size="11" fill="#1D1D1F">4.80</text>
+        <text x="604" y="478" class="sans" font-size="11" fill="#6E6E73">核心</text>
+        <text x="864" y="478" text-anchor="end" class="sans-medium" font-size="11" fill="#1D1D1F">10</text>
+
+
+        <line x1="48" y1="536" x2="912" y2="536" stroke="#D1D1D6" stroke-width="1"/>
+        <text x="48" y="560" class="mono" font-size="9" font-weight="600" letter-spacing="0.14em" fill="#4656A4">FOCAL LAYER</text>
+        <text x="168" y="560" class="sans" font-size="12" fill="#6E6E73">Primary Value 是单张卡片的第一阅读点。网络卡片使用双锚点变体。</text>
+      </svg>
+    </div>
+  </div>
+</body>
+</html>

@@ -36,6 +36,10 @@ enum AutoNamingRisk: String, Sendable, Hashable {
     case fileChanged
 }
 
+enum AutoNamingPreviewError: Error, Sendable, Equatable {
+    case busy
+}
+
 struct AutoNamingPlanSnapshot: Sendable, Equatable {
     let targetName: String?
     let confidence: Double
@@ -104,6 +108,32 @@ final class AutoNamingRuntime {
 
     func preheat() async throws -> NamingModelMetrics {
         try await model.preheat()
+    }
+
+    func preview(
+        urls: [URL],
+        policy: FileNamingPolicy
+    ) async throws -> [AutoNamingPreviewItem] {
+        guard !busy else { throw AutoNamingPreviewError.busy }
+        var seenPaths = Set<String>()
+        let uniqueURLs = urls.filter {
+            seenPaths.insert($0.standardizedFileURL.path).inserted
+        }
+        guard !uniqueURLs.isEmpty else { return [] }
+        let snapshot = AutoNamingPolicySnapshot(policy)
+        let extractor = extractor
+        let model = model
+        let task = Task.detached(priority: .userInitiated) {
+            try await Self.buildPreviewItems(
+                urls: uniqueURLs,
+                policy: snapshot,
+                extractor: extractor,
+                model: model
+            )
+        }
+        analysisTask = task
+        defer { analysisTask = nil }
+        return try await task.value
     }
 
     var canApply: Bool {
@@ -583,7 +613,7 @@ final class AutoNamingRuntime {
     }
 }
 
-private struct AutoNamingPolicySnapshot: Sendable {
+struct AutoNamingPolicySnapshot: Sendable {
     enum DateSource: String, Sendable {
         case none
         case content

@@ -165,6 +165,43 @@ final class AgentServiceGatewayTests: XCTestCase {
         XCTAssertEqual(lastText, validId)
     }
 
+    func testDeferredPreviewQueuesAndExecutesExplicitly() async throws {
+        let counter = Counter()
+        let fileId = "workspace:\(String(repeating: "b", count: 64))"
+        let gateway = AgentServiceGateway(
+            handlers: handlers(counter: counter, previewFileNames: { ids, maxResults in
+                await counter.increment(text: ids.joined(separator: ","))
+                return AgentServiceResult(
+                    ok: true,
+                    summary: "Generated \(ids.count) previews.",
+                    data: .object(["maxResults": .int(maxResults)])
+                )
+            })
+        )
+
+        let queued = await gateway.handle(
+            call(
+                name: "preview_file_names",
+                arguments: [
+                    "fileIds": .array([.string(fileId)]),
+                    "maxResults": .int(3),
+                ]
+            )
+        )
+        let countBeforeExecution = await counter.value
+        XCTAssertTrue(queued.contains("queued"), queued)
+        XCTAssertEqual(countBeforeExecution, 0)
+
+        let deferredAction = await gateway.takeDeferredAction()
+        let action = try XCTUnwrap(deferredAction)
+        let result = await gateway.executeDeferred(action)
+        let countAfterExecution = await counter.value
+        XCTAssertTrue(result.ok)
+        XCTAssertEqual(countAfterExecution, 1)
+        let audits = await gateway.recentAudits()
+        XCTAssertEqual(audits.map(\.status), [.queued, .completed])
+    }
+
     private func call(name: String, arguments: [String: JSONValue]) -> ToolCall {
         ToolCall(function: .init(name: name, arguments: arguments))
     }
@@ -173,6 +210,9 @@ final class AgentServiceGatewayTests: XCTestCase {
         counter: Counter,
         inspectFile: @escaping @Sendable (String, Int) async -> AgentServiceResult = { _, _ in
             .failure("unused", code: .fileUnavailable)
+        },
+        previewFileNames: @escaping @Sendable ([String], Int) async -> AgentServiceResult = { _, _ in
+            .failure("unused", code: .executionFailed)
         }
     ) -> AgentServiceHandlers {
         let readOnly = AgentServiceResult(
@@ -205,7 +245,8 @@ final class AgentServiceGatewayTests: XCTestCase {
                 await counter.increment(text: text)
                 return AgentServiceResult(ok: true, summary: "copied", data: nil)
             },
-            inspectFile: inspectFile
+            inspectFile: inspectFile,
+            previewFileNames: previewFileNames
         )
     }
 }

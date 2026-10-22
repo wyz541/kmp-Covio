@@ -9,10 +9,13 @@ enum AgentAppServices {
         shelf: ShelfRuntime,
         clipboard: ClipboardRuntime,
         workspace: WorkspaceRuntime,
-        attachments: AgentAttachmentStore
+        attachments: AgentAttachmentStore,
+        autoNaming: AutoNamingRuntime,
+        fileNamingPolicy: FileNamingPolicy
     ) -> AgentServiceHandlers {
         let monitor = MonitorSampler()
         let inspector = AgentFileInspector()
+        let namingPolicy = AutoNamingPolicySnapshot(fileNamingPolicy)
         return AgentServiceHandlers(
             monitorSnapshot: {
                 let snapshot = await monitor.sample()
@@ -51,6 +54,43 @@ enum AgentAppServices {
                 return await Task.detached(priority: .userInitiated) {
                     inspector.inspect(file, maxCharacters: maxCharacters)
                 }.value
+            },
+            previewFileNames: { fileIds, maxResults in
+                var seen = Set<String>()
+                let uniqueIds = fileIds.filter { seen.insert($0).inserted }
+                let files = await MainActor.run {
+                    uniqueIds.compactMap {
+                        resolveFile(
+                            fileId: $0,
+                            workspace: workspace,
+                            attachments: attachments
+                        )
+                    }
+                }
+                guard files.count == uniqueIds.count, !files.isEmpty else {
+                    return .failure(
+                        "One or more files are not authorized.",
+                        code: .fileUnavailable
+                    )
+                }
+                do {
+                    let items = try await autoNaming.preview(
+                        urls: files.map(\.url),
+                        policy: namingPolicy.makePolicy()
+                    )
+                    return namingPreviewResult(
+                        files: files,
+                        items: items,
+                        maxResults: maxResults
+                    )
+                } catch AutoNamingPreviewError.busy {
+                    return .failure(
+                        "File naming analysis is already running.",
+                        code: .executionFailed
+                    )
+                } catch {
+                    return .failure("File naming preview failed.", code: .executionFailed)
+                }
             }
         )
     }
@@ -197,6 +237,55 @@ enum AgentAppServices {
             ok: true,
             summary: "Found \(matches.count) recent screenshots.",
             data: .object(["items": .array(matches)])
+        )
+    }
+
+    nonisolated private static func namingPreviewResult(
+        files: [ResolvedAgentFile],
+        items: [AutoNamingPreviewItem],
+        maxResults: Int
+    ) -> AgentServiceResult {
+        var fileByPath: [String: ResolvedAgentFile] = [:]
+        for file in files where fileByPath[file.url.standardizedFileURL.path] == nil {
+            fileByPath[file.url.standardizedFileURL.path] = file
+        }
+        let selected = items.prefix(min(20, max(1, maxResults))).map { item in
+            let fileId = fileByPath[item.sourceURL.standardizedFileURL.path]?.fileId ?? ""
+            let promptInjection = item.risks.contains(.promptInjection)
+            return JSONValue.object([
+                "fileId": .string(fileId),
+                "originalName": .string(item.originalName),
+                "suggestedName": item.targetName.map(JSONValue.string) ?? .null,
+                "status": .string(item.status.rawValue),
+                "confidence": .double(item.confidence),
+                "riskLevels": .array(
+                    item.risks.map(\.rawValue).sorted().map(JSONValue.string)
+                ),
+                "warnings": .array(item.warnings.sorted().map(JSONValue.string)),
+                "canApply": .bool(item.canSelect && !promptInjection),
+                "errorCode": item.errorCode.map(JSONValue.string) ?? .null,
+            ])
+        }
+        let lines = selected.compactMap { value -> String? in
+            guard case .object(let object) = value,
+                  case .string(let original)? = object["originalName"]
+            else { return nil }
+            let target: String
+            if case .string(let name)? = object["suggestedName"] {
+                target = name
+            } else {
+                target = "blocked"
+            }
+            return "\(original) → \(target)"
+        }
+        let summary = (
+            ["Generated \(selected.count) file naming previews. No files were changed."]
+                + lines
+        ).joined(separator: "\n")
+        return AgentServiceResult(
+            ok: true,
+            summary: summary,
+            data: .object(["items": .array(selected)])
         )
     }
 

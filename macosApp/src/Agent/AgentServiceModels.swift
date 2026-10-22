@@ -6,6 +6,11 @@ enum AgentToolRisk: String, Sendable, Equatable {
     case sideEffect
 }
 
+enum AgentToolExecutionMode: Sendable, Equatable {
+    case immediate
+    case afterModelResponse
+}
+
 enum AgentServiceErrorCode: String, Codable, Sendable, Equatable {
     case invalidArguments
     case unknownTool
@@ -58,7 +63,14 @@ struct AgentToolDescriptor: Sendable {
     let name: String
     let summary: String
     let risk: AgentToolRisk
+    let executionMode: AgentToolExecutionMode
     let schema: ToolSpec
+}
+
+struct AgentDeferredAction: Sendable, Equatable, Identifiable {
+    let id: String
+    let toolName: String
+    let summary: String
 }
 
 struct AgentPendingAction: Sendable, Equatable, Identifiable {
@@ -95,6 +107,7 @@ enum AgentToolAuditStatus: String, Sendable, Equatable {
     case rejected
     case failed
     case cancelled
+    case queued
 }
 
 struct AgentToolAudit: Sendable, Equatable, Identifiable {
@@ -127,6 +140,7 @@ struct AgentServiceHandlers: Sendable {
     let powerStatus: @Sendable () async -> AgentServiceResult
     let workspaceFiles: @Sendable (String?, Int) async -> AgentServiceResult
     let inspectFile: @Sendable (String, Int) async -> AgentServiceResult
+    let previewFileNames: @Sendable ([String], Int) async -> AgentServiceResult
     let screenshots: @Sendable (Int) async -> AgentServiceResult
     let clipboardMetadata: @Sendable (Int) async -> AgentServiceResult
     let copyText: @Sendable (String) async -> AgentServiceResult
@@ -140,12 +154,16 @@ struct AgentServiceHandlers: Sendable {
         copyText: @escaping @Sendable (String) async -> AgentServiceResult,
         inspectFile: @escaping @Sendable (String, Int) async -> AgentServiceResult = { _, _ in
             .failure("File inspection is unavailable.", code: .fileUnavailable)
+        },
+        previewFileNames: @escaping @Sendable ([String], Int) async -> AgentServiceResult = { _, _ in
+            .failure("File naming preview is unavailable.", code: .executionFailed)
         }
     ) {
         self.monitorSnapshot = monitorSnapshot
         self.powerStatus = powerStatus
         self.workspaceFiles = workspaceFiles
         self.inspectFile = inspectFile
+        self.previewFileNames = previewFileNames
         self.screenshots = screenshots
         self.clipboardMetadata = clipboardMetadata
         self.copyText = copyText
@@ -156,6 +174,7 @@ private struct EmptyAgentInput: Codable {}
 private struct AgentToolAck: Codable { let ok = true }
 private struct WorkspaceToolInput: Codable { let query: String?; let limit: Int? }
 private struct InspectFileToolInput: Codable { let fileId: String; let maxCharacters: Int? }
+private struct PreviewFileNamesToolInput: Codable { let fileIds: [String]; let maxResults: Int? }
 private struct LimitToolInput: Codable { let limit: Int? }
 private struct CopyTextToolInput: Codable { let text: String }
 
@@ -223,6 +242,30 @@ enum AgentToolCatalog {
             ) { _ in AgentToolAck() }
         ),
         descriptor(
+            name: "preview_file_names",
+            summary: "Generate file naming previews for authorized files. This does not modify files.",
+            risk: .readOnly,
+            executionMode: .afterModelResponse,
+            tool: Tool<PreviewFileNamesToolInput, AgentToolAck>(
+                name: "preview_file_names",
+                description: "Generate naming previews from stable file IDs. The request runs after the current model response finishes.",
+                parameters: [
+                    .required(
+                        "fileIds",
+                        type: .array(elementType: .string),
+                        description: "Authorized workspace or attachment file IDs.",
+                        extraProperties: ["minItems": 1, "maxItems": 20]
+                    ),
+                    .optional(
+                        "maxResults",
+                        type: .int,
+                        description: "Maximum preview count.",
+                        extraProperties: ["minimum": 1, "maximum": 20]
+                    ),
+                ]
+            ) { _ in AgentToolAck() }
+        ),
+        descriptor(
             name: "list_screenshots",
             summary: "List recent screenshot metadata without image bytes.",
             risk: .readOnly,
@@ -285,8 +328,15 @@ enum AgentToolCatalog {
         name: String,
         summary: String,
         risk: AgentToolRisk,
+        executionMode: AgentToolExecutionMode = .immediate,
         tool: T
     ) -> AgentToolDescriptor {
-        AgentToolDescriptor(name: name, summary: summary, risk: risk, schema: tool.schema)
+        AgentToolDescriptor(
+            name: name,
+            summary: summary,
+            risk: risk,
+            executionMode: executionMode,
+            schema: tool.schema
+        )
     }
 }

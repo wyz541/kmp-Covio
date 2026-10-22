@@ -75,6 +75,8 @@ final class AgentChatRuntime {
                     }
                 }
                 guard self.generationID == generationID, !Task.isCancelled else { return }
+                await self.runDeferredActions()
+                guard self.generationID == generationID, !Task.isCancelled else { return }
                 await self.refreshToolState()
                 if self.pendingAction != nil {
                     self.stage = .awaitingConfirmation
@@ -214,6 +216,43 @@ final class AgentChatRuntime {
     private func refreshToolState() async {
         pendingAction = await gateway.pendingAction()
         toolAudits = await gateway.recentAudits()
+    }
+
+    private func runDeferredActions() async {
+        while let action = await gateway.takeDeferredAction() {
+            guard !Task.isCancelled else { return }
+            stage = .executing
+            let result = await gateway.executeDeferred(action)
+            messages.append(
+                AgentChatMessage(role: .service, text: result.summary)
+            )
+            await refreshToolState()
+
+            let assistantID = UUID()
+            messages.append(AgentChatMessage(id: assistantID, role: .assistant, text: ""))
+            do {
+                _ = try await model.respondAfterServiceResult(
+                    toolName: action.toolName,
+                    result: result
+                ) { [weak self] chunk in
+                    await MainActor.run {
+                        guard let self,
+                              let index = self.messages.firstIndex(where: { $0.id == assistantID })
+                        else { return }
+                        self.messages[index].text += chunk
+                    }
+                }
+            } catch is CancellationError {
+                return
+            } catch {
+                errorText = ContractCopy.copyAgentError.text(for: language)
+            }
+            if let index = messages.firstIndex(where: { $0.id == assistantID }),
+               messages[index].text.isEmpty
+            {
+                messages.remove(at: index)
+            }
+        }
     }
 
     #if DEBUG

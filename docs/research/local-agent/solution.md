@@ -79,6 +79,7 @@ flowchart LR
 5. `list_clipboard_metadata`
 6. `copy_text`
 7. `inspect_file`
+8. `preview_file_names`
 
 ## 错误码
 
@@ -104,6 +105,13 @@ tool call -> validate -> execute -> JSON -> model
 tool call -> validate -> pending -> confirm -> execute once -> audit
 ```
 
+### 模型绑定只读工具
+
+```text
+tool call -> validate -> queue -> finish response -> release model lease
+          -> execute preview -> return result to model -> audit
+```
+
 ## 安全设计
 
 1. 工具名必须来自 allowlist。
@@ -116,6 +124,8 @@ tool call -> validate -> pending -> confirm -> execute once -> audit
 8. 工具结果不包含聊天正文或文件正文。
 9. 文件工具只接受稳定文件 ID，不接受任意路径。
 10. 文件正文标记为不可信数据。
+11. 模型绑定工具必须在模型租约释放后执行。
+12. 延迟自动执行只允许只读工具。
 
 ## 可靠性与失败模式
 

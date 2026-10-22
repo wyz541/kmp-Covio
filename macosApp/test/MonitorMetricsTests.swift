@@ -114,6 +114,15 @@ final class MonitorMetricsTests: XCTestCase {
                 adapterConnected: true,
                 isCharging: false,
                 isCharged: false,
+                hasBattery: true
+            ),
+            .adapter
+        )
+        XCTAssertEqual(
+            MonitorPowerFormat.batterySupply(
+                adapterConnected: true,
+                isCharging: false,
+                isCharged: false,
                 hasBattery: false
             ),
             .adapter

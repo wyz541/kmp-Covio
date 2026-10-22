@@ -21,58 +21,86 @@ final class ChargeLimitRuntimeTests: XCTestCase {
 
     func testConfigureStartsChargingAndPersistsTheUserLimit() throws {
         let backend = FakeChargeLimitBackend()
-        let reader = FakeChargeLimitPowerReader(reading: reading(current: 44))
+        let reader = FakeChargeLimitPowerReader(reading: reading(current: 79))
         let runtime = makeRuntime(backend: backend, reader: reader)
         defer { _ = runtime.restore() }
 
-        _ = try runtime.configure(userLimitPercent: 50).get()
+        _ = try runtime.configure(userLimitPercent: 85).get()
         let configured = try runtime.evaluateNow().get()
         let settled = try runtime.evaluateNow().get()
 
-        XCTAssertEqual(configured.userLimitPercent, 50)
-        XCTAssertEqual(configured.effectiveTargetPercent, 50)
+        XCTAssertEqual(configured.userLimitPercent, 85)
+        XCTAssertEqual(configured.effectiveTargetPercent, 85)
         XCTAssertTrue(configured.chargingLatch)
         XCTAssertEqual(settled.phase, "charging")
-        XCTAssertEqual(backend.appliedTargets, [50])
-        XCTAssertEqual(try stateStore.load()?.userLimitPercent, 50)
+        XCTAssertEqual(backend.appliedTargets, [85])
+        XCTAssertEqual(try stateStore.load()?.userLimitPercent, 85)
     }
 
     func testFivePercentSailingCycle() throws {
         let backend = FakeChargeLimitBackend()
-        let reader = FakeChargeLimitPowerReader(reading: reading(current: 44))
+        let reader = FakeChargeLimitPowerReader(reading: reading(current: 79))
         let runtime = makeRuntime(backend: backend, reader: reader)
         defer { _ = runtime.restore() }
-        _ = runtime.configure(userLimitPercent: 50)
+        _ = runtime.configure(userLimitPercent: 85)
         _ = runtime.evaluateNow()
 
-        reader.reading = reading(current: 50)
+        reader.reading = reading(current: 85)
         XCTAssertEqual(try runtime.evaluateNow().get().phase, "holding")
         XCTAssertFalse(try runtime.status().get().chargingLatch)
 
-        reader.reading = reading(current: 47)
+        reader.reading = reading(current: 82)
         _ = runtime.evaluateNow()
-        XCTAssertEqual(backend.appliedTargets, [50, 47])
+        XCTAssertEqual(backend.appliedTargets, [85, 82])
         XCTAssertEqual(try runtime.evaluateNow().get().phase, "sailing")
 
-        reader.reading = reading(current: 45)
+        reader.reading = reading(current: 80)
         _ = runtime.evaluateNow()
-        XCTAssertEqual(backend.appliedTargets, [50, 47, 50])
+        XCTAssertEqual(backend.appliedTargets, [85, 82, 85])
         XCTAssertTrue(try runtime.status().get().chargingLatch)
         XCTAssertEqual(try runtime.evaluateNow().get().phase, "charging")
     }
 
     func testAboveTheLimitHoldsTheCurrentLevel() throws {
         let backend = FakeChargeLimitBackend()
-        let reader = FakeChargeLimitPowerReader(reading: reading(current: 64))
+        let reader = FakeChargeLimitPowerReader(reading: reading(current: 90))
         let runtime = makeRuntime(backend: backend, reader: reader)
         defer { _ = runtime.restore() }
 
-        _ = try runtime.configure(userLimitPercent: 50).get()
+        _ = try runtime.configure(userLimitPercent: 85).get()
         let status = try runtime.evaluateNow().get()
 
         XCTAssertEqual(status.phase, "aboveLimit")
-        XCTAssertEqual(status.effectiveTargetPercent, 64)
-        XCTAssertEqual(backend.appliedTargets, [64])
+        XCTAssertEqual(status.effectiveTargetPercent, 90)
+        XCTAssertEqual(backend.appliedTargets, [90])
+    }
+
+    func testSeventyPercentHoldsTheCurrentLevelWithoutDraining() throws {
+        let backend = FakeChargeLimitBackend()
+        let reader = FakeChargeLimitPowerReader(reading: reading(current: 75))
+        let runtime = makeRuntime(backend: backend, reader: reader)
+        defer { _ = runtime.restore() }
+
+        _ = try runtime.configure(userLimitPercent: 70).get()
+        let status = try runtime.evaluateNow().get()
+
+        XCTAssertEqual(status.phase, "aboveLimit")
+        XCTAssertEqual(status.effectiveTargetPercent, 75)
+        XCTAssertEqual(backend.appliedTargets, [75])
+    }
+
+    func testFirstConfigurePersistsAMatchingObservedTarget() throws {
+        let backend = FakeChargeLimitBackend()
+        backend.observedTargetOverride = 75
+        let reader = FakeChargeLimitPowerReader(reading: reading(current: 75))
+        let runtime = makeRuntime(backend: backend, reader: reader)
+        defer { _ = runtime.restore() }
+
+        _ = try runtime.configure(userLimitPercent: 70).get()
+
+        XCTAssertEqual(backend.appliedTargets, [75])
+        XCTAssertEqual(backend.state?.targetPercent, 75)
+        XCTAssertEqual(try runtime.status().get().effectiveTargetPercent, 75)
     }
 
     func testOneHundredPercentReleasesMclOnlyOnce() throws {
@@ -81,7 +109,7 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         let runtime = makeRuntime(backend: backend, reader: reader)
         defer { _ = runtime.restore() }
 
-        _ = try runtime.configure(userLimitPercent: 50).get()
+        _ = try runtime.configure(userLimitPercent: 85).get()
         _ = try runtime.configure(userLimitPercent: 100).get()
         _ = try runtime.evaluateNow().get()
 
@@ -93,16 +121,16 @@ final class ChargeLimitRuntimeTests: XCTestCase {
     func testCalibrationAndProtectionDoNotWrite() throws {
         let backend = FakeChargeLimitBackend()
         let reader = FakeChargeLimitPowerReader(
-            reading: reading(current: 50, calibrationActive: true)
+            reading: reading(current: 85, calibrationActive: true)
         )
         let runtime = makeRuntime(backend: backend, reader: reader)
         defer { _ = runtime.restore() }
 
-        _ = try runtime.configure(userLimitPercent: 50).get()
+        _ = try runtime.configure(userLimitPercent: 85).get()
         XCTAssertEqual(try runtime.status().get().phase, "calibration")
         XCTAssertTrue(backend.appliedTargets.isEmpty)
 
-        reader.reading = reading(current: 50, protectionActive: true)
+        reader.reading = reading(current: 85, protectionActive: true)
         XCTAssertEqual(try runtime.evaluateNow().get().phase, "systemProtection")
         XCTAssertTrue(backend.appliedTargets.isEmpty)
     }
@@ -112,11 +140,11 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         backend.capabilityValue = .unsupported
         let runtime = makeRuntime(
             backend: backend,
-            reader: FakeChargeLimitPowerReader(reading: reading(current: 50))
+            reader: FakeChargeLimitPowerReader(reading: reading(current: 85))
         )
         defer { _ = runtime.restore() }
 
-        XCTAssertEqual(try runtime.configure(userLimitPercent: 50).get().phase, "unsupported")
+        XCTAssertEqual(try runtime.configure(userLimitPercent: 85).get().phase, "unsupported")
         XCTAssertTrue(backend.appliedTargets.isEmpty)
     }
 
@@ -125,11 +153,11 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         backend.applyFailure = .readbackFailed("target")
         let runtime = makeRuntime(
             backend: backend,
-            reader: FakeChargeLimitPowerReader(reading: reading(current: 44))
+            reader: FakeChargeLimitPowerReader(reading: reading(current: 79))
         )
 
         XCTAssertEqual(
-            runtime.configure(userLimitPercent: 50),
+            runtime.configure(userLimitPercent: 85),
             .failure(.readbackFailed("target"))
         )
         XCTAssertNil(try stateStore.load())
@@ -141,44 +169,44 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         let backend = FakeChargeLimitBackend()
         let runtime = makeRuntime(
             backend: backend,
-            reader: FakeChargeLimitPowerReader(reading: reading(current: 44))
+            reader: FakeChargeLimitPowerReader(reading: reading(current: 79))
         )
         defer { _ = runtime.restore() }
-        _ = try runtime.configure(userLimitPercent: 50).get()
+        _ = try runtime.configure(userLimitPercent: 85).get()
 
         backend.applyFailure = .readbackFailed("target")
         XCTAssertEqual(
-            runtime.configure(userLimitPercent: 60),
+            runtime.configure(userLimitPercent: 90),
             .failure(.readbackFailed("target"))
         )
-        XCTAssertEqual(try stateStore.load()?.userLimitPercent, 50)
+        XCTAssertEqual(try stateStore.load()?.userLimitPercent, 85)
     }
 
     func testExternalTargetChangeStopsWritesAndReportsConflict() throws {
         let backend = FakeChargeLimitBackend()
         let runtime = makeRuntime(
             backend: backend,
-            reader: FakeChargeLimitPowerReader(reading: reading(current: 44))
+            reader: FakeChargeLimitPowerReader(reading: reading(current: 79))
         )
         defer { _ = runtime.restore() }
-        _ = try runtime.configure(userLimitPercent: 50).get()
+        _ = try runtime.configure(userLimitPercent: 85).get()
 
-        backend.observedTargetOverride = 80
+        backend.observedTargetOverride = 95
         let conflicted = try runtime.evaluateNow().get()
 
         XCTAssertEqual(conflicted.phase, "conflict")
-        XCTAssertEqual(backend.appliedTargets, [50])
+        XCTAssertEqual(backend.appliedTargets, [85])
     }
 
     func testBypassEvidenceIsExposedWhileHolding() throws {
         let backend = FakeChargeLimitBackend()
         let reader = FakeChargeLimitPowerReader(
-            reading: reading(current: 50, bypassEngaged: true)
+            reading: reading(current: 85, bypassEngaged: true)
         )
         let runtime = makeRuntime(backend: backend, reader: reader)
         defer { _ = runtime.restore() }
 
-        _ = try runtime.configure(userLimitPercent: 50).get()
+        _ = try runtime.configure(userLimitPercent: 85).get()
         let configured = try runtime.evaluateNow().get()
 
         XCTAssertEqual(configured.phase, "holding")
@@ -188,18 +216,18 @@ final class ChargeLimitRuntimeTests: XCTestCase {
     func testResumeOnStartupReappliesThePolicy() throws {
         try stateStore.save(
             ChargeLimitRuntimeState(
-                userLimitPercent: 50,
+                userLimitPercent: 85,
                 chargingLatch: false,
                 lastPhase: "unplugged"
             )
         )
         let backend = FakeChargeLimitBackend()
-        let reader = FakeChargeLimitPowerReader(reading: reading(current: 45))
+        let reader = FakeChargeLimitPowerReader(reading: reading(current: 80))
         let runtime = makeRuntime(backend: backend, reader: reader)
         defer { _ = runtime.restore() }
 
         XCTAssertNoThrow(try runtime.resumeOnStartup().get())
-        XCTAssertEqual(backend.appliedTargets, [50])
+        XCTAssertEqual(backend.appliedTargets, [85])
         XCTAssertTrue(try runtime.status().get().chargingLatch)
     }
 
@@ -207,7 +235,7 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         let backend = FakeChargeLimitBackend()
         let runtime = makeRuntime(
             backend: backend,
-            reader: FakeChargeLimitPowerReader(reading: reading(current: 50))
+            reader: FakeChargeLimitPowerReader(reading: reading(current: 85))
         )
 
         XCTAssertEqual(runtime.configure(userLimitPercent: 79), .failure(.invalidTarget(79)))
@@ -218,9 +246,9 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         let backend = FakeChargeLimitBackend()
         let runtime = makeRuntime(
             backend: backend,
-            reader: FakeChargeLimitPowerReader(reading: reading(current: 44))
+            reader: FakeChargeLimitPowerReader(reading: reading(current: 79))
         )
-        _ = runtime.configure(userLimitPercent: 50)
+        _ = runtime.configure(userLimitPercent: 85)
 
         XCTAssertNoThrow(try runtime.restore().get())
 

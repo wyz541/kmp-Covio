@@ -12,7 +12,6 @@ enum HelperServer {
     private static let peerAuthorizer: HelperPeerAuthorizing = CodeSignaturePeerAuthorizer()
     private static let chargeLimitRuntime = ChargeLimitRuntimeController(
         backend: ChargeLimitMCLController(
-            preferences: CFPreferencesChargeLimitStore(),
             stateStore: ChargeLimitStateStore(
                 url: URL(fileURLWithPath: HelperProtocol.helperDirectory)
                     .appendingPathComponent("charge-limit")

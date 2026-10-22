@@ -125,7 +125,7 @@ class HelperWireVectorTest {
 
         assertTrue(reply.ok)
         assertEquals(APP_VERSION, reply.result?.get("version"))
-        assertEquals("""{"version":"2","requestId":"r","ok":true,"result":{"version":"$APP_VERSION"}}""", HelperWire.encodeReply(reply))
+        assertEquals("""{"version":"4","requestId":"r","ok":true,"result":{"version":"$APP_VERSION"}}""", HelperWire.encodeReply(reply))
     }
 
     private fun read(): JsonObject {

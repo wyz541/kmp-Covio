@@ -20,20 +20,23 @@ macOS 26 和 macOS 27 改变了旧 SMC 充电键。
 
 研究先检查本机只读状态。
 然后核对开源实现和历史 issue。
-所有写入实验均未执行。
+2026-10-20 执行了 `75%` 与 `85%` 真机写入验证。
 详见 [investigation.md](investigation.md) 和 [evidence.md](evidence.md)。
 
 ## 结果
 
 完整 `20%` 到 `100%` 范围不能使用同一条安全路径实现。
 macOS 27 可以在无 root 条件下控制 `80%` 到 `100%`。
-低于 `80%` 依赖 root 私有策略，当前不适合直接产品化。
+真机验证确认原生 `PowerUISmartChargeClient` 可以注册 `85%`。
+真机验证也确认 root `defaults` 与 `notifyutil` 可以注册 `70%`。
+因此，首版采用分层路径。
 详见 [conclusion.md](conclusion.md) 和 [evidence.md](evidence.md)。
 
 ## 预期
 
-第一版推荐只支持原生 Manual Charge Limit 范围。
-低于 `80%` 需要产品决策和单独 spike。
+第一版支持 `20%` 到 `100%`。
+`80%` 到 `100%` 使用 `PowerUI`。
+`20%` 到 `79%` 使用 root 直接偏好。
 旁路状态由 macOS 管理，Covio 只读取和展示。
 详见 [solution.md](solution.md) 和 [validation/README.md](validation/README.md)。
 
@@ -55,7 +58,7 @@ flowchart TD
   A[检测电池与系统能力] --> B{MCL 支持?}
   B -->|是| C{上限不低于 80?}
   C -->|是| D[无 root 原生 MCL]
-  C -->|否| E[root 私有策略]
+  C -->|否| E[root defaults 20% 到 79%]
   B -->|否| F{旧 SMC 键可用?}
   F -->|是| G[特权 SMC 路径]
   F -->|否| H[不支持]

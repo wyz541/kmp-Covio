@@ -2,9 +2,13 @@ import Darwin
 import Foundation
 import ObjectiveC
 
-/// PowerUI 只读能力与旁路状态。生产实现动态加载私有框架，测试注入假实现。
+/// PowerUI 能力、状态与原生 MCL 写入。生产实现动态加载私有框架。
 protocol PowerUIChargeReading: Sendable {
+    var minimumSupportedPercent: Int { get }
     func capability() -> PowerUICapability
+    func isMCLEnabled() -> Bool?
+    func currentLimit() -> Int?
+    func applyLimit(_ percent: Int) -> Bool
     func bypassEngaged() -> Bool
     @discardableResult
     func disableMCL() -> Bool
@@ -17,12 +21,30 @@ enum PowerUICapability: Equatable, Sendable {
 
 /// `PowerUISmartChargeClient` 的窄封装。
 ///
-/// 只读取能力、状态，并调用 `disableMCL` 完成恢复。Covio 不通过这个类设置低电量目标。
+/// 只调用 Apple MCL 客户端公开给私有框架的窄接口。
+///
+/// 真机验证确认：直接偏好写入不会注册 `powerd`。客户端写入只支持 `80%` 到 `100%`。
 final class SystemPowerUIChargeClient: PowerUIChargeReading, @unchecked Sendable {
     private typealias AllocFunction = @convention(c) (AnyClass, Selector) -> AnyObject
     private typealias InitFunction = @convention(c) (AnyObject, Selector, NSString) -> AnyObject
     private typealias BoolFunction = @convention(c) (AnyObject, Selector) -> Bool
     private typealias ObjectFunction = @convention(c) (AnyObject, Selector) -> AnyObject?
+    private typealias UInt8ErrorFunction = @convention(c) (
+        AnyObject,
+        Selector,
+        UnsafeMutablePointer<NSError?>?
+    ) -> UInt8
+    private typealias UInt64ErrorFunction = @convention(c) (
+        AnyObject,
+        Selector,
+        UnsafeMutablePointer<NSError?>?
+    ) -> UInt64
+    private typealias BoolUInt8ErrorFunction = @convention(c) (
+        AnyObject,
+        Selector,
+        UInt8,
+        UnsafeMutablePointer<NSError?>?
+    ) -> Bool
     private typealias BoolErrorFunction = @convention(c) (
         AnyObject,
         Selector,
@@ -36,12 +58,18 @@ final class SystemPowerUIChargeClient: PowerUIChargeReading, @unchecked Sendable
     private static let className = "PowerUISmartChargeClient"
     private static let initSelector = NSSelectorFromString("initWithClientName:")
     private static let supportedSelector = NSSelectorFromString("isMCLSupported")
+    private static let enabledSelector = NSSelectorFromString("isMCLCurrentlyEnabled:")
+    private static let currentLimitSelector = NSSelectorFromString("getMCLLimitWithError:")
+    private static let enableSelector = NSSelectorFromString("enableMCL:")
+    private static let setLimitSelector = NSSelectorFromString("setMCLLimit:error:")
     private static let statusSelector = NSSelectorFromString("status")
     private static let disableSelector = NSSelectorFromString("disableMCL:")
 
     private let lock = NSLock()
     private var client: AnyObject?
     private var attemptedLoad = false
+
+    let minimumSupportedPercent = 80
 
     func capability() -> PowerUICapability {
         lock.withLock {
@@ -51,6 +79,49 @@ final class SystemPowerUIChargeClient: PowerUIChargeReading, @unchecked Sendable
                 return .unsupported
             }
             return function(client, Self.supportedSelector) ? .supported : .unsupported
+        }
+    }
+
+    func isMCLEnabled() -> Bool? {
+        lock.withLock {
+            guard let client = clientLocked(),
+                  let function = errorFunction(selector: Self.enabledSelector, on: client)
+            else {
+                return nil
+            }
+            var error: NSError?
+            let enabled = function(client, Self.enabledSelector, &error)
+            return error == nil ? enabled != 0 : nil
+        }
+    }
+
+    func currentLimit() -> Int? {
+        lock.withLock {
+            guard let client = clientLocked(),
+                  let function = uint8ErrorFunction(selector: Self.currentLimitSelector, on: client)
+            else {
+                return nil
+            }
+            var error: NSError?
+            let value = Int(function(client, Self.currentLimitSelector, &error))
+            return error == nil && (1...100).contains(value) ? value : nil
+        }
+    }
+
+    @discardableResult
+    func applyLimit(_ percent: Int) -> Bool {
+        guard (minimumSupportedPercent...100).contains(percent) else { return false }
+        return lock.withLock {
+            guard let client = clientLocked(),
+                  let enable = boolErrorFunction(selector: Self.enableSelector, on: client),
+                  let setLimit = boolUInt8ErrorFunction(selector: Self.setLimitSelector, on: client)
+            else {
+                return false
+            }
+            var error: NSError?
+            guard enable(client, Self.enableSelector, &error), error == nil else { return false }
+            error = nil
+            return setLimit(client, Self.setLimitSelector, UInt8(percent), &error) && error == nil
         }
     }
 
@@ -122,6 +193,10 @@ final class SystemPowerUIChargeClient: PowerUIChargeReading, @unchecked Sendable
               let cls: AnyClass = NSClassFromString(Self.className),
               class_getInstanceMethod(cls, Self.initSelector) != nil,
               class_getInstanceMethod(cls, Self.supportedSelector) != nil,
+              class_getInstanceMethod(cls, Self.enabledSelector) != nil,
+              class_getInstanceMethod(cls, Self.currentLimitSelector) != nil,
+              class_getInstanceMethod(cls, Self.enableSelector) != nil,
+              class_getInstanceMethod(cls, Self.setLimitSelector) != nil,
               class_getInstanceMethod(cls, Self.statusSelector) != nil,
               class_getInstanceMethod(cls, Self.disableSelector) != nil,
               let allocImplementation = class_getMethodImplementation(
@@ -157,6 +232,39 @@ final class SystemPowerUIChargeClient: PowerUIChargeReading, @unchecked Sendable
             return nil
         }
         return unsafeBitCast(implementation, to: ObjectFunction.self)
+    }
+
+    private func errorFunction(selector: Selector, on client: AnyObject) -> UInt64ErrorFunction? {
+        guard client.responds(to: selector),
+              let implementation = class_getMethodImplementation(type(of: client), selector)
+        else {
+            return nil
+        }
+        return unsafeBitCast(implementation, to: UInt64ErrorFunction.self)
+    }
+
+    private func uint8ErrorFunction(
+        selector: Selector,
+        on client: AnyObject
+    ) -> UInt8ErrorFunction? {
+        guard client.responds(to: selector),
+              let implementation = class_getMethodImplementation(type(of: client), selector)
+        else {
+            return nil
+        }
+        return unsafeBitCast(implementation, to: UInt8ErrorFunction.self)
+    }
+
+    private func boolUInt8ErrorFunction(
+        selector: Selector,
+        on client: AnyObject
+    ) -> BoolUInt8ErrorFunction? {
+        guard client.responds(to: selector),
+              let implementation = class_getMethodImplementation(type(of: client), selector)
+        else {
+            return nil
+        }
+        return unsafeBitCast(implementation, to: BoolUInt8ErrorFunction.self)
     }
 
     private func boolErrorFunction(

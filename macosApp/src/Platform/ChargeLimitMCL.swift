@@ -1,87 +1,69 @@
-import CoreFoundation
 import Foundation
 import kmpDomain
 
-/// PowerUIAgent 的 MCL 偏好域。写入这个域需要 root。
-enum ChargeLimitPreferenceDomain {
+enum DirectMCLPreference {
     static let domain = "com.apple.smartcharging.topoffprotection"
-    static let keyOptimizedChargingEnabled = "enabled"
     static let keyFeatureState = "MCLFeatureState"
     static let keyLimitValue = "mclLimitValue"
     static let changedNotification = "com.apple.smartcharging.defaultschanged"
 }
 
-/// 根偏好读写端口。测试替换这个端口，生产实现写到 PowerUIAgent 的偏好域。
-protocol ChargeLimitPreferenceStore {
+/// 直接偏好端口。`80%` 以下使用与真机验证一致的值写入路径。
+protocol ChargeLimitPreferenceStore: Sendable {
     func readInt(_ key: String) -> Int?
-    func readBool(_ key: String) -> Bool?
     func writeInt(_ key: String, value: Int)
-    func writeBool(_ key: String, value: Bool)
-    func remove(_ key: String)
     func synchronize() -> Bool
     func notifyChanged()
 }
 
-/// 生产环境的 `CFPreferences` 实现。
-final class CFPreferencesChargeLimitStore: ChargeLimitPreferenceStore {
-    private let domain = ChargeLimitPreferenceDomain.domain as CFString
+/// helper 以 root 调用 `defaults` 与 `notifyutil`。这两个命令在真机上可触发 powerd 注册。
+final class DefaultsChargeLimitPreferenceStore: ChargeLimitPreferenceStore, @unchecked Sendable {
+    private let lock = NSLock()
 
     func readInt(_ key: String) -> Int? {
-        (CFPreferencesCopyValue(
-            key as CFString,
-            domain,
-            kCFPreferencesCurrentUser,
-            kCFPreferencesAnyHost
-        ) as? NSNumber)?.intValue
-    }
-
-    func readBool(_ key: String) -> Bool? {
-        (CFPreferencesCopyValue(
-            key as CFString,
-            domain,
-            kCFPreferencesCurrentUser,
-            kCFPreferencesAnyHost
-        ) as? NSNumber)?.boolValue
+        run(["read", DirectMCLPreference.domain, key]).flatMap(Int.init)
     }
 
     func writeInt(_ key: String, value: Int) {
-        CFPreferencesSetValue(
-            key as CFString,
-            NSNumber(value: value),
-            domain,
-            kCFPreferencesCurrentUser,
-            kCFPreferencesAnyHost
-        )
+        lock.withLock {
+            _ = run(["write", DirectMCLPreference.domain, key, "-int", String(value)])
+        }
     }
 
-    func writeBool(_ key: String, value: Bool) {
-        CFPreferencesSetValue(
-            key as CFString,
-            NSNumber(value: value),
-            domain,
-            kCFPreferencesCurrentUser,
-            kCFPreferencesAnyHost
-        )
-    }
-
-    func remove(_ key: String) {
-        CFPreferencesSetValue(
-            key as CFString,
-            nil,
-            domain,
-            kCFPreferencesCurrentUser,
-            kCFPreferencesAnyHost
-        )
-    }
-
-    func synchronize() -> Bool {
-        CFPreferencesSynchronize(domain, kCFPreferencesCurrentUser, kCFPreferencesAnyHost)
-    }
+    /// `defaults` 每次调用都会和 `cfprefsd` 同步。保留端口是为了测试注入。
+    func synchronize() -> Bool { true }
 
     func notifyChanged() {
-        let center = CFNotificationCenterGetDarwinNotifyCenter()
-        let name = CFNotificationName(ChargeLimitPreferenceDomain.changedNotification as CFString)
-        CFNotificationCenterPostNotification(center, name, nil, nil, true)
+        _ = runTool(
+            executable: "/usr/bin/notifyutil",
+            arguments: ["-p", DirectMCLPreference.changedNotification]
+        )
+    }
+
+    private func run(_ arguments: [String], acceptsFailure: Bool = false) -> String? {
+        runTool(executable: "/usr/bin/defaults", arguments: arguments, acceptsFailure: acceptsFailure)
+    }
+
+    private func runTool(
+        executable: String,
+        arguments: [String],
+        acceptsFailure: Bool = false
+    ) -> String? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = arguments
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+        do {
+            try process.run()
+        } catch {
+            return nil
+        }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 || acceptsFailure else { return nil }
+        return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
@@ -106,7 +88,6 @@ enum ChargeLimitMCLFailure: Error, Equatable, CustomStringConvertible {
     case invalidTarget(Int)
     case stateUnreadable
     case stateWriteFailed
-    case preferencesSyncFailed
     case readbackFailed(String)
 
     var description: String {
@@ -117,8 +98,6 @@ enum ChargeLimitMCLFailure: Error, Equatable, CustomStringConvertible {
             "Charge limit state is unreadable"
         case .stateWriteFailed:
             "Charge limit state could not be saved"
-        case .preferencesSyncFailed:
-            "macOS did not save the charge limit preferences"
         case .readbackFailed(let key):
             "Charge limit preference readback failed: \(key)"
         }
@@ -208,16 +187,20 @@ final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
     private let stateStore: ChargeLimitStateStore
     private let powerUI: PowerUIChargeReading
     private let lock = NSLock()
-    private let allowedTargets = stride(from: 20, through: 100, by: 5).map { $0 }
+    private let supportedTargetPercent = 20...100
+    private let powerUIMinimum = 80
+    private let directReadbackTimeout: TimeInterval
 
     init(
-        preferences: ChargeLimitPreferenceStore,
+        preferences: ChargeLimitPreferenceStore = DefaultsChargeLimitPreferenceStore(),
         stateStore: ChargeLimitStateStore,
-        powerUI: PowerUIChargeReading = SystemPowerUIChargeClient()
+        powerUI: PowerUIChargeReading = SystemPowerUIChargeClient(),
+        directReadbackTimeout: TimeInterval = 2
     ) {
         self.preferences = preferences
         self.stateStore = stateStore
         self.powerUI = powerUI
+        self.directReadbackTimeout = max(0, directReadbackTimeout)
     }
 
     /// 运行时探测系统接口。接口缺失或报告不支持时，策略不得写入。
@@ -231,13 +214,11 @@ final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
     /// 读取系统当前登记的目标。外部修改由策略转成冲突态，不静默覆盖。
     func observedTargetPercent() -> Int? {
         lock.withLock {
-            guard preferences.readInt(ChargeLimitPreferenceDomain.keyFeatureState) == 1,
-                  let limit = preferences.readInt(ChargeLimitPreferenceDomain.keyLimitValue),
-                  allowedTargets.contains(limit)
-            else {
-                return nil
+            if let enabled = powerUI.isMCLEnabled() {
+                return enabled ? powerUI.currentLimit() : nil
             }
-            return limit
+            guard preferences.readInt(DirectMCLPreference.keyFeatureState) == 1 else { return nil }
+            return preferences.readInt(DirectMCLPreference.keyLimitValue)
         }
     }
 
@@ -267,7 +248,7 @@ final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
     }
 
     private func applyLocked(targetPercent: Int) -> Result<ChargeLimitPersistentState, ChargeLimitMCLFailure> {
-        guard allowedTargets.contains(targetPercent) else {
+        guard supportedTargetPercent.contains(targetPercent) else {
             return .failure(.invalidTarget(targetPercent))
         }
 
@@ -295,31 +276,16 @@ final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
         }
 
         if targetPercent == 100 {
-            _ = powerUI.disableMCL()
-        }
-        preferences.writeBool(ChargeLimitPreferenceDomain.keyOptimizedChargingEnabled, value: false)
-        if targetPercent < 100 {
-            preferences.writeInt(ChargeLimitPreferenceDomain.keyLimitValue, value: targetPercent)
-            preferences.writeInt(ChargeLimitPreferenceDomain.keyFeatureState, value: 1)
-        } else {
-            preferences.writeInt(ChargeLimitPreferenceDomain.keyFeatureState, value: 0)
-        }
-
-        guard preferences.synchronize() else {
-            return .failure(.preferencesSyncFailed)
-        }
-        preferences.notifyChanged()
-
-        if targetPercent < 100 {
-            guard preferences.readInt(ChargeLimitPreferenceDomain.keyLimitValue) == targetPercent else {
-                return .failure(.readbackFailed(ChargeLimitPreferenceDomain.keyLimitValue))
+            guard powerUI.disableMCL(), powerUI.isMCLEnabled() == false else {
+                return .failure(.readbackFailed("MCL release"))
             }
-            guard preferences.readInt(ChargeLimitPreferenceDomain.keyFeatureState) == 1 else {
-                return .failure(.readbackFailed(ChargeLimitPreferenceDomain.keyFeatureState))
+        } else if targetPercent >= powerUIMinimum {
+            guard applyWithPowerUI(targetPercent) else {
+                return .failure(.readbackFailed("MCL target"))
             }
         } else {
-            guard preferences.readInt(ChargeLimitPreferenceDomain.keyFeatureState) == 0 else {
-                return .failure(.readbackFailed(ChargeLimitPreferenceDomain.keyFeatureState))
+            guard applyDirect(targetPercent) else {
+                return .failure(.readbackFailed("MCL target"))
             }
         }
         return .success(staged)
@@ -336,37 +302,23 @@ final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
         }
         guard let state else { return .success(()) }
 
-        // 先关闭 MCL，再恢复值和开关，避免短暂的错误策略组合。
-        _ = powerUI.disableMCL()
-        preferences.writeInt(ChargeLimitPreferenceDomain.keyFeatureState, value: 0)
-
-        restoreInt(
-            key: ChargeLimitPreferenceDomain.keyLimitValue,
-            value: state.original.limitPercent
-        )
-        restoreBool(
-            key: ChargeLimitPreferenceDomain.keyOptimizedChargingEnabled,
-            value: state.original.optimizedChargingEnabled
-        )
-        restoreInt(
-            key: ChargeLimitPreferenceDomain.keyFeatureState,
-            value: state.original.featureState
-        )
-
-        guard preferences.synchronize() else {
-            return .failure(.preferencesSyncFailed)
-        }
-        preferences.notifyChanged()
-        guard preferences.readInt(ChargeLimitPreferenceDomain.keyFeatureState) == state.original.featureState else {
-            return .failure(.readbackFailed(ChargeLimitPreferenceDomain.keyFeatureState))
-        }
-        guard preferences.readInt(ChargeLimitPreferenceDomain.keyLimitValue) == state.original.limitPercent else {
-            return .failure(.readbackFailed(ChargeLimitPreferenceDomain.keyLimitValue))
-        }
-        guard preferences.readBool(ChargeLimitPreferenceDomain.keyOptimizedChargingEnabled) ==
-            state.original.optimizedChargingEnabled
-        else {
-            return .failure(.readbackFailed(ChargeLimitPreferenceDomain.keyOptimizedChargingEnabled))
+        if state.original.featureState == 1,
+           let originalLimit = state.original.limitPercent,
+           originalLimit >= powerUIMinimum {
+            _ = powerUI.disableMCL()
+            guard applyWithPowerUI(originalLimit) else {
+                return .failure(.readbackFailed("original MCL target"))
+            }
+        } else if state.original.featureState == 1,
+                  let originalLimit = state.original.limitPercent,
+                  supportedTargetPercent.contains(originalLimit) {
+            guard applyDirect(originalLimit) else {
+                return .failure(.readbackFailed("original MCL target"))
+            }
+        } else {
+            guard powerUI.disableMCL(), powerUI.isMCLEnabled() == false else {
+                return .failure(.readbackFailed("MCL release"))
+            }
         }
         do {
             try stateStore.clear()
@@ -379,28 +331,44 @@ final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
     }
 
     private func captureOriginals() -> ChargeLimitOriginals {
-        ChargeLimitOriginals(
-            optimizedChargingEnabled: preferences.readBool(
-                ChargeLimitPreferenceDomain.keyOptimizedChargingEnabled
-            ),
-            featureState: preferences.readInt(ChargeLimitPreferenceDomain.keyFeatureState),
-            limitPercent: preferences.readInt(ChargeLimitPreferenceDomain.keyLimitValue)
+        let enabled = powerUI.isMCLEnabled()
+        let featureState = enabled.map { $0 ? 1 : 0 }
+            ?? preferences.readInt(DirectMCLPreference.keyFeatureState)
+        return ChargeLimitOriginals(
+            optimizedChargingEnabled: nil,
+            featureState: featureState,
+            limitPercent: enabled == true
+                ? powerUI.currentLimit()
+                : preferences.readInt(DirectMCLPreference.keyLimitValue)
         )
     }
 
-    private func restoreInt(key: String, value: Int?) {
-        if let value {
-            preferences.writeInt(key, value: value)
-        } else {
-            preferences.remove(key)
-        }
+    private func applyWithPowerUI(_ targetPercent: Int) -> Bool {
+        powerUI.applyLimit(targetPercent) &&
+            powerUI.isMCLEnabled() == true &&
+            powerUI.currentLimit() == targetPercent
     }
 
-    private func restoreBool(key: String, value: Bool?) {
-        if let value {
-            preferences.writeBool(key, value: value)
-        } else {
-            preferences.remove(key)
+    private func applyDirect(_ targetPercent: Int) -> Bool {
+        // PowerUI enables MCL and registers the system state. The defaults write then
+        // lowers the target. notifyutil makes powerd reread the changed preference.
+        if powerUI.isMCLEnabled() != true {
+            guard applyWithPowerUI(powerUIMinimum) else { return false }
         }
+        preferences.writeInt(DirectMCLPreference.keyLimitValue, value: targetPercent)
+        guard preferences.synchronize() else { return false }
+        preferences.notifyChanged()
+        guard preferences.readInt(DirectMCLPreference.keyLimitValue) == targetPercent else {
+            return false
+        }
+
+        let deadline = Date().addingTimeInterval(directReadbackTimeout)
+        repeat {
+            if powerUI.isMCLEnabled() == true, powerUI.currentLimit() == targetPercent {
+                return true
+            }
+            if Date() >= deadline { return false }
+            Thread.sleep(forTimeInterval: 0.05)
+        } while true
     }
 }

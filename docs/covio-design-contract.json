@@ -5865,8 +5865,8 @@
       "zh-Hans": "Mac 保持运行，Covio 在合盖后关闭屏幕。"
     },
     "copy/power/session/lid-zero-brightness": {
-      "en": "Closed lid, experimental zero brightness",
-      "zh-Hans": "合盖实验零亮度"
+      "en": "Closed lid, black screen (display active)",
+      "zh-Hans": "合盖黑屏（显示链路保持）"
     },
     "copy/power/session/start": {
       "en": "Start",
@@ -5933,12 +5933,12 @@
       "zh-Hans": "允许合盖保持唤醒"
     },
     "copy/power/rules/closed-lid-zero-brightness": {
-      "en": "Experimental closed-lid zero brightness",
-      "zh-Hans": "实验性合盖零亮度"
+      "en": "Experimental closed-lid black screen",
+      "zh-Hans": "实验性合盖黑屏"
     },
     "copy/power/rules/closed-lid-zero-brightness-hint": {
-      "en": "Opt-in. The built-in panel is set to 0.0 (near black). The private API can break after a macOS update; Covio restores the previous brightness when possible.",
-      "zh-Hans": "需要显式开启。内建屏设为 0.0（接近黑屏）。私有接口可能随 macOS 更新失效；Covio 会尽力恢复原亮度。"
+      "en": "Opt-in. The panel is set to 0.0. The framebuffer and display pipeline stay active and may support Computer Use or remote capture, but this is not guaranteed. The private API can break after a macOS update.",
+      "zh-Hans": "需要显式开启。面板亮度设为 0.0；framebuffer 和显示链路保持在线，可能支持 Computer Use 或远程截图，但不保证可用。私有接口可能随 macOS 更新失效。"
     },
     "copy/power/rules/closed-lid-zero-brightness-unavailable": {
       "en": "Unavailable on this macOS version or hardware.",

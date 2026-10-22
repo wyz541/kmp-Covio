@@ -45,6 +45,9 @@ final class AppRuntime {
     /// 共享文件工作区。Hub 的文件页签读它。
     let workspace: WorkspaceRuntime
 
+    /// 文件区的短期传输任务。任务不持久化。
+    let transfer: WorkspaceTransferRuntime
+
     /// 电源管理面的真实运行时。
     let powerRuntime: PowerRuntime
     /// 文件自动命名。Hub 的文件页签读它。
@@ -115,6 +118,7 @@ final class AppRuntime {
         shelf: ShelfRuntime? = nil,
         clipboard: ClipboardRuntime? = nil,
         workspace: WorkspaceRuntime? = nil,
+        transfer: WorkspaceTransferRuntime? = nil,
         autoNaming: AutoNamingRuntime? = nil
     ) {
         let resolvedLogger = logger ?? FileAppLogger()
@@ -208,6 +212,7 @@ final class AppRuntime {
         // 工作区没有配置依赖，也没有要交出去的闭包。直接建。
         let resolvedWorkspace = workspace ?? WorkspaceRuntime()
         self.workspace = resolvedWorkspace
+        self.transfer = transfer ?? WorkspaceTransferRuntime(workspace: resolvedWorkspace)
 
         let resourceRoot = Bundle.main.resourceURL ?? Bundle.main.bundleURL
         let modelConfiguration = NamingModelConfiguration.bundled(

@@ -267,6 +267,16 @@ final class WorkspaceRuntime {
         errorMessage = nil
     }
 
+    /// 把条目的本机可用状态同步给界面。
+    func setAvailability(_ availability: WorkspaceAvailability, for entryId: String) {
+        adopt(client.setAvailability(state: state, entryId: entryId, availability: availability))
+    }
+
+    /// 启动时清掉上次进程留下的 FETCHING 状态。
+    func reconcileOrphanedTransfers(activeEntryIds: Set<String>) {
+        adopt(client.clearOrphanedFetching(state: state, activeEntryIds: activeEntryIds))
+    }
+
     func reveal(_ entryId: String) {
         guard let url = contentURL(entryId) else {
             errorMessage = ContractCopy.copyHubFilesErrorMissing

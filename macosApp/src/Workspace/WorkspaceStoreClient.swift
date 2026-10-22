@@ -88,6 +88,35 @@ final class WorkspaceStoreClient: @unchecked Sendable {
         return store.setPinned(state: state, entryId: entryId, pinned: pinned)
     }
 
+    /// 只改条目可用性，不改内容与排序字段。
+    func setAvailability(
+        state: WorkspaceState,
+        entryId: String,
+        availability: WorkspaceAvailability
+    ) -> WorkspaceState {
+        let entries = state.entries.map { entry in
+            entry.entryId == entryId ? entry.withAvailability(availability) : entry
+        }
+        return save(state.doCopy(schemaVersion: state.schemaVersion, entries: entries, policy: state.policy))
+    }
+
+    /// 启动时把没有内存任务接管的 FETCHING 状态恢复为 REMOTE。
+    func clearOrphanedFetching(
+        state: WorkspaceState,
+        activeEntryIds: Set<String>
+    ) -> WorkspaceState {
+        var changed = false
+        let entries = state.entries.map { entry in
+            guard entry.availability == WorkspaceAvailability.fetching,
+                  !activeEntryIds.contains(entry.entryId)
+            else { return entry }
+            changed = true
+            return entry.withAvailability(WorkspaceAvailability.remote)
+        }
+        guard changed else { return state }
+        return save(state.doCopy(schemaVersion: state.schemaVersion, entries: entries, policy: state.policy))
+    }
+
     /// 删掉一条条目及其内容，并留下删除标记。
     func remove(state: WorkspaceState, entryId: String, nowEpochSeconds: Int64) -> WorkspaceState {
         lock.lock()
@@ -131,5 +160,22 @@ final class WorkspaceStoreClient: @unchecked Sendable {
     /// 空状态。
     static var emptyState: WorkspaceState {
         WorkspaceState.companion.defaults()
+    }
+}
+
+private extension WorkspaceEntry {
+    func withAvailability(_ availability: WorkspaceAvailability) -> WorkspaceEntry {
+        doCopy(
+            entryId: entryId,
+            kind: kind,
+            displayName: displayName,
+            byteSize: byteSize,
+            contentType: contentType,
+            createdAtEpochSeconds: createdAtEpochSeconds,
+            originDeviceId: originDeviceId,
+            expiresAtEpochSeconds: expiresAtEpochSeconds,
+            availability: availability,
+            pinned: pinned
+        )
     }
 }

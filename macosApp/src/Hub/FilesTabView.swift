@@ -20,6 +20,7 @@ private struct FileAreaSnapshot {
 struct FilesTabView: View {
     let shelf: ShelfRuntime
     let workspace: WorkspaceRuntime
+    let transfer: WorkspaceTransferRuntime
     let autoNaming: AutoNamingRuntime
     let policy: FileNamingPolicy
     let language: AppLanguage
@@ -104,7 +105,8 @@ struct FilesTabView: View {
                         FileFocusCardView(
                             item: selectedItem,
                             url: url(for: selectedItem),
-                            language: language
+                            language: language,
+                            transferTask: transfer.task(for: selectedItem.itemId)
                         ) { action in
                             perform(action, on: selectedItem)
                         }
@@ -118,6 +120,7 @@ struct FilesTabView: View {
                                         item: item,
                                         url: url(for: item),
                                         language: language,
+                                        transferTask: transfer.task(for: item.itemId),
                                         onSelect: { select(item.id) }
                                     ) { action in
                                         perform(action, on: item)
@@ -245,10 +248,14 @@ struct FilesTabView: View {
         let counts = Dictionary(uniqueKeysWithValues: FileAreaFilterChoice.allCases.map { option in
             (option, FileAreaProjection.shared.filter(items: items, filter: option.filter).count)
         })
-        let activeTransfers = items.count {
-            $0.availability == FileAreaAvailability.remote ||
-                $0.availability == FileAreaAvailability.fetching
+        let activeTaskIDs = transfer.activeEntryIDs
+        let itemFallbackCount = items.count { item in
+            guard item.availability == FileAreaAvailability.remote ||
+                    item.availability == FileAreaAvailability.fetching
+            else { return false }
+            return transfer.task(for: item.itemId) == nil
         }
+        let activeTransfers = activeTaskIDs.count + itemFallbackCount
         return FileAreaSnapshot(
             items: items,
             filteredItems: filtered,
@@ -349,7 +356,14 @@ struct FilesTabView: View {
             workspace.reveal(item.itemId)
         case .pin:
             workspace.togglePin(item.itemId)
+        case .download:
+            transfer.beginDownload(item.itemId)
+        case .cancelTransfer:
+            transfer.cancel(item.itemId)
+        case .retry:
+            transfer.retry(item.itemId)
         case .remove:
+            transfer.discard(item.itemId)
             if item.origin == FileAreaOrigin.screenshot {
                 shelf.removeItem(shelfItem(item))
             } else {

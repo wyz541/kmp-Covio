@@ -90,6 +90,85 @@ final class FileAreaTests: XCTestCase {
         )
     }
 
+    func testRemoteContentOffersDownloadWithoutDuplicatingTheItem() {
+        let item = makeItem(
+            id: "workspace:remote",
+            origin: FileAreaOrigin.workspace,
+            itemId: "remote",
+            name: "remote.pdf",
+            kind: FileAreaKind.pdf,
+            availability: FileAreaAvailability.remote,
+            capabilities: FileAreaCapabilities(
+                canOpen: false,
+                canCopy: false,
+                canCopyText: false,
+                canMarkup: false,
+                canDragOut: false,
+                canSaveToWorkspace: false,
+                canReveal: false,
+                canPin: false,
+                canRemove: true,
+                canDownload: true,
+                canCancel: false
+            )
+        )
+
+        XCTAssertEqual(FileAreaPresentation.quickAction(for: item), .download)
+        XCTAssertEqual(
+            FileAreaPresentation.contextActions(for: item),
+            [.download, .remove]
+        )
+    }
+
+    func testTransferTaskActionsFollowThePhase() {
+        let item = makeItem(
+            id: "workspace:remote",
+            origin: FileAreaOrigin.workspace,
+            itemId: "remote",
+            name: "remote.pdf",
+            kind: FileAreaKind.pdf,
+            availability: FileAreaAvailability.fetching,
+            capabilities: FileAreaCapabilities(
+                canOpen: false,
+                canCopy: false,
+                canCopyText: false,
+                canMarkup: false,
+                canDragOut: false,
+                canSaveToWorkspace: false,
+                canReveal: false,
+                canPin: false,
+                canRemove: true,
+                canDownload: true,
+                canCancel: true
+            )
+        )
+        let waiting = task(item: item, phase: .waiting, transferredBytes: 0)
+        let transferring = task(item: item, phase: .transferring, transferredBytes: 50)
+        let failed = task(item: item, phase: .failed, transferredBytes: 0, failure: .connectionFailed)
+        let cancelled = task(item: item, phase: .cancelled, transferredBytes: 0)
+
+        XCTAssertEqual(FileAreaPresentation.quickAction(for: item, task: waiting), .cancelTransfer)
+        XCTAssertEqual(FileAreaPresentation.quickAction(for: item, task: transferring), .cancelTransfer)
+        XCTAssertEqual(FileAreaPresentation.quickAction(for: item, task: failed), .retry)
+        XCTAssertEqual(FileAreaPresentation.quickAction(for: item, task: cancelled), .retry)
+        XCTAssertEqual(
+            FileAreaPresentation.statusTitle(for: item, language: .simplifiedChinese, task: waiting),
+            ContractCopy.copyHubFilesStateWaiting.text(for: .simplifiedChinese)
+        )
+        XCTAssertEqual(
+            FileAreaPresentation.statusTitle(for: item, language: .simplifiedChinese, task: transferring),
+            "正在传输 50%"
+        )
+        XCTAssertEqual(
+            FileAreaPresentation.statusTitle(for: item, language: .simplifiedChinese, task: cancelled),
+            ContractCopy.copyHubFilesStateTransferCancelled.text(for: .simplifiedChinese)
+        )
+        XCTAssertEqual(
+            FileAreaPresentation.transferFailureDetail(for: failed, language: .simplifiedChinese),
+            ContractCopy.copyHubFilesErrorConnection.text(for: .simplifiedChinese)
+        )
+    }
+
     func testStatusIsWrittenAsWellAsColored() {
         let item = makeItem(
             id: "workspace:remote",
@@ -119,6 +198,23 @@ final class FileAreaTests: XCTestCase {
         XCTAssertEqual(FileAreaFilterChoice.files.filter, FileAreaFilter.files)
         XCTAssertEqual(FileAreaFilterChoice.text.filter, FileAreaFilter.text)
         XCTAssertEqual(FileAreaFilterChoice.transfers.filter, FileAreaFilter.transfers)
+    }
+
+    private func task(
+        item: FileAreaItem,
+        phase: WorkspaceTransferPhase,
+        transferredBytes: Int64,
+        failure: WorkspaceTransferFailure? = nil
+    ) -> WorkspaceTransferTask {
+        WorkspaceTransferTask(
+            entryId: item.itemId,
+            direction: .download,
+            peerDeviceId: "iPhone",
+            totalBytes: 100,
+            phase: phase,
+            transferredBytes: transferredBytes,
+            failure: failure
+        )
     }
 
     private func makeItem(

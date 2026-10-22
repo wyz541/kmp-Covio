@@ -219,6 +219,10 @@ final class ContractConstantsTests: XCTestCase {
             "copy/hub/files/kind/pdf",
             "copy/hub/files/kind/audio",
             "copy/hub/files/error/copy",
+            "copy/hub/files/error/connection",
+            "copy/hub/files/state/waiting",
+            "copy/hub/files/state/transferring",
+            "copy/hub/files/state/transfer-cancelled",
         ]
         for key in copyKeys {
             XCTAssertNotNil(copy[key], "合同缺少 \(key)")

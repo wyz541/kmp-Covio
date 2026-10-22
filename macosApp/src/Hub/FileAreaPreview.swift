@@ -47,6 +47,7 @@ struct FileAreaShowcaseView: View {
                     item: selectedItem,
                     url: nil,
                     language: language,
+                    transferTask: transferTask(for: selectedItem),
                     onAction: { _ in }
                 )
             }
@@ -64,6 +65,7 @@ struct FileAreaShowcaseView: View {
                         item: item,
                         url: nil,
                         language: language,
+                        transferTask: transferTask(for: item),
                         onSelect: { selectedID = item.id },
                         onAction: { _ in }
                     )
@@ -74,6 +76,53 @@ struct FileAreaShowcaseView: View {
         .padding(.horizontal, 24)
         .frame(width: contentWidth + 48, height: FileAreaMetrics.areaHeight, alignment: .topLeading)
         .background(Color(red: 0.68, green: 0.64, blue: 0.71))
+    }
+
+    private func transferTask(for item: FileAreaItem) -> WorkspaceTransferTask? {
+        switch item.id {
+        case "remote":
+            WorkspaceTransferTask(
+                entryId: item.itemId,
+                direction: .download,
+                peerDeviceId: "iPhone",
+                totalBytes: item.byteSize,
+                phase: .waiting,
+                transferredBytes: 0,
+                failure: nil
+            )
+        case "fetching":
+            WorkspaceTransferTask(
+                entryId: item.itemId,
+                direction: .download,
+                peerDeviceId: "iPad",
+                totalBytes: item.byteSize,
+                phase: .transferring,
+                transferredBytes: item.byteSize * 62 / 100,
+                failure: nil
+            )
+        case "failed":
+            WorkspaceTransferTask(
+                entryId: item.itemId,
+                direction: .download,
+                peerDeviceId: "MacBook Air",
+                totalBytes: item.byteSize,
+                phase: .failed,
+                transferredBytes: 0,
+                failure: .connectionFailed
+            )
+        case "cancelled":
+            WorkspaceTransferTask(
+                entryId: item.itemId,
+                direction: .download,
+                peerDeviceId: "iPhone",
+                totalBytes: item.byteSize,
+                phase: .cancelled,
+                transferredBytes: 0,
+                failure: nil
+            )
+        default:
+            nil
+        }
     }
 
     private func count(for filter: FileAreaFilterChoice) -> Int {
@@ -94,9 +143,8 @@ struct FileAreaShowcaseView: View {
     }
 
     private var activeTransferCount: Int {
-        items.count {
-            $0.availability == FileAreaAvailability.remote ||
-                $0.availability == FileAreaAvailability.fetching
+        items.compactMap { transferTask(for: $0) }.count { task in
+            task.phase == .waiting || task.phase == .transferring
         }
     }
 
@@ -109,7 +157,8 @@ struct FileAreaShowcaseView: View {
             item("remote", .image, "iPhone 参考.heic", availability: .remote),
             item("fetching", .file, "交互录屏 03.mov", availability: .fetching),
             item("audio", .audio, "旧录音.m4a", availability: .unavailable),
-            item("doc", .file, "客户反馈.zip"),
+            item("failed", .pdf, "客户反馈.pdf", availability: .remote),
+            item("cancelled", .file, "客户反馈.zip", availability: .remote),
         ]
     }
 

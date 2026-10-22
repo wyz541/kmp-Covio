@@ -320,6 +320,7 @@ struct HubTabContent: View {
             FilesTabView(
                 shelf: runtime.shelf,
                 workspace: runtime.workspace,
+                transfer: runtime.transfer,
                 autoNaming: runtime.autoNaming,
                 policy: runtime.config.fileNaming,
                 language: language,

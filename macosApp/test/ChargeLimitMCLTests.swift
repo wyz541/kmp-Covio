@@ -8,6 +8,7 @@ final class ChargeLimitMCLTests: XCTestCase {
     private var stateStore: ChargeLimitStateStore!
     private var powerUI: FakePowerUIChargeReading!
     private var preferences: FakeChargeLimitPreferences!
+    private var systemTarget: FakeChargeLimitSystemTarget!
 
     override func setUpWithError() throws {
         directory = FileManager.default.temporaryDirectory
@@ -15,8 +16,11 @@ final class ChargeLimitMCLTests: XCTestCase {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         stateURL = directory.appendingPathComponent("charge-limit/state.json")
         stateStore = ChargeLimitStateStore(url: stateURL)
-        powerUI = FakePowerUIChargeReading()
+        let powerUI = FakePowerUIChargeReading()
+        self.powerUI = powerUI
         preferences = FakeChargeLimitPreferences()
+        let preferences = self.preferences!
+        systemTarget = FakeChargeLimitSystemTarget { powerUI.currentPercent }
         preferences.ints[DirectMCLPreference.keyFeatureState] = 1
         preferences.ints[DirectMCLPreference.keyLimitValue] = 80
     }
@@ -110,7 +114,22 @@ final class ChargeLimitMCLTests: XCTestCase {
         let result = controller.apply(targetPercent: 70)
 
         XCTAssertEqual(result, .failure(.readbackFailed("MCL target")))
-        XCTAssertTrue(powerUI.appliedLimits.isEmpty)
+        XCTAssertEqual(powerUI.appliedLimits, [80])
+        XCTAssertEqual(powerUI.currentPercent, 80)
+    }
+
+    func testDirectPathFailsWhenPowerdKeepsTheOldTarget() {
+        preferences.onNotify = { [weak self] in
+            self?.powerUI.enabled = true
+            self?.powerUI.currentPercent = 70
+        }
+        systemTarget.overridePercent = 80
+        let controller = makeController(directReadbackTimeout: 0.01)
+
+        let result = controller.apply(targetPercent: 70)
+
+        XCTAssertEqual(result, .failure(.readbackFailed("MCL target")))
+        XCTAssertNil(try? stateStore.load())
         XCTAssertEqual(powerUI.currentPercent, 80)
     }
 
@@ -272,6 +291,7 @@ final class ChargeLimitMCLTests: XCTestCase {
             preferences: preferences,
             stateStore: stateStore,
             powerUI: powerUI,
+            systemTarget: systemTarget,
             directReadbackTimeout: directReadbackTimeout
         )
     }
@@ -346,4 +366,15 @@ private final class FakePowerUIChargeReading: PowerUIChargeReading, @unchecked S
         enabled = false
         return true
     }
+}
+
+private final class FakeChargeLimitSystemTarget: ChargeLimitSystemTargetReading, @unchecked Sendable {
+    private let source: @Sendable () -> Int?
+    var overridePercent: Int?
+
+    init(source: @escaping @Sendable () -> Int?) {
+        self.source = source
+    }
+
+    func readTargetPercent() -> Int? { overridePercent ?? source() }
 }

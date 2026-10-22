@@ -1,0 +1,18 @@
+Qwen3-VL-4B-Instruct
+
+Copyright (c) Qwen Team, Alibaba Cloud.
+
+Covio supports an optional MLX 4-bit package published by the model publisher.
+
+Model source:
+https://huggingface.co/Qwen3-VL-4B-Instruct
+
+Converted weights:
+https://huggingface.co/mlx-community/Qwen3-VL-4B-Instruct-4bit
+
+Fixed conversion revision:
+2fd8dacbdb8f1e54b8c005f081ec5bf79c56376b
+
+License: Apache License 2.0
+
+The model is used without endorsement by Qwen, Alibaba Cloud, or the conversion publisher.

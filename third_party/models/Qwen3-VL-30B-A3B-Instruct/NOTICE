@@ -1,0 +1,18 @@
+Qwen3-VL-30B-A3B-Instruct
+
+Copyright (c) Qwen Team, Alibaba Cloud.
+
+Covio supports an optional MLX 4-bit package published by the model publisher.
+
+Model source:
+https://huggingface.co/Qwen3-VL-30B-A3B-Instruct
+
+Converted weights:
+https://huggingface.co/lmstudio-community/Qwen3-VL-30B-A3B-Instruct-MLX-4bit
+
+Fixed conversion revision:
+61c11f42d7bc01e00f5ea7f2e667c0a216f48397
+
+License: Apache License 2.0
+
+The model is used without endorsement by Qwen, Alibaba Cloud, or the conversion publisher.

@@ -24,11 +24,30 @@
 | 模型 | 文件总大小 |
 | --- | ---: |
 | `Qwen3-VL-2B-Instruct-4bit` | `1,798,024,507` bytes |
-| `Qwen3-VL-4B-Instruct-4bit` | `3,109,732,804` bytes |
-| `Qwen3-VL-8B-Instruct-4bit` | `5,776,633,868` bytes |
-| `Qwen3-VL-30B-A3B-Instruct-MLX-4bit` | `18,268,092,893` bytes |
+| `Qwen3-VL-4B-Instruct-4bit` | `3,109,729,929` bytes |
+| `Qwen3-VL-8B-Instruct-4bit` | `5,776,630,909` bytes |
+| `Qwen3-VL-30B-A3B-Instruct-MLX-4bit` | `18,268,088,064` bytes |
 
-全部模型文件通过 ModelScope API SHA-256 校验。
+全部模型文件通过上游 API 元数据和固定 SHA-256 校验。
+可选包清单位于 `macosApp/src/AutoNaming/FileNamingModelManifest-*.json`。
+
+## 本地包验证
+
+1. `schemaVersion` 必须为 1。
+2. `tier`、`modelID` 和 `revision` 必须匹配本地 catalog。
+3. `license` 必须为 `Apache-2.0`。
+4. 每个文件必须存在、为普通文件且大小匹配。
+5. 每个文件必须通过 SHA-256 校验。
+6. 硬件内存不足或当前可用内存不足时拒绝加载。
+7. 切换模型时共享 runtime 先释放旧租约，再替换 loader。
+8. 30B-A3B 可以导入并用于文件命名，但 Agent tool-calling 路径会拒绝该档位。
+
+下载和验证可选包：
+
+```bash
+python3 scripts/file_naming_model.py --manifest macosApp/src/AutoNaming/FileNamingModelManifest-highQuality8B.json download /path/to/Qwen3VL-8B-Instruct-4bit
+python3 scripts/file_naming_model.py --manifest macosApp/src/AutoNaming/FileNamingModelManifest-highQuality8B.json verify-directory /path/to/Qwen3VL-8B-Instruct-4bit
+```
 
 ## 工具矩阵
 

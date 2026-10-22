@@ -36,6 +36,9 @@ struct GeneralPage: View {
             }
             .settingsRowAnchor(SettingsRowID.generalLanguage)
 
+            LocalModelPackagesCard(runtime: runtime)
+                .settingsRowAnchor(SettingsRowID.generalLocalModel)
+
             MacCard {
                 MacSettingRow(title: ContractCopy.copyGeneralLaunchAtLogin.text(for: runtime.language)) {
                     MacSwitch(

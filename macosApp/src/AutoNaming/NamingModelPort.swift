@@ -16,6 +16,7 @@ enum NamingModelErrorCode: String, Error, Sendable, Equatable {
     case malformedOutput
     case unsafeOutput
     case modelNotLoaded
+    case agentModelUnsupported
 }
 
 struct NamingModelError: Error, Sendable, Equatable {
@@ -177,6 +178,11 @@ protocol NamingModelPort: Sendable {
     func generate(_ request: NamingModelRequest) async throws -> NamingModelResponse
     func cancel() async
     func release() async
+    func prepareForModelSwitch() async
+}
+
+extension NamingModelPort {
+    func prepareForModelSwitch() async {}
 }
 
 protocol NamingModelServing: Sendable {
@@ -184,6 +190,11 @@ protocol NamingModelServing: Sendable {
     func generate(_ request: NamingModelRequest) async throws -> NamingModelResponse
     func cancel() async
     func release() async
+    func prepareForModelSwitch() async
+}
+
+extension NamingModelServing {
+    func prepareForModelSwitch() async {}
 }
 
 /// 对上暴露一个入口。它串行执行请求，并统一处理超时和失败回退。
@@ -247,6 +258,14 @@ actor NamingModelCoordinator {
         activeTask = nil
         await primary.release()
         await fallback.release()
+    }
+
+    func prepareForModelSwitch() async {
+        activeTask?.cancel()
+        _ = try? await activeTask?.value
+        activeTask = nil
+        await primary.prepareForModelSwitch()
+        await fallback.prepareForModelSwitch()
     }
 }
 

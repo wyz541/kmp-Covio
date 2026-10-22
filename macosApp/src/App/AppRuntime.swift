@@ -64,6 +64,10 @@ final class AppRuntime {
 
     /// 文件自动命名和 Agent 共用同一个本地模型容器。
     private let localModelRuntime: LocalModelRuntime
+    private let localModelPackageRegistry: LocalModelPackageRegistryStore
+    private let modelSelectionState: LocalModelSelectionState
+    /// 当前激活的模型档位。切换完成后更新。
+    private(set) var activeModelTier: LocalModelTier
     private let agentHistoryStore: any AgentHistoryStoring
 
     private let configStore: ConfigStore
@@ -220,14 +224,27 @@ final class AppRuntime {
         self.transfer = transfer ?? WorkspaceTransferRuntime(workspace: resolvedWorkspace)
 
         let resourceRoot = Bundle.main.resourceURL ?? Bundle.main.bundleURL
-        let modelConfiguration = NamingModelConfiguration.bundled(
-            resourceDirectory: resourceRoot,
-            environment: ProcessInfo.processInfo.environment
-        ) ?? NamingModelConfiguration(
-            modelDirectory: resourceRoot
-                .appendingPathComponent("Models", isDirectory: true)
-                .appendingPathComponent("Qwen3VL-2B-Instruct-4bit", isDirectory: true)
+        let packageRegistry = LocalModelPackageRegistryStore(
+            path: AppPaths.localModelPackagesFile
         )
+        self.localModelPackageRegistry = packageRegistry
+        let importedConfiguration = Self.registeredModelConfiguration(
+            registry: packageRegistry.load(),
+            memory: LocalModelMemoryProbe.current()
+        )
+        let modelConfiguration = importedConfiguration
+            ?? NamingModelConfiguration.bundled(
+                resourceDirectory: resourceRoot,
+                environment: ProcessInfo.processInfo.environment
+            )
+            ?? NamingModelConfiguration(
+                modelDirectory: resourceRoot
+                    .appendingPathComponent("Models", isDirectory: true)
+                    .appendingPathComponent("Qwen3VL-2B-Instruct-4bit", isDirectory: true)
+            )
+        self.activeModelTier = modelConfiguration.tier
+        let modelSelectionState = LocalModelSelectionState(initialTier: modelConfiguration.tier)
+        self.modelSelectionState = modelSelectionState
         let localModelRuntime = LocalModelRuntime(
             modelDirectory: modelConfiguration.modelDirectory
         )
@@ -261,7 +278,10 @@ final class AppRuntime {
             model: LocalAgentModel(
                 modelDirectory: modelConfiguration.modelDirectory,
                 gateway: agentGateway,
-                containerRuntime: localModelRuntime
+                containerRuntime: localModelRuntime,
+                agentToolCallingAvailable: {
+                    await modelSelectionState.supportsAgentToolCalling()
+                }
             ),
             gateway: agentGateway,
             historyStore: resolvedAgentHistory
@@ -319,6 +339,81 @@ final class AppRuntime {
                 self?.applyAgentSettingChange(key: key, value: value) ?? false
             }
         )
+    }
+
+    /// Verifies, registers, and activates one user-imported model package.
+    ///
+    /// The shared runtime waits for every existing lease to finish before it
+    /// replaces the loader. Therefore the old model is unloaded before the next
+    /// generation can load the new weights.
+    func importLocalModelPackage(
+        directory: URL,
+        tier: LocalModelTier
+    ) async throws -> VerifiedLocalModelPackage {
+        guard !agent.isBusy,
+              agent.pendingAction == nil,
+              await autoNaming.prepareForModelSwitch(),
+              await agent.prepareForModelSwitch()
+        else {
+            throw LocalModelPackageFailure(
+                code: .modelBusy,
+                detail: "Finish the current local model task before switching."
+            )
+        }
+        let previousTier = await modelSelectionState.currentTier()
+        await modelSelectionState.set(tier)
+        await localModelRuntime.unloadModelContainer()
+        do {
+            let verifier = LocalModelPackageVerifier()
+            let verified = try await Task.detached(priority: .userInitiated) {
+                try verifier.verify(directory: directory, tier: tier)
+            }.value
+            try localModelPackageRegistry.register(verified)
+            await localModelRuntime.replaceModelDirectory(verified.directory)
+            activeModelTier = tier
+            return verified
+        } catch {
+            await modelSelectionState.set(previousTier)
+            try? localModelPackageRegistry.select(tier: previousTier)
+            throw error
+        }
+    }
+
+    func activateRegisteredLocalModelPackage(tier: LocalModelTier) async throws -> VerifiedLocalModelPackage {
+        guard let registration = localModelPackageRegistry.load().registration(for: tier) else {
+            throw LocalModelPackageFailure(
+                code: .fileMissing,
+                detail: "The model package is not registered."
+            )
+        }
+        return try await importLocalModelPackage(
+            directory: URL(fileURLWithPath: registration.directoryPath, isDirectory: true),
+            tier: tier
+        )
+    }
+
+    func hasRegisteredLocalModelPackage(tier: LocalModelTier) -> Bool {
+        localModelPackageRegistry.load().registration(for: tier) != nil
+    }
+
+    func supportsLocalModelTier(_ tier: LocalModelTier) -> Bool {
+        ProcessInfo.processInfo.physicalMemory >= tier.minimumPhysicalMemoryBytes
+    }
+
+    private static func registeredModelConfiguration(
+        registry: LocalModelPackageRegistry,
+        memory: LocalModelMemorySnapshot
+    ) -> NamingModelConfiguration? {
+        guard let tier = registry.selectedTier,
+              let registration = registry.registration(for: tier),
+              memory.physicalBytes >= tier.minimumPhysicalMemoryBytes,
+              memory.availableBytes >= tier.estimatedWorkingSetBytes
+        else { return nil }
+        let directory = URL(fileURLWithPath: registration.directoryPath, isDirectory: true)
+        guard FileManager.default.fileExists(
+            atPath: directory.appendingPathComponent("FileNamingModelManifest.json").path
+        ) else { return nil }
+        return NamingModelConfiguration(modelDirectory: directory, tier: tier)
     }
 
     // MARK: - 生命周期

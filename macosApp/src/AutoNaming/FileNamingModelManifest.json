@@ -1,5 +1,6 @@
 {
   "schemaVersion": 1,
+  "tier": "2b",
   "modelID": "mlx-community/Qwen3-VL-2B-Instruct-4bit",
   "revision": "9c4f5209e57b31f4b9dfba735de3fb983739c9cc",
   "displayName": "Qwen3-VL-2B-Instruct-4bit",

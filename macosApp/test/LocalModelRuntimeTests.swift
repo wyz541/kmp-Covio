@@ -79,6 +79,32 @@ final class LocalModelRuntimeTests: XCTestCase {
         await second.release()
     }
 
+    func testReplacingTheLoaderUnloadsBeforeTheNextModel() async throws {
+        let counter = LoadCounter()
+        let runtime = SharedModelRuntime<Int> {
+            await counter.load()
+        }
+        let first = try await runtime.acquire()
+        await first.release()
+
+        await runtime.replaceLoader {
+            await counter.load() + 10
+        }
+        let second = try await runtime.acquire()
+
+        XCTAssertEqual(second.resource, 12)
+        let loadCount = await counter.value
+        XCTAssertEqual(loadCount, 2)
+        await second.release()
+    }
+
+    func testModelTierCapabilitiesMatchTheSafetyDecision() {
+        XCTAssertTrue(LocalModelTier.compact2B.supportsAgentToolCalling)
+        XCTAssertTrue(LocalModelTier.balanced4B.supportsAgentToolCalling)
+        XCTAssertTrue(LocalModelTier.highQuality8B.supportsAgentToolCalling)
+        XCTAssertFalse(LocalModelTier.heavy30BA3B.supportsAgentToolCalling)
+    }
+
     func testBundledConfigurationSelectsAnAvailableTierForHardware() throws {
         let root = URL(fileURLWithPath: "/Applications/Covio.app/Contents/Resources")
         let available = Set([

@@ -185,7 +185,7 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
                 return .failure(.stateWriteFailed)
             }
             startTimerLocked()
-            switch evaluateLocked() {
+            switch evaluateLocked(explicitUserRequest: true) {
             case .success:
                 return statusLocked()
             case .failure(let failure):
@@ -242,7 +242,8 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
     }
 
     private func evaluateLocked(
-        recoveringFromStartup: Bool = false
+        recoveringFromStartup: Bool = false,
+        explicitUserRequest: Bool = false
     ) -> Result<Void, ChargeLimitMCLFailure> {
         let state: ChargeLimitRuntimeState
         do {
@@ -268,7 +269,9 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
         let returningFromCalibration = state.lastPhase == "calibration" &&
             !reading.calibrationActive &&
             state.calibrationTargetPercent == observedTarget
-        let targetMayBeReplaced = recoveringFromStartup || returningFromCalibration
+        let targetMayBeReplaced = recoveringFromStartup ||
+            returningFromCalibration ||
+            explicitUserRequest
         let observation = ChargeLimitObservation(
             enabled: true,
             upperLimitPercent: Int32(state.userLimitPercent),

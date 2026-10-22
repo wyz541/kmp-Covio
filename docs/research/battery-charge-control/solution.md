@@ -41,7 +41,7 @@
 1. 保存原 MCL 开关和上限。
 2. 写入 Covio 配置。
 3. 目标不低于 `80%` 时调用 `enableMCL:error:` 与 `setMCLLimit:error:`。
-4. 目标低于 `80%` 时先保持 MCL 开启，再写入 `mclLimitValue`。
+4. 目标低于 `80%` 时先保持 MCL 开启，再写入 `MCLFeatureState=1` 与 `mclLimitValue`。
 5. 目标低于 `80%` 时执行 `notifyutil -p com.apple.smartcharging.defaultschanged`。
 6. 等待系统注册策略。
 7. 读取 `PowerUI getMCLLimitWithError:` 与 `pmset -g battlimit`。
@@ -79,6 +79,8 @@ Covio 每次刷新只读检查原生 MCL。
 | API 不可用 | 显示不支持 |
 
 Covio 不在用户不知情时反复覆盖系统设置。
+用户显式应用上限时，Covio 覆盖当前冲突一次。
+后续自动刷新仍按外部变更进入冲突态。
 helper 重启时，Covio 按已保存的用户意图恢复目标。
 启动恢复不等同于运行期间的静默覆盖。
 

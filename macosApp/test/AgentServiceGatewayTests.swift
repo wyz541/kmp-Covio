@@ -64,6 +64,8 @@ final class AgentServiceGatewayTests: XCTestCase {
         let pending = await gateway.pendingAction()
         XCTAssertEqual(pending?.toolName, "copy_text")
         XCTAssertEqual(pending?.summary, "Copy 8 characters to the clipboard.")
+        XCTAssertEqual(pending?.textPreview, "你好，Covio")
+        XCTAssertEqual(pending?.risk, .sideEffect)
         let beforeConfirm = await counter.value
         XCTAssertEqual(beforeConfirm, 0)
 
@@ -93,6 +95,50 @@ final class AgentServiceGatewayTests: XCTestCase {
         XCTAssertNil(pending)
         let audits = await gateway.recentAudits()
         XCTAssertEqual(audits.last?.status, .cancelled)
+    }
+
+    func testSecondSideEffectIsRejectedWithoutReplacingPendingAction() async {
+        let counter = Counter()
+        let gateway = AgentServiceGateway(handlers: handlers(counter: counter))
+
+        _ = await gateway.handle(
+            call(name: "copy_text", arguments: ["text": .string("first")])
+        )
+        let second = await gateway.handle(
+            call(name: "copy_text", arguments: ["text": .string("second")])
+        )
+
+        XCTAssertTrue(second.contains("pendingActionExists"))
+        let pending = await gateway.pendingAction()
+        XCTAssertEqual(pending?.textPreview, "first")
+        let count = await counter.value
+        XCTAssertEqual(count, 0)
+        let audits = await gateway.recentAudits()
+        XCTAssertEqual(audits.map(\.status), [.pendingConfirmation, .rejected])
+    }
+
+    func testTimedOutToolReturnsAFixedErrorCode() async {
+        let gateway = AgentServiceGateway(
+            handlers: AgentServiceHandlers(
+                monitorSnapshot: {
+                    try? await Task.sleep(for: .seconds(5))
+                    return AgentServiceResult(ok: true, summary: "late", data: nil)
+                },
+                powerStatus: { .failure("unused") },
+                workspaceFiles: { _, _ in .failure("unused") },
+                screenshots: { _ in .failure("unused") },
+                clipboardMetadata: { _ in .failure("unused") },
+                copyText: { _ in .failure("unused") }
+            ),
+            timeout: .milliseconds(20)
+        )
+
+        let result = await gateway.handle(call(name: "get_monitor_snapshot", arguments: [:]))
+
+        XCTAssertTrue(result.contains("timeout"))
+        let audits = await gateway.recentAudits()
+        XCTAssertEqual(audits.last?.status, .failed)
+        XCTAssertEqual(audits.last?.errorCode, .timeout)
     }
 
     private func call(name: String, arguments: [String: JSONValue]) -> ToolCall {

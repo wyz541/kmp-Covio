@@ -43,15 +43,15 @@ class DesignContractTest {
         assertTrue(contract.schemaVersion.isNotBlank())
         assertTrue(contract.tokens.size > 100, "令牌条数太少：${contract.tokens.size}")
         assertTrue(contract.copy.size > 100, "文案条数太少：${contract.copy.size}")
-        assertEquals(24, contract.components.size, "组件数被改动了")
-        assertEquals(27, contract.platformMappings.size, "平台映射数被改动了")
+        assertEquals(30, contract.components.size, "组件数被改动了")
+        assertEquals(33, contract.platformMappings.size, "平台映射数被改动了")
     }
 
     @Test
     fun `the shipped contract carries the motion tokens`() {
         val contract = readRealContract()
 
-        assertEquals(10, contract.motionTokens.size, "动效令牌少了一条或多了一条")
+        assertEquals(11, contract.motionTokens.size, "动效令牌少了一条或多了一条")
         for (token in contract.motionTokens) {
             assertTrue(token.hasValidMotionRange, "${token.key} 的范围不成立")
             assertNotNull(token.curve, "${token.key} 缺 curve")

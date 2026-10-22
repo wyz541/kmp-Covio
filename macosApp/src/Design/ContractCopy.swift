@@ -9,10 +9,122 @@ import Foundation
 /// 键名就是合同里的键路径。`DesignContractTests` 逐条比对，
 /// 所以这里的值不能手改。
 enum ContractCopy {
+    /// `copy/agent/action-cancelled`
+    static let copyAgentActionCancelled = LocalizedCopy(key: "copy/agent/action-cancelled", en: "Local action cancelled.", zhHans: "本地操作已取消。")
+    /// `copy/agent/action-completed`
+    static let copyAgentActionCompleted = LocalizedCopy(key: "copy/agent/action-completed", en: "Local action completed.", zhHans: "本地操作已完成。")
+    /// `copy/agent/action-failed`
+    static let copyAgentActionFailed = LocalizedCopy(key: "copy/agent/action-failed", en: "Local action failed.", zhHans: "本地操作失败。")
+    /// `copy/agent/cancel`
+    static let copyAgentCancel = LocalizedCopy(key: "copy/agent/cancel", en: "Cancel", zhHans: "取消")
+    /// `copy/agent/clear`
+    static let copyAgentClear = LocalizedCopy(key: "copy/agent/clear", en: "New chat", zhHans: "新对话")
+    /// `copy/agent/confirm`
+    static let copyAgentConfirm = LocalizedCopy(key: "copy/agent/confirm", en: "Allow", zhHans: "允许")
+    /// `copy/agent/confirm-body`
+    static let copyAgentConfirmBody = LocalizedCopy(key: "copy/agent/confirm-body", en: "The agent will run this local service after your confirmation.", zhHans: "确认后 Agent 将执行此本地服务。")
+    /// `copy/agent/confirm-title`
+    static let copyAgentConfirmTitle = LocalizedCopy(key: "copy/agent/confirm-title", en: "Allow local action?", zhHans: "允许本地操作？")
+    /// `copy/agent/copy-characters`
+    static let copyAgentCopyCharacters = LocalizedCopy(key: "copy/agent/copy-characters", en: "Copy %d characters to the clipboard.", zhHans: "复制 %d 个字符到剪贴板。")
+    /// `copy/agent/empty-body`
+    static let copyAgentEmptyBody = LocalizedCopy(key: "copy/agent/empty-body", en: "It can check monitor, power, workspace, screenshots, and clipboard metadata. Side effects need confirmation.", zhHans: "可查询监控、电源、工作区、截图和剪贴板元数据。有副作用的操作需要确认。")
+    /// `copy/agent/empty-response`
+    static let copyAgentEmptyResponse = LocalizedCopy(key: "copy/agent/empty-response", en: "No response.", zhHans: "没有返回内容。")
+    /// `copy/agent/empty-title`
+    static let copyAgentEmptyTitle = LocalizedCopy(key: "copy/agent/empty-title", en: "Ask the local agent", zhHans: "询问本地 Agent")
+    /// `copy/agent/error`
+    static let copyAgentError = LocalizedCopy(key: "copy/agent/error", en: "The local agent could not complete this request.", zhHans: "本地 Agent 无法完成此请求。")
+    /// `copy/agent/name`
+    static let copyAgentName = LocalizedCopy(key: "copy/agent/name", en: "Covio Agent", zhHans: "Covio Agent")
+    /// `copy/agent/offline`
+    static let copyAgentOffline = LocalizedCopy(key: "copy/agent/offline", en: "Local only", zhHans: "仅本地")
+    /// `copy/agent/placeholder`
+    static let copyAgentPlaceholder = LocalizedCopy(key: "copy/agent/placeholder", en: "Ask about this Mac or your workspace", zhHans: "询问这台 Mac 或工作区")
+    /// `copy/agent/send`
+    static let copyAgentSend = LocalizedCopy(key: "copy/agent/send", en: "Send", zhHans: "发送")
+    /// `copy/agent/stop`
+    static let copyAgentStop = LocalizedCopy(key: "copy/agent/stop", en: "Stop", zhHans: "停止")
+    /// `copy/agent/stopped`
+    static let copyAgentStopped = LocalizedCopy(key: "copy/agent/stopped", en: "Stopped.", zhHans: "已停止。")
+    /// `copy/agent/thinking`
+    static let copyAgentThinking = LocalizedCopy(key: "copy/agent/thinking", en: "Using local services…", zhHans: "正在使用本地服务…")
+    /// `copy/agent/you`
+    static let copyAgentYou = LocalizedCopy(key: "copy/agent/you", en: "You", zhHans: "你")
     /// `copy/app/name`
     static let copyAppName = LocalizedCopy(key: "copy/app/name", en: "Covio", zhHans: "Covio")
     /// `copy/app/tagline`
     static let copyAppTagline = LocalizedCopy(key: "copy/app/tagline", en: "Keep your Mac awake when it matters.", zhHans: "在需要时保持 Mac 唤醒。")
+    /// `copy/auto-naming/action/apply`
+    static let copyAutoNamingActionApply = LocalizedCopy(key: "copy/auto-naming/action/apply", en: "Rename Selected", zhHans: "重命名所选")
+    /// `copy/auto-naming/action/auto-name`
+    static let copyAutoNamingActionAutoName = LocalizedCopy(key: "copy/auto-naming/action/auto-name", en: "Auto Name…", zhHans: "自动命名…")
+    /// `copy/auto-naming/action/cancel`
+    static let copyAutoNamingActionCancel = LocalizedCopy(key: "copy/auto-naming/action/cancel", en: "Cancel", zhHans: "取消")
+    /// `copy/auto-naming/action/close`
+    static let copyAutoNamingActionClose = LocalizedCopy(key: "copy/auto-naming/action/close", en: "Close", zhHans: "关闭")
+    /// `copy/auto-naming/action/select`
+    static let copyAutoNamingActionSelect = LocalizedCopy(key: "copy/auto-naming/action/select", en: "Include this file", zhHans: "选择这个文件")
+    /// `copy/auto-naming/action/undo`
+    static let copyAutoNamingActionUndo = LocalizedCopy(key: "copy/auto-naming/action/undo", en: "Undo Renames", zhHans: "撤销重命名")
+    /// `copy/auto-naming/error/analysis`
+    static let copyAutoNamingErrorAnalysis = LocalizedCopy(key: "copy/auto-naming/error/analysis", en: "Auto naming could not finish. No files were changed.", zhHans: "自动命名未完成。文件没有改动。")
+    /// `copy/auto-naming/error/rename`
+    static let copyAutoNamingErrorRename = LocalizedCopy(key: "copy/auto-naming/error/rename", en: "The rename run failed. No file was overwritten.", zhHans: "重命名失败。没有文件被覆盖。")
+    /// `copy/auto-naming/error/undo`
+    static let copyAutoNamingErrorUndo = LocalizedCopy(key: "copy/auto-naming/error/undo", en: "Undo could not finish. No file was overwritten.", zhHans: "撤销未完成。没有文件被覆盖。")
+    /// `copy/auto-naming/label/evidence`
+    static let copyAutoNamingLabelEvidence = LocalizedCopy(key: "copy/auto-naming/label/evidence", en: "Evidence", zhHans: "依据")
+    /// `copy/auto-naming/label/original`
+    static let copyAutoNamingLabelOriginal = LocalizedCopy(key: "copy/auto-naming/label/original", en: "Current name", zhHans: "当前名称")
+    /// `copy/auto-naming/label/target`
+    static let copyAutoNamingLabelTarget = LocalizedCopy(key: "copy/auto-naming/label/target", en: "Proposed name", zhHans: "建议名称")
+    /// `copy/auto-naming/label/warnings`
+    static let copyAutoNamingLabelWarnings = LocalizedCopy(key: "copy/auto-naming/label/warnings", en: "Warnings", zhHans: "警告")
+    /// `copy/auto-naming/notice/applied`
+    static let copyAutoNamingNoticeApplied = LocalizedCopy(key: "copy/auto-naming/notice/applied", en: "Selected files were renamed.", zhHans: "所选文件已重命名。")
+    /// `copy/auto-naming/notice/cancelled`
+    static let copyAutoNamingNoticeCancelled = LocalizedCopy(key: "copy/auto-naming/notice/cancelled", en: "Auto naming canceled.", zhHans: "已取消自动命名。")
+    /// `copy/auto-naming/notice/no-files`
+    static let copyAutoNamingNoticeNoFiles = LocalizedCopy(key: "copy/auto-naming/notice/no-files", en: "Choose at least one file.", zhHans: "请选择至少一个文件。")
+    /// `copy/auto-naming/notice/no-results`
+    static let copyAutoNamingNoticeNoResults = LocalizedCopy(key: "copy/auto-naming/notice/no-results", en: "No file could be analyzed.", zhHans: "没有可分析的文件。")
+    /// `copy/auto-naming/notice/no-selection`
+    static let copyAutoNamingNoticeNoSelection = LocalizedCopy(key: "copy/auto-naming/notice/no-selection", en: "Select at least one ready file.", zhHans: "请选择至少一个可重命名文件。")
+    /// `copy/auto-naming/notice/partial-failure`
+    static let copyAutoNamingNoticePartialFailure = LocalizedCopy(key: "copy/auto-naming/notice/partial-failure", en: "Some files were renamed. Review the failed items.", zhHans: "部分文件已重命名。请检查失败条目。")
+    /// `copy/auto-naming/notice/partial-undo`
+    static let copyAutoNamingNoticePartialUndo = LocalizedCopy(key: "copy/auto-naming/notice/partial-undo", en: "Some files were restored. Review the failed items.", zhHans: "部分文件已恢复。请检查失败条目。")
+    /// `copy/auto-naming/notice/undone`
+    static let copyAutoNamingNoticeUndone = LocalizedCopy(key: "copy/auto-naming/notice/undone", en: "The last rename run was undone.", zhHans: "已撤销上次重命名。")
+    /// `copy/auto-naming/risk/conflict`
+    static let copyAutoNamingRiskConflict = LocalizedCopy(key: "copy/auto-naming/risk/conflict", en: "Name conflict", zhHans: "名称冲突")
+    /// `copy/auto-naming/risk/fallback`
+    static let copyAutoNamingRiskFallback = LocalizedCopy(key: "copy/auto-naming/risk/fallback", en: "Fallback title", zhHans: "回退标题")
+    /// `copy/auto-naming/risk/low-confidence`
+    static let copyAutoNamingRiskLowConfidence = LocalizedCopy(key: "copy/auto-naming/risk/low-confidence", en: "Low confidence", zhHans: "低可信")
+    /// `copy/auto-naming/risk/mixed`
+    static let copyAutoNamingRiskMixed = LocalizedCopy(key: "copy/auto-naming/risk/mixed", en: "Mixed content", zhHans: "混合内容")
+    /// `copy/auto-naming/risk/prompt-injection`
+    static let copyAutoNamingRiskPromptInjection = LocalizedCopy(key: "copy/auto-naming/risk/prompt-injection", en: "Possible prompt injection", zhHans: "可能存在提示注入")
+    /// `copy/auto-naming/risk/scanned`
+    static let copyAutoNamingRiskScanned = LocalizedCopy(key: "copy/auto-naming/risk/scanned", en: "Scanned document", zhHans: "扫描件")
+    /// `copy/auto-naming/risk/truncated`
+    static let copyAutoNamingRiskTruncated = LocalizedCopy(key: "copy/auto-naming/risk/truncated", en: "Input truncated", zhHans: "输入已截断")
+    /// `copy/auto-naming/status/blocked`
+    static let copyAutoNamingStatusBlocked = LocalizedCopy(key: "copy/auto-naming/status/blocked", en: "Blocked", zhHans: "已阻止")
+    /// `copy/auto-naming/status/failed`
+    static let copyAutoNamingStatusFailed = LocalizedCopy(key: "copy/auto-naming/status/failed", en: "Failed", zhHans: "失败")
+    /// `copy/auto-naming/status/ready`
+    static let copyAutoNamingStatusReady = LocalizedCopy(key: "copy/auto-naming/status/ready", en: "Ready", zhHans: "可重命名")
+    /// `copy/auto-naming/status/renamed`
+    static let copyAutoNamingStatusRenamed = LocalizedCopy(key: "copy/auto-naming/status/renamed", en: "Renamed", zhHans: "已重命名")
+    /// `copy/auto-naming/status/undone`
+    static let copyAutoNamingStatusUndone = LocalizedCopy(key: "copy/auto-naming/status/undone", en: "Undone", zhHans: "已撤销")
+    /// `copy/auto-naming/subtitle`
+    static let copyAutoNamingSubtitle = LocalizedCopy(key: "copy/auto-naming/subtitle", en: "Files stay in their original folders. Review every proposed name before applying.", zhHans: "文件留在原目录。应用前请检查每个建议名称。")
+    /// `copy/auto-naming/title`
+    static let copyAutoNamingTitle = LocalizedCopy(key: "copy/auto-naming/title", en: "Review Auto Names", zhHans: "检查自动命名")
     /// `copy/battery/capacity-threshold`
     static let copyBatteryCapacityThreshold = LocalizedCopy(key: "copy/battery/capacity-threshold", en: "Capacity threshold", zhHans: "容量阈值")
     /// `copy/battery/enabled`
@@ -167,22 +279,50 @@ enum ContractCopy {
     static let copyHubEditWidgetCount = LocalizedCopy(key: "copy/hub/edit/widget-count", en: "widgets", zhHans: "块组件")
     /// `copy/hub/edit/workspace-count`
     static let copyHubEditWorkspaceCount = LocalizedCopy(key: "copy/hub/edit/workspace-count", en: "workspaces", zhHans: "个工作区")
+    /// `copy/hub/files/action/add`
+    static let copyHubFilesActionAdd = LocalizedCopy(key: "copy/hub/files/action/add", en: "Add…", zhHans: "加入…")
+    /// `copy/hub/files/action/cancel-transfer`
+    static let copyHubFilesActionCancelTransfer = LocalizedCopy(key: "copy/hub/files/action/cancel-transfer", en: "Cancel Transfer", zhHans: "取消传输")
+    /// `copy/hub/files/action/clear-filter`
+    static let copyHubFilesActionClearFilter = LocalizedCopy(key: "copy/hub/files/action/clear-filter", en: "Clear Filter", zhHans: "清除筛选")
+    /// `copy/hub/files/action/copy`
+    static let copyHubFilesActionCopy = LocalizedCopy(key: "copy/hub/files/action/copy", en: "Copy", zhHans: "复制")
+    /// `copy/hub/files/action/copy-text`
+    static let copyHubFilesActionCopyText = LocalizedCopy(key: "copy/hub/files/action/copy-text", en: "Copy Text", zhHans: "复制正文")
+    /// `copy/hub/files/action/download`
+    static let copyHubFilesActionDownload = LocalizedCopy(key: "copy/hub/files/action/download", en: "Download", zhHans: "下载")
     /// `copy/hub/files/action/import`
     static let copyHubFilesActionImport = LocalizedCopy(key: "copy/hub/files/action/import", en: "Import Files…", zhHans: "放入文件…")
+    /// `copy/hub/files/action/markup`
+    static let copyHubFilesActionMarkup = LocalizedCopy(key: "copy/hub/files/action/markup", en: "Mark Up", zhHans: "标注")
+    /// `copy/hub/files/action/more`
+    static let copyHubFilesActionMore = LocalizedCopy(key: "copy/hub/files/action/more", en: "More", zhHans: "更多")
+    /// `copy/hub/files/action/new-text`
+    static let copyHubFilesActionNewText = LocalizedCopy(key: "copy/hub/files/action/new-text", en: "New Text…", zhHans: "新建文本…")
     /// `copy/hub/files/action/open`
     static let copyHubFilesActionOpen = LocalizedCopy(key: "copy/hub/files/action/open", en: "Open", zhHans: "打开")
     /// `copy/hub/files/action/pin`
     static let copyHubFilesActionPin = LocalizedCopy(key: "copy/hub/files/action/pin", en: "Pin", zhHans: "置顶")
     /// `copy/hub/files/action/remove`
     static let copyHubFilesActionRemove = LocalizedCopy(key: "copy/hub/files/action/remove", en: "Remove", zhHans: "删除")
+    /// `copy/hub/files/action/retry`
+    static let copyHubFilesActionRetry = LocalizedCopy(key: "copy/hub/files/action/retry", en: "Retry", zhHans: "重试")
     /// `copy/hub/files/action/reveal`
     static let copyHubFilesActionReveal = LocalizedCopy(key: "copy/hub/files/action/reveal", en: "Show in Finder", zhHans: "在访达中显示")
+    /// `copy/hub/files/action/save-to-workspace`
+    static let copyHubFilesActionSaveToWorkspace = LocalizedCopy(key: "copy/hub/files/action/save-to-workspace", en: "Save to Workspace", zhHans: "存入工作区")
     /// `copy/hub/files/action/sweep`
     static let copyHubFilesActionSweep = LocalizedCopy(key: "copy/hub/files/action/sweep", en: "Clean Up", zhHans: "清理过期")
     /// `copy/hub/files/action/unpin`
     static let copyHubFilesActionUnpin = LocalizedCopy(key: "copy/hub/files/action/unpin", en: "Unpin", zhHans: "取消置顶")
+    /// `copy/hub/files/count/items`
+    static let copyHubFilesCountItems = LocalizedCopy(key: "copy/hub/files/count/items", en: "items", zhHans: "项")
     /// `copy/hub/files/empty`
     static let copyHubFilesEmpty = LocalizedCopy(key: "copy/hub/files/empty", en: "The workspace is empty", zhHans: "工作区还是空的")
+    /// `copy/hub/files/empty/hint`
+    static let copyHubFilesEmptyHint = LocalizedCopy(key: "copy/hub/files/empty/hint", en: "Screenshots, files, and text stay in recent use.", zhHans: "截图、文件或文本会停在最近使用的位置。")
+    /// `copy/hub/files/empty/title`
+    static let copyHubFilesEmptyTitle = LocalizedCopy(key: "copy/hub/files/empty/title", en: "Drop the next item here", zhHans: "把下一件内容放进来")
     /// `copy/hub/files/error/import`
     static let copyHubFilesErrorImport = LocalizedCopy(key: "copy/hub/files/error/import", en: "Cannot read this file.", zhHans: "读不到这个文件。")
     /// `copy/hub/files/error/missing`
@@ -193,14 +333,40 @@ enum ContractCopy {
     static let copyHubFilesErrorSave = LocalizedCopy(key: "copy/hub/files/error/save", en: "Cannot write to the workspace.", zhHans: "写不进工作区。")
     /// `copy/hub/files/error/too-large`
     static let copyHubFilesErrorTooLarge = LocalizedCopy(key: "copy/hub/files/error/too-large", en: "This file is over the single entry limit.", zhHans: "这个文件超过单条目上限。")
+    /// `copy/hub/files/filter/all`
+    static let copyHubFilesFilterAll = LocalizedCopy(key: "copy/hub/files/filter/all", en: "All", zhHans: "全部")
+    /// `copy/hub/files/filter/files`
+    static let copyHubFilesFilterFiles = LocalizedCopy(key: "copy/hub/files/filter/files", en: "Files", zhHans: "文件")
+    /// `copy/hub/files/filter/screenshots`
+    static let copyHubFilesFilterScreenshots = LocalizedCopy(key: "copy/hub/files/filter/screenshots", en: "Screenshots", zhHans: "截图")
+    /// `copy/hub/files/filter/text`
+    static let copyHubFilesFilterText = LocalizedCopy(key: "copy/hub/files/filter/text", en: "Text", zhHans: "文本")
+    /// `copy/hub/files/filter/transfers`
+    static let copyHubFilesFilterTransfers = LocalizedCopy(key: "copy/hub/files/filter/transfers", en: "Transfers", zhHans: "传输")
     /// `copy/hub/files/hint`
     static let copyHubFilesHint = LocalizedCopy(key: "copy/hub/files/hint", en: "Drop files here, or use Import Files.", zhHans: "把文件拖到这里，或点「放入文件」。")
+    /// `copy/hub/files/no-match/hint`
+    static let copyHubFilesNoMatchHint = LocalizedCopy(key: "copy/hub/files/no-match/hint", en: "Try another keyword or clear the current filter.", zhHans: "换一个关键词，或清除当前筛选。")
+    /// `copy/hub/files/no-match/title`
+    static let copyHubFilesNoMatchTitle = LocalizedCopy(key: "copy/hub/files/no-match/title", en: "No matching files", zhHans: "没有匹配的文件")
     /// `copy/hub/files/notice/duplicate`
     static let copyHubFilesNoticeDuplicate = LocalizedCopy(key: "copy/hub/files/notice/duplicate", en: "The workspace already has this content.", zhHans: "工作区里已经有这份内容。")
     /// `copy/hub/files/notice/saved`
     static let copyHubFilesNoticeSaved = LocalizedCopy(key: "copy/hub/files/notice/saved", en: "Saved to the workspace.", zhHans: "已存入工作区。")
     /// `copy/hub/files/notice/swept`
     static let copyHubFilesNoticeSwept = LocalizedCopy(key: "copy/hub/files/notice/swept", en: "Removed expired entries.", zhHans: "已清理过期条目。")
+    /// `copy/hub/files/state/fetching`
+    static let copyHubFilesStateFetching = LocalizedCopy(key: "copy/hub/files/state/fetching", en: "Retrieving", zhHans: "正在取回")
+    /// `copy/hub/files/state/local`
+    static let copyHubFilesStateLocal = LocalizedCopy(key: "copy/hub/files/state/local", en: "Available on this Mac", zhHans: "本机可用")
+    /// `copy/hub/files/state/on-other-device`
+    static let copyHubFilesStateOnOtherDevice = LocalizedCopy(key: "copy/hub/files/state/on-other-device", en: "On another device", zhHans: "在另一台设备")
+    /// `copy/hub/files/state/transfer-failed`
+    static let copyHubFilesStateTransferFailed = LocalizedCopy(key: "copy/hub/files/state/transfer-failed", en: "Transfer failed", zhHans: "传输失败")
+    /// `copy/hub/files/state/unavailable`
+    static let copyHubFilesStateUnavailable = LocalizedCopy(key: "copy/hub/files/state/unavailable", en: "Content unavailable", zhHans: "内容不可用")
+    /// `copy/hub/files/status/active`
+    static let copyHubFilesStatusActive = LocalizedCopy(key: "copy/hub/files/status/active", en: "active", zhHans: "进行中")
     /// `copy/hub/files/usage`
     static let copyHubFilesUsage = LocalizedCopy(key: "copy/hub/files/usage", en: "In use", zhHans: "已占用")
     /// `copy/hub/home/empty-hint`
@@ -223,6 +389,10 @@ enum ContractCopy {
     static let copyHubPowerSummary = LocalizedCopy(key: "copy/hub/power/summary", en: "Manage sleep, display, lid, battery, and adapter behavior.", zhHans: "管理睡眠、屏幕、合盖、电池和适配器行为。")
     /// `copy/hub/power/title`
     static let copyHubPowerTitle = LocalizedCopy(key: "copy/hub/power/title", en: "Power management", zhHans: "电源管理")
+    /// `copy/hub/tab/agent`
+    static let copyHubTabAgent = LocalizedCopy(key: "copy/hub/tab/agent", en: "Agent", zhHans: "助手")
+    /// `copy/hub/tab/agent/summary`
+    static let copyHubTabAgentSummary = LocalizedCopy(key: "copy/hub/tab/agent/summary", en: "Chat with the offline local agent and its local services.", zhHans: "与离线本地 Agent 对话并使用本地服务。")
     /// `copy/hub/tab/board`
     static let copyHubTabBoard = LocalizedCopy(key: "copy/hub/tab/board", en: "Custom", zhHans: "自建")
     /// `copy/hub/tab/board/summary`
@@ -234,7 +404,7 @@ enum ContractCopy {
     /// `copy/hub/tab/devices`
     static let copyHubTabDevices = LocalizedCopy(key: "copy/hub/tab/devices", en: "Monitor", zhHans: "监控")
     /// `copy/hub/tab/devices/summary`
-    static let copyHubTabDevicesSummary = LocalizedCopy(key: "copy/hub/tab/devices/summary", en: "Live CPU, GPU, memory, disk, network, and battery metrics.", zhHans: "CPU、GPU、内存、磁盘、网络和电池的实时指标。")
+    static let copyHubTabDevicesSummary = LocalizedCopy(key: "copy/hub/tab/devices/summary", en: "Live CPU, GPU, memory, disk, network, and power metrics.", zhHans: "CPU、GPU、内存、磁盘、网络和电源的实时指标。")
     /// `copy/hub/tab/files`
     static let copyHubTabFiles = LocalizedCopy(key: "copy/hub/tab/files", en: "Files", zhHans: "文件")
     /// `copy/hub/tab/files/summary`
@@ -363,6 +533,108 @@ enum ContractCopy {
     static let copyMonitorNetworkUpload = LocalizedCopy(key: "copy/monitor/network/upload", en: "Upload", zhHans: "上行")
     /// `copy/monitor/per-core`
     static let copyMonitorPerCore = LocalizedCopy(key: "copy/monitor/per-core", en: "Per core", zhHans: "每核")
+    /// `copy/monitor/power/average/draw`
+    static let copyMonitorPowerAverageDraw = LocalizedCopy(key: "copy/monitor/power/average/draw", en: "Average power", zhHans: "平均功耗")
+    /// `copy/monitor/power/charge-limit/apply`
+    static let copyMonitorPowerChargeLimitApply = LocalizedCopy(key: "copy/monitor/power/charge-limit/apply", en: "Apply limit", zhHans: "应用上限")
+    /// `copy/monitor/power/charge-limit/applying`
+    static let copyMonitorPowerChargeLimitApplying = LocalizedCopy(key: "copy/monitor/power/charge-limit/applying", en: "Applying charge limit", zhHans: "正在应用充电上限")
+    /// `copy/monitor/power/charge-limit/current-charge`
+    static let copyMonitorPowerChargeLimitCurrentCharge = LocalizedCopy(key: "copy/monitor/power/charge-limit/current-charge", en: "Current charge", zhHans: "当前电量")
+    /// `copy/monitor/power/charge-limit/current-target`
+    static let copyMonitorPowerChargeLimitCurrentTarget = LocalizedCopy(key: "copy/monitor/power/charge-limit/current-target", en: "Current target", zhHans: "当前目标")
+    /// `copy/monitor/power/charge-limit/enable`
+    static let copyMonitorPowerChargeLimitEnable = LocalizedCopy(key: "copy/monitor/power/charge-limit/enable", en: "Enable limit", zhHans: "启用上限")
+    /// `copy/monitor/power/charge-limit/failed`
+    static let copyMonitorPowerChargeLimitFailed = LocalizedCopy(key: "copy/monitor/power/charge-limit/failed", en: "Charge limit did not apply", zhHans: "充电上限未生效")
+    /// `copy/monitor/power/charge-limit/helper-required`
+    static let copyMonitorPowerChargeLimitHelperRequired = LocalizedCopy(key: "copy/monitor/power/charge-limit/helper-required", en: "Install or repair the helper", zhHans: "请安装或修复 helper")
+    /// `copy/monitor/power/charge-limit/restore`
+    static let copyMonitorPowerChargeLimitRestore = LocalizedCopy(key: "copy/monitor/power/charge-limit/restore", en: "Restore system default", zhHans: "恢复系统默认")
+    /// `copy/monitor/power/charge-limit/resume-at`
+    static let copyMonitorPowerChargeLimitResumeAt = LocalizedCopy(key: "copy/monitor/power/charge-limit/resume-at", en: "Resume charging at", zhHans: "恢复充电阈值")
+    /// `copy/monitor/power/charge-limit/state/above-limit`
+    static let copyMonitorPowerChargeLimitStateAboveLimit = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/above-limit", en: "Above limit", zhHans: "高于上限")
+    /// `copy/monitor/power/charge-limit/state/bypass`
+    static let copyMonitorPowerChargeLimitStateBypass = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/bypass", en: "Bypass power", zhHans: "旁路供电")
+    /// `copy/monitor/power/charge-limit/state/calibration`
+    static let copyMonitorPowerChargeLimitStateCalibration = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/calibration", en: "Calibration in progress", zhHans: "校准中")
+    /// `copy/monitor/power/charge-limit/state/conflict`
+    static let copyMonitorPowerChargeLimitStateConflict = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/conflict", en: "System policy conflict", zhHans: "系统策略冲突")
+    /// `copy/monitor/power/charge-limit/state/error`
+    static let copyMonitorPowerChargeLimitStateError = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/error", en: "Charge limit error", zhHans: "充电上限错误")
+    /// `copy/monitor/power/charge-limit/state/holding`
+    static let copyMonitorPowerChargeLimitStateHolding = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/holding", en: "Charging paused", zhHans: "已暂停充电")
+    /// `copy/monitor/power/charge-limit/state/protection`
+    static let copyMonitorPowerChargeLimitStateProtection = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/protection", en: "System protection", zhHans: "系统保护中")
+    /// `copy/monitor/power/charge-limit/state/sailing`
+    static let copyMonitorPowerChargeLimitStateSailing = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/sailing", en: "Holding current level", zhHans: "保持当前电量")
+    /// `copy/monitor/power/charge-limit/state/system`
+    static let copyMonitorPowerChargeLimitStateSystem = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/system", en: "macOS controls the charge limit", zhHans: "macOS 控制充电上限")
+    /// `copy/monitor/power/charge-limit/state/unplugged`
+    static let copyMonitorPowerChargeLimitStateUnplugged = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/unplugged", en: "Connect the power adapter", zhHans: "请接通电源适配器")
+    /// `copy/monitor/power/charge-limit/title`
+    static let copyMonitorPowerChargeLimitTitle = LocalizedCopy(key: "copy/monitor/power/charge-limit/title", en: "Charge limit", zhHans: "充电上限")
+    /// `copy/monitor/power/charge-limit/unsupported`
+    static let copyMonitorPowerChargeLimitUnsupported = LocalizedCopy(key: "copy/monitor/power/charge-limit/unsupported", en: "Charge limit is unavailable", zhHans: "当前设备不支持充电上限")
+    /// `copy/monitor/power/charge/health`
+    static let copyMonitorPowerChargeHealth = LocalizedCopy(key: "copy/monitor/power/charge/health", en: "Battery health", zhHans: "电池健康度")
+    /// `copy/monitor/power/charge/power`
+    static let copyMonitorPowerChargePower = LocalizedCopy(key: "copy/monitor/power/charge/power", en: "Charging power", zhHans: "充电功率")
+    /// `copy/monitor/power/charge/time-to-full`
+    static let copyMonitorPowerChargeTimeToFull = LocalizedCopy(key: "copy/monitor/power/charge/time-to-full", en: "Time to full", zhHans: "预计充满")
+    /// `copy/monitor/power/charge/title`
+    static let copyMonitorPowerChargeTitle = LocalizedCopy(key: "copy/monitor/power/charge/title", en: "Charging information", zhHans: "充电信息")
+    /// `copy/monitor/power/critical-battery`
+    static let copyMonitorPowerCriticalBattery = LocalizedCopy(key: "copy/monitor/power/critical-battery", en: "Battery critical", zhHans: "电量极低")
+    /// `copy/monitor/power/details/close`
+    static let copyMonitorPowerDetailsClose = LocalizedCopy(key: "copy/monitor/power/details/close", en: "Close power details", zhHans: "关闭电源详情")
+    /// `copy/monitor/power/details/collapse`
+    static let copyMonitorPowerDetailsCollapse = LocalizedCopy(key: "copy/monitor/power/details/collapse", en: "Hide details", zhHans: "收起详情")
+    /// `copy/monitor/power/details/expand`
+    static let copyMonitorPowerDetailsExpand = LocalizedCopy(key: "copy/monitor/power/details/expand", en: "Show details", zhHans: "展开详情")
+    /// `copy/monitor/power/details/title`
+    static let copyMonitorPowerDetailsTitle = LocalizedCopy(key: "copy/monitor/power/details/title", en: "Power details", zhHans: "电源详情")
+    /// `copy/monitor/power/draw`
+    static let copyMonitorPowerDraw = LocalizedCopy(key: "copy/monitor/power/draw", en: "Power draw", zhHans: "功耗")
+    /// `copy/monitor/power/estimate/basis`
+    static let copyMonitorPowerEstimateBasis = LocalizedCopy(key: "copy/monitor/power/estimate/basis", en: "Based on recent average power", zhHans: "按近期平均功耗估算")
+    /// `copy/monitor/power/events/connected`
+    static let copyMonitorPowerEventsConnected = LocalizedCopy(key: "copy/monitor/power/events/connected", en: "Adapter connected", zhHans: "已接通电源")
+    /// `copy/monitor/power/events/disconnected`
+    static let copyMonitorPowerEventsDisconnected = LocalizedCopy(key: "copy/monitor/power/events/disconnected", en: "Adapter disconnected", zhHans: "已断开电源")
+    /// `copy/monitor/power/events/fully-charged`
+    static let copyMonitorPowerEventsFullyCharged = LocalizedCopy(key: "copy/monitor/power/events/fully-charged", en: "Fully charged", zhHans: "已充满")
+    /// `copy/monitor/power/events/title`
+    static let copyMonitorPowerEventsTitle = LocalizedCopy(key: "copy/monitor/power/events/title", en: "Power events · 24 h", zhHans: "供电事件 · 近 24 小时")
+    /// `copy/monitor/power/high-temperature`
+    static let copyMonitorPowerHighTemperature = LocalizedCopy(key: "copy/monitor/power/high-temperature", en: "Battery hot", zhHans: "电池温度高")
+    /// `copy/monitor/power/history/accumulating`
+    static let copyMonitorPowerHistoryAccumulating = LocalizedCopy(key: "copy/monitor/power/history/accumulating", en: "Collecting data", zhHans: "数据积累中")
+    /// `copy/monitor/power/history/title`
+    static let copyMonitorPowerHistoryTitle = LocalizedCopy(key: "copy/monitor/power/history/title", en: "Power and temperature · 30 min", zhHans: "功耗与温度 · 近 30 分钟")
+    /// `copy/monitor/power/low-battery`
+    static let copyMonitorPowerLowBattery = LocalizedCopy(key: "copy/monitor/power/low-battery", en: "Low battery", zhHans: "电量低")
+    /// `copy/monitor/power/no-battery`
+    static let copyMonitorPowerNoBattery = LocalizedCopy(key: "copy/monitor/power/no-battery", en: "No battery", zhHans: "无电池设备")
+    /// `copy/monitor/power/no-data`
+    static let copyMonitorPowerNoData = LocalizedCopy(key: "copy/monitor/power/no-data", en: "No data", zhHans: "暂无数据")
+    /// `copy/monitor/power/read-failed`
+    static let copyMonitorPowerReadFailed = LocalizedCopy(key: "copy/monitor/power/read-failed", en: "Some readings unavailable", zhHans: "部分读数不可用")
+    /// `copy/monitor/power/remaining`
+    static let copyMonitorPowerRemaining = LocalizedCopy(key: "copy/monitor/power/remaining", en: "Estimated time", zhHans: "预计可使用")
+    /// `copy/monitor/power/state/battery`
+    static let copyMonitorPowerStateBattery = LocalizedCopy(key: "copy/monitor/power/state/battery", en: "On battery", zhHans: "电池供电")
+    /// `copy/monitor/power/state/connected`
+    static let copyMonitorPowerStateConnected = LocalizedCopy(key: "copy/monitor/power/state/connected", en: "Power connected", zhHans: "已接通电源")
+    /// `copy/monitor/power/temperature`
+    static let copyMonitorPowerTemperature = LocalizedCopy(key: "copy/monitor/power/temperature", en: "Temperature", zhHans: "温度")
+    /// `copy/monitor/power/top-apps`
+    static let copyMonitorPowerTopApps = LocalizedCopy(key: "copy/monitor/power/top-apps", en: "Top energy · 1 hour", zhHans: "耗电 Top3 · 近 1 小时")
+    /// `copy/monitor/power/trend/title`
+    static let copyMonitorPowerTrendTitle = LocalizedCopy(key: "copy/monitor/power/trend/title", en: "Recent trend", zhHans: "近期趋势")
+    /// `copy/monitor/power/trend/window`
+    static let copyMonitorPowerTrendWindow = LocalizedCopy(key: "copy/monitor/power/trend/window", en: "Last 1 min", zhHans: "近 1 分钟")
     /// `copy/monitor/sampling/fast`
     static let copyMonitorSamplingFast = LocalizedCopy(key: "copy/monitor/sampling/fast", en: "1s", zhHans: "1 秒")
     /// `copy/monitor/sampling/slow`
@@ -388,7 +660,7 @@ enum ContractCopy {
     /// `copy/monitor/thermal/serious`
     static let copyMonitorThermalSerious = LocalizedCopy(key: "copy/monitor/thermal/serious", en: "Serious", zhHans: "过热")
     /// `copy/monitor/title/battery`
-    static let copyMonitorTitleBattery = LocalizedCopy(key: "copy/monitor/title/battery", en: "Battery", zhHans: "电池")
+    static let copyMonitorTitleBattery = LocalizedCopy(key: "copy/monitor/title/battery", en: "Power", zhHans: "电源")
     /// `copy/monitor/title/cpu`
     static let copyMonitorTitleCpu = LocalizedCopy(key: "copy/monitor/title/cpu", en: "CPU", zhHans: "CPU")
     /// `copy/monitor/title/disk`
@@ -820,8 +1092,64 @@ enum ContractCopy {
 
     /// 全部条目。供测试遍历。
     static let all: [LocalizedCopy] = [
+        copyAgentActionCancelled,
+        copyAgentActionCompleted,
+        copyAgentActionFailed,
+        copyAgentCancel,
+        copyAgentClear,
+        copyAgentConfirm,
+        copyAgentConfirmBody,
+        copyAgentConfirmTitle,
+        copyAgentCopyCharacters,
+        copyAgentEmptyBody,
+        copyAgentEmptyResponse,
+        copyAgentEmptyTitle,
+        copyAgentError,
+        copyAgentName,
+        copyAgentOffline,
+        copyAgentPlaceholder,
+        copyAgentSend,
+        copyAgentStop,
+        copyAgentStopped,
+        copyAgentThinking,
+        copyAgentYou,
         copyAppName,
         copyAppTagline,
+        copyAutoNamingActionApply,
+        copyAutoNamingActionAutoName,
+        copyAutoNamingActionCancel,
+        copyAutoNamingActionClose,
+        copyAutoNamingActionSelect,
+        copyAutoNamingActionUndo,
+        copyAutoNamingErrorAnalysis,
+        copyAutoNamingErrorRename,
+        copyAutoNamingErrorUndo,
+        copyAutoNamingLabelEvidence,
+        copyAutoNamingLabelOriginal,
+        copyAutoNamingLabelTarget,
+        copyAutoNamingLabelWarnings,
+        copyAutoNamingNoticeApplied,
+        copyAutoNamingNoticeCancelled,
+        copyAutoNamingNoticeNoFiles,
+        copyAutoNamingNoticeNoResults,
+        copyAutoNamingNoticeNoSelection,
+        copyAutoNamingNoticePartialFailure,
+        copyAutoNamingNoticePartialUndo,
+        copyAutoNamingNoticeUndone,
+        copyAutoNamingRiskConflict,
+        copyAutoNamingRiskFallback,
+        copyAutoNamingRiskLowConfidence,
+        copyAutoNamingRiskMixed,
+        copyAutoNamingRiskPromptInjection,
+        copyAutoNamingRiskScanned,
+        copyAutoNamingRiskTruncated,
+        copyAutoNamingStatusBlocked,
+        copyAutoNamingStatusFailed,
+        copyAutoNamingStatusReady,
+        copyAutoNamingStatusRenamed,
+        copyAutoNamingStatusUndone,
+        copyAutoNamingSubtitle,
+        copyAutoNamingTitle,
         copyBatteryCapacityThreshold,
         copyBatteryEnabled,
         copyBatteryTimeThreshold,
@@ -899,23 +1227,50 @@ enum ContractCopy {
         copyHubEditReorder,
         copyHubEditWidgetCount,
         copyHubEditWorkspaceCount,
+        copyHubFilesActionAdd,
+        copyHubFilesActionCancelTransfer,
+        copyHubFilesActionClearFilter,
+        copyHubFilesActionCopy,
+        copyHubFilesActionCopyText,
+        copyHubFilesActionDownload,
         copyHubFilesActionImport,
+        copyHubFilesActionMarkup,
+        copyHubFilesActionMore,
+        copyHubFilesActionNewText,
         copyHubFilesActionOpen,
         copyHubFilesActionPin,
         copyHubFilesActionRemove,
+        copyHubFilesActionRetry,
         copyHubFilesActionReveal,
+        copyHubFilesActionSaveToWorkspace,
         copyHubFilesActionSweep,
         copyHubFilesActionUnpin,
+        copyHubFilesCountItems,
         copyHubFilesEmpty,
+        copyHubFilesEmptyHint,
+        copyHubFilesEmptyTitle,
         copyHubFilesErrorImport,
         copyHubFilesErrorMissing,
         copyHubFilesErrorQuota,
         copyHubFilesErrorSave,
         copyHubFilesErrorTooLarge,
+        copyHubFilesFilterAll,
+        copyHubFilesFilterFiles,
+        copyHubFilesFilterScreenshots,
+        copyHubFilesFilterText,
+        copyHubFilesFilterTransfers,
         copyHubFilesHint,
+        copyHubFilesNoMatchHint,
+        copyHubFilesNoMatchTitle,
         copyHubFilesNoticeDuplicate,
         copyHubFilesNoticeSaved,
         copyHubFilesNoticeSwept,
+        copyHubFilesStateFetching,
+        copyHubFilesStateLocal,
+        copyHubFilesStateOnOtherDevice,
+        copyHubFilesStateTransferFailed,
+        copyHubFilesStateUnavailable,
+        copyHubFilesStatusActive,
         copyHubFilesUsage,
         copyHubHomeEmptyHint,
         copyHubHomeEmptyHintEditing,
@@ -927,6 +1282,8 @@ enum ContractCopy {
         copyHubPowerSegmentPower,
         copyHubPowerSummary,
         copyHubPowerTitle,
+        copyHubTabAgent,
+        copyHubTabAgentSummary,
         copyHubTabBoard,
         copyHubTabBoardSummary,
         copyHubTabClipboard,
@@ -997,6 +1354,57 @@ enum ContractCopy {
         copyMonitorNetworkInterface,
         copyMonitorNetworkUpload,
         copyMonitorPerCore,
+        copyMonitorPowerAverageDraw,
+        copyMonitorPowerChargeLimitApply,
+        copyMonitorPowerChargeLimitApplying,
+        copyMonitorPowerChargeLimitCurrentCharge,
+        copyMonitorPowerChargeLimitCurrentTarget,
+        copyMonitorPowerChargeLimitEnable,
+        copyMonitorPowerChargeLimitFailed,
+        copyMonitorPowerChargeLimitHelperRequired,
+        copyMonitorPowerChargeLimitRestore,
+        copyMonitorPowerChargeLimitResumeAt,
+        copyMonitorPowerChargeLimitStateAboveLimit,
+        copyMonitorPowerChargeLimitStateBypass,
+        copyMonitorPowerChargeLimitStateCalibration,
+        copyMonitorPowerChargeLimitStateConflict,
+        copyMonitorPowerChargeLimitStateError,
+        copyMonitorPowerChargeLimitStateHolding,
+        copyMonitorPowerChargeLimitStateProtection,
+        copyMonitorPowerChargeLimitStateSailing,
+        copyMonitorPowerChargeLimitStateSystem,
+        copyMonitorPowerChargeLimitStateUnplugged,
+        copyMonitorPowerChargeLimitTitle,
+        copyMonitorPowerChargeLimitUnsupported,
+        copyMonitorPowerChargeHealth,
+        copyMonitorPowerChargePower,
+        copyMonitorPowerChargeTimeToFull,
+        copyMonitorPowerChargeTitle,
+        copyMonitorPowerCriticalBattery,
+        copyMonitorPowerDetailsClose,
+        copyMonitorPowerDetailsCollapse,
+        copyMonitorPowerDetailsExpand,
+        copyMonitorPowerDetailsTitle,
+        copyMonitorPowerDraw,
+        copyMonitorPowerEstimateBasis,
+        copyMonitorPowerEventsConnected,
+        copyMonitorPowerEventsDisconnected,
+        copyMonitorPowerEventsFullyCharged,
+        copyMonitorPowerEventsTitle,
+        copyMonitorPowerHighTemperature,
+        copyMonitorPowerHistoryAccumulating,
+        copyMonitorPowerHistoryTitle,
+        copyMonitorPowerLowBattery,
+        copyMonitorPowerNoBattery,
+        copyMonitorPowerNoData,
+        copyMonitorPowerReadFailed,
+        copyMonitorPowerRemaining,
+        copyMonitorPowerStateBattery,
+        copyMonitorPowerStateConnected,
+        copyMonitorPowerTemperature,
+        copyMonitorPowerTopApps,
+        copyMonitorPowerTrendTitle,
+        copyMonitorPowerTrendWindow,
         copyMonitorSamplingFast,
         copyMonitorSamplingSlow,
         copyMonitorStateAcPower,

@@ -22,6 +22,8 @@ final class AppRuntime {
     private(set) var config: AppConfig
     /// 特权 helper 的状态。
     private(set) var helperStatus: HelperStatus = .notInstalled
+    /// helper 当前执行的充电上限状态。
+    private(set) var chargeLimitStatus: ChargeLimitHelperStatus?
     /// 一次性提示。界面读完应调用 `clearStatus`。
     private(set) var statusMessage: String?
     /// 有耗时操作在跑。界面据此禁用按钮。
@@ -43,6 +45,12 @@ final class AppRuntime {
     /// 共享文件工作区。Hub 的文件页签读它。
     let workspace: WorkspaceRuntime
 
+    /// 文件自动命名。Hub 的文件页签读它。
+    let autoNaming: AutoNamingRuntime
+
+    /// 离线本地服务 Agent。Hub 的 Agent 页签读它。
+    let agent: AgentChatRuntime
+
     private let configStore: ConfigStore
     /// 挂帘读配置的中间人。理由见 `ShelfBridge`。
     private let shelfBridge: ShelfBridge
@@ -56,6 +64,7 @@ final class AppRuntime {
     private let sleepWatcher: SleepWatcher
     private let wakeLogReader: WakeLogReader
     private let privileged: PrivilegedOps
+    private let chargeLimitClient: any ChargeLimitClientProtocol
     private let loginItem: LoginItem
     private let notifier: Notifier
     private let updateChecker: UpdateChecker
@@ -86,12 +95,14 @@ final class AppRuntime {
         sleepWatcher: SleepWatcher = MacSleepWatcher(),
         wakeLogReader: WakeLogReader = PmsetWakeLogReader(),
         privileged: PrivilegedOps? = nil,
+        chargeLimitClient: any ChargeLimitClientProtocol = HelperClient(),
         loginItem: LoginItem = MacLoginItem(),
         notifier: Notifier? = nil,
         updateChecker: UpdateChecker = GithubUpdateChecker(),
         shelf: ShelfRuntime? = nil,
         clipboard: ClipboardRuntime? = nil,
-        workspace: WorkspaceRuntime? = nil
+        workspace: WorkspaceRuntime? = nil,
+        autoNaming: AutoNamingRuntime? = nil
     ) {
         let resolvedLogger = logger ?? FileAppLogger()
         let resolvedStore = configStore ?? ConfigStore.companion.create(path: AppPaths.configFile.path)
@@ -105,6 +116,7 @@ final class AppRuntime {
         self.sleepWatcher = sleepWatcher
         self.wakeLogReader = wakeLogReader
         self.privileged = privileged ?? MacPrivilegedOps(logger: resolvedLogger)
+        self.chargeLimitClient = chargeLimitClient
         self.loginItem = loginItem
         self.notificationGate = NotificationGate()
         self.notifier = notifier ?? MacNotifier(logger: resolvedLogger) { [gate = notificationGate] in
@@ -136,7 +148,7 @@ final class AppRuntime {
         let bridge = ShelfBridge(config: loaded)
         self.shelfBridge = bridge
         let shelfStore = ShelfStoreClient()
-        self.shelf = shelf ?? ShelfRuntime(
+        let resolvedShelf = shelf ?? ShelfRuntime(
             store: shelfStore,
             takeover: ScreenshotTakeoverController(
                 store: MacScreenshotPreferenceStore(),
@@ -151,11 +163,12 @@ final class AppRuntime {
             ),
             report: { entry in bridge.report?(entry) }
         )
+        self.shelf = resolvedShelf
 
         // 剪切板同样要先建好中间人。开关与快捷键都读配置。
         let clipboardBridge = ClipboardBridge()
         self.clipboardBridge = clipboardBridge
-        self.clipboard = clipboard ?? ClipboardRuntime(
+        let resolvedClipboard = clipboard ?? ClipboardRuntime(
             store: ClipboardStore.companion.create(path: AppPaths.clipboardFile.path),
             imageDirectory: AppPaths.clipboardDirectory,
             environment: ClipboardEnvironment(
@@ -170,9 +183,36 @@ final class AppRuntime {
             ),
             bridge: clipboardBridge
         )
+        self.clipboard = resolvedClipboard
 
         // 工作区没有配置依赖，也没有要交出去的闭包。直接建。
-        self.workspace = workspace ?? WorkspaceRuntime()
+        let resolvedWorkspace = workspace ?? WorkspaceRuntime()
+        self.workspace = resolvedWorkspace
+        self.autoNaming = autoNaming ?? AutoNamingRuntime()
+
+        let resourceRoot = Bundle.main.resourceURL ?? Bundle.main.bundleURL
+        let agentModelConfiguration = NamingModelConfiguration.bundled(
+            resourceDirectory: resourceRoot,
+            environment: ProcessInfo.processInfo.environment
+        ) ?? NamingModelConfiguration(
+            modelDirectory: resourceRoot
+                .appendingPathComponent("Models", isDirectory: true)
+                .appendingPathComponent("Qwen3VL-2B-Instruct-4bit", isDirectory: true)
+        )
+        let agentGateway = AgentServiceGateway(
+            handlers: AgentAppServices.handlers(
+                shelf: resolvedShelf,
+                clipboard: resolvedClipboard,
+                workspace: resolvedWorkspace
+            )
+        )
+        self.agent = AgentChatRuntime(
+            model: LocalAgentModel(
+                modelDirectory: agentModelConfiguration.modelDirectory,
+                gateway: agentGateway
+            ),
+            gateway: agentGateway
+        )
 
         self.engine = Engine(
             initialConfig: loaded,
@@ -217,6 +257,7 @@ final class AppRuntime {
         logger.info(message: "Covio \(ModelsKt.APP_VERSION) starting")
 
         helperStatus = privileged.status()
+        reconcileChargeLimit()
         syncHibernateMode()
         syncLoginItem()
         engine.start()
@@ -393,6 +434,9 @@ final class AppRuntime {
     ///
     /// **警告：** 会删掉用户全部设置。界面必须先确认。
     func clearConfig() {
+        if config.chargeLimitEnabled, !restoreChargeLimit() {
+            return
+        }
         let defaults = ConfigStore.companion.defaults()
         configStore.save(config: defaults)
         config = defaults
@@ -425,6 +469,7 @@ final class AppRuntime {
         Task { @MainActor in
             let removed = privileged.uninstall()
             helperStatus = .notInstalled
+            chargeLimitStatus = nil
             _ = engine.setLidSleepAvailable(available: true)
             syncState()
             busy = false
@@ -450,6 +495,95 @@ final class AppRuntime {
         syncState()
         if status == .installed {
             _ = engine.updateConfig(newConfig: config)
+            reconcileChargeLimit()
+        }
+    }
+
+    // MARK: - 充电上限
+
+    func refreshChargeLimitStatus() {
+        guard helperStatus == .installed else {
+            chargeLimitStatus = nil
+            return
+        }
+        chargeLimitStatus = chargeLimitClient.chargeLimitStatus()
+    }
+
+    /// 详情浮层使用。把同步 socket 请求移出主线程。
+    func refreshChargeLimitStatusInBackground() {
+        guard helperStatus == .installed else {
+            chargeLimitStatus = nil
+            return
+        }
+        let client = chargeLimitClient
+        Task { @MainActor [weak self] in
+            let status = await Task.detached { client.chargeLimitStatus() }.value
+            guard !Task.isCancelled else { return }
+            self?.chargeLimitStatus = status
+        }
+    }
+
+    /// 设置上限并保存本机配置。helper 失败时不写配置。
+    @discardableResult
+    func applyChargeLimit(_ percent: Int) -> Bool {
+        guard helperStatus == .installed else {
+            statusMessage = ContractCopy.copyStatusItemHelperError.text(for: language)
+            return false
+        }
+        guard chargeLimitClient.setChargeLimit(percent: percent) else {
+            statusMessage = ContractCopy.copyToastError.text(for: language)
+            refreshChargeLimitStatus()
+            return false
+        }
+        let saved = updateConfigDraft {
+            $0.chargeLimitEnabled = true
+            $0.chargeLimitPercent = Int32(percent)
+        }
+        guard saved else {
+            _ = chargeLimitClient.restoreChargeLimit()
+            refreshChargeLimitStatus()
+            return false
+        }
+        refreshChargeLimitStatus()
+        return true
+    }
+
+    /// 恢复 macOS 系统策略。helper 恢复失败时保留配置。
+    @discardableResult
+    func restoreChargeLimit() -> Bool {
+        guard helperStatus == .installed else {
+            statusMessage = ContractCopy.copyStatusItemHelperError.text(for: language)
+            return false
+        }
+        guard chargeLimitClient.restoreChargeLimit() else {
+            statusMessage = ContractCopy.copyToastError.text(for: language)
+            refreshChargeLimitStatus()
+            return false
+        }
+        _ = updateConfigDraft {
+            $0.chargeLimitEnabled = false
+        }
+        refreshChargeLimitStatus()
+        return true
+    }
+
+    /// 启动后让配置与 helper 状态对齐。
+    private func reconcileChargeLimit() {
+        guard helperStatus == .installed else {
+            chargeLimitStatus = nil
+            return
+        }
+        let status = chargeLimitClient.chargeLimitStatus()
+        chargeLimitStatus = status
+        if config.chargeLimitEnabled {
+            let desired = Int(config.chargeLimitPercent)
+            if status?.enabled != true || status?.userLimitPercent != desired {
+                _ = chargeLimitClient.setChargeLimit(percent: desired)
+                chargeLimitStatus = chargeLimitClient.chargeLimitStatus()
+            }
+        } else if status?.enabled == true {
+            _ = chargeLimitClient.restoreChargeLimit()
+            chargeLimitStatus = chargeLimitClient.chargeLimitStatus()
         }
     }
 
@@ -685,6 +819,9 @@ final class ConfigDraft {
     var clipboardEnabled: Bool
     var clipboardPasteStackHotKey: String
     var clipboardCaptureHotKey: String
+    var chargeLimitEnabled: Bool
+    var chargeLimitPercent: Int32
+    var fileNaming: FileNamingPolicy
 
     init(_ config: AppConfig) {
         schemaVersion = config.schemaVersion
@@ -711,6 +848,9 @@ final class ConfigDraft {
         clipboardEnabled = config.clipboardEnabled
         clipboardPasteStackHotKey = config.clipboardPasteStackHotKey
         clipboardCaptureHotKey = config.clipboardCaptureHotKey
+        chargeLimitEnabled = config.chargeLimitEnabled
+        chargeLimitPercent = config.chargeLimitPercent
+        fileNaming = config.fileNaming
     }
 
     func build() -> AppConfig {
@@ -738,7 +878,10 @@ final class ConfigDraft {
             shelfSoundsEnabled: shelfSoundsEnabled,
             clipboardEnabled: clipboardEnabled,
             clipboardPasteStackHotKey: clipboardPasteStackHotKey,
-            clipboardCaptureHotKey: clipboardCaptureHotKey
+            clipboardCaptureHotKey: clipboardCaptureHotKey,
+            chargeLimitEnabled: chargeLimitEnabled,
+            chargeLimitPercent: chargeLimitPercent,
+            fileNaming: fileNaming
         )
     }
 }

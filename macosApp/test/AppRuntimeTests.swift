@@ -13,6 +13,7 @@ final class AppRuntimeTests: XCTestCase {
     private var directory: URL!
     private var runtime: AppRuntime!
     private var privileged: FakePrivilegedOps!
+    private var chargeLimitClient: FakeChargeLimitClient!
     private var loginItem: FakeLoginItem!
     private var notifier: FakeNotifier!
 
@@ -41,6 +42,7 @@ final class AppRuntimeTests: XCTestCase {
     private func makeRuntime(engineStarted: Bool = false, helperInstalled: Bool = false) -> AppRuntime {
         privileged = FakePrivilegedOps()
         privileged.installed = helperInstalled
+        chargeLimitClient = FakeChargeLimitClient()
         loginItem = FakeLoginItem()
         notifier = FakeNotifier()
         let created = AppRuntime(
@@ -53,6 +55,7 @@ final class AppRuntimeTests: XCTestCase {
             sleepWatcher: FakeSleepWatcher(),
             wakeLogReader: WakeLogStore(nil),
             privileged: privileged,
+            chargeLimitClient: chargeLimitClient,
             loginItem: loginItem,
             notifier: notifier,
             updateChecker: FakeUpdateChecker(),
@@ -307,6 +310,40 @@ final class AppRuntimeTests: XCTestCase {
         XCTAssertTrue(created.appState.lidSleepAvailable, "helper 走了就限制不住了，状态要如实反映")
     }
 
+    // MARK: - 充电上限
+
+    func testApplyChargeLimitPersistsOnlyAfterHelperAccepts() throws {
+        let created = makeRuntime(engineStarted: true, helperInstalled: true)
+
+        XCTAssertTrue(created.applyChargeLimit(55))
+
+        XCTAssertEqual(chargeLimitClient.setValues, [55])
+        XCTAssertTrue(created.config.chargeLimitEnabled)
+        XCTAssertEqual(created.config.chargeLimitPercent, 55)
+        XCTAssertEqual(try savedJSON()["chargeLimitEnabled"] as? Bool, true)
+        XCTAssertEqual(try savedJSON()["chargeLimitPercent"] as? Int, 55)
+    }
+
+    func testRestoreChargeLimitClearsTheSavedIntent() throws {
+        let created = makeRuntime(engineStarted: true, helperInstalled: true)
+        XCTAssertTrue(created.applyChargeLimit(55))
+
+        XCTAssertTrue(created.restoreChargeLimit())
+
+        XCTAssertEqual(chargeLimitClient.restoreCalls, 1)
+        XCTAssertFalse(created.config.chargeLimitEnabled)
+    }
+
+    func testFailedChargeLimitApplyDoesNotPersistTheIntent() throws {
+        let created = makeRuntime(engineStarted: true, helperInstalled: true)
+        chargeLimitClient.setResult = false
+
+        XCTAssertFalse(created.applyChargeLimit(55))
+
+        XCTAssertFalse(created.config.chargeLimitEnabled)
+        XCTAssertNotNil(created.statusMessage)
+    }
+
     // MARK: - 清除配置
 
     /// 清除配置会删掉用户全部设置，回到默认值。
@@ -324,6 +361,29 @@ final class AppRuntimeTests: XCTestCase {
         XCTAssertEqual(created.config.lowBatteryCapacity, defaults.lowBatteryCapacity)
         XCTAssertEqual(created.config.hibernateMode?.int32Value, defaults.hibernateMode?.int32Value)
         XCTAssertEqual(created.config.firstRun, defaults.firstRun)
+        XCTAssertNotNil(created.statusMessage)
+    }
+
+    func testClearConfigRestoresAnActiveChargeLimitFirst() throws {
+        let created = makeRuntime(engineStarted: true, helperInstalled: true)
+        XCTAssertTrue(created.applyChargeLimit(55))
+
+        created.clearConfig()
+
+        XCTAssertEqual(chargeLimitClient.restoreCalls, 1)
+        XCTAssertFalse(created.config.chargeLimitEnabled)
+    }
+
+    func testFailedChargeLimitRestorePreventsClearingConfig() throws {
+        let created = makeRuntime(engineStarted: true, helperInstalled: true)
+        XCTAssertTrue(created.applyChargeLimit(55))
+        chargeLimitClient.restoreResult = false
+
+        created.clearConfig()
+
+        XCTAssertTrue(created.config.chargeLimitEnabled)
+        XCTAssertEqual(created.config.chargeLimitPercent, 55)
+        XCTAssertEqual(chargeLimitClient.restoreCalls, 1)
         XCTAssertNotNil(created.statusMessage)
     }
 
@@ -389,6 +449,26 @@ final class AppRuntimeTests: XCTestCase {
         created.requestQuit()
 
         XCTAssertEqual(quits, 2)
+    }
+}
+
+private final class FakeChargeLimitClient: ChargeLimitClientProtocol, @unchecked Sendable {
+    var status: ChargeLimitHelperStatus?
+    var setResult = true
+    var restoreResult = true
+    var setValues: [Int] = []
+    var restoreCalls = 0
+
+    func chargeLimitStatus() -> ChargeLimitHelperStatus? { status }
+
+    func setChargeLimit(percent: Int) -> Bool {
+        setValues.append(percent)
+        return setResult
+    }
+
+    func restoreChargeLimit() -> Bool {
+        restoreCalls += 1
+        return restoreResult
     }
 }
 

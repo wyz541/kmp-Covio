@@ -15,12 +15,15 @@
 | 主题 | 状态 | 索引 |
 | --- | --- | --- |
 | macOS 后台 GUI 自动化与虚拟化控制 | 初稿，可评审 | [README.md](macos-background-gui-automation/README.md) |
+| 本地离线文件自动命名 | 初稿，可评审 | [README.md](file-auto-naming/README.md) |
 | 跨设备内容读取能力 | 初稿，可评审 | [README.md](cross-device-content-access/README.md) |
 | 跨设备共享暂存工作区 | 初稿，可评审 | [README.md](shared-transfer-workspace/README.md) |
 | 触控板多指手势入口 | 初稿，可评审 | [README.md](trackpad-gesture-entry/README.md) |
 | iOS 免打开入口 | 初稿，可评审 | [README.md](mobile-ambient-entry/README.md) |
 | 合盖睡眠控制与权限边界 | 初稿，可评审 | [README.md](lid-sleep-control/README.md) |
 | 硬件信息监听能力 | 第一版已落地 | [README.md](hardware-monitoring-capability/README.md) |
+| 电池充电控制能力 | 初稿，可评审 | [README.md](battery-charge-control/README.md) |
+| 离线本地服务 Agent | 第一版已落地，验收通过 | [README.md](local-agent/README.md) |
 | 研发工作流的调研依据 | 单文件，不建主题目录 | [workflow-research.md](workflow-research.md) |
 
 ## 归档规则

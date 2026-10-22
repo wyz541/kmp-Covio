@@ -36,4 +36,6 @@ xcodebuild \
   -scheme "$SCHEME" \
   -configuration "$CONFIGURATION" \
   -derivedDataPath "$DERIVED_DATA" \
+  -skipMacroValidation \
+  -skipPackagePluginValidation \
   test

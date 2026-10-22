@@ -12,14 +12,20 @@ import kmpDomain
 /// 内容只读工作区的索引与内容目录，不引用用户的原文件路径。
 struct FilesTabView: View {
     let workspace: WorkspaceRuntime
+    let autoNaming: AutoNamingRuntime
+    let policy: FileNamingPolicy
     let language: AppLanguage
 
     var body: some View {
         VStack(alignment: .leading, spacing: MacTheme.space3) {
-            content
+            if autoNaming.stage == .idle {
+                content
 
-            if let notice {
-                MacAlert(message: notice, kind: noticeKind)
+                if let notice {
+                    MacAlert(message: notice, kind: noticeKind)
+                }
+            } else {
+                AutoNamingPreviewView(runtime: autoNaming, language: language)
             }
         }
         // 内边距由内容列给，这里不再加一层。
@@ -144,13 +150,21 @@ struct FilesTabView: View {
 /// 文件页的胶囊动作：放入文件、清理过期、占用。
 struct FilesHeadingActions: View {
     let workspace: WorkspaceRuntime
+    let autoNaming: AutoNamingRuntime
+    let policy: FileNamingPolicy
     let language: AppLanguage
 
     var body: some View {
         HStack(spacing: MacTheme.space2) {
             MacButton(
-                title: ContractCopy.copyHubFilesActionImport.text(for: language),
+                title: ContractCopy.copyAutoNamingActionAutoName.text(for: language),
                 kind: .primary,
+                isEnabled: autoNaming.stage == .idle && !autoNaming.busy,
+                action: chooseAutoNameFiles
+            )
+            MacButton(
+                title: ContractCopy.copyHubFilesActionImport.text(for: language),
+                kind: .plain,
                 action: chooseFiles
             )
             MacButton(
@@ -168,6 +182,18 @@ struct FilesHeadingActions: View {
         let used = ByteCountFormatter.string(fromByteCount: workspace.totalBytes, countStyle: .file)
         let limit = ByteCountFormatter.string(fromByteCount: workspace.policy.maxTotalBytes, countStyle: .file)
         return "\(ContractCopy.copyHubFilesUsage.text(for: language)) \(used) / \(limit)"
+    }
+
+    /// 选择要自动命名的原始文件。文件留在原目录。
+    private func chooseAutoNameFiles() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        guard panel.runModal() == .OK else { return }
+        Task {
+            await autoNaming.analyze(urls: panel.urls, policy: policy)
+        }
     }
 
     /// 打开系统文件选择面板。多选。

@@ -19,6 +19,13 @@ enum AppPaths {
 
     /// `~/Library/Application Support/com.wyz.covio`。
     static var supportDirectory: URL {
+        supportDirectory(environment: ProcessInfo.processInfo.environment)
+    }
+
+    static func supportDirectory(environment: [String: String]) -> URL {
+        if let override = environment["COVIO_SUPPORT_DIR"], !override.isEmpty {
+            return URL(fileURLWithPath: override, isDirectory: true)
+        }
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
         let root = base.first ?? URL(fileURLWithPath: NSHomeDirectory())
             .appendingPathComponent("Library/Application Support")
@@ -36,6 +43,11 @@ enum AppPaths {
     /// 与 `config.json` 分两个文件：工作台配置损坏时只回退布局，不动用户设置。
     static var workbenchFile: URL {
         supportDirectory.appendingPathComponent("workbench.json")
+    }
+
+    /// 文件重命名的撤销计划。每条计划在改名之前写入。
+    static var renameUndoDirectory: URL {
+        supportDirectory.appendingPathComponent("rename-undo", isDirectory: true)
     }
 
     /// SwiftUI 版的单实例锁文件。

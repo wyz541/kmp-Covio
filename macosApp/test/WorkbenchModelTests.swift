@@ -26,13 +26,13 @@ final class WorkbenchModelTests: XCTestCase {
         XCTAssertEqual(model().homeWidgets.count, 6)
     }
 
-    /// 默认配置里的内置工作区是六个。`board` 是用户自建的，不在默认里。
+    /// 默认配置里的内置工作区是七个。`board` 是用户自建的，不在默认里。
     func testTheDefaultConfigShowsEveryBuiltInPane() {
         let model = model()
-        XCTAssertEqual(model.panes.count, 6)
+        XCTAssertEqual(model.panes.count, 7)
         XCTAssertEqual(
             model.panes.map(\.tab),
-            [.now, .clipboard, .files, .screenshots, .devices, .settings]
+            [.now, .agent, .clipboard, .files, .screenshots, .devices, .settings]
         )
         for pane in model.panes {
             XCTAssertFalse(pane.title.isEmpty, "\(pane.id) 没有标题")

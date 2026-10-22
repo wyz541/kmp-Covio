@@ -36,14 +36,14 @@ class WorkbenchStoreTest {
         }
 
     @Test
-    fun `a missing file loads the six builtin panes in the documented order`() =
+    fun `a missing file loads the seven builtin panes in the documented order`() =
         withTemporaryDirectory("workbench") { directory ->
             val path = directory.resolve("workbench.json")
 
             val config = WorkbenchStore(path.toString()).load()
 
             assertEquals(
-                listOf("now", "clipboard", "files", "screenshots", "devices", "settings"),
+                listOf("now", "agent", "clipboard", "files", "screenshots", "devices", "settings"),
                 config.panes.map { it.id },
             )
             // 首页默认放六块组件，与打样的 `defaultWidgets()` 一致。
@@ -90,7 +90,7 @@ class WorkbenchStoreTest {
             val config = WorkbenchStore(path.toString()).load()
 
             assertEquals(
-                listOf("now", "mine", "clipboard", "files", "screenshots", "devices", "settings"),
+                listOf("now", "mine", "agent", "clipboard", "files", "screenshots", "devices", "settings"),
                 config.panes.map { it.id },
             )
         }
@@ -106,7 +106,7 @@ class WorkbenchStoreTest {
         assertNotNull(hidden.pane("now"), "隐藏之后条目还在文件里，只是 tab bar 不画")
         assertTrue(hidden.pane("now")!!.isHidden)
         assertEquals(
-            listOf("clipboard", "files", "screenshots", "devices", "settings"),
+            listOf("agent", "clipboard", "files", "screenshots", "devices", "settings"),
             hidden.visiblePanes.map { it.id },
         )
     }
@@ -142,8 +142,8 @@ class WorkbenchStoreTest {
         val config = WorkbenchConfig(panes = customs).normalized()
 
         assertEquals(WorkbenchConfig.MAX_PANES, config.panes.size)
-        assertEquals(6, config.panes.count { it.isBuiltin })
-        assertEquals((0 until 6).map { "c$it" }, config.panes.filterNot { it.isBuiltin }.map { it.id })
+        assertEquals(7, config.panes.count { it.isBuiltin })
+        assertEquals((0 until 5).map { "c$it" }, config.panes.filterNot { it.isBuiltin }.map { it.id })
     }
 
     @Test

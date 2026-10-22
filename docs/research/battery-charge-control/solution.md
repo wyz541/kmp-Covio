@@ -46,6 +46,8 @@
 6. 等待系统注册策略。
 7. 读取 `PowerUI getMCLLimitWithError:` 与 `pmset -g battlimit`。
 8. 校验目标值、电池充电状态和功率。
+9. `pmset` 在 `4` 秒内未显示目标时，恢复原策略。
+10. 恢复成功后返回错误，不把 PowerUI 的临时值当成已生效。
 
 如果任一步失败，执行恢复流程。
 

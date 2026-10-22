@@ -194,6 +194,7 @@ struct AgentServiceHandlers: Sendable {
     let powerStatus: @Sendable () async -> AgentServiceResult
     let workspaceFiles: @Sendable (String?, Int) async -> AgentServiceResult
     let inspectFile: @Sendable (String, Int) async -> AgentServiceResult
+    let describeImage: @Sendable (String, String) async -> AgentServiceResult
     let previewFileNames: @Sendable ([String], Int) async -> AgentServiceResult
     let applyFileRenames: @Sendable ([String]) async -> AgentServiceResult
     let undoRenameRun: @Sendable (String) async -> AgentServiceResult
@@ -214,6 +215,9 @@ struct AgentServiceHandlers: Sendable {
         copyText: @escaping @Sendable (String) async -> AgentServiceResult,
         inspectFile: @escaping @Sendable (String, Int) async -> AgentServiceResult = { _, _ in
             .failure("File inspection is unavailable.", code: .fileUnavailable)
+        },
+        describeImage: @escaping @Sendable (String, String) async -> AgentServiceResult = { _, _ in
+            .failure("Image Q&A is unavailable.", code: .fileUnavailable)
         },
         previewFileNames: @escaping @Sendable ([String], Int) async -> AgentServiceResult = { _, _ in
             .failure("File naming preview is unavailable.", code: .executionFailed)
@@ -241,6 +245,7 @@ struct AgentServiceHandlers: Sendable {
         self.powerStatus = powerStatus
         self.workspaceFiles = workspaceFiles
         self.inspectFile = inspectFile
+        self.describeImage = describeImage
         self.previewFileNames = previewFileNames
         self.applyFileRenames = applyFileRenames
         self.undoRenameRun = undoRenameRun
@@ -258,6 +263,7 @@ private struct EmptyAgentInput: Codable {}
 private struct AgentToolAck: Codable { let ok = true }
 private struct WorkspaceToolInput: Codable { let query: String?; let limit: Int? }
 private struct InspectFileToolInput: Codable { let fileId: String; let maxCharacters: Int? }
+private struct DescribeImageToolInput: Codable { let fileId: String; let question: String }
 private struct PreviewFileNamesToolInput: Codable { let fileIds: [String]; let maxResults: Int? }
 private struct ApplyFileRenamesToolInput: Codable { let previewIds: [String] }
 private struct UndoRenameRunToolInput: Codable { let runId: String }
@@ -334,6 +340,30 @@ enum AgentToolCatalog {
                         type: .int,
                         description: "Maximum extracted text characters.",
                         extraProperties: ["minimum": 500, "maximum": 20_000]
+                    ),
+                ]
+            ) { _ in AgentToolAck() }
+        ),
+        descriptor(
+            name: "describe_image",
+            summary: "Answer a question about an authorized image using the local vision model.",
+            risk: .readOnly,
+            executionMode: .afterModelResponse,
+            tool: Tool<DescribeImageToolInput, AgentToolAck>(
+                name: "describe_image",
+                description: "Answer a question from image pixels or OCR. Runs after the current model response releases the shared model.",
+                parameters: [
+                    .required(
+                        "fileId",
+                        type: .string,
+                        description: "Stable workspace or attachment file identifier.",
+                        extraProperties: ["minLength": 1, "maxLength": 256]
+                    ),
+                    .required(
+                        "question",
+                        type: .string,
+                        description: "Question about the image.",
+                        extraProperties: ["minLength": 1, "maxLength": 1_000]
                     ),
                 ]
             ) { _ in AgentToolAck() }

@@ -39,6 +39,7 @@ final class AgentMCPRouterTests: XCTestCase {
         XCTAssertFalse(names.contains("run_shell"))
         XCTAssertFalse(names.contains("preview_file_names"))
         XCTAssertFalse(names.contains("search_file_content"))
+        XCTAssertFalse(names.contains("describe_image"))
     }
 
     func testUnknownToolIsRejectedByRouter() async throws {

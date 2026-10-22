@@ -278,6 +278,88 @@ final class AgentChatRuntimeTests: XCTestCase {
         XCTAssertEqual(runtime.pendingAction?.source, .external("mcp-session"))
     }
 
+    func testDeferredImageAnswerAppendsDeterministicCitation() async {
+        let fileId = "workspace:\(String(repeating: "f", count: 64))"
+        let gateway = AgentServiceGateway(
+            handlers: AgentServiceHandlers(
+                monitorSnapshot: { .failure("unused") },
+                powerStatus: { .failure("unused") },
+                workspaceFiles: { _, _ in .failure("unused") },
+                screenshots: { _ in .failure("unused") },
+                clipboardMetadata: { _ in .failure("unused") },
+                copyText: { _ in .failure("unused") },
+                describeImage: { id, _ in
+                    AgentServiceResult(
+                        ok: true,
+                        summary: "Visual answer for diagram.png [\(id)#image-1]: A red square.",
+                        data: .object([
+                            "fileId": .string(id),
+                            "name": .string("diagram.png"),
+                            "answer": .string("A red square."),
+                            "citation": .string("\(id)#image-1"),
+                        ])
+                    )
+                }
+            )
+        )
+        let runtime = AgentChatRuntime(
+            model: VisualQuestionAgentModel(gateway: gateway, fileId: fileId),
+            gateway: gateway
+        )
+
+        runtime.send("What color is the square?")
+        await waitUntil { runtime.stage == .idle }
+
+        let answer = runtime.messages.last?.text ?? ""
+        XCTAssertTrue(answer.contains("The image shows a red square."))
+        XCTAssertTrue(answer.contains("[\(fileId)#image-1] diagram.png"))
+    }
+
+    func testFileDerivedImageAnswerIsRedactedFromPersistentHistory() async throws {
+        let store = makeHistoryStore()
+        let fileId = "workspace:\(String(repeating: "e", count: 64))"
+        let gateway = AgentServiceGateway(
+            handlers: AgentServiceHandlers(
+                monitorSnapshot: { .failure("unused") },
+                powerStatus: { .failure("unused") },
+                workspaceFiles: { _, _ in .failure("unused") },
+                screenshots: { _ in .failure("unused") },
+                clipboardMetadata: { _ in .failure("unused") },
+                copyText: { _ in .failure("unused") },
+                describeImage: { id, _ in
+                    AgentServiceResult(
+                        ok: true,
+                        summary: "Visual answer for diagram.png [\(id)#image-1]: A red square.",
+                        data: .object([
+                            "fileId": .string(id),
+                            "name": .string("diagram.png"),
+                            "answer": .string("A red square."),
+                            "citation": .string("\(id)#image-1"),
+                        ])
+                    )
+                }
+            )
+        )
+        let runtime = AgentChatRuntime(
+            model: VisualQuestionAgentModel(gateway: gateway, fileId: fileId),
+            gateway: gateway,
+            historyStore: store
+        )
+
+        runtime.send("What color is the square?")
+        await waitUntil { runtime.stage == .idle }
+        await runtime.flushHistory()
+
+        let latest = try await store.loadLatestSession()
+        XCTAssertEqual(
+            latest?.messages.first(where: { $0.role == .assistant })?.text,
+            "[File-derived response omitted from local history.]"
+        )
+        XCTAssertFalse(latest?.messages.contains(where: {
+            $0.text.contains("red square") || $0.text.contains(fileId)
+        }) ?? true)
+    }
+
     private func waitUntil(_ condition: @escaping @MainActor () -> Bool) async {
         for _ in 0..<100 {
             if condition() { return }
@@ -418,6 +500,45 @@ private actor FileInspectAgentModel: AgentModelServing {
             ))
         )
         let answer = "The file says secret-file-body-42."
+        await onChunk(answer)
+        return answer
+    }
+
+    func reset() async {}
+    func release() async {}
+}
+
+private actor VisualQuestionAgentModel: AgentModelServing {
+    private let gateway: AgentServiceGateway
+    private let fileId: String
+
+    init(gateway: AgentServiceGateway, fileId: String) {
+        self.gateway = gateway
+        self.fileId = fileId
+    }
+
+    func respond(
+        to prompt: String,
+        onChunk: @Sendable @escaping (String) async -> Void
+    ) async throws -> String {
+        _ = await gateway.handle(
+            ToolCall(function: .init(
+                name: "describe_image",
+                arguments: [
+                    "fileId": .string(fileId),
+                    "question": .string("What color is the square?"),
+                ]
+            ))
+        )
+        return "I will inspect the image."
+    }
+
+    func respondAfterServiceResult(
+        toolName: String,
+        result: AgentServiceResult,
+        onChunk: @Sendable @escaping (String) async -> Void
+    ) async throws -> String {
+        let answer = "The image shows a red square."
         await onChunk(answer)
         return answer
     }

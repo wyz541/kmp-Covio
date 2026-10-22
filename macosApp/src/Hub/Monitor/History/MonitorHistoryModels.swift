@@ -4,6 +4,19 @@ import Foundation
 ///
 /// 这里只保存报告需要的系统指标。
 /// 不保存进程名、应用路径、网络接口名称或用户内容。
+enum MonitorHistoryCadence {
+    static let pluggedInInterval: TimeInterval = 30
+    static let batteryInterval: TimeInterval = 60
+
+    static func interval(for sample: MonitorHistorySample) -> TimeInterval {
+        sample.powerSource == .battery ? batteryInterval : pluggedInInterval
+    }
+
+    static func gapThreshold(for interval: TimeInterval) -> TimeInterval {
+        max(interval * 2.5, 5)
+    }
+}
+
 struct MonitorHistorySample: Equatable, Sendable {
     enum PowerSource: String, CaseIterable, Sendable {
         case ac

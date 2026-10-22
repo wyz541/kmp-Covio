@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var instanceLock: SingleInstanceLock?
     #if DEBUG
     private var monitorPreview: MonitorPreviewWindowController?
+    private var reportPreview: MonitorReportPreviewWindowController?
     private var fileAreaPreview: NSWindow?
     private var fileAreaLivePreview: FileAreaLivePreviewController?
     #endif
@@ -69,6 +70,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         MacTheme.applyEnvironmentOverride()
 
         #if DEBUG
+        if let path = ProcessInfo.processInfo.environment["COVIO_MONITOR_HISTORY_SOAK_PATH"],
+           !path.isEmpty {
+            let seconds = Double(
+                ProcessInfo.processInfo.environment["COVIO_MONITOR_HISTORY_SOAK_SECONDS"] ?? ""
+            ) ?? 3_600
+            let language = ProcessInfo.processInfo.environment["COVIO_MONITOR_HISTORY_LANGUAGE"]
+                .flatMap(AppLanguage.init(rawValue:)) ?? CopyLocale.language
+            Task { @MainActor in
+                exit(
+                    await MonitorHistorySoakVerifier.run(
+                        outputDirectory: URL(fileURLWithPath: path),
+                        duration: seconds,
+                        language: language
+                    ) ? 0 : 1
+                )
+            }
+            return
+        }
+        if ProcessInfo.processInfo.environment["COVIO_MONITOR_REPORT_PREVIEW"] == "1" {
+            NSApp.setActivationPolicy(.regular)
+            Task { @MainActor [weak self] in
+                guard let self,
+                      let preview = await MonitorReportPreviewWindowController.make()
+                else { return }
+                self.reportPreview = preview
+            }
+            return
+        }
+        if let path = ProcessInfo.processInfo.environment["COVIO_MONITOR_REPORT_RENDER"],
+           !path.isEmpty {
+            Task { @MainActor in
+                exit(await MonitorReportPreviewRenderer.render(to: path) ? 0 : 1)
+            }
+            return
+        }
         if let path = ProcessInfo.processInfo.environment["COVIO_MONITOR_RENDER"], !path.isEmpty {
             Task { @MainActor in
                 exit(await MonitorSnapshotRenderer.render(to: path) ? 0 : 1)

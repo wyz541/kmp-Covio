@@ -5012,6 +5012,70 @@
       "en": "Keep Covio running to collect history.",
       "zh-Hans": "保持 Covio 运行，才能积累历史。"
     },
+    "copy/monitor/report/system/start": {
+      "en": "Start",
+      "zh-Hans": "开始"
+    },
+    "copy/monitor/report/system/os": {
+      "en": "macOS",
+      "zh-Hans": "macOS"
+    },
+    "copy/monitor/report/system/model": {
+      "en": "Model",
+      "zh-Hans": "机型"
+    },
+    "copy/monitor/report/system/chip": {
+      "en": "Chip",
+      "zh-Hans": "芯片"
+    },
+    "copy/monitor/report/system/memory": {
+      "en": "Memory",
+      "zh-Hans": "内存"
+    },
+    "copy/monitor/report/system/disk": {
+      "en": "Disk",
+      "zh-Hans": "磁盘"
+    },
+    "copy/monitor/report/peaks/metric": {
+      "en": "Metric",
+      "zh-Hans": "指标"
+    },
+    "copy/monitor/report/peaks/value": {
+      "en": "Peak",
+      "zh-Hans": "峰值"
+    },
+    "copy/monitor/report/table/duration": {
+      "en": "Duration",
+      "zh-Hans": "持续"
+    },
+    "copy/monitor/report/table/kind": {
+      "en": "Kind",
+      "zh-Hans": "类型"
+    },
+    "copy/monitor/report/table/event": {
+      "en": "Event",
+      "zh-Hans": "事件"
+    },
+    "copy/monitor/report/table/source": {
+      "en": "Source",
+      "zh-Hans": "来源"
+    },
+    "copy/monitor/report/table/confidence": {
+      "en": "Confidence",
+      "zh-Hans": "置信度"
+    },
+    "copy/monitor/report/table/reason": {
+      "en": "Reason",
+      "zh-Hans": "原因"
+    },
+    "copy/monitor/report/table/count": {
+      "en": "Count",
+      "zh-Hans": "次数"
+    },
+    "copy/monitor/report/table/data": {
+      "en": "Data table",
+      "zh-Hans": "数据表"
+    },
     "copy/icon/concept/blue-grid": {
       "en": "05 · BLUE GRID",
       "zh-Hans": "05 · 蓝色网格"

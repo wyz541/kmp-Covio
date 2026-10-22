@@ -114,15 +114,15 @@ actor MonitorHistoryCaptureReader: MonitorHistoryReading {
 }
 
 enum MonitorHistorySamplingPolicy {
-    static let pluggedInInterval: TimeInterval = 30
-    static let batteryInterval: TimeInterval = 60
+    static let pluggedInInterval = MonitorHistoryCadence.pluggedInInterval
+    static let batteryInterval = MonitorHistoryCadence.batteryInterval
 
     static func interval(for sample: MonitorHistorySample) -> TimeInterval {
-        sample.powerSource == .battery ? batteryInterval : pluggedInInterval
+        MonitorHistoryCadence.interval(for: sample)
     }
 
     static func gapThreshold(for interval: TimeInterval) -> TimeInterval {
-        max(interval * 2.5, 5)
+        MonitorHistoryCadence.gapThreshold(for: interval)
     }
 
     static func clockChanged(

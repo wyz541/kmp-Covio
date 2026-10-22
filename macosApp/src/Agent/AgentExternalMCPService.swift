@@ -146,6 +146,7 @@ final class AgentExternalMCPService {
     private let bridge: AgentExternalPendingBridge
     private var listener: NWListener?
     private var connections: [ObjectIdentifier: ConnectionState] = [:]
+    private var cleanupTimer: Timer?
 
     let token: String
     private(set) var port: UInt16?
@@ -192,6 +193,7 @@ final class AgentExternalMCPService {
 
     func start() {
         guard listener == nil else { return }
+        lastError = nil
         let parameters = Self.listenerParameters()
         do {
             let listener = try NWListener(using: parameters)
@@ -207,12 +209,19 @@ final class AgentExternalMCPService {
                 }
             }
             listener.start(queue: .main)
+            cleanupTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { _ in
+                Task { @MainActor [weak self] in
+                    await self?.expireSessions()
+                }
+            }
         } catch {
             lastError = error.localizedDescription
         }
     }
 
     func stop() {
+        cleanupTimer?.invalidate()
+        cleanupTimer = nil
         listener?.cancel()
         listener = nil
         port = nil
@@ -242,6 +251,13 @@ final class AgentExternalMCPService {
             createdAtEpochMilliseconds: audit.createdAtEpochMilliseconds
         )
         try? await auditStore.recordExternalAudit(record)
+    }
+
+    private func expireSessions() async {
+        let ids = await sessions.expireIdle()
+        for id in ids {
+            await gateway.cancelPending(source: .external(id))
+        }
     }
 
     private func handleListenerState(_ state: NWListener.State) {

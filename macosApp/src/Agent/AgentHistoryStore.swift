@@ -52,7 +52,7 @@ private final class AgentHistorySQLiteConnection: @unchecked Sendable {
 }
 
 actor AgentHistoryStore: AgentHistoryStoring, AgentExternalAuditStoring {
-    private let connection: AgentHistorySQLiteConnection?
+    private var connection: AgentHistorySQLiteConnection?
     private let openingError: AgentHistoryStoreError?
 
     init(path: URL) {
@@ -277,6 +277,10 @@ actor AgentHistoryStore: AgentHistoryStoring, AgentExternalAuditStoring {
     func schemaVersion() async throws -> Int {
         let database = try readyDatabase()
         return try Self.userVersion(database)
+    }
+
+    func close() {
+        connection = nil
     }
 
     private func loadMessages(

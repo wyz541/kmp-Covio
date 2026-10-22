@@ -38,6 +38,7 @@ enum SettingsRowID {
     static let generalSleepMode = "general.sleep-mode"
     static let generalLanguage = "general.language"
     static let generalLocalModel = "general.local-model"
+    static let generalExternalAgent = "general.external-agent"
     static let generalLogin = "general.login"
     static let generalNotifications = "general.notifications"
     static let generalUpdates = "general.updates"
@@ -231,6 +232,13 @@ enum SettingsCatalog {
             title: ContractCopy.copyGeneralLocalModelTitle,
             summary: ContractCopy.copyGeneralLocalModelSummary,
             keywords: ["model", "mlx", "qwen", "offline", "local", "模型", "离线", "本地"]
+        ),
+        SettingsCatalogEntry(
+            rowID: SettingsRowID.generalExternalAgent,
+            section: .general,
+            title: ContractCopy.copyGeneralExternalAgentTitle,
+            summary: ContractCopy.copyGeneralExternalAgentSummary,
+            keywords: ["agent", "mcp", "loopback", "offline", "token", "外部", "本地", "服务"]
         ),
         SettingsCatalogEntry(
             rowID: SettingsRowID.generalLogin,

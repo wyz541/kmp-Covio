@@ -26,6 +26,8 @@ flowchart LR
 | `LocalAgentModel` | Swift | 模型加载、流式生成和 tool dispatch |
 | `AgentServiceGateway` | Swift | allowlist、schema、确认和运行期审计 |
 | `AgentHistoryStore` | Swift + SQLite | 持久保存最近会话、消息和工具审计 |
+| `AgentMCPRouter` | Swift | MCP JSON-RPC 工具发现与调用 |
+| `AgentExternalMCPService` | Swift + Network | loopback HTTP、token 和 session |
 | `AgentAppServices` | Swift | 连接现有 AppRuntime 服务 |
 | `PaneKind.AGENT` | Kotlin | 导航级工作区种类 |
 
@@ -48,6 +50,9 @@ flowchart LR
 - `macosApp/src/Agent/AgentServiceModels.swift`
 - `macosApp/src/Agent/AgentServiceGateway.swift`
 - `macosApp/src/Agent/AgentHistoryStore.swift`
+- `macosApp/src/Agent/AgentMCPRouter.swift`
+- `macosApp/src/Agent/AgentMCPHTTPServer.swift`
+- `macosApp/src/Agent/AgentExternalMCPService.swift`
 - `macosApp/src/Agent/AgentAppServices.swift`
 - `macosApp/src/Agent/LocalAgentModel.swift`
 - `macosApp/src/Agent/AgentChatRuntime.swift`
@@ -134,6 +139,31 @@ question -> queue search -> index or reuse cached chunks -> rank excerpts
          -> return citation IDs -> model answer -> audit
 ```
 
+## 外部 Agent
+
+```mermaid
+flowchart LR
+  X["External Agent"] --> H["127.0.0.1 MCP"]
+  H --> T["Bearer token and session"]
+  T --> R["Typed tool registry"]
+  R --> G["AgentServiceGateway"]
+  G --> P["Local confirmation"]
+  G --> D["External audit"]
+```
+
+1. 外部服务默认关闭。
+2. 设置页开启后才创建 loopback listener。
+3. listener 固定绑定 IPv4 loopback，动态端口。
+4. 每次配对使用 Keychain 中的随机 bearer token。
+5. 只接受 `application/json` 和 `text/event-stream`。
+6. `Host` 和 `Origin` 必须匹配当前 loopback endpoint。
+7. MCP session 空闲 5 分钟后过期。
+8. DELETE 和超时都会清理该 session 的 pending action。
+9. 外部调用不能直接执行副作用。
+10. `open_pane` 在外部通道中提升为确认操作。
+11. 外部只在 `AgentExternalToolPolicy` 中列出允许工具。
+12. 外部审计保存到 SQLite，不保存 token、请求头或正文。
+
 ## 安全设计
 
 1. 工具名必须来自 allowlist。
@@ -158,6 +188,9 @@ question -> queue search -> index or reuse cached chunks -> rank excerpts
 20. 页面只能使用固定枚举。
 21. 设置键只能使用 allowlist。
 22. 设置修改必须经过确认卡并只执行一次。
+23. 外部服务只监听 `127.0.0.1`。
+24. 外部 token 不写入日志、历史或审计。
+25. 外部 session 断开、删除或超时后必须清理 pending action。
 
 ## 可靠性与失败模式
 
@@ -189,6 +222,11 @@ question -> queue search -> index or reuse cached chunks -> rank excerpts
 - [x] Agent 只能打开固定页面。
 - [x] Agent 只能读取和修改 allowlist 设置。
 - [x] 未确认的设置修改不改变配置。
+- [x] 外部 Agent 可以通过 MCP 列出允许服务。
+- [x] 未授权工具和参数被拒绝。
+- [x] 外部副作用需要本机确认。
+- [x] 外部请求和结果写入本机审计。
+- [x] 外部服务只监听 loopback。
 
 ## 实施计划
 

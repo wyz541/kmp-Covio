@@ -232,6 +232,13 @@ flowchart LR
 7. 增加认证、限流、断连清理和审计测试。
 8. 运行 `bash scripts/test-all.sh`。
 
+## 实现状态
+
+#249 已实现首版 MCP router、HTTP transport、token、session、限流、pending 清理和外部审计。
+验证覆盖真实 `NWListener`、initialize、tools/list、tools/call、URLSession 和 SQLite 审计。
+
+首版仍不包含 OAuth 2.1、SSE 和 stdio shim。
+
 ## 验收映射
 
 | #249 验收 | 方案 |

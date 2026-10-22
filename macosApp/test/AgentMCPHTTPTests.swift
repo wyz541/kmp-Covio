@@ -116,6 +116,22 @@ final class AgentMCPHTTPTests: XCTestCase {
         XCTAssertEqual(second, .rateLimited)
     }
 
+    func testIdleSessionExpiresWithoutAnotherRequest() async {
+        let clock = ClockBox(now: 100)
+        let sessions = AgentMCPSessionStore(
+            now: { clock.now },
+            idleTimeout: 10,
+            rateLimit: 10,
+            rateWindow: 60
+        )
+        let id = await sessions.create()
+        clock.now = 111
+
+        let expired = await sessions.expireIdle()
+
+        XCTAssertEqual(expired, [id])
+    }
+
     private let gateway = AgentServiceGateway(
         handlers: AgentServiceHandlers(
             monitorSnapshot: {
@@ -197,5 +213,13 @@ private extension JSONValue {
     var arrayValue: [JSONValue]? {
         guard case .array(let value) = self else { return nil }
         return value
+    }
+}
+
+private final class ClockBox: @unchecked Sendable {
+    var now: TimeInterval
+
+    init(now: TimeInterval) {
+        self.now = now
     }
 }

@@ -362,6 +362,7 @@ final class AppRuntime {
 
     func setAgentExternalServiceEnabled(_ enabled: Bool) {
         agentExternalPreferences.setEnabled(enabled)
+        agentExternalError = nil
         if enabled {
             if agentExternalService == nil {
                 configureAgentExternalService()
@@ -394,6 +395,7 @@ final class AppRuntime {
             agentExternalError = "External Agent audit storage is unavailable."
             return
         }
+        agentExternalError = nil
         do {
             let token = try agentExternalTokenStore.loadOrCreate()
             let service = AgentExternalMCPService(

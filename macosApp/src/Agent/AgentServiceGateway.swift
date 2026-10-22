@@ -489,6 +489,9 @@ actor AgentServiceGateway {
         if name == "undo_rename_run" {
             return "Undo the selected Agent rename run."
         }
+        if name == "open_pane", let pane = stringValue(arguments["pane"]) {
+            return "Open the \(pane) page."
+        }
         if name == "request_setting_change" {
             let key = stringValue(arguments["key"]) ?? "setting"
             let value = stringValue(arguments["value"]) ?? ""

@@ -171,6 +171,17 @@ actor AgentMCPSessionStore {
         sessions.removeAll()
         return ids
     }
+
+    func expireIdle() -> [String] {
+        let timestamp = now()
+        let expired = sessions.values
+            .filter { timestamp - $0.lastAccess > idleTimeout }
+            .map(\.id)
+        for id in expired {
+            sessions.removeValue(forKey: id)
+        }
+        return expired
+    }
 }
 
 actor AgentMCPHTTPHandler {
@@ -267,6 +278,16 @@ actor AgentMCPHTTPHandler {
         }
 
         let isInitialize = mcpRequest.method == "initialize"
+        if isInitialize, mcpRequest.id == nil {
+            return jsonResponse(
+                status: 400,
+                value: rpcError(
+                    id: .null,
+                    code: .invalidRequest,
+                    message: "Initialize must be a request."
+                )
+            )
+        }
         let sessionID: String
         if isInitialize {
             guard request.headers["mcp-session-id"] == nil else {
@@ -316,6 +337,14 @@ actor AgentMCPHTTPHandler {
 
         guard let response = await router.handle(mcpRequest, sessionID: sessionID) else {
             return AgentHTTPResponse(status: 202)
+        }
+        if isInitialize, containsJSONRPCError(response) {
+            await sessions.delete(sessionID)
+            return AgentHTTPResponse(
+                status: 400,
+                headers: ["content-type": "application/json; charset=utf-8"],
+                body: encode(response)
+            )
         }
         if let pending = await gateway.pendingAction(),
            pending.source == .external(sessionID)
@@ -376,6 +405,11 @@ actor AgentMCPHTTPHandler {
         let right = Array(rhs.utf8)
         guard left.count == right.count else { return false }
         return zip(left, right).reduce(UInt8(0)) { $0 | ($1.0 ^ $1.1) } == 0
+    }
+
+    private func containsJSONRPCError(_ value: JSONValue) -> Bool {
+        guard case .object(let object) = value else { return false }
+        return object["error"] != nil
     }
 
     private func jsonResponse(status: Int, value: JSONValue) -> AgentHTTPResponse {

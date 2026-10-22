@@ -1111,6 +1111,7 @@ private struct MonitorPowerChargeLimitControls: View {
     let language: AppLanguage
 
     @State private var pendingLimit: Double
+    @State private var pendingActiveDischarge: Bool
     @State private var busy = false
     @State private var localError: String?
 
@@ -1119,6 +1120,9 @@ private struct MonitorPowerChargeLimitControls: View {
         self.power = power
         self.language = language
         _pendingLimit = State(initialValue: Double(runtime?.config.chargeLimitPercent ?? 80))
+        _pendingActiveDischarge = State(
+            initialValue: runtime?.config.chargeLimitActiveDischarge ?? false
+        )
     }
 
     private var isEnabled: Bool { runtime?.config.chargeLimitEnabled == true }
@@ -1139,6 +1143,7 @@ private struct MonitorPowerChargeLimitControls: View {
         if status.bypassEngaged { return "powerplug.fill" }
         return switch status.phase {
         case "charging", "full": "bolt.fill"
+        case "discharging": "arrow.down.circle.fill"
         case "holding", "sailing", "aboveLimit": "pause.circle.fill"
         case "applying", "calibration", "systemProtection": "arrow.triangle.2.circlepath"
         case "unplugged": "powerplug"
@@ -1156,6 +1161,8 @@ private struct MonitorPowerChargeLimitControls: View {
         return switch status.phase {
         case "charging", "full", "holding", "sailing", "aboveLimit":
             MacTheme.successText
+        case "discharging":
+            MacTheme.warningText
         case "applying", "calibration", "systemProtection", "unplugged":
             MacTheme.warningText
         case "unsupported", "conflict", "error": MacTheme.errorText
@@ -1183,6 +1190,8 @@ private struct MonitorPowerChargeLimitControls: View {
         return switch status.phase {
         case "applying":
             ContractCopy.copyMonitorPowerChargeLimitApplying.text(for: language)
+        case "discharging":
+            ContractCopy.copyMonitorPowerChargeLimitStateDischarging.text(for: language)
         case "charging":
             ContractCopy.copyMonitorStateCharging.text(for: language)
         case "holding":
@@ -1271,6 +1280,22 @@ private struct MonitorPowerChargeLimitControls: View {
                 symbol: "arrow.clockwise"
             )
 
+            Toggle(isOn: $pendingActiveDischarge) {
+                Text(ContractCopy.copyMonitorPowerChargeLimitActiveDischarge.text(for: language))
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(MacTheme.textPrimary)
+            }
+            .toggleStyle(.switch)
+            .controlSize(.mini)
+            .disabled(controlsDisabled || pendingLimit >= 100)
+
+            if pendingActiveDischarge {
+                Text(ContractCopy.copyMonitorPowerChargeLimitActiveDischargeWarning.text(for: language))
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(MacTheme.warningText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             HStack(spacing: MacTheme.space2) {
                 Button(isEnabled
                     ? ContractCopy.copyMonitorPowerChargeLimitApply.text(for: language)
@@ -1307,6 +1332,9 @@ private struct MonitorPowerChargeLimitControls: View {
         .onChange(of: runtime?.config.chargeLimitPercent) { _, value in
             if let value { pendingLimit = Double(value) }
         }
+        .onChange(of: runtime?.config.chargeLimitActiveDischarge) { _, value in
+            if let value { pendingActiveDischarge = value }
+        }
         .onChange(of: runtime?.helperStatus) { _, _ in
             runtime?.refreshChargeLimitStatus()
         }
@@ -1322,7 +1350,10 @@ private struct MonitorPowerChargeLimitControls: View {
     private func apply() {
         guard let runtime else { return }
         busy = true
-        let success = runtime.applyChargeLimit(Int(pendingLimit))
+        let success = runtime.applyChargeLimit(
+            Int(pendingLimit),
+            activeDischarge: pendingActiveDischarge
+        )
         busy = false
         localError = success ? nil : ContractCopy.copyMonitorPowerChargeLimitFailed.text(for: language)
     }

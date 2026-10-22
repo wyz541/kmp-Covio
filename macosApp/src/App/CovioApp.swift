@@ -98,9 +98,19 @@ enum CovioMain {
                 log("Charge limit percent is missing or invalid")
                 exit(1)
             }
+            let activeDischarge = arguments.indices.contains(index + 2)
+                ? arguments[index + 2].lowercased()
+                : "false"
+            guard activeDischarge == "true" || activeDischarge == "false" else {
+                log("Active discharge value must be true or false")
+                exit(1)
+            }
             exit(printChargeLimitReply(
                 command: HelperWire.shared.COMMAND_CHARGE_LIMIT_CONFIGURE,
-                payload: ["percent": String(percent)],
+                payload: [
+                    "percent": String(percent),
+                    "activeDischarge": activeDischarge,
+                ],
                 timeoutMillis: 20_000
             ))
         }

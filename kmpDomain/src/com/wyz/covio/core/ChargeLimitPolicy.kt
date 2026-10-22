@@ -31,6 +31,7 @@ enum class ChargeLimitPhase {
     NO_BATTERY,
     UNPLUGGED,
     APPLYING,
+    DISCHARGING,
     CHARGING,
     SAILING,
     HOLDING,
@@ -73,6 +74,7 @@ data class ChargeLimitObservation(
     val observedTargetPercent: Int? = null,
     val writePending: Boolean = false,
     val bypassEngaged: Boolean = false,
+    val activeDischargeEnabled: Boolean = false,
 )
 
 /** 需要跨一次判定保存的输入。 */
@@ -174,7 +176,15 @@ object ChargeLimitPolicy {
         val raw = if (upper == CHARGE_LIMIT_MAX_PERCENT) {
             evaluateFullCharge(observation, current, ::decision)
         } else {
-            evaluateLimitedCharge(observation, current, upper, resume, previous.chargingLatch, ::decision)
+            evaluateLimitedCharge(
+                observation,
+                current,
+                upper,
+                resume,
+                previous.chargingLatch,
+                observation.activeDischargeEnabled,
+                ::decision,
+            )
         }
 
         val action = when {
@@ -223,10 +233,13 @@ object ChargeLimitPolicy {
         upper: Int,
         resume: Int,
         latch: Boolean,
+        activeDischargeEnabled: Boolean,
         decision: (ChargeLimitPhase, Boolean, ChargeLimitAction, Int?, String?) -> ChargeLimitDecision,
     ): ChargeLimitDecision {
         if (current > upper) {
-            return decision(ChargeLimitPhase.ABOVE_LIMIT, false, ChargeLimitAction.SET_TARGET, current, null)
+            val target = if (activeDischargeEnabled) upper else current
+            val phase = if (activeDischargeEnabled) ChargeLimitPhase.DISCHARGING else ChargeLimitPhase.ABOVE_LIMIT
+            return decision(phase, false, ChargeLimitAction.SET_TARGET, target, null)
         }
         if (current == upper) {
             return decision(ChargeLimitPhase.HOLDING, false, ChargeLimitAction.SET_TARGET, current, null)

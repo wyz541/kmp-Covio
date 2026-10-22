@@ -44,6 +44,7 @@ data class AppConfig(
     @SerialName("power") val power: PowerConfig = PowerConfig(),
     @SerialName("chargeLimitEnabled") val chargeLimitEnabled: Boolean = false,
     @SerialName("chargeLimitPercent") val chargeLimitPercent: Int = DEFAULT_CHARGE_LIMIT_PERCENT,
+    @SerialName("chargeLimitActiveDischarge") val chargeLimitActiveDischarge: Boolean = false,
     @SerialName("fileNaming") val fileNaming: FileNamingPolicy = FileNamingPolicy(),
 ) {
     fun normalized(): AppConfig = copy(

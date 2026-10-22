@@ -165,16 +165,24 @@ final class HelperClient: @unchecked Sendable {
             originalFeatureState: reply.result?["originalFeatureState"].flatMap(Int.init),
             originalLimitPercent: reply.result?["originalLimitPercent"].flatMap(Int.init),
             originalOptimizedChargingEnabled: reply.result?["originalOptimizedChargingEnabled"]
-                .flatMap(Bool.init)
+                .flatMap(Bool.init),
+            activeDischargeEnabled: reply.result?["activeDischarge"].flatMap(Bool.init) ?? false
         )
     }
 
-    func setChargeLimit(percent: Int) -> Bool {
+    func setChargeLimit(percent: Int, activeDischarge: Bool) -> Bool {
         request(
             command: "chargeLimitConfigure",
-            payload: ["percent": String(percent)],
+            payload: [
+                "percent": String(percent),
+                "activeDischarge": activeDischarge ? "true" : "false",
+            ],
             timeoutMillis: 20_000
         )?.ok == true
+    }
+
+    func setChargeLimit(percent: Int) -> Bool {
+        setChargeLimit(percent: percent, activeDischarge: false)
     }
 
     func restoreChargeLimit() -> Bool {
@@ -241,7 +249,7 @@ struct HelperVersionInfo {
 /// 充电上限 helper 客户端端口。测试替换这个端口，避免连接真实 helper。
 protocol ChargeLimitClientProtocol: Sendable {
     func chargeLimitStatus() -> ChargeLimitHelperStatus?
-    func setChargeLimit(percent: Int) -> Bool
+    func setChargeLimit(percent: Int, activeDischarge: Bool) -> Bool
     func restoreChargeLimit() -> Bool
 }
 
@@ -258,6 +266,7 @@ struct ChargeLimitHelperStatus: Equatable, Sendable {
     let originalFeatureState: Int?
     let originalLimitPercent: Int?
     let originalOptimizedChargingEnabled: Bool?
+    var activeDischargeEnabled: Bool = false
 }
 
 /// `sockaddr_un` 的构造与长度计算集中在这里，调用方不用碰 C 指针。

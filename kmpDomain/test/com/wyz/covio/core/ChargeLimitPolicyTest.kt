@@ -22,6 +22,7 @@ class ChargeLimitPolicyTest {
         error: String? = null,
         writePending: Boolean = false,
         bypass: Boolean = false,
+        activeDischarge: Boolean = false,
     ) = ChargeLimitObservation(
         enabled = enabled,
         upperLimitPercent = upper,
@@ -38,6 +39,7 @@ class ChargeLimitPolicyTest {
         observedTargetPercent = observedTarget,
         writePending = writePending,
         bypassEngaged = bypass,
+        activeDischargeEnabled = activeDischarge,
     )
 
     @Test
@@ -157,6 +159,38 @@ class ChargeLimitPolicyTest {
 
         assertEquals(ChargeLimitPhase.ABOVE_LIMIT, decision.phase)
         assertEquals(90, decision.targetPercent)
+        assertEquals(ChargeLimitAction.NONE, decision.action)
+    }
+
+    @Test
+    fun `active discharge above the limit targets the upper limit`() {
+        val decision = ChargeLimitPolicy.evaluate(
+            observation(
+                upper = 70,
+                current = 80,
+                observedTarget = 80,
+                activeDischarge = true,
+            ),
+        )
+
+        assertEquals(ChargeLimitPhase.APPLYING, decision.phase)
+        assertEquals(70, decision.targetPercent)
+        assertEquals(ChargeLimitAction.SET_TARGET, decision.action)
+    }
+
+    @Test
+    fun `an applied active discharge reports discharging without another write`() {
+        val decision = ChargeLimitPolicy.evaluate(
+            observation(
+                upper = 70,
+                current = 78,
+                observedTarget = 70,
+                activeDischarge = true,
+            ),
+        )
+
+        assertEquals(ChargeLimitPhase.DISCHARGING, decision.phase)
+        assertEquals(70, decision.targetPercent)
         assertEquals(ChargeLimitAction.NONE, decision.action)
     }
 

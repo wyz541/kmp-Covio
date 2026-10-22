@@ -25,7 +25,8 @@ final class ChargeLimitHelperTests: XCTestCase {
                 optimizedChargingEnabled: true,
                 featureState: 0,
                 limitPercent: 80
-            )
+            ),
+            activeDischargeEnabled: true
         )
         let handler = ChargeLimitHelperCommandHandler(runtime: runtime)
 
@@ -39,16 +40,21 @@ final class ChargeLimitHelperTests: XCTestCase {
         XCTAssertEqual(reply?.result?["originalFeatureState"], "0")
         XCTAssertEqual(reply?.result?["originalLimitPercent"], "80")
         XCTAssertEqual(reply?.result?["originalOptimizedChargingEnabled"], "true")
+        XCTAssertEqual(reply?.result?["activeDischarge"], "true")
     }
 
     func testConfigurePassesTheTargetToTheBackend() {
         let runtime = FakeChargeLimitRuntime()
         let handler = ChargeLimitHelperCommandHandler(runtime: runtime)
 
-        let reply = handler.handle(request("chargeLimitConfigure", payload: ["percent": "85"]))
+        let reply = handler.handle(request(
+            "chargeLimitConfigure",
+            payload: ["percent": "85", "activeDischarge": "true"]
+        ))
 
         XCTAssertEqual(reply?.ok, true)
         XCTAssertEqual(runtime.configuredPercent, 85)
+        XCTAssertEqual(runtime.configuredActiveDischarge, true)
     }
 
     func testConfigureReturnsAReadableFailure() {
@@ -187,6 +193,7 @@ private final class FakeChargeLimitRuntime: ChargeLimitRuntimeControlling, @unch
     var statusValue: ChargeLimitRuntimeStatus?
     var statusFailure: ChargeLimitMCLFailure?
     var configuredPercent: Int?
+    var configuredActiveDischarge: Bool?
     var configureFailure: ChargeLimitMCLFailure?
     var restoreCalled = false
     var restoreFailure: ChargeLimitMCLFailure?
@@ -205,8 +212,12 @@ private final class FakeChargeLimitRuntime: ChargeLimitRuntimeControlling, @unch
         )
     }
 
-    func configure(userLimitPercent: Int) -> Result<ChargeLimitRuntimeStatus, ChargeLimitMCLFailure> {
+    func configure(
+        userLimitPercent: Int,
+        activeDischargeEnabled: Bool
+    ) -> Result<ChargeLimitRuntimeStatus, ChargeLimitMCLFailure> {
         configuredPercent = userLimitPercent
+        configuredActiveDischarge = activeDischargeEnabled
         if let configureFailure { return .failure(configureFailure) }
         return status()
     }
@@ -228,7 +239,7 @@ private final class FakeChargeLimitInstallerClient: ChargeLimitClientProtocol, @
     }
 
     func chargeLimitStatus() -> ChargeLimitHelperStatus? { status }
-    func setChargeLimit(percent: Int) -> Bool { false }
+    func setChargeLimit(percent: Int, activeDischarge: Bool) -> Bool { false }
 
     func restoreChargeLimit() -> Bool {
         restoreCalls += 1

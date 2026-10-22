@@ -903,13 +903,19 @@ final class AppRuntime {
 
     /// 设置上限并保存本机配置。helper 失败时不写配置。
     @discardableResult
-    func applyChargeLimit(_ percent: Int) -> Bool {
+    func applyChargeLimit(_ percent: Int, activeDischarge: Bool) -> Bool {
         guard helperStatus == .installed else {
             statusMessage = ContractCopy.copyStatusItemHelperError.text(for: language)
             return false
         }
-        guard chargeLimitClient.setChargeLimit(percent: percent) else {
-            _ = updateConfigDraft { $0.chargeLimitEnabled = false }
+        guard chargeLimitClient.setChargeLimit(
+            percent: percent,
+            activeDischarge: activeDischarge
+        ) else {
+            _ = updateConfigDraft {
+                $0.chargeLimitEnabled = false
+                $0.chargeLimitActiveDischarge = false
+            }
             statusMessage = ContractCopy.copyToastError.text(for: language)
             refreshChargeLimitStatus()
             return false
@@ -917,6 +923,7 @@ final class AppRuntime {
         let saved = updateConfigDraft {
             $0.chargeLimitEnabled = true
             $0.chargeLimitPercent = Int32(percent)
+            $0.chargeLimitActiveDischarge = activeDischarge
         }
         guard saved else {
             _ = chargeLimitClient.restoreChargeLimit()
@@ -925,6 +932,11 @@ final class AppRuntime {
         }
         refreshChargeLimitStatus()
         return true
+    }
+
+    @discardableResult
+    func applyChargeLimit(_ percent: Int) -> Bool {
+        applyChargeLimit(percent, activeDischarge: false)
     }
 
     /// 恢复 macOS 系统策略。helper 恢复失败时保留配置。
@@ -941,6 +953,7 @@ final class AppRuntime {
         }
         _ = updateConfigDraft {
             $0.chargeLimitEnabled = false
+            $0.chargeLimitActiveDischarge = false
         }
         refreshChargeLimitStatus()
         return true
@@ -956,9 +969,18 @@ final class AppRuntime {
         chargeLimitStatus = status
         if config.chargeLimitEnabled {
             let desired = Int(config.chargeLimitPercent)
-            if status?.enabled != true || status?.userLimitPercent != desired {
-                if !chargeLimitClient.setChargeLimit(percent: desired) {
-                    _ = updateConfigDraft { $0.chargeLimitEnabled = false }
+            let desiredActiveDischarge = config.chargeLimitActiveDischarge
+            if status?.enabled != true ||
+                status?.userLimitPercent != desired ||
+                status?.activeDischargeEnabled != desiredActiveDischarge {
+                if !chargeLimitClient.setChargeLimit(
+                    percent: desired,
+                    activeDischarge: desiredActiveDischarge
+                ) {
+                    _ = updateConfigDraft {
+                        $0.chargeLimitEnabled = false
+                        $0.chargeLimitActiveDischarge = false
+                    }
                     statusMessage = ContractCopy.copyToastError.text(for: language)
                 }
                 chargeLimitStatus = chargeLimitClient.chargeLimitStatus()
@@ -1254,6 +1276,7 @@ final class ConfigDraft {
     var power: PowerConfig
     var chargeLimitEnabled: Bool
     var chargeLimitPercent: Int32
+    var chargeLimitActiveDischarge: Bool
     var fileNaming: FileNamingPolicy
 
     init(_ config: AppConfig) {
@@ -1284,6 +1307,7 @@ final class ConfigDraft {
         power = config.power
         chargeLimitEnabled = config.chargeLimitEnabled
         chargeLimitPercent = config.chargeLimitPercent
+        chargeLimitActiveDischarge = config.chargeLimitActiveDischarge
         fileNaming = config.fileNaming
     }
 
@@ -1316,6 +1340,7 @@ final class ConfigDraft {
             power: power,
             chargeLimitEnabled: chargeLimitEnabled,
             chargeLimitPercent: chargeLimitPercent,
+            chargeLimitActiveDischarge: chargeLimitActiveDischarge,
             fileNaming: fileNaming
         )
     }

@@ -36,6 +36,7 @@
 | V10 校准周期 | Apple Silicon，macOS 27 | MCL | 部分通过 |
 | V11 设置 `70%` | Apple Silicon，macOS 27 | root 私有 | 部分通过 |
 | V11b `40%`、`45%`、`50%`、`65%`、`75%` | Apple Silicon，macOS 27 | root 私有 | 待执行 |
+| V11c 主动放电到 `70%` | Apple Silicon，macOS 27 | root 私有 | 待执行 |
 | V12 Intel 原生 MCL | Intel MacBook | 无写入能力检测 | 待执行 |
 | V13 Intel `BCLM` | Intel MacBook | SMC | 未批准 |
 | V14 无电池设备 | Mac desktop | 无 | 待执行 |
@@ -68,6 +69,16 @@ V11 真机顺序：
 
 电量在 `66%` 到 `69%` 且没有充电锁存时，状态机保持当前电量。该结果不计 V11 失败。
 
+V11c 真机顺序：
+
+1. 设置上限 `70%`。
+2. 电量保持在 `70%` 以上。
+3. 开启主动放电并应用。
+4. 确认状态为 `discharging`。
+5. 确认 `ExternalConnected=Yes`、`IsCharging=No`、`BatteryPower<0`。
+6. 确认电量到 `70%` 后 `BatteryPower` 回到 `0`。
+7. 关闭主动放电，确认停止放电。
+
 ## 风险
 
 | 风险 | 影响 | 控制 |
@@ -78,6 +89,7 @@ V11 真机顺序：
 | 恢复失败 | 系统策略残留 | 保存原值、回读、重试 |
 | 校准覆盖 | 临时充到 100% | 显示系统接管，不误报 |
 | 外部修改 | Covio 值被替换 | 读取并提示，不静默覆盖 |
+| 主动放电循环 | 电池循环次数增加 | 显式开关、默认关闭、界面警告 |
 | helper 安全 | 本地提权 | 不加入不必要的 root 写入 |
 
 ## 清理

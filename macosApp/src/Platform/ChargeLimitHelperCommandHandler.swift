@@ -23,7 +23,12 @@ final class ChargeLimitHelperCommandHandler: @unchecked Sendable {
                     message: "Missing charge limit"
                 )
             }
-            return configureReply(requestId: request.requestId, percent: percent)
+            let activeDischarge = request.payload["activeDischarge"].flatMap(Bool.init) ?? false
+            return configureReply(
+                requestId: request.requestId,
+                percent: percent,
+                activeDischarge: activeDischarge
+            )
         case HelperWire.shared.COMMAND_CHARGE_LIMIT_RESTORE:
             return restoreReply(requestId: request.requestId)
         default:
@@ -51,8 +56,15 @@ final class ChargeLimitHelperCommandHandler: @unchecked Sendable {
         }
     }
 
-    private func configureReply(requestId: String, percent: Int) -> HelperReply {
-        switch runtime.configure(userLimitPercent: percent) {
+    private func configureReply(
+        requestId: String,
+        percent: Int,
+        activeDischarge: Bool
+    ) -> HelperReply {
+        switch runtime.configure(
+            userLimitPercent: percent,
+            activeDischargeEnabled: activeDischarge
+        ) {
         case .success(let status):
             return HelperWire.shared.success(
                 requestId: requestId,
@@ -85,6 +97,7 @@ final class ChargeLimitHelperCommandHandler: @unchecked Sendable {
             "chargingLatch": String(status.chargingLatch),
             "phase": status.phase,
             "bypassEngaged": String(status.bypassEngaged),
+            "activeDischarge": String(status.activeDischargeEnabled),
         ]
         if let target = status.effectiveTargetPercent {
             result["targetPercent"] = String(target)

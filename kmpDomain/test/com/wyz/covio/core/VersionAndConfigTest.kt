@@ -100,6 +100,7 @@ class VersionAndConfigTest {
                 AppConfig(
                     chargeLimitEnabled = true,
                     chargeLimitPercent = 85,
+                    chargeLimitActiveDischarge = true,
                 ),
             )
 
@@ -107,6 +108,7 @@ class VersionAndConfigTest {
 
             assertTrue(loaded.chargeLimitEnabled)
             assertEquals(85, loaded.chargeLimitPercent)
+            assertTrue(loaded.chargeLimitActiveDischarge)
         }
 
     @Test
@@ -126,6 +128,7 @@ class VersionAndConfigTest {
 
             assertFalse(loaded.chargeLimitEnabled)
             assertEquals(80, loaded.chargeLimitPercent)
+            assertFalse(loaded.chargeLimitActiveDischarge)
         }
 
     /// M4：剪切板默认开启，两个快捷键是出厂组合。

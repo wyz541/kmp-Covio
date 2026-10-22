@@ -166,6 +166,10 @@ class ConfigStore(
             ),
             chargeLimitEnabled = bool("chargeLimitEnabled", defaults.chargeLimitEnabled),
             chargeLimitPercent = int("chargeLimitPercent", defaults.chargeLimitPercent),
+            chargeLimitActiveDischarge = bool(
+                "chargeLimitActiveDischarge",
+                defaults.chargeLimitActiveDischarge,
+            ),
             fileNaming = decodeFileNaming(root["fileNaming"], defaults.fileNaming),
         ).normalized()
     }

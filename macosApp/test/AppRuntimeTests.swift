@@ -417,14 +417,26 @@ final class AppRuntimeTests: XCTestCase {
         XCTAssertEqual(try savedJSON()["chargeLimitPercent"] as? Int, 85)
     }
 
+    func testApplyChargeLimitPersistsActiveDischarge() throws {
+        let created = makeRuntime(engineStarted: true, helperInstalled: true)
+
+        XCTAssertTrue(created.applyChargeLimit(70, activeDischarge: true))
+
+        XCTAssertEqual(chargeLimitClient.setValues, [70])
+        XCTAssertEqual(chargeLimitClient.setActiveValues, [true])
+        XCTAssertTrue(created.config.chargeLimitActiveDischarge)
+        XCTAssertEqual(try savedJSON()["chargeLimitActiveDischarge"] as? Bool, true)
+    }
+
     func testRestoreChargeLimitClearsTheSavedIntent() throws {
         let created = makeRuntime(engineStarted: true, helperInstalled: true)
-        XCTAssertTrue(created.applyChargeLimit(85))
+        XCTAssertTrue(created.applyChargeLimit(70, activeDischarge: true))
 
         XCTAssertTrue(created.restoreChargeLimit())
 
         XCTAssertEqual(chargeLimitClient.restoreCalls, 1)
         XCTAssertFalse(created.config.chargeLimitEnabled)
+        XCTAssertFalse(created.config.chargeLimitActiveDischarge)
     }
 
     func testFailedChargeLimitApplyDoesNotPersistTheIntent() throws {
@@ -439,12 +451,13 @@ final class AppRuntimeTests: XCTestCase {
 
     func testFailedChargeLimitChangeDisablesThePreviousIntent() throws {
         let created = makeRuntime(engineStarted: true, helperInstalled: true)
-        XCTAssertTrue(created.applyChargeLimit(85))
+        XCTAssertTrue(created.applyChargeLimit(70, activeDischarge: true))
         chargeLimitClient.setResult = false
 
         XCTAssertFalse(created.applyChargeLimit(90))
 
         XCTAssertFalse(created.config.chargeLimitEnabled)
+        XCTAssertFalse(created.config.chargeLimitActiveDischarge)
         XCTAssertNotNil(created.statusMessage)
     }
 
@@ -461,6 +474,33 @@ final class AppRuntimeTests: XCTestCase {
 
         XCTAssertFalse(created.config.chargeLimitEnabled)
         XCTAssertNotNil(created.statusMessage)
+    }
+
+    func testStartupReconcilesActiveDischargeWithTheHelper() throws {
+        let store = ConfigStore.companion.create(path: configFile.path)
+        let draft = ConfigDraft(store.load())
+        draft.chargeLimitEnabled = true
+        draft.chargeLimitPercent = 70
+        draft.chargeLimitActiveDischarge = true
+        store.save(config: draft.build())
+
+        let created = makeRuntime(helperInstalled: true)
+        chargeLimitClient.status = ChargeLimitHelperStatus(
+            enabled: true,
+            userLimitPercent: 70,
+            targetPercent: 80,
+            chargingLatch: false,
+            phase: "aboveLimit",
+            bypassEngaged: false,
+            originalFeatureState: 1,
+            originalLimitPercent: 80,
+            originalOptimizedChargingEnabled: true,
+            activeDischargeEnabled: false
+        )
+        created.start()
+
+        XCTAssertEqual(chargeLimitClient.setActiveValues, [true])
+        XCTAssertTrue(created.config.chargeLimitActiveDischarge)
     }
 
     // MARK: - 清除配置
@@ -576,12 +616,14 @@ private final class FakeChargeLimitClient: ChargeLimitClientProtocol, @unchecked
     var setResult = true
     var restoreResult = true
     var setValues: [Int] = []
+    var setActiveValues: [Bool] = []
     var restoreCalls = 0
 
     func chargeLimitStatus() -> ChargeLimitHelperStatus? { status }
 
-    func setChargeLimit(percent: Int) -> Bool {
+    func setChargeLimit(percent: Int, activeDischarge: Bool) -> Bool {
         setValues.append(percent)
+        setActiveValues.append(activeDischarge)
         return setResult
     }
 

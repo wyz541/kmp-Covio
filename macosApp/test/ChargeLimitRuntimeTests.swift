@@ -89,6 +89,24 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         XCTAssertEqual(backend.appliedTargets, [75])
     }
 
+    func testActiveDischargeTargetsTheUpperLimit() throws {
+        let backend = FakeChargeLimitBackend()
+        let reader = FakeChargeLimitPowerReader(reading: reading(current: 75))
+        let runtime = makeRuntime(backend: backend, reader: reader)
+        defer { _ = runtime.restore() }
+
+        _ = try runtime.configure(
+            userLimitPercent: 70,
+            activeDischargeEnabled: true
+        ).get()
+        let status = try runtime.evaluateNow().get()
+
+        XCTAssertEqual(status.phase, "discharging")
+        XCTAssertEqual(status.effectiveTargetPercent, 70)
+        XCTAssertTrue(status.activeDischargeEnabled)
+        XCTAssertEqual(backend.appliedTargets, [70])
+    }
+
     func testFirstConfigurePersistsAMatchingObservedTarget() throws {
         let backend = FakeChargeLimitBackend()
         backend.observedTargetOverride = 75

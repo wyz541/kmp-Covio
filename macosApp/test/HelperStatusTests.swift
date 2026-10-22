@@ -127,6 +127,7 @@ final class HelperStatusTests: XCTestCase {
         XCTAssertFalse(status.bypassEngaged)
         XCTAssertEqual(status.originalFeatureState, 0)
         XCTAssertEqual(status.originalLimitPercent, 80)
+        XCTAssertTrue(status.activeDischargeEnabled)
         XCTAssertEqual(helper.commands.last, "chargeLimitStatus")
     }
 
@@ -135,7 +136,7 @@ final class HelperStatusTests: XCTestCase {
         defer { helper.stop() }
 
         let client = HelperClient(socketPath: socketPath, timeoutMillis: 1_000)
-        XCTAssertTrue(client.setChargeLimit(percent: 85))
+        XCTAssertTrue(client.setChargeLimit(percent: 85, activeDischarge: true))
         XCTAssertTrue(client.restoreChargeLimit())
 
         XCTAssertEqual(
@@ -274,6 +275,7 @@ private final class FakeHelper {
                         "bypassEngaged": "false",
                         "originalFeatureState": "0",
                         "originalLimitPercent": "80",
+                        "activeDischarge": "true",
                     ]
                 )
             } else {

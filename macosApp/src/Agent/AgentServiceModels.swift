@@ -156,6 +156,9 @@ struct AgentServiceHandlers: Sendable {
     let applyFileRenames: @Sendable ([String]) async -> AgentServiceResult
     let undoRenameRun: @Sendable (String) async -> AgentServiceResult
     let searchFileContent: @Sendable ([String], String, Int) async -> AgentServiceResult
+    let openPane: @Sendable (String) async -> AgentServiceResult
+    let readSetting: @Sendable (String) async -> AgentServiceResult
+    let requestSettingChange: @Sendable (String, String) async -> AgentServiceResult
     let screenshots: @Sendable (Int) async -> AgentServiceResult
     let clipboardMetadata: @Sendable (Int) async -> AgentServiceResult
     let copyText: @Sendable (String) async -> AgentServiceResult
@@ -181,6 +184,15 @@ struct AgentServiceHandlers: Sendable {
         },
         searchFileContent: @escaping @Sendable ([String], String, Int) async -> AgentServiceResult = { _, _, _ in
             .failure("File content search is unavailable.", code: .executionFailed)
+        },
+        openPane: @escaping @Sendable (String) async -> AgentServiceResult = { _ in
+            .failure("Page navigation is unavailable.", code: .executionFailed)
+        },
+        readSetting: @escaping @Sendable (String) async -> AgentServiceResult = { _ in
+            .failure("Settings reading is unavailable.", code: .executionFailed)
+        },
+        requestSettingChange: @escaping @Sendable (String, String) async -> AgentServiceResult = { _, _ in
+            .failure("Settings changes are unavailable.", code: .executionFailed)
         }
     ) {
         self.monitorSnapshot = monitorSnapshot
@@ -191,6 +203,9 @@ struct AgentServiceHandlers: Sendable {
         self.applyFileRenames = applyFileRenames
         self.undoRenameRun = undoRenameRun
         self.searchFileContent = searchFileContent
+        self.openPane = openPane
+        self.readSetting = readSetting
+        self.requestSettingChange = requestSettingChange
         self.screenshots = screenshots
         self.clipboardMetadata = clipboardMetadata
         self.copyText = copyText
@@ -208,6 +223,12 @@ private struct SearchFileContentToolInput: Codable {
     let fileIds: [String]
     let query: String
     let limit: Int?
+}
+private struct OpenPaneToolInput: Codable { let pane: String }
+private struct ReadSettingToolInput: Codable { let key: String }
+private struct RequestSettingChangeToolInput: Codable {
+    let key: String
+    let value: String
 }
 private struct LimitToolInput: Codable { let limit: Int? }
 private struct CopyTextToolInput: Codable { let text: String }
@@ -359,6 +380,63 @@ enum AgentToolCatalog {
                         type: .int,
                         description: "Maximum excerpt count.",
                         extraProperties: ["minimum": 1, "maximum": 12]
+                    ),
+                ]
+            ) { _ in AgentToolAck() }
+        ),
+        descriptor(
+            name: "open_pane",
+            summary: "Open one built-in Covio page from a fixed allowlist.",
+            risk: .readOnly,
+            tool: Tool<OpenPaneToolInput, AgentToolAck>(
+                name: "open_pane",
+                description: "Open one fixed Covio page. Arbitrary destinations are rejected.",
+                parameters: [
+                    .required(
+                        "pane",
+                        type: .string,
+                        description: "Built-in page identifier.",
+                        extraProperties: ["enum": AgentPane.allCases.map(\.rawValue)]
+                    ),
+                ]
+            ) { _ in AgentToolAck() }
+        ),
+        descriptor(
+            name: "read_setting",
+            summary: "Read one allowlisted Covio setting.",
+            risk: .readOnly,
+            tool: Tool<ReadSettingToolInput, AgentToolAck>(
+                name: "read_setting",
+                description: "Read one setting by a fixed key. Arbitrary settings are rejected.",
+                parameters: [
+                    .required(
+                        "key",
+                        type: .string,
+                        description: "Allowlisted setting key.",
+                        extraProperties: ["enum": AgentSettingKey.allCases.map(\.rawValue)]
+                    ),
+                ]
+            ) { _ in AgentToolAck() }
+        ),
+        descriptor(
+            name: "request_setting_change",
+            summary: "Request one allowlisted Covio setting change after user confirmation.",
+            risk: .sideEffect,
+            tool: Tool<RequestSettingChangeToolInput, AgentToolAck>(
+                name: "request_setting_change",
+                description: "Request a typed setting change by fixed key. The user must confirm before execution.",
+                parameters: [
+                    .required(
+                        "key",
+                        type: .string,
+                        description: "Allowlisted setting key.",
+                        extraProperties: ["enum": AgentSettingKey.allCases.map(\.rawValue)]
+                    ),
+                    .required(
+                        "value",
+                        type: .string,
+                        description: "Boolean literal, integer 20-80, or supported language code.",
+                        extraProperties: ["minLength": 1, "maxLength": 32]
                     ),
                 ]
             ) { _ in AgentToolAck() }

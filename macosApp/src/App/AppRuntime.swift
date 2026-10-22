@@ -59,6 +59,9 @@ final class AppRuntime {
     /// 用户明确授权给 Agent 读取的文件。
     let agentAttachments: AgentAttachmentStore
 
+    /// Agent 导航与设置工具的唯一入口。
+    let agentUIActions = AgentUIActionRouter()
+
     /// 文件自动命名和 Agent 共用同一个本地模型容器。
     private let localModelRuntime: LocalModelRuntime
     private let agentHistoryStore: any AgentHistoryStoring
@@ -250,7 +253,8 @@ final class AppRuntime {
                 workspace: resolvedWorkspace,
                 attachments: agentAttachments,
                 autoNaming: resolvedAutoNaming,
-                fileNamingPolicy: loaded.fileNaming
+                fileNamingPolicy: loaded.fileNaming,
+                uiActions: agentUIActions
             )
         )
         self.agent = AgentChatRuntime(
@@ -306,6 +310,15 @@ final class AppRuntime {
         forwarder.handler = { @Sendable [weak self] state in
             MainActor.assumeIsolated { self?.appState = state }
         }
+        agentUIActions.install(
+            openPane: nil,
+            readSetting: { [weak self] key in
+                self?.agentSettingValue(for: key)
+            },
+            changeSetting: { [weak self] key, value in
+                self?.applyAgentSettingChange(key: key, value: value) ?? false
+            }
+        )
     }
 
     // MARK: - 生命周期
@@ -390,6 +403,59 @@ final class AppRuntime {
     func setEnabled(_ enabled: Bool) {
         if !updateConfigDraft({ $0.enabled = enabled }) {
             statusMessage = ContractCopy.copyToastError.text(for: language)
+        }
+    }
+
+    private func agentSettingValue(for key: AgentSettingKey) -> AgentSettingValue? {
+        switch key {
+        case .appEnabled: .boolean(config.enabled)
+        case .notificationsEnabled: .boolean(config.notificationsEnabled)
+        case .updateChecksEnabled: .boolean(config.updateCheckEnabled)
+        case .shelfEnabled: .boolean(config.shelfEnabled)
+        case .screenshotInboxEnabled: .boolean(config.screenshotInboxEnabled)
+        case .clipboardEnabled: .boolean(config.clipboardEnabled)
+        case .powerEnabled: .boolean(config.power.enabled)
+        case .batteryFloorPercent: .integer(Int(config.power.batteryFloorPercent))
+        case .language: .string(config.language)
+        }
+    }
+
+    private func applyAgentSettingChange(
+        key: AgentSettingKey,
+        value: AgentSettingValue
+    ) -> Bool {
+        guard key.accepts(value) else { return false }
+        switch (key, value) {
+        case (.appEnabled, .boolean(let enabled)):
+            setEnabled(enabled)
+            return config.enabled == enabled
+        case (.notificationsEnabled, .boolean(let enabled)):
+            setNotifications(enabled)
+            return config.notificationsEnabled == enabled
+        case (.updateChecksEnabled, .boolean(let enabled)):
+            setUpdateChecks(enabled)
+            return config.updateCheckEnabled == enabled
+        case (.shelfEnabled, .boolean(let enabled)):
+            setShelfEnabled(enabled)
+            return config.shelfEnabled == enabled
+        case (.screenshotInboxEnabled, .boolean(let enabled)):
+            setScreenshotInbox(enabled)
+            return config.screenshotInboxEnabled == enabled
+        case (.clipboardEnabled, .boolean(let enabled)):
+            setClipboardEnabled(enabled)
+            return config.clipboardEnabled == enabled
+        case (.powerEnabled, .boolean(let enabled)):
+            setPowerEnabled(enabled)
+            return config.power.enabled == enabled
+        case (.batteryFloorPercent, .integer(let percent)):
+            setPowerBatteryFloor(percent)
+            return Int(config.power.batteryFloorPercent) == min(max(percent, 0), 95)
+        case (.language, .string(let code)):
+            guard let next = AppLanguage(rawValue: code) else { return false }
+            changeLanguage(next)
+            return config.language == next.rawValue
+        default:
+            return false
         }
     }
 

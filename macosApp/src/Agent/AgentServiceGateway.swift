@@ -273,6 +273,23 @@ actor AgentServiceGateway {
                 query,
                 min(12, boundedLimit(arguments["limit"], defaultValue: 6))
             )
+        case "open_pane":
+            guard let pane = stringValue(arguments["pane"]) else {
+                return .failure("Pane is required.", code: .invalidArguments)
+            }
+            return await handlers.openPane(pane)
+        case "read_setting":
+            guard let key = stringValue(arguments["key"]) else {
+                return .failure("Setting key is required.", code: .invalidArguments)
+            }
+            return await handlers.readSetting(key)
+        case "request_setting_change":
+            guard let key = stringValue(arguments["key"]),
+                  let value = stringValue(arguments["value"])
+            else {
+                return .failure("Setting key and value are required.", code: .invalidArguments)
+            }
+            return await handlers.requestSettingChange(key, value)
         case "list_screenshots":
             return await handlers.screenshots(boundedLimit(arguments["limit"], defaultValue: 8))
         case "list_clipboard_metadata":
@@ -307,6 +324,12 @@ actor AgentServiceGateway {
             allowed = ["runId"]
         case "search_file_content":
             allowed = ["fileIds", "query", "limit"]
+        case "open_pane":
+            allowed = ["pane"]
+        case "read_setting":
+            allowed = ["key"]
+        case "request_setting_change":
+            allowed = ["key", "value"]
         case "list_screenshots", "list_clipboard_metadata":
             allowed = ["limit"]
         case "copy_text":
@@ -373,6 +396,25 @@ actor AgentServiceGateway {
                 guard let value = intValue(limit), (1...12).contains(value) else { return false }
             }
         }
+        if descriptor.name == "open_pane" {
+            guard let pane = stringValue(arguments["pane"]),
+                  AgentPane(rawValue: pane) != nil
+            else { return false }
+        }
+        if descriptor.name == "read_setting" {
+            guard let key = stringValue(arguments["key"]),
+                  AgentSettingKey(rawValue: key) != nil
+            else { return false }
+        }
+        if descriptor.name == "request_setting_change" {
+            guard let key = stringValue(arguments["key"]),
+                  let settingKey = AgentSettingKey(rawValue: key),
+                  let value = stringValue(arguments["value"]),
+                  !value.isEmpty,
+                  value.count <= 32,
+                  settingKey.parse(value) != nil
+            else { return false }
+        }
         if descriptor.name == "copy_text" {
             guard let text = stringValue(arguments["text"]),
                   !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
@@ -391,6 +433,11 @@ actor AgentServiceGateway {
         }
         if name == "undo_rename_run" {
             return "Undo the selected Agent rename run."
+        }
+        if name == "request_setting_change" {
+            let key = stringValue(arguments["key"]) ?? "setting"
+            let value = stringValue(arguments["value"]) ?? ""
+            return "Change \(key) to \(value)."
         }
         return "Run \(name)."
     }

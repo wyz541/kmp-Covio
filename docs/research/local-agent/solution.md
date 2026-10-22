@@ -85,6 +85,9 @@ flowchart LR
 9. `apply_file_renames`
 10. `undo_rename_run`
 11. `search_file_content`
+12. `open_pane`
+13. `read_setting`
+14. `request_setting_change`
 
 ## 错误码
 
@@ -152,6 +155,9 @@ question -> queue search -> index or reuse cached chunks -> rank excerpts
 17. SQLite 只保存会话、消息和工具元数据，不保存工具返回的正文数据。
 18. 文件内容参与回答后，持久历史保存占位文本，不保存派生回答。
 19. 清空会话和清空全部历史必须同时删除 SQLite 记录。
+20. 页面只能使用固定枚举。
+21. 设置键只能使用 allowlist。
+22. 设置修改必须经过确认卡并只执行一次。
 
 ## 可靠性与失败模式
 
@@ -180,6 +186,9 @@ question -> queue search -> index or reuse cached chunks -> rank excerpts
 - [x] 重启后恢复最近会话。
 - [x] 工具调用保存名称、风险、状态、耗时和错误码。
 - [x] 清空会话和清空全部历史会删除 SQLite 记录。
+- [x] Agent 只能打开固定页面。
+- [x] Agent 只能读取和修改 allowlist 设置。
+- [x] 未确认的设置修改不改变配置。
 
 ## 实施计划
 

@@ -37,6 +37,7 @@ enum LocalModelPackageError: String, Error, Sendable, Equatable {
     case totalSizeMismatch
     case insufficientHardware
     case insufficientMemory
+    case modelBusy
 }
 
 struct LocalModelPackageFailure: Error, Sendable, Equatable, LocalizedError {

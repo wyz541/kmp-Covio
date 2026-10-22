@@ -350,6 +350,16 @@ final class AppRuntime {
         directory: URL,
         tier: LocalModelTier
     ) async throws -> VerifiedLocalModelPackage {
+        guard !agent.isBusy,
+              agent.pendingAction == nil,
+              await autoNaming.prepareForModelSwitch(),
+              await agent.prepareForModelSwitch()
+        else {
+            throw LocalModelPackageFailure(
+                code: .modelBusy,
+                detail: "Finish the current local model task before switching."
+            )
+        }
         let previousTier = await modelSelectionState.currentTier()
         await modelSelectionState.set(tier)
         await localModelRuntime.unloadModelContainer()

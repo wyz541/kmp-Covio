@@ -8,6 +8,7 @@ protocol AgentModelServing: Sendable {
     ) async throws -> String
     func reset() async
     func release() async
+    func prepareForModelSwitch() async
     func respondAfterServiceResult(
         toolName: String,
         result: AgentServiceResult,
@@ -16,6 +17,10 @@ protocol AgentModelServing: Sendable {
 }
 
 extension AgentModelServing {
+    func prepareForModelSwitch() async {
+        await reset()
+    }
+
     func respondAfterServiceResult(
         toolName: String,
         result: AgentServiceResult,
@@ -69,6 +74,10 @@ actor LocalAgentModel: AgentModelServing {
     }
 
     func reset() async {
+        session = nil
+    }
+
+    func prepareForModelSwitch() async {
         session = nil
     }
 

@@ -118,6 +118,17 @@ actor MLXNamingModel: NamingModelPort {
         activePreheatTask?.cancel()
     }
 
+    func prepareForModelSwitch() async {
+        await cancel()
+        _ = try? await activeGenerationTask?.value
+        _ = try? await activePreheatTask?.value
+        activeGenerationTask = nil
+        activePreheatTask = nil
+        grammarTokenizer = nil
+        modelLoadMilliseconds = nil
+        preheatMilliseconds = nil
+    }
+
     func release() async {
         activeGenerationTask?.cancel()
         activePreheatTask?.cancel()

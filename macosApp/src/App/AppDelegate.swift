@@ -85,6 +85,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             preview.showWindow(nil)
             return
         }
+        if ProcessInfo.processInfo.environment["COVIO_POWER_PREVIEW"] == "1" {
+            NSApp.setActivationPolicy(.regular)
+            let preview = MonitorPreviewWindowController(
+                startsInPower: true,
+                powerModel: PowerPreviewModel()
+            )
+            monitorPreview = preview
+            preview.showWindow(nil)
+            return
+        }
         if let path = ProcessInfo.processInfo.environment["COVIO_AGENT_RENDER"], !path.isEmpty {
             Task { @MainActor in
                 exit(await AgentPreviewRenderer.render(to: path) ? 0 : 1)

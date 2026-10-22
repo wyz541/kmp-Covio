@@ -52,6 +52,18 @@ class HoldLeaseManager(
         return reconcile(clock())
     }
 
+    /** 用新列表替换一个来源的全部租约。 */
+    fun replaceSource(source: HoldLeaseSource, nextLeases: List<HoldLease>): HoldLeaseSnapshot {
+        lock.withLock {
+            leases.entries.removeAll { it.value.source == source }
+            nextLeases.forEach { lease ->
+                if (lease.id.isNotBlank()) {
+                    leases[lease.id] = lease.copy(source = source)
+                }
+            }
+        }
+        return reconcile(clock())
+    }
     /** 一次结束多个来源的租约。 */
     fun cancelSources(sources: List<HoldLeaseSource>): HoldLeaseSnapshot {
         val sourceSet = sources.toSet()

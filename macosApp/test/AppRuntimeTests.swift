@@ -13,6 +13,7 @@ final class AppRuntimeTests: XCTestCase {
     private var directory: URL!
     private var runtime: AppRuntime!
     private var privileged: FakePrivilegedOps!
+    private var powerObservation: FakePowerObservationSource!
     private var chargeLimitClient: FakeChargeLimitClient!
     private var loginItem: FakeLoginItem!
     private var notifier: FakeNotifier!
@@ -42,6 +43,8 @@ final class AppRuntimeTests: XCTestCase {
     private func makeRuntime(engineStarted: Bool = false, helperInstalled: Bool = false) -> AppRuntime {
         privileged = FakePrivilegedOps()
         privileged.installed = helperInstalled
+        powerObservation = FakePowerObservationSource()
+        powerObservation = FakePowerObservationSource()
         chargeLimitClient = FakeChargeLimitClient()
         loginItem = FakeLoginItem()
         notifier = FakeNotifier()
@@ -59,6 +62,7 @@ final class AppRuntimeTests: XCTestCase {
             loginItem: loginItem,
             notifier: notifier,
             updateChecker: FakeUpdateChecker(),
+            powerObservation: powerObservation,
             shelf: makeShelf(),
             workspace: makeWorkspace()
         )
@@ -321,6 +325,24 @@ final class AppRuntimeTests: XCTestCase {
 
         XCTAssertEqual(created.helperStatus, .notInstalled)
         XCTAssertTrue(created.appState.lidSleepAvailable, "helper 走了就限制不住了，状态要如实反映")
+    }
+
+    /// Power 管理面的意图要同时更新内存、运行时和配置文件。
+    func testPowerRulesArePersistedAndForwardedToTheRuntime() throws {
+        let created = makeRuntime()
+
+        created.setPowerKeepAwakeOnAdapter(false)
+        created.setPowerBatteryFloor(30)
+        created.setPowerClosedLidTimeCapMinutes(90)
+
+        let saved = try XCTUnwrap(savedJSON()["power"] as? [String: Any])
+        XCTAssertEqual(saved["keepAwakeOnAdapter"] as? Bool, false)
+        XCTAssertEqual(saved["batteryFloorPercent"] as? Int, 30)
+        XCTAssertEqual(saved["batteryFloorRecoveryPercent"] as? Int, 35)
+        XCTAssertEqual(saved["closedLidTimeCapMinutes"] as? Int, 90)
+        XCTAssertFalse(created.powerRuntime.config.keepAwakeOnAdapter)
+        XCTAssertEqual(created.powerRuntime.config.batteryFloorPercent, 30)
+        XCTAssertEqual(created.powerRuntime.config.closedLidTimeCapMinutes, 90)
     }
 
     // MARK: - 充电上限

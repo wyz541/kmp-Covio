@@ -187,6 +187,43 @@ final class FakePower: NSObject, PowerSource {
     func emit() { listener?() }
 }
 
+/// 假的电源观察源。测试不能读真实电池、热状态或显示器。
+final class FakePowerObservationSource: NSObject, PowerObservationSource {
+    var value: PowerObservation
+    private var listener: (() -> Void)?
+    private(set) var reads = 0
+
+    init(value: PowerObservation = PowerObservation(
+        batteryPercent: nil,
+        hasBattery: nil,
+        powerState: .unknown,
+        externalDisplayCount: nil,
+        lidState: .unknown,
+        thermalState: .unknown,
+        lowPowerModeEnabled: nil
+    )) {
+        self.value = value
+        super.init()
+    }
+
+    func read() -> PowerObservation {
+        reads += 1
+        return value
+    }
+
+    func subscribe(listener_: @escaping () -> Void) {
+        listener = listener_
+    }
+
+    func stop() {
+        listener = nil
+    }
+
+    func emit() {
+        listener?()
+    }
+}
+
 final class FakeLid: NSObject, LidSensor {
     var state: LidState
     private var listener: ((LidState) -> Void)?

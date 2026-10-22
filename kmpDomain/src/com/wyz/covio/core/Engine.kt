@@ -38,6 +38,7 @@ class Engine(
     private var lidCancelAtMillis: Long? = null
     private var restoreAfterSleep: RestorePoint? = null
     private var manualLidHold = false
+    private var powerLidHold = false
     private var lowBatterySleepLatched = false
     private var lastWakeEvent: WakeEvent? = null
     private var wakeScanScheduled = false
@@ -88,6 +89,7 @@ class Engine(
                 lidCancelAtMillis = null
                 restoreAfterSleep = null
                 manualLidHold = false
+                powerLidHold = false
                 lowBatterySleepLatched = false
                 wakeScanScheduled = false
                 state = state.copy(darkWake = state.darkWake.copy(scanning = false))
@@ -199,6 +201,7 @@ class Engine(
                     idleCancelAtMillis = null
                     lidCancelAtMillis = null
                     manualLidHold = false
+                    powerLidHold = false
                     lowBatterySleepLatched = false
                 }
                 false
@@ -283,6 +286,34 @@ class Engine(
         if (success) refreshLidLeaseStatus()
         publish()
         return success
+    }
+
+    /**
+     * 替换 Power 策略产生的空闲租约。
+     *
+     * 该通道与旧设置页的手动、定时和自动规则分开。
+     */
+    fun replacePowerLeases(leases: List<HoldLease>): Boolean {
+        val snapshot = holdLeases.replaceSource(HoldLeaseSource.AGENT, leases)
+        syncIdleState(snapshot)
+        snapshot.lastError?.let { logger.warn("Cannot apply power policy leases: $it") }
+        publish()
+        return snapshot.lastError == null
+    }
+
+    /**
+     * 合并 Power 策略的合盖保持需求。
+     *
+     * 旧设置页的手动合盖保持仍独立生效。
+     */
+    fun setPowerLidHold(required: Boolean): Boolean {
+        lock.withLock { powerLidHold = required }
+        val result = applyDesiredLidHold()
+        if (result.released && currentState.lid == LidState.CLOSED && currentConfig.lidSleepImmediateOnClose) {
+            requestSleep(restoreAfterWake = true)
+        }
+        publish()
+        return result.success
     }
 
     fun setManualLidSleepAvailable(available: Boolean) {
@@ -443,7 +474,7 @@ class Engine(
             battery?.isDischarging == true -> config.disableLidSleepOnBattery
             else -> false
         }
-        return manualLidHold || lidCancelAtMillis != null || powerPolicy
+        return manualLidHold || powerLidHold || lidCancelAtMillis != null || powerPolicy
     }
 
     private fun helperReady(): Boolean = runCatching {

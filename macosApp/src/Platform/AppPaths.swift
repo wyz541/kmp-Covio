@@ -18,6 +18,9 @@ enum AppPaths {
     static let swiftUILockFileName = "app.swiftui.lock"
 
     /// `~/Library/Application Support/com.wyz.covio`。
+    ///
+    /// 调试构建可用 `COVIO_SUPPORT_DIR` 指向隔离目录。
+    /// 真机验收因此能同时运行第二个实例，不碰正在使用的配置与锁。
     static var supportDirectory: URL {
         supportDirectory(environment: ProcessInfo.processInfo.environment)
     }

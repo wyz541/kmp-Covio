@@ -41,6 +41,7 @@ data class AppConfig(
     @SerialName("clipboardEnabled") val clipboardEnabled: Boolean = true,
     @SerialName("clipboardPasteStackHotKey") val clipboardPasteStackHotKey: String = DEFAULT_PASTE_STACK_HOT_KEY,
     @SerialName("clipboardCaptureHotKey") val clipboardCaptureHotKey: String = DEFAULT_CAPTURE_HOT_KEY,
+    @SerialName("power") val power: PowerConfig = PowerConfig(),
     @SerialName("chargeLimitEnabled") val chargeLimitEnabled: Boolean = false,
     @SerialName("chargeLimitPercent") val chargeLimitPercent: Int = DEFAULT_CHARGE_LIMIT_PERCENT,
     @SerialName("fileNaming") val fileNaming: FileNamingPolicy = FileNamingPolicy(),
@@ -54,6 +55,7 @@ data class AppConfig(
         hibernateMode = hibernateMode?.takeIf { it in SUPPORTED_HIBERNATE_MODES },
         clipboardPasteStackHotKey = normalizeHotKeyBinding(clipboardPasteStackHotKey, DEFAULT_PASTE_STACK_HOT_KEY),
         clipboardCaptureHotKey = normalizeHotKeyBinding(clipboardCaptureHotKey, DEFAULT_CAPTURE_HOT_KEY),
+        power = power.normalized(),
         chargeLimitPercent = ChargeLimitPolicy.normalizeUpperLimit(chargeLimitPercent),
         fileNaming = fileNaming.normalized(),
     )

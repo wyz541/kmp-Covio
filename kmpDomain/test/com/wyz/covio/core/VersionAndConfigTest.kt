@@ -291,6 +291,72 @@ class VersionAndConfigTest {
             }
         }
 
+    @Test
+    fun `old version three config loads default power settings`() =
+        withTemporaryDirectory("config") { directory ->
+            val path = directory.resolve("config.json")
+            path.writeText("""{"schemaVersion":3,"enabled":false}""")
+            val loaded = ConfigStore(path.toString()).load()
+
+            assertEquals(3, loaded.schemaVersion)
+            assertFalse(loaded.enabled)
+            assertEquals(PowerConfig.defaults(), loaded.power)
+        }
+
+    @Test
+    fun `power config round trips and keeps unknown nested keys`() =
+        withTemporaryDirectory("config") { directory ->
+            val path = directory.resolve("config.json")
+            path.writeText(
+                """
+                {
+                  "power": {
+                    "enabled": false,
+                    "keepAwakeOnAdapter": false,
+                    "keepAwakeOnBattery": true,
+                    "allowClosedLid": false,
+                    "pauseClosedLidWithExternalDisplay": false,
+                    "batteryFloorPercent": 25,
+                    "batteryFloorRecoveryPercent": 30,
+                    "yieldOnLowPowerMode": false,
+                    "heatGuardEnabled": false,
+                    "closedLidTimeCapMinutes": 90,
+                    "futureNestedKey": {"keep": true}
+                  }
+                }
+                """.trimIndent(),
+            )
+            val store = ConfigStore(path.toString())
+            val loaded = store.load()
+
+            assertFalse(loaded.power.enabled)
+            assertFalse(loaded.power.keepAwakeOnAdapter)
+            assertTrue(loaded.power.keepAwakeOnBattery)
+            assertFalse(loaded.power.allowClosedLid)
+            assertFalse(loaded.power.pauseClosedLidWithExternalDisplay)
+            assertEquals(25, loaded.power.batteryFloorPercent)
+            assertEquals(30, loaded.power.batteryFloorRecoveryPercent)
+            assertFalse(loaded.power.yieldOnLowPowerMode)
+            assertFalse(loaded.power.heatGuardEnabled)
+            assertEquals(90, loaded.power.closedLidTimeCapMinutes)
+
+            store.save(loaded)
+            val text = path.readText()
+            assertTrue(text.contains("futureNestedKey"))
+            assertTrue(text.contains("\"keep\""))
+        }
+
+    @Test
+    fun `bad power key falls back without affecting sibling keys`() =
+        withTemporaryDirectory("config") { directory ->
+            val path = directory.resolve("config.json")
+            path.writeText("""{"power":{"enabled":"yes","batteryFloorPercent":25}}""")
+            val loaded = ConfigStore(path.toString()).load()
+
+            assertEquals(PowerConfig.defaults().enabled, loaded.power.enabled)
+            assertEquals(25, loaded.power.batteryFloorPercent)
+        }
+
     /// 默认路径必须与 0.4.2 完全一致，否则老用户的设置会丢。
     @Test
     fun `default paths match the older release layout`() {

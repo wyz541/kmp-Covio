@@ -66,6 +66,12 @@ class ConfigStore(
             val encoded = json.encodeToJsonElement(AppConfig.serializer(), normalized) as JsonObject
             val mergedObject = existing.toMutableMap().apply { putAll(encoded) }
 
+            val previousPower = existing["power"] as? JsonObject
+            val nextPower = encoded["power"] as? JsonObject
+            if (previousPower != null && nextPower != null) {
+                mergedObject["power"] = JsonObject(previousPower + nextPower)
+            }
+
             val existingFileNaming = existing["fileNaming"] as? JsonObject
             val encodedFileNaming = encoded["fileNaming"] as? JsonObject
             if (existingFileNaming != null && encodedFileNaming != null) {
@@ -101,6 +107,13 @@ class ConfigStore(
         fun nullableInt(name: String): Int? =
             root[name]?.jsonPrimitive?.intOrNull
 
+        val powerRoot = root["power"] as? JsonObject ?: JsonObject(emptyMap())
+        fun powerBool(name: String, fallback: Boolean): Boolean =
+            powerRoot[name]?.jsonPrimitive?.booleanOrNull ?: fallback
+        fun powerInt(name: String, fallback: Int): Int =
+            powerRoot[name]?.jsonPrimitive?.intOrNull ?: fallback
+        val powerDefaults = PowerConfig()
+
         return AppConfig(
             schemaVersion = int("schemaVersion", defaults.schemaVersion),
             language = string("language", defaults.language),
@@ -126,6 +139,27 @@ class ConfigStore(
             clipboardEnabled = bool("clipboardEnabled", defaults.clipboardEnabled),
             clipboardPasteStackHotKey = string("clipboardPasteStackHotKey", defaults.clipboardPasteStackHotKey),
             clipboardCaptureHotKey = string("clipboardCaptureHotKey", defaults.clipboardCaptureHotKey),
+            power = PowerConfig(
+                enabled = powerBool("enabled", powerDefaults.enabled),
+                keepAwakeOnAdapter = powerBool("keepAwakeOnAdapter", powerDefaults.keepAwakeOnAdapter),
+                keepAwakeOnBattery = powerBool("keepAwakeOnBattery", powerDefaults.keepAwakeOnBattery),
+                allowClosedLid = powerBool("allowClosedLid", powerDefaults.allowClosedLid),
+                pauseClosedLidWithExternalDisplay = powerBool(
+                    "pauseClosedLidWithExternalDisplay",
+                    powerDefaults.pauseClosedLidWithExternalDisplay,
+                ),
+                batteryFloorPercent = powerInt("batteryFloorPercent", powerDefaults.batteryFloorPercent),
+                batteryFloorRecoveryPercent = powerInt(
+                    "batteryFloorRecoveryPercent",
+                    powerDefaults.batteryFloorRecoveryPercent,
+                ),
+                yieldOnLowPowerMode = powerBool("yieldOnLowPowerMode", powerDefaults.yieldOnLowPowerMode),
+                heatGuardEnabled = powerBool("heatGuardEnabled", powerDefaults.heatGuardEnabled),
+                closedLidTimeCapMinutes = powerInt(
+                    "closedLidTimeCapMinutes",
+                    powerDefaults.closedLidTimeCapMinutes,
+                ),
+            ),
             chargeLimitEnabled = bool("chargeLimitEnabled", defaults.chargeLimitEnabled),
             chargeLimitPercent = int("chargeLimitPercent", defaults.chargeLimitPercent),
             fileNaming = decodeFileNaming(root["fileNaming"], defaults.fileNaming),

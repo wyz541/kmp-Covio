@@ -109,11 +109,27 @@ final class MacPowerSource: NSObject, PowerSource, @unchecked Sendable {
         timer.resume()
     }
 
+    internal struct BatteryReading {
+        let status: BatteryStatus?
+        let percent: Int?
+        let hasInternalBattery: Bool?
+        let state: PowerState
+    }
+
     /// 读内置电池。没有内置电池（台式机）时返回 nil。
     static func readBattery() -> BatteryStatus? {
-        guard let blob = IOPSCopyPowerSourcesInfo()?.takeRetainedValue() else { return nil }
+        readBatteryReading().status
+    }
+
+    /// 保留“是否存在电池”和“百分比是否可读”的区别。
+    ///
+    /// 百分比缺失时不填 0。0 是有效读数，不能代替未知值。
+    static func readBatteryReading() -> BatteryReading {
+        guard let blob = IOPSCopyPowerSourcesInfo()?.takeRetainedValue() else {
+            return BatteryReading(status: nil, percent: nil, hasInternalBattery: nil, state: .unknown)
+        }
         guard let sources = IOPSCopyPowerSourcesList(blob)?.takeRetainedValue() as? [CFTypeRef] else {
-            return nil
+            return BatteryReading(status: nil, percent: nil, hasInternalBattery: nil, state: .unknown)
         }
 
         for source in sources {
@@ -124,12 +140,7 @@ final class MacPowerSource: NSObject, PowerSource, @unchecked Sendable {
 
             let current = description["Current Capacity"] as? Int
             let maximum = description["Max Capacity"] as? Int
-            let percent: Int
-            if let current, let maximum, maximum > 0 {
-                percent = (current * 100) / maximum
-            } else {
-                percent = current ?? 0
-            }
+            let percent = batteryPercent(current: current, maximum: maximum)
 
             let isCharging = description["Is Charging"] as? Bool ?? false
             let isCharged = description["Is Charged"] as? Bool ?? false
@@ -150,13 +161,26 @@ final class MacPowerSource: NSObject, PowerSource, @unchecked Sendable {
             let minutesKey = state == .discharging ? "Time to Empty" : "Time to Full Charge"
             let minutes = description[minutesKey] as? Int
             let remaining = (minutes ?? 0) > 0 ? KotlinLong(longLong: Int64(minutes!) * 60) : nil
-
-            return BatteryStatus(
-                percent: Int32(min(max(percent, 0), 100)),
-                state: state,
-                remainingSeconds: remaining
+            let status = percent.map {
+                BatteryStatus(
+                    percent: Int32(min(max($0, 0), 100)),
+                    state: state,
+                    remainingSeconds: remaining
+                )
+            }
+            return BatteryReading(
+                status: status,
+                percent: percent,
+                hasInternalBattery: true,
+                state: state
             )
         }
-        return nil
+        return BatteryReading(status: nil, percent: nil, hasInternalBattery: false, state: .unknown)
+    }
+
+    /// 容量值只按 current / maximum 计算。任一值缺失时返回 nil。
+    static func batteryPercent(current: Int?, maximum: Int?) -> Int? {
+        guard let current, let maximum, maximum > 0 else { return nil }
+        return min(max((current * 100) / maximum, 0), 100)
     }
 }

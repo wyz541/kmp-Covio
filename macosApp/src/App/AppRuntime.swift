@@ -807,7 +807,7 @@ final class AppRuntime {
 /// `AppConfig` 的可变草稿。
 ///
 /// Kotlin 的 data class 在 Swift 里字段全只读，没有 `copy` 之外的改法。
-/// 21 个字段的 `doCopy` 写十遍会出错，所以集中到这里。
+/// 全部字段的 `doCopy` 写十遍会出错，所以集中到这里。
 /// 加字段时只改这一处。
 final class ConfigDraft {
     var schemaVersion: Int32
@@ -834,6 +834,7 @@ final class ConfigDraft {
     var clipboardEnabled: Bool
     var clipboardPasteStackHotKey: String
     var clipboardCaptureHotKey: String
+    var power: PowerConfig
     var chargeLimitEnabled: Bool
     var chargeLimitPercent: Int32
     var fileNaming: FileNamingPolicy
@@ -863,6 +864,7 @@ final class ConfigDraft {
         clipboardEnabled = config.clipboardEnabled
         clipboardPasteStackHotKey = config.clipboardPasteStackHotKey
         clipboardCaptureHotKey = config.clipboardCaptureHotKey
+        power = config.power
         chargeLimitEnabled = config.chargeLimitEnabled
         chargeLimitPercent = config.chargeLimitPercent
         fileNaming = config.fileNaming
@@ -894,6 +896,7 @@ final class ConfigDraft {
             clipboardEnabled: clipboardEnabled,
             clipboardPasteStackHotKey: clipboardPasteStackHotKey,
             clipboardCaptureHotKey: clipboardCaptureHotKey,
+            power: power,
             chargeLimitEnabled: chargeLimitEnabled,
             chargeLimitPercent: chargeLimitPercent,
             fileNaming: fileNaming

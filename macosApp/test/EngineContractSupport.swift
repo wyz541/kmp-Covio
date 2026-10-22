@@ -40,6 +40,7 @@ enum AppConfigs {
         darkWakeAwarenessEnabled: Bool? = nil,
         lidSleepImmediateOnClose: Bool? = nil,
         enabled: Bool? = nil,
+        power: PowerConfig? = nil,
         chargeLimitEnabled: Bool? = nil,
         chargeLimitPercent: Int32? = nil
     ) -> AppConfig {
@@ -68,6 +69,7 @@ enum AppConfigs {
             clipboardEnabled: base.clipboardEnabled,
             clipboardPasteStackHotKey: base.clipboardPasteStackHotKey,
             clipboardCaptureHotKey: base.clipboardCaptureHotKey,
+            power: power ?? base.power,
             chargeLimitEnabled: chargeLimitEnabled ?? base.chargeLimitEnabled,
             chargeLimitPercent: chargeLimitPercent ?? base.chargeLimitPercent,
             fileNaming: base.fileNaming

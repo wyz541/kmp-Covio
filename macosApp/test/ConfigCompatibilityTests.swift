@@ -108,6 +108,50 @@ final class ConfigCompatibilityTests: XCTestCase {
         XCTAssertEqual(config.lowBatteryCapacity, 15, "其它键不受影响")
     }
 
+    /// 旧版文件没有 `power`。加载后必须得到本版默认意图。
+    func testLegacyConfigGetsPowerDefaults() throws {
+        try write(legacyConfig)
+        let power = store().load().power
+
+        XCTAssertTrue(power.enabled)
+        XCTAssertTrue(power.keepAwakeOnAdapter)
+        XCTAssertFalse(power.keepAwakeOnBattery)
+        XCTAssertTrue(power.allowClosedLid)
+        XCTAssertEqual(power.batteryFloorPercent, 15)
+        XCTAssertEqual(power.batteryFloorRecoveryPercent, 20)
+        XCTAssertEqual(power.closedLidTimeCapMinutes, 240)
+    }
+
+    /// Power 意图与既有配置一起原子写入并原样读回。
+    func testPowerConfigRoundTrips() throws {
+        let power = PowerConfig(
+            enabled: false,
+            keepAwakeOnAdapter: false,
+            keepAwakeOnBattery: true,
+            allowClosedLid: false,
+            pauseClosedLidWithExternalDisplay: false,
+            batteryFloorPercent: 25,
+            batteryFloorRecoveryPercent: 30,
+            yieldOnLowPowerMode: false,
+            heatGuardEnabled: false,
+            closedLidTimeCapMinutes: 90
+        )
+        let store = store()
+        store.save(config: AppConfigs.make(power: power))
+        let loaded = store.load().power
+
+        XCTAssertFalse(loaded.enabled)
+        XCTAssertFalse(loaded.keepAwakeOnAdapter)
+        XCTAssertTrue(loaded.keepAwakeOnBattery)
+        XCTAssertFalse(loaded.allowClosedLid)
+        XCTAssertFalse(loaded.pauseClosedLidWithExternalDisplay)
+        XCTAssertEqual(loaded.batteryFloorPercent, 25)
+        XCTAssertEqual(loaded.batteryFloorRecoveryPercent, 30)
+        XCTAssertFalse(loaded.yieldOnLowPowerMode)
+        XCTAssertFalse(loaded.heatGuardEnabled)
+        XCTAssertEqual(loaded.closedLidTimeCapMinutes, 90)
+    }
+
     /// 保存时先读回现有 JSON 再合并，所以本版不认识的键会留下。
     /// 两版共存期间这条不能破。
     func testSaveKeepsKeysThisVersionDoesNotKnow() throws {

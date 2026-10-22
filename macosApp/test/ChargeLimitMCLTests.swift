@@ -118,7 +118,7 @@ final class ChargeLimitMCLTests: XCTestCase {
         XCTAssertEqual(powerUI.currentPercent, 80)
     }
 
-    func testDirectPathFailsWhenPowerdKeepsTheOldTarget() {
+    func testDirectPathAcceptsStoredTargetBeforePowerdCatchesUp() throws {
         preferences.onNotify = { [weak self] in
             self?.powerUI.enabled = true
             self?.powerUI.currentPercent = 70
@@ -128,9 +128,10 @@ final class ChargeLimitMCLTests: XCTestCase {
 
         let result = controller.apply(targetPercent: 70)
 
-        XCTAssertEqual(result, .failure(.readbackFailed("MCL target")))
-        XCTAssertNil(try? stateStore.load())
-        XCTAssertEqual(powerUI.currentPercent, 80)
+        let state = try XCTUnwrap(successState(result))
+        XCTAssertEqual(state.targetPercent, 70)
+        XCTAssertEqual(powerUI.currentPercent, 70)
+        XCTAssertEqual(controller.observedTargetPercent(), 80)
     }
 
     func testRestoreReappliesTheOriginalNativeLimit() throws {

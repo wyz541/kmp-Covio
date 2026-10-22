@@ -33,8 +33,8 @@
 | V08 睡眠与唤醒 | Apple Silicon，macOS 27 | MCL | 通过 |
 | V09 重启恢复 | Apple Silicon，macOS 27 | MCL | 待执行 |
 | V10 校准周期 | Apple Silicon，macOS 27 | MCL | 部分通过 |
-| V11 设置 `70%` | Apple Silicon，macOS 27 | root 私有 | 失败 |
-| V11b `20%`、`50%`、`75%`、`79%` | Apple Silicon，macOS 27 | root 私有 | 待执行 |
+| V11 设置 `70%` | Apple Silicon，macOS 27 | root 私有 | 待执行 |
+| V11b `40%`、`50%`、`70%`、`75%`、`79%` | Apple Silicon，macOS 27 | root 私有 | 待执行 |
 | V12 Intel 原生 MCL | Intel MacBook | 无写入能力检测 | 待执行 |
 | V13 Intel `BCLM` | Intel MacBook | SMC | 未批准 |
 | V14 无电池设备 | Mac desktop | 无 | 待执行 |
@@ -52,8 +52,8 @@
 5. `2026-10-22` 真机进入冲突态。显式重新应用仍保持 `80%` 目标。
 6. 该问题已补测试：显式应用覆盖一次冲突，自动刷新继续保护外部修改。
 7. 新 helper 已验证 `enabled=false`、`MCLFeatureState=1` 与 `mclLimitValue` 写入后的 powerd 回读。
-8. `70%` 未进入 powerd。失败关闭通过：helper 返回错误，状态恢复 disabled，`pmset` 保持 `80%`。
-9. App 启动时自动关闭被 helper 拒绝的充电意图。
+8. PowerUI 写入后 powerd 可能等待下一次电量 `1%` 步进。
+9. 状态必须保持 `applying`，不能按 `4` 秒判失败。
 
 ## 风险
 

@@ -2,9 +2,9 @@
 
 ## 1. 方案边界
 
-本文推荐 `20%` 到 `100%` 的混合路径。
+本文推荐 `40%` 到 `100%` 的混合路径。
 `80%` 到 `100%` 使用原生 MCL。
-`20%` 到 `79%` 使用 root `CFPreferences` 与 Darwin 通知。
+`40%` 到 `79%` 使用 root `CFPreferences` 与 Darwin 通知。
 本文不批准写入 SMC。
 本文不批准 root 策略重载。
 
@@ -46,8 +46,9 @@
 6. 等待系统注册策略。
 7. 读取 `PowerUI getMCLLimitWithError:` 与 `pmset -g battlimit`。
 8. 校验目标值、电池充电状态和功率。
-9. `pmset` 在 `4` 秒内未显示目标时，恢复原策略。
-10. 恢复成功后返回错误，不把 PowerUI 的临时值当成已生效。
+9. PowerUI 接受写入后，保持 `applying` 等待 powerd 确认。
+10. 充电时 powerd 可能等待下一次电量 `1%` 步进。
+11. `pmset` 与 PowerUI 目标一致后退出等待态。
 
 如果任一步失败，执行恢复流程。
 

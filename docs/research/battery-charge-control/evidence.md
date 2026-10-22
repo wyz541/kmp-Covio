@@ -182,7 +182,7 @@ com.apple.private.usernotifications.bundle-identifiers
 | 新 SMC 键受 entitlement 保护 | 高 | `kIOReturnNotPrivileged` 和 entitlement 列表 |
 | 原生 MCL 支持 `80` 到 `100` | 高 | 本机读数和社区写入测试 |
 | 原生 MCL 出现旁路 | 高 | `BypassEngaged`、`drain=1`、`BatteryPower=0` |
-| `20%` 到 `79%` 不适合首期 | 中高 | 依赖 root 私有策略，缺完整验证 |
+| `40%` 到 `79%` 需要等待 powerd | 中高 | root 偏好可写，执行时机依赖下一次电量步进 |
 | 5% 回差无法由原生 API 配置 | 高 | 公开方法不含回差参数 |
 | Intel 支持情况 | 低 | 只有旧源码证据 |
 | 无电池设备支持情况 | 低 | 未做真机验证 |

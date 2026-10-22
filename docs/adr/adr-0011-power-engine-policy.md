@@ -1,4 +1,4 @@
-# ADR-0007：用持久化意图与租约统一电源 Engine
+# ADR-0011：用持久化意图与租约统一电源 Engine
 
 - Status：accepted
 - Kind：architecture

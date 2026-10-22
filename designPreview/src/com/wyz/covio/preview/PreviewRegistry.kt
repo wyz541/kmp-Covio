@@ -1,6 +1,7 @@
 package com.wyz.covio.preview
 
 import androidx.compose.runtime.Composable
+import com.wyz.covio.preview.previews.power.PowerManagementPreview
 import com.wyz.covio.preview.previews.workbench.GlassWorkbenchPreview
 import com.wyz.covio.preview.previews.files.UnifiedFilesPreview
 import com.wyz.covio.preview.previews.workbench.WorkbenchPreview
@@ -30,6 +31,12 @@ data class Preview(
  * **注意：** 只加画得完的。首页上点进去是空壳，就是死路，违反设计闸门的 R7。
  */
 val previews: List<Preview> = listOf(
+    Preview(
+        title = "Monitor 电源管理",
+        covers = "Monitor 内的概览 / 电源切换、状态、保持唤醒会话、安全规则和历史。",
+        issue = 150,
+        content = { PowerManagementPreview() },
+    ),
     Preview(
         title = "挂帘工作台",
         covers = "S1 到 S8。菜单栏胶囊、玻璃面板、tab bar、bento 首页、编辑模式、工作区设置、错误恢复。",

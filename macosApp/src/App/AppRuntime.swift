@@ -76,6 +76,7 @@ final class AppRuntime {
     private let agentHistoryStore: any AgentHistoryStoring
     private let agentExternalAuditStore: (any AgentExternalAuditStoring)?
     private let monitorHistorySampler: any MonitorHistorySampling
+    let monitorHistoryReport: MonitorReportModel
     private let agentExternalTokenStore = AgentExternalTokenStore()
     private let agentExternalPreferences: AgentExternalServicePreferences
 
@@ -138,6 +139,7 @@ final class AppRuntime {
         transfer: WorkspaceTransferRuntime? = nil,
         autoNaming: AutoNamingRuntime? = nil,
         agentHistoryStore: (any AgentHistoryStoring)? = nil,
+        monitorHistoryStore: (any MonitorHistoryStoring)? = nil,
         monitorHistorySampler: (any MonitorHistorySampling)? = nil,
         agentExternalPreferences: AgentExternalServicePreferences = .standard
     ) {
@@ -276,8 +278,11 @@ final class AppRuntime {
             ?? AgentHistoryStore(path: AppPaths.agentHistoryFile)
         self.agentHistoryStore = resolvedAgentHistory
         self.agentExternalAuditStore = resolvedAgentHistory as? any AgentExternalAuditStoring
+        let resolvedMonitorHistoryStore = monitorHistoryStore
+            ?? MonitorHistoryStore(path: AppPaths.monitorHistoryFile)
         self.monitorHistorySampler = monitorHistorySampler
-            ?? MonitorHistorySampler(store: MonitorHistoryStore(path: AppPaths.monitorHistoryFile))
+            ?? MonitorHistorySampler(store: resolvedMonitorHistoryStore)
+        self.monitorHistoryReport = MonitorReportModel(store: resolvedMonitorHistoryStore)
         let agentGateway = AgentServiceGateway(
             handlers: AgentAppServices.handlers(
                 shelf: resolvedShelf,

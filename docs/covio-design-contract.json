@@ -4840,6 +4840,178 @@
       "en": "60 samples",
       "zh-Hans": "60 个采样"
     },
+    "copy/monitor/report/open": {
+      "en": "Report",
+      "zh-Hans": "历史报告"
+    },
+    "copy/monitor/report/title": {
+      "en": "Performance history",
+      "zh-Hans": "性能历史报告"
+    },
+    "copy/monitor/report/summary": {
+      "en": "Export a local report for the selected time range.",
+      "zh-Hans": "导出所选时间段的本机报告。"
+    },
+    "copy/monitor/report/range/start": {
+      "en": "Start",
+      "zh-Hans": "开始"
+    },
+    "copy/monitor/report/range/end": {
+      "en": "End",
+      "zh-Hans": "结束"
+    },
+    "copy/monitor/report/range/last-10-days": {
+      "en": "Last 10 days",
+      "zh-Hans": "最近 10 天"
+    },
+    "copy/monitor/report/range/limit": {
+      "en": "Ranges are limited to 14 days.",
+      "zh-Hans": "时间范围最多 14 天。"
+    },
+    "copy/monitor/report/coverage/title": {
+      "en": "Data coverage",
+      "zh-Hans": "数据覆盖"
+    },
+    "copy/monitor/report/coverage/samples": {
+      "en": "Samples",
+      "zh-Hans": "样本"
+    },
+    "copy/monitor/report/coverage/observed": {
+      "en": "Observed",
+      "zh-Hans": "已记录"
+    },
+    "copy/monitor/report/coverage/sleep": {
+      "en": "Sleep",
+      "zh-Hans": "睡眠"
+    },
+    "copy/monitor/report/coverage/unknown": {
+      "en": "Unknown gaps",
+      "zh-Hans": "未知缺口"
+    },
+    "copy/monitor/report/peaks/title": {
+      "en": "Peaks",
+      "zh-Hans": "峰值"
+    },
+    "copy/monitor/report/thresholds/title": {
+      "en": "Notable periods",
+      "zh-Hans": "异常时段"
+    },
+    "copy/monitor/report/events/title": {
+      "en": "Events",
+      "zh-Hans": "事件"
+    },
+    "copy/monitor/report/gaps/title": {
+      "en": "Collection gaps",
+      "zh-Hans": "采集缺口"
+    },
+    "copy/monitor/report/unavailable/title": {
+      "en": "Unavailable metrics",
+      "zh-Hans": "不可得指标"
+    },
+    "copy/monitor/report/system/title": {
+      "en": "System",
+      "zh-Hans": "系统"
+    },
+    "copy/monitor/report/export": {
+      "en": "Export HTML",
+      "zh-Hans": "导出 HTML"
+    },
+    "copy/monitor/report/clear": {
+      "en": "Clear history",
+      "zh-Hans": "清除历史"
+    },
+    "copy/monitor/report/close": {
+      "en": "Close",
+      "zh-Hans": "关闭"
+    },
+    "copy/monitor/report/loading": {
+      "en": "Building report…",
+      "zh-Hans": "正在生成报告…"
+    },
+    "copy/monitor/report/empty": {
+      "en": "No samples in this range.",
+      "zh-Hans": "这个范围内没有样本。"
+    },
+    "copy/monitor/report/partial": {
+      "en": "Coverage is incomplete. The report marks missing time.",
+      "zh-Hans": "覆盖不完整。报告会标出缺失时间。"
+    },
+    "copy/monitor/report/error": {
+      "en": "The report could not be built.",
+      "zh-Hans": "无法生成报告。"
+    },
+    "copy/monitor/report/delete-title": {
+      "en": "Clear performance history?",
+      "zh-Hans": "清除性能历史？"
+    },
+    "copy/monitor/report/delete-message": {
+      "en": "This removes all locally stored samples and cannot be undone.",
+      "zh-Hans": "这会删除全部本机样本，且不能撤销。"
+    },
+    "copy/monitor/report/delete-confirm": {
+      "en": "Clear history",
+      "zh-Hans": "清除历史"
+    },
+    "copy/monitor/report/cancel": {
+      "en": "Cancel",
+      "zh-Hans": "取消"
+    },
+    "copy/monitor/report/export-success": {
+      "en": "Report exported.",
+      "zh-Hans": "报告已导出。"
+    },
+    "copy/monitor/report/export-error": {
+      "en": "The report could not be exported.",
+      "zh-Hans": "无法导出报告。"
+    },
+    "copy/monitor/report/chart/cpu-gpu": {
+      "en": "CPU and GPU",
+      "zh-Hans": "CPU 与 GPU"
+    },
+    "copy/monitor/report/chart/memory": {
+      "en": "Memory pressure by usage",
+      "zh-Hans": "内存使用率"
+    },
+    "copy/monitor/report/chart/network": {
+      "en": "Network throughput",
+      "zh-Hans": "网络吞吐"
+    },
+    "copy/monitor/report/table/time": {
+      "en": "Time",
+      "zh-Hans": "时间"
+    },
+    "copy/monitor/report/table/cpu": {
+      "en": "CPU",
+      "zh-Hans": "CPU"
+    },
+    "copy/monitor/report/table/gpu": {
+      "en": "GPU",
+      "zh-Hans": "GPU"
+    },
+    "copy/monitor/report/table/memory": {
+      "en": "Memory",
+      "zh-Hans": "内存"
+    },
+    "copy/monitor/report/table/network-down": {
+      "en": "Download",
+      "zh-Hans": "下行"
+    },
+    "copy/monitor/report/table/network-up": {
+      "en": "Upload",
+      "zh-Hans": "上行"
+    },
+    "copy/monitor/report/method": {
+      "en": "Collected locally. No data was uploaded.",
+      "zh-Hans": "本机采集。没有上传数据。"
+    },
+    "copy/monitor/report/generated": {
+      "en": "Generated",
+      "zh-Hans": "生成时间"
+    },
+    "copy/monitor/report/no-data-hint": {
+      "en": "Keep Covio running to collect history.",
+      "zh-Hans": "保持 Covio 运行，才能积累历史。"
+    },
     "copy/icon/concept/blue-grid": {
       "en": "05 · BLUE GRID",
       "zh-Hans": "05 · 蓝色网格"

@@ -77,6 +77,9 @@ final class AppRuntimeTests: XCTestCase {
             agentHistoryStore: AgentHistoryStore(
                 path: directory.appendingPathComponent("agent-history.sqlite3")
             ),
+            monitorHistoryStore: MonitorHistoryStore(
+                path: directory.appendingPathComponent("monitor-history.sqlite")
+            ),
             monitorHistorySampler: NoopMonitorHistorySampler(),
             agentExternalPreferences: .disabled
         )

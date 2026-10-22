@@ -17,6 +17,7 @@ struct MonitorTabView: View {
     @State private var history: MonitorHistory
     @State private var powerHistory = MonitorPowerHistory()
     @State private var sampler = MonitorSampler()
+    @State private var reportPresented = false
 
     init(
         language: AppLanguage,
@@ -61,6 +62,11 @@ struct MonitorTabView: View {
             guard runsSampling else { return }
             await runPowerSamples()
         }
+        .sheet(isPresented: $reportPresented) {
+            if let reportModel = runtime?.monitorHistoryReport {
+                MonitorReportView(model: reportModel, language: language)
+            }
+        }
     }
 
     @ViewBuilder
@@ -68,6 +74,14 @@ struct MonitorTabView: View {
         HStack(spacing: MacTheme.space2) {
             statusRow
                 .frame(maxWidth: .infinity, alignment: .leading)
+            if runtime?.monitorHistoryReport != nil {
+                Button(ContractCopy.copyMonitorReportOpen.text(for: language)) {
+                    reportPresented = true
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .accessibilityHint(ContractCopy.copyMonitorReportSummary.text(for: language))
+            }
             if powerModel != nil {
                 Picker(ContractCopy.copyHubPowerTitle.text(for: language), selection: $section) {
                     Text(ContractCopy.copyHubPowerSegmentOverview.text(for: language))

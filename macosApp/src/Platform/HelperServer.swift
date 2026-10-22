@@ -27,6 +27,8 @@ enum HelperServer {
 
     /// 阻塞运行，直到进程被信号终止。返回进程退出码。
     static func run() -> Int32 {
+        // 客户端超时后会关闭 socket。写入关闭的连接不能终止整个 root helper。
+        signal(SIGPIPE, SIG_IGN)
         let log = HelperLog()
         if case .failure(let failure) = chargeLimitRuntime.resumeOnStartup() {
             log.error("Charge limit runtime failed to resume: \(failure)")
@@ -105,6 +107,14 @@ enum HelperServer {
         leaseCoordinator: HelperLeaseCoordinator
     ) {
         defer { close(client) }
+        var noSigPipe: Int32 = 1
+        _ = setsockopt(
+            client,
+            SOL_SOCKET,
+            SO_NOSIGPIPE,
+            &noSigPipe,
+            socklen_t(MemoryLayout<Int32>.size)
+        )
         do {
             guard let peerUid = peerUid(of: client) else {
                 log.info("Rejected helper request: cannot determine peer uid")

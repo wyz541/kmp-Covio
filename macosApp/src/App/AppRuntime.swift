@@ -75,6 +75,7 @@ final class AppRuntime {
     private(set) var activeModelTier: LocalModelTier
     private let agentHistoryStore: any AgentHistoryStoring
     private let agentExternalAuditStore: (any AgentExternalAuditStoring)?
+    private let monitorHistorySampler: any MonitorHistorySampling
     private let agentExternalTokenStore = AgentExternalTokenStore()
     private let agentExternalPreferences: AgentExternalServicePreferences
 
@@ -137,6 +138,7 @@ final class AppRuntime {
         transfer: WorkspaceTransferRuntime? = nil,
         autoNaming: AutoNamingRuntime? = nil,
         agentHistoryStore: (any AgentHistoryStoring)? = nil,
+        monitorHistorySampler: (any MonitorHistorySampling)? = nil,
         agentExternalPreferences: AgentExternalServicePreferences = .standard
     ) {
         let resolvedLogger = logger ?? FileAppLogger()
@@ -274,6 +276,8 @@ final class AppRuntime {
             ?? AgentHistoryStore(path: AppPaths.agentHistoryFile)
         self.agentHistoryStore = resolvedAgentHistory
         self.agentExternalAuditStore = resolvedAgentHistory as? any AgentExternalAuditStoring
+        self.monitorHistorySampler = monitorHistorySampler
+            ?? MonitorHistorySampler(store: MonitorHistoryStore(path: AppPaths.monitorHistoryFile))
         let agentGateway = AgentServiceGateway(
             handlers: AgentAppServices.handlers(
                 shelf: resolvedShelf,
@@ -510,6 +514,7 @@ final class AppRuntime {
         syncLoginItem()
         engine.start()
         powerRuntime.start()
+        monitorHistorySampler.start()
         syncState()
         Task { await agent.restoreHistory() }
         if agentExternalServiceEnabled {
@@ -563,6 +568,7 @@ final class AppRuntime {
         shelf.stop()
         clipboard.stop()
         powerRuntime.stop()
+        monitorHistorySampler.stop()
         agentExternalService?.stop()
         engine.stop()
     }

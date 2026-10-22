@@ -1,4 +1,5 @@
 import AppKit
+import CoreGraphics
 import Darwin
 import Foundation
 @preconcurrency import IOKit
@@ -66,7 +67,7 @@ final class MacMonitorReader {
 
     func read() -> MonitorSnapshot {
         let memory = readMemory()
-        let reading = readPower()
+        let reading = readPower(includeTopApps: true)
         return MonitorSnapshot(
             cpu: readCPU(),
             gpu: readGPU(),
@@ -82,7 +83,103 @@ final class MacMonitorReader {
 
     /// 电源卡片每秒只读 IOPS、IOKit 与能耗窗口，不重复扫描无关指标。
     func readPowerOnly() -> MonitorSnapshot.Power {
-        readPower().power
+        readPower(includeTopApps: true).power
+    }
+
+    /// 读取一条历史样本。
+    ///
+    /// 这个路径跳过进程扫描、top app、应用身份和路径解析。
+    /// 读取失败时保留空值，不写零值。
+    func readHistory(
+        at date: Date,
+        monotonicNanoseconds: UInt64,
+        bootID: String,
+        kind: MonitorHistorySample.Kind = .periodic
+    ) -> MonitorHistorySample {
+        let memory = readMemory()
+        let reading = readPower(includeTopApps: false)
+        let cpu = readCPU()
+        let gpu = readGPU()
+        let disk = readDisk()
+        let network = readNetwork()
+        let thermal = readThermal()
+        let battery = reading.battery
+        let power = reading.power
+
+        let powerSource: MonitorHistorySample.PowerSource
+        switch power.supply {
+        case .adapter, .charging:
+            powerSource = .ac
+        case .battery:
+            powerSource = .battery
+        case .unknown:
+            powerSource = .unknown
+        }
+
+        let memoryPressure: MonitorHistorySample.MemoryPressure? = memory.map { value in
+            switch value.pressure {
+            case .normal: return .normal
+            case .warning: return .warning
+            case .critical: return .critical
+            }
+        }
+
+        let displayState = CGDisplayIsAsleep(CGMainDisplayID()) != 0
+            ? MonitorHistorySample.DisplayState.off
+            : .on
+        let lidState: MonitorHistorySample.LidState
+        switch MacLidSensor.readClamshellState() {
+        case .open: lidState = .open
+        case .closed: lidState = .closed
+        case .unknown: lidState = .unknown
+        default: lidState = .unknown
+        }
+
+        let isBattery = powerSource == .battery
+        let requiredValuesPresent = cpu != nil
+            && memory != nil
+            && disk != nil
+            && network != nil
+            && power != nil
+
+        return MonitorHistorySample(
+            sampledAt: date,
+            monotonicNanoseconds: monotonicNanoseconds,
+            bootID: bootID,
+            powerSource: powerSource,
+            thermalState: {
+                switch thermal {
+                case .nominal: .nominal
+                case .fair: .fair
+                case .serious: .serious
+                case .critical: .critical
+                }
+            }(),
+            cpuUsage: cpu?.usage,
+            cpuLoad1: cpu?.loadAverage,
+            cpuCoreCount: cpu?.coreCount,
+            gpuUsage: gpu?.usage,
+            gpuMemoryBytes: gpu?.memoryUsed,
+            memoryUsedBytes: memory?.used,
+            memoryTotalBytes: memory?.total,
+            memoryPressure: memoryPressure,
+            swapUsedBytes: memory?.swapUsed,
+            diskReadBytesPerSecond: disk?.readRate,
+            diskWriteBytesPerSecond: disk?.writeRate,
+            diskUsedBytes: disk?.used,
+            diskFreeBytes: disk?.free,
+            networkReceiveBytesPerSecond: network?.downloadRate,
+            networkTransmitBytesPerSecond: network?.uploadRate,
+            batteryPercent: battery?.percent,
+            batteryTemperatureCelsius: power.temperatureCelsius,
+            batteryHealthPercent: power.batteryHealthPercent,
+            systemPowerWatts: isBattery ? nil : power.watts,
+            batteryPowerWatts: isBattery ? power.watts : nil,
+            displayState: displayState,
+            lidState: lidState,
+            kind: kind,
+            quality: requiredValuesPresent ? .complete : .partial
+        )
     }
 
     // MARK: - CPU
@@ -409,7 +506,7 @@ final class MacMonitorReader {
 
     // MARK: - Power
 
-    private func readPower() -> (
+    private func readPower(includeTopApps: Bool) -> (
         power: MonitorSnapshot.Power,
         battery: MonitorSnapshot.Battery?
     ) {
@@ -439,7 +536,7 @@ final class MacMonitorReader {
         let remaining = iops.supply == .battery
             ? (calculatedRemaining ?? iops.timeToEmptySeconds)
             : nil
-        let topApps = readEnergyUsage(at: now)
+        let topApps = includeTopApps ? readEnergyUsage(at: now) : []
         let isAdapter = iops.supply == .charging || iops.supply == .adapter
 
         let power = MonitorSnapshot.Power(

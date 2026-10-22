@@ -138,6 +138,40 @@ struct MonitorHistorySample: Equatable, Sendable {
         self.kind = kind
         self.quality = quality
     }
+
+    func replacingKind(_ kind: Kind) -> MonitorHistorySample {
+        MonitorHistorySample(
+            sampledAt: sampledAt,
+            monotonicNanoseconds: monotonicNanoseconds,
+            bootID: bootID,
+            powerSource: powerSource,
+            thermalState: thermalState,
+            cpuUsage: cpuUsage,
+            cpuLoad1: cpuLoad1,
+            cpuCoreCount: cpuCoreCount,
+            gpuUsage: gpuUsage,
+            gpuMemoryBytes: gpuMemoryBytes,
+            memoryUsedBytes: memoryUsedBytes,
+            memoryTotalBytes: memoryTotalBytes,
+            memoryPressure: memoryPressure,
+            swapUsedBytes: swapUsedBytes,
+            diskReadBytesPerSecond: diskReadBytesPerSecond,
+            diskWriteBytesPerSecond: diskWriteBytesPerSecond,
+            diskUsedBytes: diskUsedBytes,
+            diskFreeBytes: diskFreeBytes,
+            networkReceiveBytesPerSecond: networkReceiveBytesPerSecond,
+            networkTransmitBytesPerSecond: networkTransmitBytesPerSecond,
+            batteryPercent: batteryPercent,
+            batteryTemperatureCelsius: batteryTemperatureCelsius,
+            batteryHealthPercent: batteryHealthPercent,
+            systemPowerWatts: systemPowerWatts,
+            batteryPowerWatts: batteryPowerWatts,
+            displayState: displayState,
+            lidState: lidState,
+            kind: kind,
+            quality: quality
+        )
+    }
 }
 
 /// 一条有固定类型的历史事件。
@@ -148,6 +182,7 @@ struct MonitorHistoryEvent: Equatable, Sendable {
         case fullWake = "full_wake"
         case adapterConnected = "adapter_connected"
         case adapterDisconnected = "adapter_disconnected"
+        case thermalNominal = "thermal_nominal"
         case thermalFair = "thermal_fair"
         case thermalSerious = "thermal_serious"
         case thermalCritical = "thermal_critical"

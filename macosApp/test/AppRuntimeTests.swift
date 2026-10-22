@@ -77,6 +77,7 @@ final class AppRuntimeTests: XCTestCase {
             agentHistoryStore: AgentHistoryStore(
                 path: directory.appendingPathComponent("agent-history.sqlite3")
             ),
+            monitorHistorySampler: NoopMonitorHistorySampler(),
             agentExternalPreferences: .disabled
         )
         runtime = created
@@ -618,4 +619,10 @@ final class FakeUpdateChecker: NSObject, UpdateChecker {
     var release: UpdateInfo?
 
     func latestRelease() -> UpdateInfo? { release }
+}
+
+@MainActor
+private final class NoopMonitorHistorySampler: MonitorHistorySampling {
+    func start() {}
+    func stop() {}
 }

@@ -47,6 +47,7 @@ final class AgentChatRuntime {
     private static let fileDerivedHistoryPlaceholder =
         "[File-derived response omitted from local history.]"
     private static let sensitiveFileTools: Set<String> = [
+        "describe_image",
         "inspect_file",
         "search_file_content",
     ]
@@ -376,6 +377,41 @@ final class AgentChatRuntime {
         persistHistory()
     }
 
+    private func citationFooter(for result: AgentServiceResult) -> String {
+        guard case .object(let data)? = result.data else { return "" }
+        if case .string(let citation)? = data["citation"] {
+            let name: String
+            if case .string(let value)? = data["name"] {
+                name = value
+            } else {
+                name = ""
+            }
+            return name.isEmpty ? "[\(citation)]" : "[\(citation)] \(name)"
+        }
+        guard case .array(let chunks)? = data["chunks"] else { return "" }
+        return chunks.compactMap { value -> String? in
+            guard case .object(let chunk) = value,
+                  case .string(let citation)? = chunk["citation"],
+                  case .string(let name)? = chunk["name"]
+            else { return nil }
+            if case .int(let page)? = chunk["page"] {
+                return "[\(citation)] \(name) page \(page)"
+            }
+            return "[\(citation)] \(name)"
+        }
+        .joined(separator: "\n")
+    }
+
+    private func deferredServiceText(
+        for action: AgentDeferredAction,
+        result: AgentServiceResult
+    ) -> String {
+        if Self.sensitiveFileTools.contains(action.toolName) {
+            return "Local file service completed."
+        }
+        return result.summary
+    }
+
     private func refreshToolState() async {
         pendingAction = await gateway.pendingAction()
         let liveAudits = await gateway.recentAudits()
@@ -401,7 +437,10 @@ final class AgentChatRuntime {
             stage = .executing
             let result = await gateway.executeDeferred(action)
             messages.append(
-                AgentChatMessage(role: .service, text: result.summary)
+                AgentChatMessage(
+                    role: .service,
+                    text: deferredServiceText(for: action, result: result)
+                )
             )
             await refreshToolState()
             markFileDerivedHistory(after: auditsBeforeTurn)
@@ -426,10 +465,17 @@ final class AgentChatRuntime {
             } catch {
                 errorText = ContractCopy.copyAgentError.text(for: language)
             }
-            if let index = messages.firstIndex(where: { $0.id == assistantID }),
-               messages[index].text.isEmpty
-            {
-                messages.remove(at: index)
+            if let index = messages.firstIndex(where: { $0.id == assistantID }) {
+                let footer = citationFooter(for: result)
+                if !footer.isEmpty, !messages[index].text.contains(footer) {
+                    if !messages[index].text.isEmpty {
+                        messages[index].text += "\n\n"
+                    }
+                    messages[index].text += footer
+                }
+                if messages[index].text.isEmpty {
+                    messages.remove(at: index)
+                }
             }
             persistHistory()
         }

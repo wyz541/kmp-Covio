@@ -165,6 +165,42 @@ final class AgentServiceGatewayTests: XCTestCase {
         XCTAssertEqual(lastText, validId)
     }
 
+    func testDescribeImageQueuesUntilTheModelLeaseIsReleased() async throws {
+        let counter = Counter()
+        let fileId = "workspace:\(String(repeating: "e", count: 64))"
+        let gateway = AgentServiceGateway(
+            handlers: handlers(counter: counter, describeImage: { id, question in
+                await counter.increment(text: "\(id):\(question)")
+                return AgentServiceResult(
+                    ok: true,
+                    summary: "Visual answer",
+                    data: .object([
+                        "fileId": .string(id),
+                        "name": .string("diagram.png"),
+                        "answer": .string("A red square."),
+                        "citation": .string("\(id)#image-1"),
+                    ])
+                )
+            })
+        )
+
+        _ = await gateway.handle(
+            call(name: "describe_image", arguments: [
+                "fileId": .string(fileId),
+                "question": .string("What color is the square?"),
+            ])
+        )
+        let before = await counter.value
+        XCTAssertEqual(before, 0)
+        let deferred = await gateway.takeDeferredAction()
+        let action = try XCTUnwrap(deferred)
+        let result = await gateway.executeDeferred(action)
+
+        XCTAssertTrue(result.ok)
+        let after = await counter.value
+        XCTAssertEqual(after, 1)
+    }
+
     func testDeferredPreviewQueuesAndExecutesExplicitly() async throws {
         let counter = Counter()
         let fileId = "workspace:\(String(repeating: "b", count: 64))"
@@ -323,6 +359,9 @@ final class AgentServiceGatewayTests: XCTestCase {
         inspectFile: @escaping @Sendable (String, Int) async -> AgentServiceResult = { _, _ in
             .failure("unused", code: .fileUnavailable)
         },
+        describeImage: @escaping @Sendable (String, String) async -> AgentServiceResult = { _, _ in
+            .failure("unused", code: .executionFailed)
+        },
         previewFileNames: @escaping @Sendable ([String], Int) async -> AgentServiceResult = { _, _ in
             .failure("unused", code: .executionFailed)
         },
@@ -373,6 +412,7 @@ final class AgentServiceGatewayTests: XCTestCase {
                 return AgentServiceResult(ok: true, summary: "copied", data: nil)
             },
             inspectFile: inspectFile,
+            describeImage: describeImage,
             previewFileNames: previewFileNames,
             applyFileRenames: applyFileRenames,
             undoRenameRun: undoRenameRun,

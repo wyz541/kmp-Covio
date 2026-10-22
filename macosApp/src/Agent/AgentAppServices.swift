@@ -12,7 +12,8 @@ enum AgentAppServices {
         attachments: AgentAttachmentStore,
         autoNaming: AutoNamingRuntime,
         fileNamingPolicy: FileNamingPolicy,
-        uiActions: AgentUIActionRouter
+        uiActions: AgentUIActionRouter,
+        modelRuntime: LocalModelRuntime
     ) -> AgentServiceHandlers {
         let monitor = MonitorSampler()
         let inspector = AgentFileInspector()
@@ -21,6 +22,7 @@ enum AgentAppServices {
             policy: fileNamingPolicy
         )
         let searchIndex = AgentFileSearchIndex()
+        let visionQA = AgentVisionQAService(containerRuntime: modelRuntime)
         return AgentServiceHandlers(
             monitorSnapshot: {
                 let snapshot = await monitor.sample()
@@ -59,6 +61,14 @@ enum AgentAppServices {
                 return await Task.detached(priority: .userInitiated) {
                     inspector.inspect(file, maxCharacters: maxCharacters)
                 }.value
+            },
+            describeImage: { fileId, question in
+                guard let file = await MainActor.run(body: {
+                    resolveFile(fileId: fileId, workspace: workspace, attachments: attachments)
+                }) else {
+                    return .failure("The file is not authorized.", code: .fileUnavailable)
+                }
+                return await visionQA.answer(file: file, question: question)
             },
             previewFileNames: { fileIds, maxResults in
                 var seen = Set<String>()

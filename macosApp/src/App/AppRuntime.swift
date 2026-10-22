@@ -282,7 +282,8 @@ final class AppRuntime {
                 attachments: agentAttachments,
                 autoNaming: resolvedAutoNaming,
                 fileNamingPolicy: loaded.fileNaming,
-                uiActions: agentUIActions
+                uiActions: agentUIActions,
+                modelRuntime: localModelRuntime
             )
         )
         self.agentGateway = agentGateway

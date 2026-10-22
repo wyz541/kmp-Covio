@@ -298,6 +298,15 @@ actor AgentServiceGateway {
                 fileId,
                 boundedCharacterLimit(arguments["maxCharacters"], defaultValue: 6_000)
             )
+        case "describe_image":
+            guard let fileId = stringValue(arguments["fileId"]),
+                  let question = stringValue(arguments["question"]),
+                  AgentFileReference(fileId: fileId) != nil,
+                  !question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            else {
+                return .failure("File ID and image question are required.", code: .invalidArguments)
+            }
+            return await handlers.describeImage(fileId, question)
         case "preview_file_names":
             guard let fileIds = stringArrayValue(arguments["fileIds"]), !fileIds.isEmpty else {
                 return .failure("File IDs are required.", code: .invalidArguments)
@@ -371,6 +380,8 @@ actor AgentServiceGateway {
             allowed = ["query", "limit"]
         case "inspect_file":
             allowed = ["fileId", "maxCharacters"]
+        case "describe_image":
+            allowed = ["fileId", "question"]
         case "preview_file_names":
             allowed = ["fileIds", "maxResults"]
         case "apply_file_renames":
@@ -411,6 +422,14 @@ actor AgentServiceGateway {
                     return false
                 }
             }
+        }
+        if descriptor.name == "describe_image" {
+            guard let fileId = stringValue(arguments["fileId"]),
+                  AgentFileReference(fileId: fileId) != nil,
+                  let question = stringValue(arguments["question"]),
+                  !question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  question.count <= 1_000
+            else { return false }
         }
         if descriptor.name == "preview_file_names" {
             guard let fileIds = stringArrayValue(arguments["fileIds"]),
@@ -501,6 +520,9 @@ actor AgentServiceGateway {
     }
 
     private func deferredSummary(name: String, arguments: [String: JSONValue]) -> String {
+        if name == "describe_image" {
+            return "Answer an image question locally."
+        }
         if name == "preview_file_names" {
             return "Preview names for \(stringArrayValue(arguments["fileIds"])?.count ?? 0) files."
         }

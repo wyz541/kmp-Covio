@@ -15,6 +15,7 @@ flowchart LR
   S --> W["Workspace"]
   S --> H["Screenshots"]
   S --> B["Clipboard"]
+  G --> V["Visual QA"]
 ```
 
 ## 组件职责
@@ -29,6 +30,7 @@ flowchart LR
 | `AgentMCPRouter` | Swift | MCP JSON-RPC 工具发现与调用 |
 | `AgentExternalMCPService` | Swift + Network | loopback HTTP、token 和 session |
 | `AgentAppServices` | Swift | 连接现有 AppRuntime 服务 |
+| `AgentVisionQAService` | Swift + MLX | 使用共享本地 VLM 回答图片像素问题 |
 | `PaneKind.AGENT` | Kotlin | 导航级工作区种类 |
 
 ## 调用路径
@@ -54,6 +56,7 @@ flowchart LR
 - `macosApp/src/Agent/AgentMCPHTTPServer.swift`
 - `macosApp/src/Agent/AgentExternalMCPService.swift`
 - `macosApp/src/Agent/AgentAppServices.swift`
+- `macosApp/src/Agent/AgentVisionQAService.swift`
 - `macosApp/src/Agent/LocalAgentModel.swift`
 - `macosApp/src/Agent/AgentChatRuntime.swift`
 - `macosApp/src/Agent/AgentTabView.swift`
@@ -93,6 +96,7 @@ flowchart LR
 12. `open_pane`
 13. `read_setting`
 14. `request_setting_change`
+15. `describe_image`
 
 ## 错误码
 
@@ -132,12 +136,25 @@ tool call -> validate -> queue -> finish response -> release model lease
           -> execute preview -> return result to model -> audit
 ```
 
-### 文件问答
+### 文本、代码和 PDF 问答
 
 ```text
 question -> queue search -> index or reuse cached chunks -> rank excerpts
          -> return citation IDs -> model answer -> audit
 ```
+
+### 图片问答
+
+```text
+question -> queue describe_image -> finish response -> release model lease
+         -> acquire shared model lease -> read image pixels
+         -> treat OCR text as untrusted -> local VLM answer -> citation
+```
+
+`describe_image` 只接受稳定文件 ID。
+`describe_image` 不进入外部 MCP 工具列表。
+视觉回答和 OCR 文本都按文件正文处理。
+持久历史只保存占位文本。
 
 ## 外部 Agent
 
@@ -219,6 +236,8 @@ flowchart LR
 - [x] 重启后恢复最近会话。
 - [x] 工具调用保存名称、风险、状态、耗时和错误码。
 - [x] 清空会话和清空全部历史会删除 SQLite 记录。
+- [x] 图片像素问答由真实本地 VLM 完成，并返回确定性 citation。
+- [x] 图片派生回答在 SQLite 历史中替换为占位文本。
 - [x] Agent 只能打开固定页面。
 - [x] Agent 只能读取和修改 allowlist 设置。
 - [x] 未确认的设置修改不改变配置。

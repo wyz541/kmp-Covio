@@ -1,0 +1,87 @@
+---
+title: 开关
+description: 解释 MacSwitch 的二元状态、可访问语义和实现边界。
+component:
+  id: switch
+  kind: control
+  status: stable
+  definition: 开关是让用户立即切换二元设置的控件。
+  capabilities:
+    - id: toggle
+      title: 切换二元设置
+      description: 用户操作开关时，调用方立即把设置改为开启或关闭。
+    - id: announce
+      title: 读出当前状态
+      description: 辅助技术读取设置名称和当前开关值。
+    - id: constrain
+      title: 表达不可用状态
+      description: 调用方禁用开关时，用户不能改变当前设置。
+  states:
+    - 关闭
+    - 开启
+    - 聚焦
+    - 禁用
+  platforms:
+    - macOS 26.0+
+  accessibilityRules:
+    - 可访问名称来自调用方传入的 label。名称要说明设置对象。
+    - 控件要向辅助技术暴露开启或关闭值。
+    - 颜色不是唯一状态线索。滑块位置和辅助技术值共同表达状态。
+    - 系统小尺寸开关的视觉高度小于 44 点。主操作布局要检查命中区。
+  implementation:
+    swift:
+      - MacSwitch
+      - MacControlSize.switchWidth
+    notes: MacSwitch 使用原生 Toggle 的 switch 样式。labelsHidden 隐藏视觉标签，accessibilityLabel 保留名称。
+  related:
+    - setting-row
+    - segmented
+evidence:
+  - id: "EV-SWITCH-001"
+    image: "./evidence/2026-10-22__macbook-pro__macos-27.0.1__light__EV-SWITCH-001.png"
+    alt: "Covio 开关在真实 macOS 测试宿主中的关闭、开启和禁用状态"
+    capturedAt: "2026-10-22"
+    device: "MacBook Pro (MacBookPro18,2, Apple M1 Max, 64 GB)"
+    os: "macOS 27.0.1 (26A434)"
+    appearance: "light"
+    scene: "SwiftUI 测试宿主渲染：开关关闭、开启和禁用状态"
+    sourceCommit: "ea79342bef81"
+    sourceBranch: "task/setting-control-components-216"
+    sha256: "241bb59748f69adb47e923b237730a08e3178b3d40a2ccac6cb7169e126423eb"
+    status: "real-device"
+---
+
+import ComponentFacts from '../../../../components/guide/ComponentFacts.astro';
+import ComponentRules from '../../../../components/guide/ComponentRules.astro';
+import EvidenceFigure from '../../../../components/guide/EvidenceFigure.astro';
+import Legend from '../../../../components/guide/Legend.astro';
+
+<ComponentFacts />
+
+## 使用边界
+
+开关只表示二元状态。三个以上互斥选项应使用分段控件。
+
+用户操作开关后，设置立即生效。需要保存按钮的操作不应使用开关。
+
+## 状态
+
+| 状态 | 界面表现 | 行为 |
+| --- | --- | --- |
+| 关闭 | 滑块在左 | 当前设置关闭 |
+| 开启 | 滑块在右 | 当前设置开启 |
+| 聚焦 | 系统焦点环 | 键盘可以继续操作 |
+| 禁用 | 系统降低对比度 | 用户不能改变设置 |
+
+<Legend />
+
+## 真机实例
+
+<EvidenceFigure />
+
+<ComponentRules />
+
+## 已知限制
+
+- 合同记录开关宽度为 38 点。`MacSwitch` 没有显式设置宽度，系统小尺寸样式决定实际边界。
+- 本轮截图覆盖关闭、开启和禁用。键盘聚焦和完整 VoiceOver 流程尚未人工验收。

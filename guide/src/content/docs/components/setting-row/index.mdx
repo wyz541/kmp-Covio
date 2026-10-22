@@ -1,0 +1,89 @@
+---
+title: 设置行
+description: 解释 MacSettingRow 的标签、说明、控件布局和交互边界。
+component:
+  id: setting-row
+  kind: container
+  status: stable
+  definition: 设置行把设置名称、说明和一个控件放在同一水平结构中。
+  capabilities:
+    - id: label
+      title: 显示设置名称
+      description: 左侧标题说明这一行控制什么设置。
+    - id: explain
+      title: 补充设置说明
+      description: 可选说明解释设置的作用、范围或后果。
+    - id: place-control
+      title: 放置一个控件
+      description: 右侧区域放置开关、数字输入或分段控件。
+  states:
+    - 默认
+    - 悬停
+    - 聚焦
+    - 禁用
+  platforms:
+    - macOS 26.0+
+  accessibilityRules:
+    - 标题要说明设置对象，说明要补充后果或范围。
+    - 右侧控件要保留自己的可访问名称。
+    - 行高要提供足够的目标区域。
+    - 视觉标签和控件名称要表达同一设置。
+  implementation:
+    swift:
+      - MacSettingRow
+      - MacControlSize.settingRowHeight
+    notes: MacSettingRow 使用水平布局，标题和说明靠左，控件靠右。内容区域最小高度为 44 点。
+  related:
+    - switch
+    - number-field
+    - segmented
+evidence:
+  - id: "EV-SETTING-ROW-001"
+    image: "./evidence/2026-10-22__macbook-pro__macos-27.0.1__light__EV-SETTING-ROW-001.png"
+    alt: "Covio 设置行在真实 macOS 测试宿主中的标题、说明和右侧开关"
+    capturedAt: "2026-10-22"
+    device: "MacBook Pro (MacBookPro18,2, Apple M1 Max, 64 GB)"
+    os: "macOS 27.0.1 (26A434)"
+    appearance: "light"
+    scene: "SwiftUI 测试宿主渲染：设置行的标题、说明和控件列"
+    sourceCommit: "ea79342bef81"
+    sourceBranch: "task/setting-control-components-216"
+    sha256: "67b867ea911b29b60cb28741d81114837159f52e11b529837d8f0af1981aeec2"
+    status: "real-device"
+---
+
+import ComponentFacts from '../../../../components/guide/ComponentFacts.astro';
+import ComponentRules from '../../../../components/guide/ComponentRules.astro';
+import EvidenceFigure from '../../../../components/guide/EvidenceFigure.astro';
+import Legend from '../../../../components/guide/Legend.astro';
+
+<ComponentFacts />
+
+## 使用边界
+
+设置行负责排列信息。开关、数字输入和分段控件负责处理输入。
+
+一行只放一个设置。需要多个独立动作时，应拆成多行。
+
+## 状态
+
+| 状态 | 界面表现 | 行为 |
+| --- | --- | --- |
+| 默认 | 标题、说明和控件对齐 | 控件可操作 |
+| 悬停 | 合同定义悬停反馈 | 当前实现没有行级悬停样式 |
+| 聚焦 | 合同定义焦点状态 | 焦点由右侧控件表达 |
+| 禁用 | 合同定义降低对比度 | 调用方需要禁用右侧控件 |
+
+<Legend />
+
+## 真机实例
+
+<EvidenceFigure />
+
+<ComponentRules />
+
+## 已知限制
+
+- 合同行高是 52 点。当前实现给内容区域设置 44 点最小高度，外层卡片提供周围留白。
+- 当前布局没有整行点击手势。用户需要点击右侧控件。
+- 行本身没有悬停、聚焦和禁用样式。调用方要禁用内部控件并检查视觉结果。

@@ -1,0 +1,88 @@
+---
+title: 数字输入
+description: 解释 MacNumberField 的输入、错误提示和调用方边界。
+component:
+  id: number-field
+  kind: control
+  status: stable
+  definition: 数字输入是接收一个数值的门槛输入控件。
+  capabilities:
+    - id: enter
+      title: 输入数字
+      description: 用户输入一个数值，调用方读取输入文本。
+    - id: detect
+      title: 标记非数字输入
+      description: 文本不能转为整数时，组件显示错误边框。
+    - id: constrain
+      title: 表达不可用状态
+      description: 调用方禁用输入时，用户不能编辑当前值。
+  states:
+    - 默认
+    - 聚焦
+    - 错误
+    - 禁用
+  platforms:
+    - macOS 26.0+
+  accessibilityRules:
+    - 可访问名称要说明输入值的用途。
+    - 辅助技术要能读出当前输入值。
+    - 错误状态需要文字说明。颜色不能是唯一错误线索。
+    - 调用方要说明允许范围和单位。
+  implementation:
+    swift:
+      - MacNumberField
+      - MacControlSize.numberFieldWidth
+    notes: MacNumberField 固定宽度为 120 点。组件不主动写回配置；调用方要检查文本是否为整数。
+  related:
+    - setting-row
+    - switch
+evidence:
+  - id: "EV-NUMBER-001"
+    image: "./evidence/2026-10-22__macbook-pro__macos-27.0.1__light__EV-NUMBER-001.png"
+    alt: "Covio 数字输入在真实 macOS 测试宿主中的有效值、非数字输入和禁用状态"
+    capturedAt: "2026-10-22"
+    device: "MacBook Pro (MacBookPro18,2, Apple M1 Max, 64 GB)"
+    os: "macOS 27.0.1 (26A434)"
+    appearance: "light"
+    scene: "SwiftUI 测试宿主渲染：有效数值、非数字输入和禁用状态"
+    sourceCommit: "ea79342bef81"
+    sourceBranch: "task/setting-control-components-216"
+    sha256: "5f46ffd54bb96a65b4de2ecf55fe61d58c2d41a2e5efd6dd2503e9f9cf127154"
+    status: "real-device"
+---
+
+import ComponentFacts from '../../../../components/guide/ComponentFacts.astro';
+import ComponentRules from '../../../../components/guide/ComponentRules.astro';
+import EvidenceFigure from '../../../../components/guide/EvidenceFigure.astro';
+import Legend from '../../../../components/guide/Legend.astro';
+
+<ComponentFacts />
+
+## 使用边界
+
+数字输入接收短数值。时间、百分比和范围由调用方解释。
+
+组件只检查整数格式。调用方要检查最小值、最大值、步长和单位。
+
+## 状态
+
+| 状态 | 界面表现 | 行为 |
+| --- | --- | --- |
+| 默认 | 系统圆角边框 | 用户可以直接输入 |
+| 聚焦 | 系统焦点环 | 键盘输入进入此字段 |
+| 错误 | 红色边框 | 当前文本不是整数 |
+| 禁用 | 系统降低对比度 | 用户不能编辑 |
+
+<Legend />
+
+## 真机实例
+
+<EvidenceFigure />
+
+<ComponentRules />
+
+## 已知限制
+
+- 当前错误样式只改变边框颜色，没有内联错误文字。调用方必须补充错误说明。
+- 组件不检查数值范围。调用方要在写回配置前完成范围校验。
+- 本轮截图没有覆盖键盘聚焦和完整 VoiceOver 流程。

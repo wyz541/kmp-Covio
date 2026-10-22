@@ -1,0 +1,90 @@
+---
+title: 分段控件
+description: 解释 MacSegmented 的互斥选择、状态和宽度限制。
+component:
+  id: segmented
+  kind: control
+  status: stable
+  definition: 分段控件是在少量互斥选项中选择一个值的控件。
+  capabilities:
+    - id: choose
+      title: 选择一个选项
+      description: 用户从可见选项中选择一个值。
+    - id: show-selection
+      title: 显示当前选择
+      description: 选中段使用独立底色和文字对比。
+    - id: constrain
+      title: 表达不可用状态
+      description: 调用方禁用控件时，用户不能改变当前选择。
+  states:
+    - 默认
+    - 悬停
+    - 已选
+    - 聚焦
+    - 禁用
+  platforms:
+    - macOS 26.0+
+  accessibilityRules:
+    - 可访问名称要说明这一组选项控制什么设置。
+    - 辅助技术要能读出当前选中项。
+    - 键盘用户要能在选项之间移动。
+    - 选项过多时应改用菜单或列表。当前控件适合少量互斥选项。
+  implementation:
+    swift:
+      - MacSegmented
+      - MacControlSize.segmentedWidth
+    notes: MacSegmented 使用原生 Picker 的 segmented 样式，最小宽度为 260 点。选项文字由调用方提供。
+  related:
+    - switch
+    - setting-row
+evidence:
+  - id: "EV-SEGMENTED-001"
+    image: "./evidence/2026-10-22__macbook-pro__macos-27.0.1__light__EV-SEGMENTED-001.png"
+    alt: "Covio 分段控件在真实 macOS 测试宿主中的两项选择和三项禁用状态"
+    capturedAt: "2026-10-22"
+    device: "MacBook Pro (MacBookPro18,2, Apple M1 Max, 64 GB)"
+    os: "macOS 27.0.1 (26A434)"
+    appearance: "light"
+    scene: "SwiftUI 测试宿主渲染：两项选择和三段禁用状态"
+    sourceCommit: "ea79342bef81"
+    sourceBranch: "task/setting-control-components-216"
+    sha256: "385371ae973ece0414daff8107944e5ff6890795609f642ea1d227fb145bf989"
+    status: "real-device"
+---
+
+import ComponentFacts from '../../../../components/guide/ComponentFacts.astro';
+import ComponentRules from '../../../../components/guide/ComponentRules.astro';
+import EvidenceFigure from '../../../../components/guide/EvidenceFigure.astro';
+import Legend from '../../../../components/guide/Legend.astro';
+
+<ComponentFacts />
+
+## 使用边界
+
+分段控件适合二到五个短选项。选项较长或数量较多时，应使用菜单或列表。
+
+用户选择后，调用方立即更新设置。需要确认的修改不应使用分段控件。
+
+## 状态
+
+| 状态 | 界面表现 | 行为 |
+| --- | --- | --- |
+| 默认 | 未选中段使用底色 | 控件可操作 |
+| 悬停 | 系统悬停反馈 | 指针指出可操作段 |
+| 已选 | 选中段使用独立底色 | 当前值唯一 |
+| 聚焦 | 系统焦点环 | 键盘可以移动选择 |
+| 禁用 | 系统降低对比度 | 用户不能改变选择 |
+
+<Legend />
+
+## 真机实例
+
+<EvidenceFigure />
+
+<ComponentRules />
+
+## 已知限制
+
+- 合同要求选项超过三项时横向滚动。当前实现只设置最小宽度，没有额外滚动容器。
+- 原生分段控件可能压缩长选项。调用方要限制选项数量和文字长度。
+- 本轮截图没有覆盖键盘聚焦和完整 VoiceOver 流程。

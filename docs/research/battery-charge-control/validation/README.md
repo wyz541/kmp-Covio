@@ -35,7 +35,7 @@
 | V09 重启恢复 | Apple Silicon，macOS 27 | MCL | 待执行 |
 | V10 校准周期 | Apple Silicon，macOS 27 | MCL | 部分通过 |
 | V11 设置 `70%` | Apple Silicon，macOS 27 | root 私有 | 部分通过 |
-| V11b `40%`、`50%`、`70%`、`75%`、`79%` | Apple Silicon，macOS 27 | root 私有 | 待执行 |
+| V11b `40%`、`45%`、`50%`、`65%`、`75%` | Apple Silicon，macOS 27 | root 私有 | 待执行 |
 | V12 Intel 原生 MCL | Intel MacBook | 无写入能力检测 | 待执行 |
 | V13 Intel `BCLM` | Intel MacBook | SMC | 未批准 |
 | V14 无电池设备 | Mac desktop | 无 | 待执行 |

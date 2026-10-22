@@ -228,7 +228,7 @@ struct MonitorHistoryEvent: Equatable, Sendable {
 
 /// 一段没有有效样本的时间。
 struct MonitorHistoryGap: Equatable, Sendable {
-    enum Reason: String, CaseIterable, Sendable {
+    enum Reason: String, CaseIterable, Hashable, Sendable {
         case sleep
         case appStopped = "app_stopped"
         case reboot

@@ -205,7 +205,7 @@ final class NotchShellControllerTests: XCTestCase {
         controller.start()
         defer { controller.stop() }
 
-        controller.workbench.select(paneID: PaneKind.screenshots.defaultId)
+        controller.workbench.select(paneID: PaneKind.files.defaultId)
         XCTAssertEqual(controller.state, .hidden)
     }
 

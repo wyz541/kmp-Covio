@@ -63,6 +63,9 @@ final class AppRuntimeTests: XCTestCase {
             notifier: notifier,
             updateChecker: FakeUpdateChecker(),
             powerObservation: powerObservation,
+            powerHistoryStore: PowerHistoryStore.companion.create(
+                path: directory.appendingPathComponent("power-history.json").path
+            ),
             shelf: makeShelf(),
             workspace: makeWorkspace()
         )

@@ -122,6 +122,7 @@ data class DarkWakeStatus(
     val available: Boolean = false,
     val scanning: Boolean = false,
     val lastAtEpochSeconds: Long? = null,
+    val lastKind: WakeKind? = null,
     val lastReason: String? = null,
     val count24h: Int = 0,
 )

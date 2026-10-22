@@ -52,6 +52,19 @@ class PmsetConfigParserTest {
         assertEquals(null, PmsetConfigParser.sleepTimeoutSeconds(" disksleep            10\n"))
     }
 
+    /** macOS 27 的真实键名是 SleepDisabled。 */
+    @Test
+    fun `sleep disabled accepts the real macOS key and tabs`() {
+        val text = """
+            System-wide power settings:
+             SleepDisabled		0
+            Currently in use:
+             sleep                0 (sleep prevented by powerd)
+        """.trimIndent()
+
+        assertEquals(false, PmsetConfigParser.sleepDisabled(text))
+    }
+
     /** 行尾有注释时不匹配。这是 Swift 版的既有行为，逐字保留。 */
     @Test
     fun `a trailing comment is not a match`() {

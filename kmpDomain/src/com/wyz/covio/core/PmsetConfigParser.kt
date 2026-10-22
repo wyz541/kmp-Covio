@@ -13,7 +13,7 @@ object PmsetConfigParser {
     private val HIBERNATE_MODE_PATTERN =
         Regex("""^\s*hibernatemode\s+(\d+)\s*$""", RegexOption.MULTILINE)
     private val DISABLE_SLEEP_PATTERN =
-        Regex("""^\s*disablesleep\s+([01])\s*$""", RegexOption.MULTILINE)
+        Regex("""(?im)^\s*(?:disablesleep|sleepdisabled)\s+([01])\s*$""")
 
     /**
      * 系统空闲睡眠超时，单位秒。

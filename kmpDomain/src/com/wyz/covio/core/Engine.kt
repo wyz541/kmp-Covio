@@ -685,6 +685,7 @@ class Engine(
                     available = true,
                     scanning = false,
                     lastAtEpochSeconds = latest?.atEpochSeconds,
+                    lastKind = latest?.kind,
                     lastReason = latest?.reason?.takeIf { it.isNotBlank() },
                     count24h = snapshot.darkWakeCount24h,
                 ),

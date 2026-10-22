@@ -26,6 +26,7 @@ final class EngineContractTests: XCTestCase {
         let status = fixture.engine.currentState.darkWake
         XCTAssertTrue(status.available)
         XCTAssertEqual(status.lastAtEpochSeconds?.int64Value, 1_000)
+        XCTAssertEqual(status.lastKind, .dark)
         XCTAssertEqual(status.lastReason, "RTC")
         XCTAssertEqual(status.count24h, 1)
     }

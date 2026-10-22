@@ -1,0 +1,75 @@
+# Power 真机验证矩阵
+
+## 结论
+
+Apple Silicon 开发机已完成只读系统观察、构建、自动化测试和浅色/深色窗口检查。
+helper v2 已经通过一次管理员提示安装并验证在线。
+真实合盖、睡眠、唤醒和 `pmset disablesleep` 写入尚未执行。
+
+## 环境
+
+| 项目 | 值 |
+| --- | --- |
+| 硬件 | MacBook Pro，Apple M1 Max |
+| 内存 | 64 GB |
+| macOS | `27.0.1 (26A434)` |
+| helper | `0.5.0`，协议 `2` |
+| 当前供电 | AC Power |
+| 电池 | 内置电池，80%，未充电 |
+| 系统 `SleepDisabled` | `0` |
+
+## 已验证
+
+| 场景 | 步骤 | 结果 | 证据 |
+| --- | --- | --- | --- |
+| 构建 | 执行 `bash scripts/test-all.sh` | 通过；KMP 418 项，app 模块 26 项，macOS XCTest 551 项 | 本地测试日志 |
+| 电源观察 | 读取 `pmset -g` 与 `pmset -g batt` | 适配器、电池和睡眠状态可读 | 验证记录 |
+| helper v2 安装 | 一次 macOS 管理员提示 | 安装完成，LaunchDaemon 在线，`SleepDisabled=0` | `verify-helper-cutover.sh verify` |
+| 合盖租约写入 | 获取、续租、释放租约 | `SleepDisabled` 从 `0` 变为 `1`，释放后回到 `0` | 真实 helper 测试 |
+| 合盖保持运行 | 真实合盖，持续续租约 `75` 秒 | `AppleClamshellState=Yes`，续租 6 次，启动时间未变化，释放后恢复 `SleepDisabled=0` | 真实 helper 测试 |
+| 开盖恢复 | 合盖测试后打开屏幕 | `AppleClamshellState=No`，租约数为 `0`，`SleepDisabled=0` | 真实 helper 复查 |
+| 键名兼容 | macOS 27 输出 `SleepDisabled` | KMP 两个平台通过 | `PmsetConfigParserTest` |
+| 浅色布局 | 打开 Power 预览 | 内容可读，页面可滚动 | 窗口截图 |
+| 深色布局 | 打开 Power 预览 | 内容可读，页面可滚动 | 窗口截图 |
+| 无历史 | 使用空历史快照 | 显示真实空状态 | 自动化测试 |
+| 有历史 | 使用最近 24 小时事件 | 事件按时间倒序显示 | 自动化测试 |
+| 历史上限 | 追加超过上限的事件 | 只保留最新事件 | KMP 测试 |
+| 原子写入 | 写入后检查临时文件 | 没有残留 `.tmp` | KMP 测试 |
+| 写入失败 | 把普通文件当作父目录 | 策略继续执行，历史不更新 | Swift 测试 |
+| 电源切换 | AC 切到电池观察 | 记录断电事件 | Swift 测试 |
+| 睡眠事件 | 投递系统睡眠事件 | 记录睡眠事件 | Swift 测试 |
+| 完整唤醒 | 更新唤醒日志并触发唤醒信号 | 记录完整唤醒 | Swift 测试 |
+| 热危险 | 注入严重热状态 | 释放租约并记录护栏事件 | Swift 测试 |
+| 外部冲突 | 注入外部 `SleepDisabled`，再解除 | 记录冲突与恢复事件 | Swift 测试 |
+
+## 窗口截图
+
+浅色模式：
+
+![Power history light](../design/previews/155-power-history-light.png)
+
+深色模式：
+
+![Power history dark](../design/previews/155-power-history-dark.png)
+
+## 待真实合盖与睡眠测试
+
+| 场景 | 操作前条件 | 必须观察 |
+| --- | --- | --- |
+| 合盖超时 | 合盖会话达到上限 | 租约释放，页面显示护栏触发 |
+| 外接屏冲突 | 合盖会话期间接入外接屏 | 续租失败，合盖租约立即释放 |
+| 崩溃恢复 | 合盖租约有效时结束进程 | 最长 60 秒后恢复睡眠 |
+| 外部设置冲突 | 其他应用设置 `SleepDisabled=1` | Covio 不清除该值，页面显示冲突 |
+| 睡眠与唤醒 | 进入睡眠，再按电源键唤醒 | 历史记录睡眠与完整唤醒 |
+| 合盖睡眠 | 无会话时合盖 | Mac 进入睡眠 |
+| 合盖唤醒 | 会话有效时合盖，再开盖 | Mac 保持运行或按预期唤醒 |
+| 插拔电源 | 运行中插拔适配器 | 历史记录连接与断开事件 |
+
+## 风险
+
+1. `pmset disablesleep` 是系统级持久状态。
+2. 合盖测试需要真实睡眠与唤醒，不能由单元测试代替。
+3. 热状态无法稳定注入到真实硬件。
+4. 当前安装的是 Debug 构建。plist 指向用户可写的 worktree 路径。该状态仅用于临时测试。
+5. 长期使用前，必须把 helper 应用安装到 root 所有的固定路径，或者采用签名校验的正式安装器。
+6. App Store 分发仍未决定。

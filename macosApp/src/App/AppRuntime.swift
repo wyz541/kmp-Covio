@@ -106,6 +106,7 @@ final class AppRuntime {
         notifier: Notifier? = nil,
         updateChecker: UpdateChecker = GithubUpdateChecker(),
         powerObservation: PowerObservationSource? = nil,
+        powerHistoryStore: PowerHistoryStore? = nil,
         shelf: ShelfRuntime? = nil,
         clipboard: ClipboardRuntime? = nil,
         workspace: WorkspaceRuntime? = nil,
@@ -116,6 +117,9 @@ final class AppRuntime {
 
         let resolvedPrivileged = privileged ?? MacPrivilegedOps(logger: resolvedLogger)
         let resolvedPowerObservation = powerObservation ?? MacPowerObservationSource()
+        let resolvedPowerHistory = powerHistoryStore ?? PowerHistoryStore.companion.create(
+            path: AppPaths.powerHistoryFile.path
+        )
 
         self.logger = resolvedLogger
         self.configStore = resolvedStore
@@ -271,6 +275,7 @@ final class AppRuntime {
             engine: engine,
             privileged: resolvedPrivileged,
             observationSource: resolvedPowerObservation,
+            historyStore: resolvedPowerHistory,
             config: loaded.power
         )
 
@@ -877,6 +882,7 @@ final class AppRuntime {
                 available: false,
                 scanning: false,
                 lastAtEpochSeconds: nil,
+                lastKind: nil,
                 lastReason: nil,
                 count24h: 0
             ),

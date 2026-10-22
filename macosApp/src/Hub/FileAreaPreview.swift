@@ -48,6 +48,7 @@ struct FileAreaShowcaseView: View {
                     url: nil,
                     language: language,
                     transferTask: transferTask(for: selectedItem),
+                    keyboardFocused: true,
                     onAction: { _ in }
                 )
             }
@@ -221,5 +222,228 @@ enum FileAreaPreviewRenderer {
             return false
         }
     }
+}
+#endif
+
+#if DEBUG
+enum FileAreaLivePreviewState: String {
+    case normal
+    case empty
+    case noMatch
+    case error
+}
+
+/// 用真实的 `FilesTabView`、真实的焦点修饰器和隔离数据做无障碍验收。
+@MainActor
+final class FileAreaLivePreviewController: NSWindowController {
+    private let workspace: WorkspaceRuntime
+    private let transfer: WorkspaceTransferRuntime
+    private let shelf: ShelfRuntime
+    private let autoNaming: AutoNamingRuntime
+    private let policy: FileNamingPolicy
+    private let rootDirectory: URL
+
+    init(
+        panelWidth: CGFloat,
+        state: FileAreaLivePreviewState = .normal,
+        reduceMotion: Bool = false
+    ) {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("covio-file-area-live-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        rootDirectory = root
+
+        let workspaceDirectory = root.appendingPathComponent("Workspace", isDirectory: true)
+        try? FileManager.default.createDirectory(at: workspaceDirectory, withIntermediateDirectories: true)
+        let policy = FileNamingPolicy.companion.defaults()
+        let workspacePolicy = WorkspacePolicy.companion.defaults().doCopy(
+            maxTotalBytes: 64 * 1_024 * 1_024,
+            maxEntryBytes: 16 * 1_024 * 1_024,
+            retentionDays: 30,
+            lazyFetchThresholdBytes: 8 * 1_024 * 1_024
+        )
+        var environment = WorkspaceEnvironment()
+        environment.now = { 1_792_560_000 }
+        let client = WorkspaceStoreClient(directory: workspaceDirectory.path)
+
+        let image = root.appendingPathComponent("product-board.png")
+        let text = root.appendingPathComponent("发布说明草稿.txt")
+        Self.writePreviewImage(to: image)
+        try? "文件区不再分截图页。截图只是文件区的一种筛选。".write(
+            to: text,
+            atomically: true,
+            encoding: .utf8
+        )
+        let seed = WorkspaceRuntime(client: client, environment: environment, policy: workspacePolicy)
+        seed.intake(urls: [image, text])
+
+        let current = client.load()
+        let remote = [
+            Self.remoteEntry(1, kind: .image, name: "等待取回.heic", bytes: 3_200_000),
+            Self.remoteEntry(2, kind: .file, name: "交互录屏 03.mov", bytes: 128_000_000),
+            Self.remoteEntry(3, kind: .pdf, name: "客户反馈.pdf", bytes: 2_100_000),
+            Self.remoteEntry(4, kind: .file, name: "客户反馈.zip", bytes: 18_500_000),
+        ]
+        client.save(current.doCopy(
+            schemaVersion: current.schemaVersion,
+            entries: current.entries + remote,
+            policy: current.policy
+        ))
+
+        let workspace = WorkspaceRuntime(
+            client: WorkspaceStoreClient(directory: workspaceDirectory.path),
+            environment: environment,
+            policy: workspacePolicy
+        )
+        let transfer = WorkspaceTransferRuntime(
+            workspace: workspace,
+            environment: WorkspaceTransferEnvironment(availableBytes: { 10_000_000_000 })
+        )
+        transfer.beginDownload(remote[0].entryId)
+        transfer.beginDownload(remote[1].entryId)
+        transfer.markTransferring(remote[1].entryId)
+        transfer.updateProgress(remote[1].entryId, transferredBytes: remote[1].byteSize * 62 / 100)
+        transfer.beginDownload(remote[2].entryId)
+        transfer.fail(remote[2].entryId, error: .connectionFailed)
+        transfer.beginDownload(remote[3].entryId)
+        transfer.cancel(remote[3].entryId)
+
+        let screenshotDirectory = root.appendingPathComponent("Screenshots", isDirectory: true)
+        try? FileManager.default.createDirectory(at: screenshotDirectory, withIntermediateDirectories: true)
+        let shot1 = screenshotDirectory.appendingPathComponent("截屏 2026-10-21 14.32.png")
+        let shot2 = screenshotDirectory.appendingPathComponent("截屏 2026-10-21 14.28.png")
+        Self.writePreviewImage(to: shot1)
+        Self.writePreviewImage(to: shot2)
+        let shelfStore = ShelfStoreClient(path: screenshotDirectory.appendingPathComponent("shelf.json").path)
+        let shelfDefaults = ShelfStoreState.companion.defaults()
+        shelfStore.save(shelfDefaults.doCopy(
+            items: [
+                ShelfItem(path: shot1.path, addedAtEpochSeconds: 1_792_559_900),
+                ShelfItem(path: shot2.path, addedAtEpochSeconds: 1_792_559_800),
+            ],
+            revealed: true,
+            preferenceSnapshot: nil
+        ))
+        let shelf = ShelfRuntime(
+            store: shelfStore,
+            takeover: ScreenshotTakeoverController(
+                store: FileAreaPreviewPreferenceStore(),
+                directory: screenshotDirectory,
+                shelfStore: shelfStore
+            ),
+            environment: ShelfEnvironment()
+        )
+
+        if state == .empty {
+            shelf.clearItems()
+            workspace.clearAll()
+        } else if state == .noMatch {
+            shelf.clearItems()
+        } else if state == .error {
+            workspace.intake(urls: [root.appendingPathComponent("missing-file")])
+        }
+
+        self.workspace = workspace
+        self.transfer = transfer
+        self.shelf = shelf
+        self.autoNaming = AutoNamingRuntime()
+        self.policy = policy
+
+        let contentWidth = panelWidth - HubMetrics.panelPadding * 2
+        let rootView = FilesTabView(
+            shelf: shelf,
+            workspace: workspace,
+            transfer: transfer,
+            autoNaming: autoNaming,
+            policy: policy,
+            language: .simplifiedChinese,
+            searchText: "",
+            requestedFilter: state == .noMatch ? .screenshots : nil
+        )
+        .frame(width: contentWidth, height: FileAreaMetrics.areaHeight)
+        .padding(.horizontal, HubMetrics.panelPadding)
+        .environment(\.fileAreaReduceMotionOverride, reduceMotion)
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: panelWidth, height: FileAreaMetrics.areaHeight),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Covio File Area"
+        window.contentView = NSHostingView(rootView: rootView)
+        super.init(window: window)
+        window.center()
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func present() {
+        window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    override func close() {
+        super.close()
+        try? FileManager.default.removeItem(at: rootDirectory)
+    }
+
+    private static func remoteEntry(
+        _ index: Int,
+        kind: WorkspaceKind,
+        name: String,
+        bytes: Int64
+    ) -> WorkspaceEntry {
+        WorkspaceEntry(
+            entryId: String(repeating: String(index), count: 64),
+            kind: kind,
+            displayName: name,
+            byteSize: bytes,
+            contentType: "",
+            createdAtEpochSeconds: Int64(index),
+            originDeviceId: index == 2 ? "iPad" : "iPhone",
+            expiresAtEpochSeconds: 0,
+            availability: WorkspaceAvailability.remote,
+            pinned: false
+        )
+    }
+
+    private static func writePreviewImage(to url: URL) {
+        let size = NSSize(width: 640, height: 360)
+        let image = NSImage(size: size)
+        image.lockFocus()
+        NSGradient(colors: [
+            NSColor(calibratedRed: 0.40, green: 0.49, blue: 0.75, alpha: 1),
+            NSColor(calibratedRed: 0.84, green: 0.63, blue: 0.50, alpha: 1),
+            NSColor(calibratedRed: 0.95, green: 0.84, blue: 0.71, alpha: 1),
+        ])?.draw(in: NSRect(origin: .zero, size: size), angle: -35)
+        NSColor(calibratedWhite: 1, alpha: 0.72).setFill()
+        NSBezierPath(
+            roundedRect: NSRect(x: 70, y: 84, width: 430, height: 170),
+            xRadius: 18,
+            yRadius: 18
+        ).fill()
+        image.unlockFocus()
+        guard let tiff = image.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiff),
+              let png = bitmap.representation(using: .png, properties: [:])
+        else { return }
+        try? png.write(to: url, options: .atomic)
+    }
+}
+
+private final class FileAreaPreviewPreferenceStore: ScreenshotPreferenceStore, @unchecked Sendable {
+    func read() -> ScreenshotInboxSnapshot {
+        ScreenshotInboxSnapshot(
+            location: nil,
+            locationScreenshot: nil,
+            showThumbnail: nil
+        )
+    }
+
+    func apply(directory: URL) -> Bool { true }
+    func restore(snapshot: ScreenshotInboxSnapshot) -> Bool { true }
 }
 #endif

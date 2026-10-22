@@ -255,6 +255,18 @@ actor AgentServiceGateway {
                 return .failure("Run ID is required.", code: .invalidArguments)
             }
             return await handlers.undoRenameRun(runId)
+        case "search_file_content":
+            guard let fileIds = stringArrayValue(arguments["fileIds"]),
+                  let query = stringValue(arguments["query"]),
+                  !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            else {
+                return .failure("File IDs and query are required.", code: .invalidArguments)
+            }
+            return await handlers.searchFileContent(
+                fileIds,
+                query,
+                min(12, boundedLimit(arguments["limit"], defaultValue: 6))
+            )
         case "list_screenshots":
             return await handlers.screenshots(boundedLimit(arguments["limit"], defaultValue: 8))
         case "list_clipboard_metadata":
@@ -287,6 +299,8 @@ actor AgentServiceGateway {
             allowed = ["previewIds"]
         case "undo_rename_run":
             allowed = ["runId"]
+        case "search_file_content":
+            allowed = ["fileIds", "query", "limit"]
         case "list_screenshots", "list_clipboard_metadata":
             allowed = ["limit"]
         case "copy_text":
@@ -340,6 +354,19 @@ actor AgentServiceGateway {
                   runId.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" })
             else { return false }
         }
+        if descriptor.name == "search_file_content" {
+            guard let fileIds = stringArrayValue(arguments["fileIds"]),
+                  !fileIds.isEmpty,
+                  fileIds.count <= 20,
+                  fileIds.allSatisfy({ AgentFileReference(fileId: $0) != nil }),
+                  let query = stringValue(arguments["query"]),
+                  !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  query.count <= 512
+            else { return false }
+            if let limit = arguments["limit"], limit != .null {
+                guard let value = intValue(limit), (1...12).contains(value) else { return false }
+            }
+        }
         if descriptor.name == "copy_text" {
             guard let text = stringValue(arguments["text"]),
                   !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
@@ -365,6 +392,9 @@ actor AgentServiceGateway {
     private func deferredSummary(name: String, arguments: [String: JSONValue]) -> String {
         if name == "preview_file_names" {
             return "Preview names for \(stringArrayValue(arguments["fileIds"])?.count ?? 0) files."
+        }
+        if name == "search_file_content" {
+            return "Search \(stringArrayValue(arguments["fileIds"])?.count ?? 0) files."
         }
         return "Run \(name) after the model response."
     }

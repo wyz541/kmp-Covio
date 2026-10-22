@@ -23,7 +23,7 @@ final class AgentHistoryStoreTests: XCTestCase {
 
         let schemaVersion = try await store.schemaVersion()
         XCTAssertEqual(restored, session)
-        XCTAssertEqual(schemaVersion, 1)
+        XCTAssertEqual(schemaVersion, 2)
     }
 
     func testDeletingASessionRemovesItsChildren() async throws {
@@ -73,7 +73,30 @@ final class AgentHistoryStoreTests: XCTestCase {
 
         let schemaVersion = try await reopenedStore.schemaVersion()
         XCTAssertEqual(restored, session)
-        XCTAssertEqual(schemaVersion, 1)
+        XCTAssertEqual(schemaVersion, 2)
+    }
+
+    func testExternalAuditRoundTripAndClearAll() async throws {
+        let store = AgentHistoryStore(path: databaseURL)
+        let audit = AgentExternalAuditRecord(
+            id: "external-audit",
+            sessionID: "mcp-session",
+            toolName: "get_monitor_snapshot",
+            risk: .readOnly,
+            status: .completed,
+            detail: "Completed",
+            errorCode: nil,
+            durationMilliseconds: 7,
+            createdAtEpochMilliseconds: 500
+        )
+
+        try await store.recordExternalAudit(audit)
+        let records = try await store.recentExternalAudits()
+        XCTAssertEqual(records, [audit])
+
+        try await store.deleteAllSessions()
+        let afterClear = try await store.recentExternalAudits()
+        XCTAssertTrue(afterClear.isEmpty)
     }
 
     func testLatestSessionUsesTheMostRecentUpdate() async throws {

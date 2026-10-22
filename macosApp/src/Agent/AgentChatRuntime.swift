@@ -216,6 +216,12 @@ final class AgentChatRuntime {
         }
     }
 
+    func refreshExternalToolState() async {
+        await refreshToolState()
+        stage = pendingAction == nil ? .idle : .awaitingConfirmation
+        persistHistory()
+    }
+
     func clear() {
         guard !isBusy else { return }
         let previousSessionID = sessionID

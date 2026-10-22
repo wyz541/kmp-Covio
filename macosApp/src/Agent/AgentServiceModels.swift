@@ -11,6 +11,16 @@ enum AgentToolExecutionMode: Sendable, Equatable {
     case afterModelResponse
 }
 
+enum AgentActionSource: Sendable, Equatable {
+    case local
+    case external(String)
+
+    var externalSessionID: String? {
+        guard case .external(let id) = self else { return nil }
+        return id
+    }
+}
+
 enum AgentServiceErrorCode: String, Codable, Sendable, Equatable {
     case invalidArguments
     case unknownTool
@@ -81,6 +91,7 @@ struct AgentPendingAction: Sendable, Equatable, Identifiable {
     let textPreview: String?
     let risk: AgentToolRisk
     let toolCallID: String?
+    let source: AgentActionSource
 
     init(
         id: String,
@@ -89,7 +100,8 @@ struct AgentPendingAction: Sendable, Equatable, Identifiable {
         characterCount: Int?,
         textPreview: String? = nil,
         risk: AgentToolRisk = .sideEffect,
-        toolCallID: String? = nil
+        toolCallID: String? = nil,
+        source: AgentActionSource = .local
     ) {
         self.id = id
         self.toolName = toolName
@@ -98,6 +110,7 @@ struct AgentPendingAction: Sendable, Equatable, Identifiable {
         self.textPreview = textPreview
         self.risk = risk
         self.toolCallID = toolCallID
+        self.source = source
     }
 }
 
@@ -119,6 +132,7 @@ struct AgentToolAudit: Sendable, Equatable, Identifiable {
     let errorCode: AgentServiceErrorCode?
     let durationMilliseconds: Int?
     let createdAtEpochMilliseconds: Int64
+    let source: AgentActionSource
 
     init(
         id: String,
@@ -128,7 +142,8 @@ struct AgentToolAudit: Sendable, Equatable, Identifiable {
         detail: String,
         errorCode: AgentServiceErrorCode? = nil,
         durationMilliseconds: Int? = nil,
-        createdAtEpochMilliseconds: Int64 = AgentEventClock.nowMilliseconds()
+        createdAtEpochMilliseconds: Int64 = AgentEventClock.nowMilliseconds(),
+        source: AgentActionSource = .local
     ) {
         self.id = id
         self.toolName = toolName
@@ -138,12 +153,39 @@ struct AgentToolAudit: Sendable, Equatable, Identifiable {
         self.errorCode = errorCode
         self.durationMilliseconds = durationMilliseconds
         self.createdAtEpochMilliseconds = createdAtEpochMilliseconds
+        self.source = source
     }
 }
 
 enum AgentEventClock {
     static func nowMilliseconds() -> Int64 {
         Int64((Date().timeIntervalSince1970 * 1_000).rounded())
+    }
+}
+
+enum AgentExternalToolPolicy {
+    static let exposedToolNames: Set<String> = [
+        "get_monitor_snapshot",
+        "get_power_status",
+        "list_workspace_files",
+        "inspect_file",
+        "apply_file_renames",
+        "undo_rename_run",
+        "open_pane",
+        "read_setting",
+        "request_setting_change",
+        "list_screenshots",
+        "list_clipboard_metadata",
+        "copy_text",
+    ]
+
+    static func descriptor(named name: String) -> AgentToolDescriptor? {
+        guard exposedToolNames.contains(name) else { return nil }
+        return AgentToolCatalog.descriptor(named: name)
+    }
+
+    static func risk(for descriptor: AgentToolDescriptor) -> AgentToolRisk {
+        descriptor.name == "open_pane" ? .sideEffect : descriptor.risk
     }
 }
 

@@ -62,9 +62,17 @@ final class AppRuntime {
     /// Agent 导航与设置工具的唯一入口。
     let agentUIActions = AgentUIActionRouter()
 
+    /// 外部本地 Agent 的 loopback MCP 服务。
+    private(set) var agentExternalService: AgentExternalMCPService?
+    private(set) var agentExternalError: String?
+
     /// 文件自动命名和 Agent 共用同一个本地模型容器。
     private let localModelRuntime: LocalModelRuntime
+    private let agentGateway: AgentServiceGateway
     private let agentHistoryStore: any AgentHistoryStoring
+    private let agentExternalAuditStore: (any AgentExternalAuditStoring)?
+    private let agentExternalTokenStore = AgentExternalTokenStore()
+    private let agentExternalPreferences: AgentExternalServicePreferences
 
     private let configStore: ConfigStore
     /// 挂帘读配置的中间人。理由见 `ShelfBridge`。
@@ -124,9 +132,11 @@ final class AppRuntime {
         workspace: WorkspaceRuntime? = nil,
         transfer: WorkspaceTransferRuntime? = nil,
         autoNaming: AutoNamingRuntime? = nil,
-        agentHistoryStore: (any AgentHistoryStoring)? = nil
+        agentHistoryStore: (any AgentHistoryStoring)? = nil,
+        agentExternalPreferences: AgentExternalServicePreferences = .standard
     ) {
         let resolvedLogger = logger ?? FileAppLogger()
+        self.agentExternalPreferences = agentExternalPreferences
         let resolvedStore = configStore ?? ConfigStore.companion.create(path: AppPaths.configFile.path)
 
         let resolvedPrivileged = privileged ?? MacPrivilegedOps(logger: resolvedLogger)
@@ -246,6 +256,7 @@ final class AppRuntime {
         let resolvedAgentHistory = agentHistoryStore
             ?? AgentHistoryStore(path: AppPaths.agentHistoryFile)
         self.agentHistoryStore = resolvedAgentHistory
+        self.agentExternalAuditStore = resolvedAgentHistory as? any AgentExternalAuditStoring
         let agentGateway = AgentServiceGateway(
             handlers: AgentAppServices.handlers(
                 shelf: resolvedShelf,
@@ -257,6 +268,7 @@ final class AppRuntime {
                 uiActions: agentUIActions
             )
         )
+        self.agentGateway = agentGateway
         self.agent = AgentChatRuntime(
             model: LocalAgentModel(
                 modelDirectory: modelConfiguration.modelDirectory,
@@ -319,6 +331,71 @@ final class AppRuntime {
                 self?.applyAgentSettingChange(key: key, value: value) ?? false
             }
         )
+        if agentExternalServiceEnabled {
+            configureAgentExternalService()
+        }
+    }
+
+    var agentExternalServiceEnabled: Bool {
+        agentExternalPreferences.isEnabled()
+    }
+
+    func setAgentExternalServiceEnabled(_ enabled: Bool) {
+        agentExternalPreferences.setEnabled(enabled)
+        if enabled {
+            if agentExternalService == nil {
+                configureAgentExternalService()
+            } else {
+                agentExternalService?.start()
+            }
+        } else {
+            agentExternalService?.stop()
+        }
+    }
+
+    func rotateAgentExternalToken() {
+        let wasEnabled = agentExternalServiceEnabled
+        agentExternalService?.stop()
+        agentExternalService = nil
+        agentExternalError = nil
+        do {
+            _ = try agentExternalTokenStore.rotate()
+            configureAgentExternalService()
+            if wasEnabled {
+                agentExternalService?.start()
+            }
+        } catch {
+            agentExternalError = error.localizedDescription
+        }
+    }
+
+    private func configureAgentExternalService() {
+        guard let agentExternalAuditStore else {
+            agentExternalError = "External Agent audit storage is unavailable."
+            return
+        }
+        do {
+            let token = try agentExternalTokenStore.loadOrCreate()
+            let service = AgentExternalMCPService(
+                gateway: agentGateway,
+                auditStore: agentExternalAuditStore,
+                token: token
+            )
+            agentExternalService = service
+            service.setOnPendingActionChanged { [weak self] in
+                await self?.agent.refreshExternalToolState()
+            }
+            Task {
+                await agentGateway.setAuditObserver { [weak service] audit in
+                    await service?.recordExternalAudit(audit)
+                }
+            }
+            if agentExternalServiceEnabled {
+                service.start()
+            }
+        } catch {
+            agentExternalError = error.localizedDescription
+        }
     }
 
     // MARK: - 生命周期
@@ -336,6 +413,9 @@ final class AppRuntime {
         powerRuntime.start()
         syncState()
         Task { await agent.restoreHistory() }
+        if agentExternalServiceEnabled {
+            agentExternalService?.start()
+        }
 
         // 挂帘的错误要显示在 Hub 上，出口在这里接。
         shelfBridge.report = { [weak self] entry in
@@ -384,6 +464,7 @@ final class AppRuntime {
         shelf.stop()
         clipboard.stop()
         powerRuntime.stop()
+        agentExternalService?.stop()
         engine.stop()
     }
 

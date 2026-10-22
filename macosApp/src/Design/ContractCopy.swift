@@ -703,6 +703,92 @@ enum ContractCopy {
     static let copyMonitorPowerTrendTitle = LocalizedCopy(key: "copy/monitor/power/trend/title", en: "Recent trend", zhHans: "近期趋势")
     /// `copy/monitor/power/trend/window`
     static let copyMonitorPowerTrendWindow = LocalizedCopy(key: "copy/monitor/power/trend/window", en: "Last 1 min", zhHans: "近 1 分钟")
+    /// `copy/monitor/report/cancel`
+    static let copyMonitorReportCancel = LocalizedCopy(key: "copy/monitor/report/cancel", en: "Cancel", zhHans: "取消")
+    /// `copy/monitor/report/chart/cpu-gpu`
+    static let copyMonitorReportChartCpuGpu = LocalizedCopy(key: "copy/monitor/report/chart/cpu-gpu", en: "CPU and GPU", zhHans: "CPU 与 GPU")
+    /// `copy/monitor/report/chart/memory`
+    static let copyMonitorReportChartMemory = LocalizedCopy(key: "copy/monitor/report/chart/memory", en: "Memory pressure by usage", zhHans: "内存使用率")
+    /// `copy/monitor/report/chart/network`
+    static let copyMonitorReportChartNetwork = LocalizedCopy(key: "copy/monitor/report/chart/network", en: "Network throughput", zhHans: "网络吞吐")
+    /// `copy/monitor/report/clear`
+    static let copyMonitorReportClear = LocalizedCopy(key: "copy/monitor/report/clear", en: "Clear history", zhHans: "清除历史")
+    /// `copy/monitor/report/close`
+    static let copyMonitorReportClose = LocalizedCopy(key: "copy/monitor/report/close", en: "Close", zhHans: "关闭")
+    /// `copy/monitor/report/coverage/observed`
+    static let copyMonitorReportCoverageObserved = LocalizedCopy(key: "copy/monitor/report/coverage/observed", en: "Observed", zhHans: "已记录")
+    /// `copy/monitor/report/coverage/samples`
+    static let copyMonitorReportCoverageSamples = LocalizedCopy(key: "copy/monitor/report/coverage/samples", en: "Samples", zhHans: "样本")
+    /// `copy/monitor/report/coverage/sleep`
+    static let copyMonitorReportCoverageSleep = LocalizedCopy(key: "copy/monitor/report/coverage/sleep", en: "Sleep", zhHans: "睡眠")
+    /// `copy/monitor/report/coverage/title`
+    static let copyMonitorReportCoverageTitle = LocalizedCopy(key: "copy/monitor/report/coverage/title", en: "Data coverage", zhHans: "数据覆盖")
+    /// `copy/monitor/report/coverage/unknown`
+    static let copyMonitorReportCoverageUnknown = LocalizedCopy(key: "copy/monitor/report/coverage/unknown", en: "Unknown gaps", zhHans: "未知缺口")
+    /// `copy/monitor/report/delete-confirm`
+    static let copyMonitorReportDeleteConfirm = LocalizedCopy(key: "copy/monitor/report/delete-confirm", en: "Clear history", zhHans: "清除历史")
+    /// `copy/monitor/report/delete-message`
+    static let copyMonitorReportDeleteMessage = LocalizedCopy(key: "copy/monitor/report/delete-message", en: "This removes all locally stored samples and cannot be undone.", zhHans: "这会删除全部本机样本，且不能撤销。")
+    /// `copy/monitor/report/delete-title`
+    static let copyMonitorReportDeleteTitle = LocalizedCopy(key: "copy/monitor/report/delete-title", en: "Clear performance history?", zhHans: "清除性能历史？")
+    /// `copy/monitor/report/empty`
+    static let copyMonitorReportEmpty = LocalizedCopy(key: "copy/monitor/report/empty", en: "No samples in this range.", zhHans: "这个范围内没有样本。")
+    /// `copy/monitor/report/error`
+    static let copyMonitorReportError = LocalizedCopy(key: "copy/monitor/report/error", en: "The report could not be built.", zhHans: "无法生成报告。")
+    /// `copy/monitor/report/events/title`
+    static let copyMonitorReportEventsTitle = LocalizedCopy(key: "copy/monitor/report/events/title", en: "Events", zhHans: "事件")
+    /// `copy/monitor/report/export`
+    static let copyMonitorReportExport = LocalizedCopy(key: "copy/monitor/report/export", en: "Export HTML", zhHans: "导出 HTML")
+    /// `copy/monitor/report/export-error`
+    static let copyMonitorReportExportError = LocalizedCopy(key: "copy/monitor/report/export-error", en: "The report could not be exported.", zhHans: "无法导出报告。")
+    /// `copy/monitor/report/export-success`
+    static let copyMonitorReportExportSuccess = LocalizedCopy(key: "copy/monitor/report/export-success", en: "Report exported.", zhHans: "报告已导出。")
+    /// `copy/monitor/report/gaps/title`
+    static let copyMonitorReportGapsTitle = LocalizedCopy(key: "copy/monitor/report/gaps/title", en: "Collection gaps", zhHans: "采集缺口")
+    /// `copy/monitor/report/generated`
+    static let copyMonitorReportGenerated = LocalizedCopy(key: "copy/monitor/report/generated", en: "Generated", zhHans: "生成时间")
+    /// `copy/monitor/report/loading`
+    static let copyMonitorReportLoading = LocalizedCopy(key: "copy/monitor/report/loading", en: "Building report…", zhHans: "正在生成报告…")
+    /// `copy/monitor/report/method`
+    static let copyMonitorReportMethod = LocalizedCopy(key: "copy/monitor/report/method", en: "Collected locally. No data was uploaded.", zhHans: "本机采集。没有上传数据。")
+    /// `copy/monitor/report/no-data-hint`
+    static let copyMonitorReportNoDataHint = LocalizedCopy(key: "copy/monitor/report/no-data-hint", en: "Keep Covio running to collect history.", zhHans: "保持 Covio 运行，才能积累历史。")
+    /// `copy/monitor/report/open`
+    static let copyMonitorReportOpen = LocalizedCopy(key: "copy/monitor/report/open", en: "Report", zhHans: "历史报告")
+    /// `copy/monitor/report/partial`
+    static let copyMonitorReportPartial = LocalizedCopy(key: "copy/monitor/report/partial", en: "Coverage is incomplete. The report marks missing time.", zhHans: "覆盖不完整。报告会标出缺失时间。")
+    /// `copy/monitor/report/peaks/title`
+    static let copyMonitorReportPeaksTitle = LocalizedCopy(key: "copy/monitor/report/peaks/title", en: "Peaks", zhHans: "峰值")
+    /// `copy/monitor/report/range/end`
+    static let copyMonitorReportRangeEnd = LocalizedCopy(key: "copy/monitor/report/range/end", en: "End", zhHans: "结束")
+    /// `copy/monitor/report/range/last-10-days`
+    static let copyMonitorReportRangeLast10Days = LocalizedCopy(key: "copy/monitor/report/range/last-10-days", en: "Last 10 days", zhHans: "最近 10 天")
+    /// `copy/monitor/report/range/limit`
+    static let copyMonitorReportRangeLimit = LocalizedCopy(key: "copy/monitor/report/range/limit", en: "Ranges are limited to 14 days.", zhHans: "时间范围最多 14 天。")
+    /// `copy/monitor/report/range/start`
+    static let copyMonitorReportRangeStart = LocalizedCopy(key: "copy/monitor/report/range/start", en: "Start", zhHans: "开始")
+    /// `copy/monitor/report/summary`
+    static let copyMonitorReportSummary = LocalizedCopy(key: "copy/monitor/report/summary", en: "Export a local report for the selected time range.", zhHans: "导出所选时间段的本机报告。")
+    /// `copy/monitor/report/system/title`
+    static let copyMonitorReportSystemTitle = LocalizedCopy(key: "copy/monitor/report/system/title", en: "System", zhHans: "系统")
+    /// `copy/monitor/report/table/cpu`
+    static let copyMonitorReportTableCpu = LocalizedCopy(key: "copy/monitor/report/table/cpu", en: "CPU", zhHans: "CPU")
+    /// `copy/monitor/report/table/gpu`
+    static let copyMonitorReportTableGpu = LocalizedCopy(key: "copy/monitor/report/table/gpu", en: "GPU", zhHans: "GPU")
+    /// `copy/monitor/report/table/memory`
+    static let copyMonitorReportTableMemory = LocalizedCopy(key: "copy/monitor/report/table/memory", en: "Memory", zhHans: "内存")
+    /// `copy/monitor/report/table/network-down`
+    static let copyMonitorReportTableNetworkDown = LocalizedCopy(key: "copy/monitor/report/table/network-down", en: "Download", zhHans: "下行")
+    /// `copy/monitor/report/table/network-up`
+    static let copyMonitorReportTableNetworkUp = LocalizedCopy(key: "copy/monitor/report/table/network-up", en: "Upload", zhHans: "上行")
+    /// `copy/monitor/report/table/time`
+    static let copyMonitorReportTableTime = LocalizedCopy(key: "copy/monitor/report/table/time", en: "Time", zhHans: "时间")
+    /// `copy/monitor/report/thresholds/title`
+    static let copyMonitorReportThresholdsTitle = LocalizedCopy(key: "copy/monitor/report/thresholds/title", en: "Notable periods", zhHans: "异常时段")
+    /// `copy/monitor/report/title`
+    static let copyMonitorReportTitle = LocalizedCopy(key: "copy/monitor/report/title", en: "Performance history", zhHans: "性能历史报告")
+    /// `copy/monitor/report/unavailable/title`
+    static let copyMonitorReportUnavailableTitle = LocalizedCopy(key: "copy/monitor/report/unavailable/title", en: "Unavailable metrics", zhHans: "不可得指标")
     /// `copy/monitor/sampling/fast`
     static let copyMonitorSamplingFast = LocalizedCopy(key: "copy/monitor/sampling/fast", en: "1s", zhHans: "1 秒")
     /// `copy/monitor/sampling/slow`
@@ -1523,6 +1609,49 @@ enum ContractCopy {
         copyMonitorPowerTopApps,
         copyMonitorPowerTrendTitle,
         copyMonitorPowerTrendWindow,
+        copyMonitorReportCancel,
+        copyMonitorReportChartCpuGpu,
+        copyMonitorReportChartMemory,
+        copyMonitorReportChartNetwork,
+        copyMonitorReportClear,
+        copyMonitorReportClose,
+        copyMonitorReportCoverageObserved,
+        copyMonitorReportCoverageSamples,
+        copyMonitorReportCoverageSleep,
+        copyMonitorReportCoverageTitle,
+        copyMonitorReportCoverageUnknown,
+        copyMonitorReportDeleteConfirm,
+        copyMonitorReportDeleteMessage,
+        copyMonitorReportDeleteTitle,
+        copyMonitorReportEmpty,
+        copyMonitorReportError,
+        copyMonitorReportEventsTitle,
+        copyMonitorReportExport,
+        copyMonitorReportExportError,
+        copyMonitorReportExportSuccess,
+        copyMonitorReportGapsTitle,
+        copyMonitorReportGenerated,
+        copyMonitorReportLoading,
+        copyMonitorReportMethod,
+        copyMonitorReportNoDataHint,
+        copyMonitorReportOpen,
+        copyMonitorReportPartial,
+        copyMonitorReportPeaksTitle,
+        copyMonitorReportRangeEnd,
+        copyMonitorReportRangeLast10Days,
+        copyMonitorReportRangeLimit,
+        copyMonitorReportRangeStart,
+        copyMonitorReportSummary,
+        copyMonitorReportSystemTitle,
+        copyMonitorReportTableCpu,
+        copyMonitorReportTableGpu,
+        copyMonitorReportTableMemory,
+        copyMonitorReportTableNetworkDown,
+        copyMonitorReportTableNetworkUp,
+        copyMonitorReportTableTime,
+        copyMonitorReportThresholdsTitle,
+        copyMonitorReportTitle,
+        copyMonitorReportUnavailableTitle,
         copyMonitorSamplingFast,
         copyMonitorSamplingSlow,
         copyMonitorStateAcPower,

@@ -1,0 +1,34 @@
+---
+const data = Astro.locals.starlightRoute.entry.data as {
+  component?: {
+    accessibilityRules: string[];
+    implementation?: {
+      swift: string[];
+      kmp: string[];
+      notes?: string;
+    };
+  };
+};
+
+const component = data.component;
+const implementation = component?.implementation;
+---
+
+{component && (
+  <section class="component-rules" aria-labelledby="component-rules-title">
+    <div>
+      <p class="guide-eyebrow">无障碍</p>
+      <h2 id="component-rules-title">使用边界</h2>
+      <ul>
+        {component.accessibilityRules.map((rule) => <li>{rule}</li>)}
+      </ul>
+    </div>
+    <div>
+      <p class="guide-eyebrow">实现映射</p>
+      <h2>代码中的位置</h2>
+      {implementation?.swift.length ? <p><strong>Swift：</strong>{implementation.swift.join('、')}</p> : null}
+      {implementation?.kmp.length ? <p><strong>KMP：</strong>{implementation.kmp.join('、')}</p> : null}
+      {implementation?.notes && <p>{implementation.notes}</p>}
+    </div>
+  </section>
+)}

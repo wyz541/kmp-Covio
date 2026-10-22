@@ -29,6 +29,7 @@ const evidenceSchema = ({ image }: { image: () => z.ZodType }) =>
     sourceBranch: z.string().min(1).optional(),
     sha256: z.string().regex(/^[0-9a-f]{64}$/),
     status: z.enum(['real-device', 'preview-placeholder']),
+    maxWidth: z.number().positive().optional(),
   });
 
 export const collections = {

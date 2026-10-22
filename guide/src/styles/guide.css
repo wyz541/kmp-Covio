@@ -739,3 +739,37 @@ header.header {
     grid-template-columns: 1fr;
   }
 }
+
+
+.component-rules {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 3rem 0;
+}
+
+.component-rules > div {
+  padding: 1.25rem;
+  border: 1px solid var(--covio-line);
+  border-radius: 1rem;
+  background: var(--covio-card);
+}
+
+.component-rules h2 {
+  margin-top: 0;
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+}
+
+.component-rules ul {
+  padding-left: 1.1rem;
+}
+
+.component-rules li + li {
+  margin-top: 0.6rem;
+}
+
+@media (max-width: 50rem) {
+  .component-rules {
+    grid-template-columns: 1fr;
+  }
+}

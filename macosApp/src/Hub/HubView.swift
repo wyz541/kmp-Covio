@@ -7,9 +7,9 @@ import kmpDomain
 /// 面板窗口的尺寸是固定的展开尺寸。展开与收起只改内容的高度，
 /// 所以视觉上是一条从顶部垂下来的窗帘。
 ///
-/// 面板是两块独立的玻璃板：上面是胶囊形的顶栏 46 点，下面是圆角矩形的内容板。
-/// 两块板之间留一条 11 点的缝，缝里露出桌面。顶栏板与菜单栏之间再留一条同宽的缝。
-/// 板与板之间没有投影 —— 层次由 Liquid Glass 的镜面亮边给。
+/// 顶栏是悬浮在内容上的功能层。内容延伸到顶栏背后，并从顶栏下方开始首屏排版。
+/// 顶栏使用超薄材质，不带边框与投影。视觉关系参考 macOS 26 Tahoe 的 Apple Maps。
+/// 顶栏与菜单栏之间留一条 11 点的缝，收起时不会先露出空板。
 ///
 /// 内容板自带 24 点内边距，里面是「页标题行 + 主体」。
 /// 首页没有页标题行，直接从组件网格开始。
@@ -32,12 +32,12 @@ struct HubView: View {
             Color.clear
                 .frame(height: geometry.panelTopInset)
 
-            // 顶栏板与菜单栏之间的缝。排在卡片外面：进了卡片的话，挂帘收起时会
-            // 先露出一条空缝，再露出顶栏板。
+            // 顶栏与菜单栏之间的缝。排在内容层外面：进了内容层的话，挂帘收起时
+            // 会先露出一条空缝，再露出顶栏。
             Color.clear
                 .frame(height: HubMetrics.plateTopInset)
 
-            plates
+            navigationLayers
                 .frame(height: isExpanded ? plateStackHeight : 0)
                 .opacity(cardOpacity)
                 .clipped()
@@ -52,12 +52,12 @@ struct HubView: View {
         .animation(curtainAnimation, value: isExpanded)
     }
 
-    /// 两块玻璃板加起来的高度。卡片的 frame 用它。
+    /// 导航层与内容层共用的高度。
     private var plateStackHeight: CGFloat {
         HubMetrics.plateStackHeight(for: HubPage.current(workbench), editing: workbench.isEditing)
     }
 
-    /// 面板窗口的高度：两块板加上与菜单栏之间的缝。
+    /// 面板窗口的高度：内容层加上与菜单栏之间的缝。
     ///
     /// 面板窗口的高度由控制器按同一个值设置，两边必须一致。
     private var panelHeight: CGFloat {
@@ -82,30 +82,25 @@ struct HubView: View {
     /// 当前界面语言。运行时缺失时（预览、测试）跟随系统。
     private var language: AppLanguage { runtime?.language ?? workbench.language }
 
-    // MARK: - 玻璃板
+    // MARK: - 功能层
 
-    /// 顶栏板加内容区。
+    /// 内容层与悬浮的导航层。
     ///
-    /// 控制中心是两层：先一层面板级的模糊底板，把桌面与工作区分开；模块再叠在
-    /// 底板上面，自己用 clear 玻璃，只加一层薄薄的高光，不再重复模糊。
-    ///
-    /// 真机对照：把一个带文字的窗口摆在面板下面，控制中心打开后整片面板区域的
-    /// 文字都被抹平，模块之间与模块周围也一样。模糊来自底板，不是来自模块。
-    ///
-    /// 这里照做。顶栏板是一块独立的胶囊，直接压在桌面上，所以它自己走 regular。
-    /// 内容区的底板走 regular，里面的卡片走 clear。
-    private var plates: some View {
+    /// 内容区先铺满整个面板。顶栏最后叠在内容之上，所以内容在视觉与布局上都
+    /// 延伸到导航层背后。Apple Maps 的侧边栏使用同一层级关系。
+    private var navigationLayers: some View {
         GlassEffectContainer(spacing: 0) {
-            VStack(spacing: HubMetrics.plateGap) {
-                topBarPlate
+            ZStack(alignment: .top) {
                 contentArea
+                topBarLayer
             }
         }
+        .frame(width: HubMetrics.panelWidth, height: plateStackHeight, alignment: .top)
         // 高亮行从环境里取，六个设置页不必各自拿一遍模型。
         .environment(\.highlightedSettingsRow, chrome.highlightedRowID)
     }
 
-    private var topBarPlate: some View {
+    private var topBarLayer: some View {
         WorkbenchTabBar(
             panes: workbench.panes,
             destination: workbench.destination,
@@ -132,27 +127,17 @@ struct HubView: View {
         else { workbench.pointerExited(destination) }
     }
 
-    /// 内容区有一块模糊底板，卡片叠在底板上。
+    /// 内容层铺满整个面板，顶栏叠在它上方。
     ///
-    /// 底板与顶栏板都直接压在桌面上，都不加着色：底板走系统给的语义材质
-    /// （`.hudWindow`），顶栏板走 Liquid Glass。桌面透上来的量由底材自己定，
-    /// 见 [GlassSurfaceMode.plateMaterial] 与 [GlassSurfaceMode.plateTintOpacity]。
-    /// 卡片不带着色：卡片自己有色相。
+    /// 内容底材走系统语义材质（`.hudWindow`）。卡片叠在内容层里，不带着色。
     private var contentArea: some View {
         contentColumn
-            .frame(height: contentAreaHeight)
+            .frame(width: HubMetrics.panelWidth, height: plateStackHeight, alignment: .top)
             .glassSurface(
                 cornerRadius: HubMetrics.contentPlateRadius,
                 tint: GlassSurfaceMode.plateTint,
                 mode: GlassSurfaceMode.plateMode
             )
-    }
-
-    /// 内容区的高度：总高减去顶栏板与中间的缝。
-    ///
-    /// 给固定高度，滚动区域才有确定的高度。
-    private var contentAreaHeight: CGFloat {
-        plateStackHeight - HubMetrics.tabBarHeight - HubMetrics.plateGap
     }
 
     // MARK: - 内容列
@@ -177,7 +162,9 @@ struct HubView: View {
                     pageContent
                 }
             }
-            .padding(HubMetrics.panelPadding)
+            .padding(.horizontal, HubMetrics.panelPadding)
+            .padding(.top, HubMetrics.contentTopPadding)
+            .padding(.bottom, HubMetrics.panelPadding)
             .frame(width: HubMetrics.panelWidth, alignment: .topLeading)
         }
         .scrollIndicators(.never)

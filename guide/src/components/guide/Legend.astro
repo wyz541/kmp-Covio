@@ -1,12 +1,25 @@
 <section class="guide-legend" aria-labelledby="legend-title">
-  <div>
+  <div class="guide-legend__intro">
     <p class="guide-eyebrow">图例</p>
     <h2 id="legend-title">先看标记，再读内容。</h2>
+    <p>标记同时提供图形和文字。颜色不是唯一线索。</p>
   </div>
-  <ul>
-    <li><span class="marker marker--surface" aria-hidden="true"></span><strong>界面区域</strong><span>承载多个组件的工作区。</span></li>
-    <li><span class="marker marker--state" aria-hidden="true"></span><strong>状态</strong><span>界面随条件变化后的样子。</span></li>
-    <li><span class="marker marker--evidence" aria-hidden="true"></span><strong>真机实例</strong><span>实际 Mac 上采集的截图。</span></li>
-    <li><span class="marker marker--note" aria-hidden="true"></span><strong>实现说明</strong><span>解释代码和界面之间的映射。</span></li>
-  </ul>
+  <div class="guide-legend__groups">
+    <div class="guide-legend__group">
+      <h3>结构</h3>
+      <ul>
+        <li><span class="marker marker--shell" aria-hidden="true"></span><strong>外壳</strong><span>窗口、面板和底层材料。</span></li>
+        <li><span class="marker marker--surface" aria-hidden="true"></span><strong>界面区域</strong><span>承载多个组件的工作区。</span></li>
+        <li><span class="marker marker--component" aria-hidden="true"></span><strong>组件</strong><span>完成单一职责的界面单元。</span></li>
+      </ul>
+    </div>
+    <div class="guide-legend__group">
+      <h3>内容</h3>
+      <ul>
+        <li><span class="marker marker--state" aria-hidden="true"></span><strong>状态</strong><span>界面随条件变化后的样子。</span></li>
+        <li><span class="marker marker--evidence" aria-hidden="true"></span><strong>真机实例</strong><span>实际 Mac 上采集或渲染的界面。</span></li>
+        <li><span class="marker marker--limit" aria-hidden="true"></span><strong>限制</strong><span>尚未对齐的合同、代码或验收项。</span></li>
+      </ul>
+    </div>
+  </div>
 </section>

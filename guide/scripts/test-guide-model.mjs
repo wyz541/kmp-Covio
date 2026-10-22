@@ -26,7 +26,7 @@ function evidenceRecord({ id, file, sha256 = hash('image') }) {
   };
 }
 
-function fixture({ contractIds, pending = [], extensions = [], pages = [] }) {
+function fixture({ contractIds, pending = [], extensions = [], surfaces, pages = [] }) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'covio-guide-model-'));
   const contentDir = path.join(root, 'components');
   fs.mkdirSync(contentDir, { recursive: true });
@@ -36,7 +36,13 @@ function fixture({ contractIds, pending = [], extensions = [], pages = [] }) {
   );
   fs.writeFileSync(path.join(root, 'contract.json'), JSON.stringify({ components: contractComponents }));
   fs.writeFileSync(path.join(root, 'pending.json'), JSON.stringify({ components: pending }));
-  fs.writeFileSync(path.join(root, 'extensions.json'), JSON.stringify({ components: extensions }));
+  const resolvedSurfaces = surfaces ?? [
+    { id: 'all', title: 'All', summary: 'All components', componentIds: [...contractIds] },
+  ];
+  fs.writeFileSync(
+    path.join(root, 'extensions.json'),
+    JSON.stringify({ components: extensions, surfaces: resolvedSurfaces })
+  );
 
   for (const page of pages) {
     const dir = path.join(contentDir, page.directory ?? page.id);
@@ -149,5 +155,28 @@ test('rejects evidence with a missing required field', () => {
   });
   const result = validateGuideModel(f.options);
   assert.ok(result.errors.some((error) => error.includes('missing scene')));
+  fs.rmSync(f.root, { recursive: true, force: true });
+});
+
+test('rejects a component assigned to multiple surfaces', () => {
+  const f = fixture({
+    contractIds: ['button', 'card'],
+    surfaces: [
+      { id: 'one', title: 'One', summary: 'One', componentIds: ['button', 'card'] },
+      { id: 'two', title: 'Two', summary: 'Two', componentIds: ['button'] },
+    ],
+  });
+  const result = validateGuideModel(f.options);
+  assert.ok(result.errors.some((error) => error.includes('multiple surfaces')));
+  fs.rmSync(f.root, { recursive: true, force: true });
+});
+
+test('rejects an unknown component in the surface map', () => {
+  const f = fixture({
+    contractIds: ['button'],
+    surfaces: [{ id: 'all', title: 'All', summary: 'All', componentIds: ['button', 'missing'] }],
+  });
+  const result = validateGuideModel(f.options);
+  assert.ok(result.errors.some((error) => error.includes('surface component ids are unknown')));
   fs.rmSync(f.root, { recursive: true, force: true });
 });

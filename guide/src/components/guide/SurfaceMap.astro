@@ -1,0 +1,69 @@
+---
+import { getCollection } from 'astro:content';
+import extensions from '../../content/docs/components/extensions.json';
+
+const entries = await getCollection('docs', ({ data }) => Boolean(data.component));
+const authored = new Map(entries.map((entry) => [entry.data.component?.id, entry]));
+
+const componentLabels: Record<string, string> = {
+  alert: '提示条',
+  badge: '状态徽标',
+  'bento-grid': '首页网格',
+  button: '按钮',
+  card: '卡片',
+  clothespin: '夹子',
+  dialog: '对话框',
+  'file-area': '文件区',
+  'file-context-menu': '文件菜单',
+  'file-empty-state': '空状态',
+  'file-filter-menu': '筛选菜单',
+  'file-focus-card': '聚焦文件卡',
+  'file-quiet-tile': '简洁文件块',
+  material: '材质',
+  'number-field': '数字输入',
+  'page-title': '页标题',
+  popover: '浮层',
+  'screenshot-card': '截图卡片',
+  segmented: '分段控件',
+  'setting-row': '设置行',
+  switch: '开关',
+  'tab-bar': '页签栏',
+  toast: '短提示',
+  toolbar: '工具栏',
+  'tray-icon': '菜单栏图标',
+  'tray-menu': '菜单栏菜单',
+  'tray-menu-item': '菜单项',
+  'widget-card': '首页组件卡',
+  'window-bar': '窗口栏',
+  'window-shell': '窗口外壳',
+};
+---
+
+<section class="surface-map" aria-label="Covio 高层界面地图">
+  {extensions.surfaces.map((surface, index) => (
+    <article class="surface-card">
+      <div class="surface-card__heading">
+        <span aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+        <div>
+          <h2>{surface.title}</h2>
+          <p>{surface.summary}</p>
+        </div>
+      </div>
+      <ul class="surface-components">
+        {surface.componentIds.map((id) => {
+          const entry = authored.get(id);
+          const label = entry?.data.title ?? componentLabels[id] ?? id;
+          return entry ? (
+            <li><a class="surface-component" href={`/${entry.id}/`}>{label}</a></li>
+          ) : (
+            <li>
+              <span class="surface-component surface-component--pending">
+                {label}<small>待补</small>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </article>
+  ))}
+</section>

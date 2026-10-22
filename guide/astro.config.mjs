@@ -30,6 +30,8 @@ export default defineConfig({
           items: [
             { label: '章节总览', slug: 'chapters' },
             { label: 'Covio 是什么', slug: 'chapters/what-is-covio' },
+            { label: '界面地图', slug: 'chapters/interface-map' },
+            { label: '核心流程', slug: 'chapters/core-loop' },
           ],
         },
         {
@@ -41,6 +43,10 @@ export default defineConfig({
             { label: '菜单栏图标', slug: 'components/tray-icon' },
             { label: '电源管理工作区', slug: 'components/power-management' },
           ],
+        },
+        {
+          label: '附录',
+          items: [{ label: '图例与约定', slug: 'appendices/legend' }],
         },
       ],
     }),

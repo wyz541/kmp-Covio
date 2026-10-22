@@ -1,0 +1,48 @@
+---
+title: 图例与约定
+description: 统一解释页面结构、组件状态、真机证据和限制标记。
+---
+
+import Legend from '../../../components/guide/Legend.astro';
+import PendingCount from '../../../components/guide/PendingCount.astro';
+
+<Legend />
+
+## 页面类型
+
+| 类型 | 回答的问题 | 不写什么 |
+| --- | --- | --- |
+| 章节 | 产品为什么存在，流程怎样连接 | 不复制组件定义 |
+| 组件页 | 单个组件是什么，怎样工作 | 不展开完整产品流程 |
+| 附录 | 使用哪套阅读约定 | 不增加新的产品结论 |
+
+## 组件状态
+
+| 状态 | 含义 |
+| --- | --- |
+| `stable` | 当前实现和页面已经过本轮验收 |
+| `preview` | 页面用于验证结构或证据管线 |
+| `draft` | 内容仍在编写 |
+| `deprecated` | 组件不再推荐使用 |
+
+当前还有 <PendingCount /> 个设计合同组件待补。待补组件只显示名称和标记，不生成空页面。
+
+## 证据状态
+
+| 状态 | 含义 |
+| --- | --- |
+| `real-device` | 素材来自真实 Mac 的截图、窗口抓取或真实宿主渲染 |
+| `preview-placeholder` | 仅用于测试的占位素材，不能进入稳定组件页 |
+
+## 数字和单位
+
+- 界面尺寸使用点（point）。
+- 日期使用 `YYYY-MM-DD`。
+- 证据 ID 使用 `EV-<DOMAIN>-<NNN>`。
+- 截图文件与组件页放在同一个目录。
+
+## 相关页面
+
+- [阅读方法](/read/how-to-read/)
+- [界面地图](/chapters/interface-map/)
+- [组件图鉴](/components/)

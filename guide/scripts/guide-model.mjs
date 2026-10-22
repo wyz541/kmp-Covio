@@ -138,6 +138,14 @@ export function validateGuideModel({
     ? extensionDocument.components
     : [];
   const extensionIds = extensionEntries.map((entry) => entry.id);
+  const extensionSet = new Set(extensionIds);
+  const surfaceEntries = Array.isArray(extensionDocument.surfaces)
+    ? extensionDocument.surfaces
+    : [];
+  const surfaceIds = surfaceEntries.map((surface) => surface.id);
+  const surfaceComponentIds = surfaceEntries.flatMap((surface) =>
+    Array.isArray(surface.componentIds) ? surface.componentIds : []
+  );
 
   for (const [label, values] of [
     ['pending', pendingIds],
@@ -145,6 +153,39 @@ export function validateGuideModel({
   ]) {
     const repeated = duplicates(values);
     if (repeated.length) errors.push(`${label} ids are duplicated: ${repeated.join(', ')}`);
+  }
+
+  const repeatedSurfaces = duplicates(surfaceIds);
+  if (repeatedSurfaces.length) {
+    errors.push(`surface ids are duplicated: ${repeatedSurfaces.join(', ')}`);
+  }
+
+  for (const surface of surfaceEntries) {
+    if (
+      typeof surface.id !== 'string' ||
+      typeof surface.title !== 'string' ||
+      typeof surface.summary !== 'string' ||
+      !Array.isArray(surface.componentIds) ||
+      surface.componentIds.length === 0
+    ) {
+      errors.push('surface entries must define id, title, summary, and componentIds');
+    }
+  }
+
+  const knownComponentIds = new Set([...contractIdSet, ...extensionSet]);
+  const unknownSurfaceComponents = surfaceComponentIds.filter((id) => !knownComponentIds.has(id));
+  if (unknownSurfaceComponents.length) {
+    errors.push(`surface component ids are unknown: ${unknownSurfaceComponents.join(', ')}`);
+  }
+
+  const repeatedSurfaceComponents = duplicates(surfaceComponentIds);
+  if (repeatedSurfaceComponents.length) {
+    errors.push(`components appear in multiple surfaces: ${repeatedSurfaceComponents.join(', ')}`);
+  }
+
+  const missingSurfaceContracts = contractIds.filter((id) => !surfaceComponentIds.includes(id));
+  if (missingSurfaceContracts.length) {
+    errors.push(`design-contract components are missing from surface map: ${missingSurfaceContracts.join(', ')}`);
   }
 
   const pendingUnknown = pendingIds.filter((id) => !contractIdSet.has(id));
@@ -204,7 +245,6 @@ export function validateGuideModel({
   }
 
   const pendingSet = new Set(pendingIds);
-  const extensionSet = new Set(extensionIds);
   const overlapPending = authoredIds.filter((id) => pendingSet.has(id));
   if (overlapPending.length) {
     errors.push(`authored components remain in pending.json: ${overlapPending.join(', ')}`);
@@ -251,6 +291,7 @@ export function validateGuideModel({
       authoredContract: authoredContractIds.length,
       pendingContract: pendingIds.length,
       extensionTotal: extensionIds.length,
+      surfaceTotal: surfaceEntries.length,
       evidenceTotal: evidenceIds.length,
       coveragePercent: contractIds.length
         ? Math.round((authoredContractIds.length / contractIds.length) * 100)

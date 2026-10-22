@@ -23,9 +23,11 @@ final class HelperClient: @unchecked Sendable {
     func request(
         command: String,
         payload: [String: String] = [:],
-        protocolVersion: String = HelperProtocol.protocolVersion
+        protocolVersion: String = HelperProtocol.protocolVersion,
+        timeoutMillis: Int? = nil
     ) -> HelperReply? {
-        guard timeout > 0 else { return nil }
+        let requestTimeout = timeoutMillis.map { TimeInterval($0) / 1_000 } ?? timeout
+        guard requestTimeout > 0 else { return nil }
         guard FileManager.default.fileExists(atPath: socketPath) else { return nil }
 
         let request = HelperRequest(
@@ -34,7 +36,10 @@ final class HelperClient: @unchecked Sendable {
             command: command,
             payload: payload
         )
-        return transact(HelperWire.shared.encodeRequest(request: request) + "\n")
+        return transact(
+            HelperWire.shared.encodeRequest(request: request) + "\n",
+            timeout: requestTimeout
+        )
     }
 
     /// 使用 v1 `version` 探测旧 helper。新 helper 保留这一条只读兼容路径。
@@ -145,7 +150,7 @@ final class HelperClient: @unchecked Sendable {
     }
 
     func chargeLimitStatus() -> ChargeLimitHelperStatus? {
-        guard let reply = request(command: "chargeLimitStatus"), reply.ok,
+        guard let reply = request(command: "chargeLimitStatus", timeoutMillis: 3_000), reply.ok,
               let enabled = reply.result?["enabled"].flatMap(Bool.init)
         else {
             return nil
@@ -167,18 +172,19 @@ final class HelperClient: @unchecked Sendable {
     func setChargeLimit(percent: Int) -> Bool {
         request(
             command: "chargeLimitConfigure",
-            payload: ["percent": String(percent)]
+            payload: ["percent": String(percent)],
+            timeoutMillis: 10_000
         )?.ok == true
     }
 
     func restoreChargeLimit() -> Bool {
-        request(command: "chargeLimitRestore")?.ok == true
+        request(command: "chargeLimitRestore", timeoutMillis: 10_000)?.ok == true
     }
 
     // MARK: - 私有
 
-    private func transact(_ line: String) -> HelperReply? {
-        let descriptor = connect()
+    private func transact(_ line: String, timeout: TimeInterval) -> HelperReply? {
+        let descriptor = connect(timeout: timeout)
         guard descriptor >= 0 else { return nil }
         defer { close(descriptor) }
 
@@ -190,9 +196,18 @@ final class HelperClient: @unchecked Sendable {
         return HelperWire.shared.decodeReply(line: response)
     }
 
-    private func connect() -> Int32 {
+    private func connect(timeout: TimeInterval) -> Int32 {
         let descriptor = socket(AF_UNIX, SOCK_STREAM, 0)
         guard descriptor >= 0 else { return -1 }
+
+        var noSigPipe: Int32 = 1
+        setsockopt(
+            descriptor,
+            SOL_SOCKET,
+            SO_NOSIGPIPE,
+            &noSigPipe,
+            socklen_t(MemoryLayout<Int32>.size)
+        )
 
         // 秒与微秒分开设，内核到点就返回，不需要自己算 deadline。
         var limit = timeval(

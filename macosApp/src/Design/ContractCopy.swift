@@ -15,6 +15,8 @@ enum ContractCopy {
     static let copyAgentActionCompleted = LocalizedCopy(key: "copy/agent/action-completed", en: "Local action completed.", zhHans: "本地操作已完成。")
     /// `copy/agent/action-failed`
     static let copyAgentActionFailed = LocalizedCopy(key: "copy/agent/action-failed", en: "Local action failed.", zhHans: "本地操作失败。")
+    /// `copy/agent/attach-files`
+    static let copyAgentAttachFiles = LocalizedCopy(key: "copy/agent/attach-files", en: "Attach files", zhHans: "添加附件")
     /// `copy/agent/cancel`
     static let copyAgentCancel = LocalizedCopy(key: "copy/agent/cancel", en: "Cancel", zhHans: "取消")
     /// `copy/agent/clear`
@@ -28,7 +30,7 @@ enum ContractCopy {
     /// `copy/agent/copy-characters`
     static let copyAgentCopyCharacters = LocalizedCopy(key: "copy/agent/copy-characters", en: "Copy %d characters to the clipboard.", zhHans: "复制 %d 个字符到剪贴板。")
     /// `copy/agent/empty-body`
-    static let copyAgentEmptyBody = LocalizedCopy(key: "copy/agent/empty-body", en: "It can check monitor, power, workspace, screenshots, and clipboard metadata. Side effects need confirmation.", zhHans: "可查询监控、电源、工作区、截图和剪贴板元数据。有副作用的操作需要确认。")
+    static let copyAgentEmptyBody = LocalizedCopy(key: "copy/agent/empty-body", en: "It can inspect attached files, answer with citations, and use local system services. Side effects need confirmation.", zhHans: "可检查附件、带来源回答问题，并使用本地系统服务。有副作用的操作需要确认。")
     /// `copy/agent/empty-response`
     static let copyAgentEmptyResponse = LocalizedCopy(key: "copy/agent/empty-response", en: "No response.", zhHans: "没有返回内容。")
     /// `copy/agent/empty-title`
@@ -47,6 +49,8 @@ enum ContractCopy {
     static let copyAgentOffline = LocalizedCopy(key: "copy/agent/offline", en: "Local only", zhHans: "仅本地")
     /// `copy/agent/placeholder`
     static let copyAgentPlaceholder = LocalizedCopy(key: "copy/agent/placeholder", en: "Ask about this Mac or your workspace", zhHans: "询问这台 Mac 或工作区")
+    /// `copy/agent/remove-attachment`
+    static let copyAgentRemoveAttachment = LocalizedCopy(key: "copy/agent/remove-attachment", en: "Remove attachment", zhHans: "移除附件")
     /// `copy/agent/send`
     static let copyAgentSend = LocalizedCopy(key: "copy/agent/send", en: "Send", zhHans: "发送")
     /// `copy/agent/stop`
@@ -1175,6 +1179,7 @@ enum ContractCopy {
         copyAgentActionCancelled,
         copyAgentActionCompleted,
         copyAgentActionFailed,
+        copyAgentAttachFiles,
         copyAgentCancel,
         copyAgentClear,
         copyAgentConfirm,
@@ -1191,6 +1196,7 @@ enum ContractCopy {
         copyAgentName,
         copyAgentOffline,
         copyAgentPlaceholder,
+        copyAgentRemoveAttachment,
         copyAgentSend,
         copyAgentStop,
         copyAgentStopped,

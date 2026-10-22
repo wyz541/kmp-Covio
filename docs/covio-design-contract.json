@@ -5800,6 +5800,10 @@
       "en": "Local action failed.",
       "zh-Hans": "本地操作失败。"
     },
+    "copy/agent/attach-files": {
+      "en": "Attach files",
+      "zh-Hans": "添加附件"
+    },
     "copy/agent/cancel": {
       "en": "Cancel",
       "zh-Hans": "取消"
@@ -5825,8 +5829,8 @@
       "zh-Hans": "复制 %d 个字符到剪贴板。"
     },
     "copy/agent/empty-body": {
-      "en": "It can check monitor, power, workspace, screenshots, and clipboard metadata. Side effects need confirmation.",
-      "zh-Hans": "可查询监控、电源、工作区、截图和剪贴板元数据。有副作用的操作需要确认。"
+      "en": "It can inspect attached files, answer with citations, and use local system services. Side effects need confirmation.",
+      "zh-Hans": "可检查附件、带来源回答问题，并使用本地系统服务。有副作用的操作需要确认。"
     },
     "copy/agent/empty-response": {
       "en": "No response.",
@@ -5851,6 +5855,10 @@
     "copy/agent/placeholder": {
       "en": "Ask about this Mac or your workspace",
       "zh-Hans": "询问这台 Mac 或工作区"
+    },
+    "copy/agent/remove-attachment": {
+      "en": "Remove attachment",
+      "zh-Hans": "移除附件"
     },
     "copy/agent/send": {
       "en": "Send",

@@ -360,6 +360,52 @@ final class AgentChatRuntimeTests: XCTestCase {
         }) ?? true)
     }
 
+    func testAttachmentsUseStableIdsWithoutExposingPaths() async throws {
+        let model = PromptCapturingAgentModel()
+        let attachmentStore = AgentAttachmentStore()
+        let runtime = AgentChatRuntime(
+            model: model,
+            gateway: gateway(),
+            attachmentStore: attachmentStore
+        )
+        let file = try makeAttachmentFile(named: "quarterly report.txt")
+
+        runtime.attachFiles([file])
+        let attachment = try XCTUnwrap(runtime.attachments.first)
+        runtime.send("Inspect this file")
+        await waitUntil { runtime.stage == .idle }
+
+        let prompt = await model.lastPrompt ?? ""
+        XCTAssertTrue(prompt.contains(attachment.id))
+        XCTAssertTrue(prompt.contains(attachment.displayName))
+        XCTAssertFalse(prompt.contains(file.path))
+        XCTAssertEqual(runtime.messages.first?.text, "Inspect this file")
+    }
+
+    func testRemovingAndClearingAttachmentsRevokesAccess() throws {
+        let attachmentStore = AgentAttachmentStore()
+        let runtime = AgentChatRuntime(
+            model: FakeAgentModel(chunks: ["ok"]),
+            gateway: gateway(),
+            attachmentStore: attachmentStore
+        )
+        let file = try makeAttachmentFile(named: "report.pdf")
+
+        runtime.attachFiles([file])
+        let attachment = try XCTUnwrap(runtime.attachments.first)
+        runtime.removeAttachment(attachment.id)
+
+        XCTAssertTrue(runtime.attachments.isEmpty)
+        XCTAssertTrue(attachmentStore.files.isEmpty)
+
+        runtime.attachFiles([file])
+        XCTAssertEqual(runtime.attachments.count, 1)
+        runtime.clear()
+
+        XCTAssertTrue(runtime.attachments.isEmpty)
+        XCTAssertTrue(attachmentStore.files.isEmpty)
+    }
+
     private func waitUntil(_ condition: @escaping @MainActor () -> Bool) async {
         for _ in 0..<100 {
             if condition() { return }
@@ -377,6 +423,18 @@ final class AgentChatRuntimeTests: XCTestCase {
         return AgentHistoryStore(
             path: directory.appendingPathComponent("history.sqlite3")
         )
+    }
+
+    private func makeAttachmentFile(named name: String) throws -> URL {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("covio-agent-attachment-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        addTeardownBlock {
+            try? FileManager.default.removeItem(at: directory)
+        }
+        let file = directory.appendingPathComponent(name)
+        try Data("attachment".utf8).write(to: file, options: .atomic)
+        return file
     }
 
     private func gateway() -> AgentServiceGateway {
@@ -575,6 +633,22 @@ private actor SlowAgentModel: AgentModelServing {
     ) async throws -> String {
         try await Task.sleep(for: .seconds(5))
         return "late"
+    }
+
+    func reset() async {}
+    func release() async {}
+}
+
+private actor PromptCapturingAgentModel: AgentModelServing {
+    private(set) var lastPrompt: String?
+
+    func respond(
+        to prompt: String,
+        onChunk: @Sendable @escaping (String) async -> Void
+    ) async throws -> String {
+        lastPrompt = prompt
+        await onChunk("ok")
+        return "ok"
     }
 
     func reset() async {}

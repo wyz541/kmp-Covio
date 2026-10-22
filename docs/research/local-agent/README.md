@@ -2,6 +2,8 @@
 
 > 结论：采用条件性 go。Agent 使用本地模型选择 allowlist 工具，服务在进程内执行，副作用必须确认。
 
+> 模型档位：2B 保留为低内存回退。4B 作为 16 GB 以上默认档。8B 和 30B-A3B 暂不作为默认。
+
 ## 前因
 
 用户需要在导航级页签中与 Agent 对话。  
@@ -30,6 +32,7 @@ Covio 已有本地 `Qwen3-VL-2B-Instruct-4bit`、监控、截图、剪贴板、�
 ## 结果
 
 工具选择正确率为 90%。  
+4B 档位工具矩阵为 30 / 30。
 未授权副作用为 0。  
 模型不能单独执行工具。  
 服务协议采用进程内 typed registry。  
@@ -65,6 +68,7 @@ Agent 提供普通对话和受控本地服务。
 | [conclusion.md](conclusion.md) | 结论、决策和限制 |
 | [solution.md](solution.md) | 推荐架构、接口、安全和验收 |
 | [evidence.md](evidence.md) | 工具矩阵、运行环境和证据 |
+| [model-tiers.md](model-tiers.md) | 2B、4B、8B、30B-A3B 对比与档位决策 |
 | [validation/README.md](validation/README.md) | 验证矩阵和清理要求 |
 | [validation/case-tool-calling.md](validation/case-tool-calling.md) | 30 个工具调用样本 |
 | [validation/case-service-boundary.md](validation/case-service-boundary.md) | 服务协议和权限比较 |
@@ -75,9 +79,10 @@ Agent 提供普通对话和受控本地服务。
 1. [context.md](context.md)：确认问题和边界。
 2. [investigation.md](investigation.md)：确认候选协议和源码事实。
 3. [evidence.md](evidence.md)：读取工具矩阵结果。
-4. [conclusion.md](conclusion.md)：确认条件性 go。
-5. [solution.md](solution.md)：确认实现和权限模型。
-6. 验证案例：读取实际结果。
+4. [model-tiers.md](model-tiers.md)：确认模型档位。
+5. [conclusion.md](conclusion.md)：确认条件性 go。
+6. [solution.md](solution.md)：确认实现和权限模型。
+7. 验证案例：读取实际结果。
 
 ## 更新规则
 

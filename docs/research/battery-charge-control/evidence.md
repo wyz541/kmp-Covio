@@ -187,11 +187,26 @@ com.apple.private.usernotifications.bundle-identifiers
 | Intel 支持情况 | 低 | 只有旧源码证据 |
 | 无电池设备支持情况 | 低 | 未做真机验证 |
 
-## 11. 未执行
+## 11. 后续真机写入
+
+2026-10-20 至 21 完成以下写入验证。
+
+| 场景 | 观察 |
+| --- | --- |
+| 原生 `85%` | `PowerUI` 与 `pmset` 均显示 `85` |
+| 原生恢复 `80%` | `PowerUI` 返回 `80`，MCL 保持启用 |
+| root `70%` | `PowerUI`、`pmset` 与 helper 均显示 `70` |
+| 电量高于上限 | 目标保持当前电量，没有主动放电 |
+| 睡眠与唤醒 | 多轮事件后 App 仍存活 |
+
+详细步骤和结果见 issue #162。
+
+## 12. 未执行
 
 1. 未写 SMC 键。
-2. 未写 `com.apple.smartcharging.topoffprotection`。
-3. 未修改 `com.apple.powerd.charging`。
-4. 未重启 `powerd`。
-5. 未执行睡眠、唤醒或重启测试。
-6. 未执行 Intel 和无电池测试。
+2. 未修改 `com.apple.powerd.charging`。
+3. 未重启 `powerd`。
+4. 未验证真实系统重启。
+5. 未验证真实 Apple 校准周期。
+6. 未验证真实 helper 卸载。
+7. 未执行 Intel 和无电池测试。

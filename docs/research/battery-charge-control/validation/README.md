@@ -26,19 +26,29 @@
 | V01 只读能力检测 | M1 Max，macOS 27.0.1 | 无 | 通过 |
 | V02 读取原生上限 | M1 Max，macOS 27.0.1 | 无 | 通过 |
 | V03 读取旁路证据 | M1 Max，macOS 27.0.1 | 无 | 通过 |
-| V04 设置 `80%` | Apple Silicon，macOS 27 | MCL | 待执行 |
+| V04 设置 `85%` | Apple Silicon，macOS 27 | MCL | 通过 |
 | V05 设置 `100%` | Apple Silicon，macOS 27 | MCL | 待执行 |
-| V06 恢复原系统值 | Apple Silicon，macOS 27 | MCL | 待执行 |
+| V06 恢复原系统值 `80%` | Apple Silicon，macOS 27 | MCL | 通过 |
 | V07 系统设置外部修改 | Apple Silicon，macOS 27 | MCL | 待执行 |
-| V08 睡眠与唤醒 | Apple Silicon，macOS 27 | MCL | 待执行 |
+| V08 睡眠与唤醒 | Apple Silicon，macOS 27 | MCL | 通过 |
 | V09 重启恢复 | Apple Silicon，macOS 27 | MCL | 待执行 |
-| V10 校准周期 | Apple Silicon，macOS 27 | MCL | 待执行 |
-| V11 `20%` 到 `79%` | Apple Silicon，macOS 27 | root 私有 | 未批准 |
+| V10 校准周期 | Apple Silicon，macOS 27 | MCL | 部分通过 |
+| V11 设置 `70%` | Apple Silicon，macOS 27 | root 私有 | 通过 |
+| V11b `20%`、`50%`、`75%`、`79%` | Apple Silicon，macOS 27 | root 私有 | 待执行 |
 | V12 Intel 原生 MCL | Intel MacBook | 无写入能力检测 | 待执行 |
 | V13 Intel `BCLM` | Intel MacBook | SMC | 未批准 |
 | V14 无电池设备 | Mac desktop | 无 | 待执行 |
 | V15 helper 缺失 | Apple Silicon | 无 | 待执行 |
 | V16 API 形状变化 | 模拟 | 无 | 待执行 |
+| V17 卸载前恢复 | Apple Silicon | MCL | 部分通过 |
+| V18 校准后恢复 | Apple Silicon | MCL | 部分通过 |
+
+### 2026-10-22 状态说明
+
+1. V04、V06 和 V08 的证据记录在 issue #162。
+2. V10 和 V18 已有状态机测试。真实 Apple 校准周期尚未执行。
+3. V11 只验证 `70%` 注册到 powerd。其他低档位尚未执行。
+4. V17 已有恢复顺序和状态文件保护测试。真实卸载尚未执行。
 
 ## 风险
 

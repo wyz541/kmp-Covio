@@ -135,6 +135,46 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         XCTAssertTrue(backend.appliedTargets.isEmpty)
     }
 
+    func testCalibrationEndReappliesTheUserLimit() throws {
+        let backend = FakeChargeLimitBackend()
+        let reader = FakeChargeLimitPowerReader(reading: reading(current: 80))
+        let runtime = makeRuntime(backend: backend, reader: reader)
+        defer { _ = runtime.restore() }
+
+        _ = try runtime.configure(userLimitPercent: 85).get()
+        XCTAssertEqual(backend.appliedTargets, [85])
+
+        backend.observedTargetOverride = 100
+        reader.reading = reading(current: 80, calibrationActive: true)
+        XCTAssertEqual(try runtime.evaluateNow().get().phase, "calibration")
+        XCTAssertEqual(backend.appliedTargets, [85])
+
+        reader.reading = reading(current: 80)
+        let reapplied = try runtime.evaluateNow().get()
+
+        XCTAssertEqual(reapplied.phase, "applying")
+        XCTAssertEqual(backend.appliedTargets, [85, 85])
+    }
+
+    func testExternalTargetChangeAfterCalibrationStaysConflict() throws {
+        let backend = FakeChargeLimitBackend()
+        let reader = FakeChargeLimitPowerReader(reading: reading(current: 80))
+        let runtime = makeRuntime(backend: backend, reader: reader)
+        defer { _ = runtime.restore() }
+
+        _ = try runtime.configure(userLimitPercent: 85).get()
+        backend.observedTargetOverride = 100
+        reader.reading = reading(current: 80, calibrationActive: true)
+        _ = try runtime.evaluateNow().get()
+
+        backend.observedTargetOverride = 95
+        reader.reading = reading(current: 80)
+        let conflicted = try runtime.evaluateNow().get()
+
+        XCTAssertEqual(conflicted.phase, "conflict")
+        XCTAssertEqual(backend.appliedTargets, [85])
+    }
+
     func testUnsupportedDeviceDoesNotWrite() throws {
         let backend = FakeChargeLimitBackend()
         backend.capabilityValue = .unsupported
@@ -222,6 +262,15 @@ final class ChargeLimitRuntimeTests: XCTestCase {
             )
         )
         let backend = FakeChargeLimitBackend()
+        backend.state = ChargeLimitPersistentState(
+            targetPercent: 85,
+            original: ChargeLimitOriginals(
+                optimizedChargingEnabled: nil,
+                featureState: 1,
+                limitPercent: 80
+            )
+        )
+        backend.hideObservedTarget = true
         let reader = FakeChargeLimitPowerReader(reading: reading(current: 80))
         let runtime = makeRuntime(backend: backend, reader: reader)
         defer { _ = runtime.restore() }
@@ -229,6 +278,21 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         XCTAssertNoThrow(try runtime.resumeOnStartup().get())
         XCTAssertEqual(backend.appliedTargets, [85])
         XCTAssertTrue(try runtime.status().get().chargingLatch)
+    }
+
+    func testLegacyRuntimeStateWithoutCalibrationTargetStillLoads() throws {
+        let url = directory.appendingPathComponent("charge-limit/runtime.json")
+        try FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try Data(#"{"schemaVersion":1,"userLimitPercent":85,"chargingLatch":false,"lastPhase":"charging"}"#.utf8)
+            .write(to: url)
+
+        let loaded = try XCTUnwrap(stateStore.load())
+
+        XCTAssertEqual(loaded.userLimitPercent, 85)
+        XCTAssertNil(loaded.calibrationTargetPercent)
     }
 
     func testInvalidLimitsAreRejectedBeforeAnyWrite() {
@@ -305,9 +369,11 @@ private final class FakeChargeLimitBackend: ChargeLimitBackend, @unchecked Senda
     var capabilityValue: ChargeLimitSupport = .supported
     var applyFailure: ChargeLimitMCLFailure?
     var observedTargetOverride: Int?
+    var hideObservedTarget = false
 
     func capability() -> ChargeLimitSupport { capabilityValue }
     func observedTargetPercent() -> Int? {
+        if hideObservedTarget { return nil }
         if let observedTargetOverride { return observedTargetOverride }
         guard let target = state?.targetPercent, target < 100 else { return nil }
         return target

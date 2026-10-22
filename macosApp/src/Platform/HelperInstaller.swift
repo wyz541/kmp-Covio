@@ -27,9 +27,27 @@ enum HelperInstaller {
     }
 
     static func uninstall(logger: (String) -> Void = { _ in }) -> Bool {
+        guard restoreChargeLimitIfNeeded(using: HelperClient(), logger: logger) else {
+            return false
+        }
         let script = uninstallScript()
         logger("Uninstalling privileged helper")
         return runWithAdministrator(script)
+    }
+
+    /// 卸载前恢复原 MCL。失败时保留 helper 和状态文件，避免丢失恢复凭据。
+    static func restoreChargeLimitIfNeeded(
+        using client: any ChargeLimitClientProtocol,
+        logger: (String) -> Void = { _ in }
+    ) -> Bool {
+        guard let status = client.chargeLimitStatus(), status.enabled else { return true }
+        logger("Restoring charge limit before uninstall")
+        guard client.restoreChargeLimit() else {
+            logger("Cannot uninstall the helper: charge limit restore failed")
+            return false
+        }
+        logger("Charge limit restored")
+        return true
     }
 
     /// 安装脚本。可单独测试，不需要管理员权限。
@@ -49,7 +67,7 @@ enum HelperInstaller {
         )
     }
 
-    /// 卸载脚本。先清 `disablesleep`，否则删掉 helper 后这个标志没人能清。
+    /// 卸载脚本。先验证充电状态已清除，再清 `disablesleep`。
     static func uninstallScript() -> String {
         HelperInstallScript.shared.uninstallScript()
     }

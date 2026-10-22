@@ -36,14 +36,14 @@ class WorkbenchStoreTest {
         }
 
     @Test
-    fun `a missing file loads the six builtin panes in the documented order`() =
+    fun `a missing file loads the six current builtin panes in the documented order`() =
         withTemporaryDirectory("workbench") { directory ->
             val path = directory.resolve("workbench.json")
 
             val config = WorkbenchStore(path.toString()).load()
 
             assertEquals(
-                listOf("now", "clipboard", "files", "screenshots", "devices", "settings"),
+                listOf("now", "agent", "clipboard", "files", "devices", "settings"),
                 config.panes.map { it.id },
             )
             // 首页默认放六块组件，与打样的 `defaultWidgets()` 一致。
@@ -53,6 +53,37 @@ class WorkbenchStoreTest {
                 config.homeWidgets.map { it.id },
             )
             assertFalse(path.exists, "读的时候不该建文件")
+        }
+
+    @Test
+    fun `schema one screenshot pane migrates into the files area`() =
+        withTemporaryDirectory("workbench") { directory ->
+            val path = directory.resolve("workbench.json")
+            path.writeText(
+                """
+                {
+                  "schemaVersion": 1,
+                  "panes": [
+                    {"id": "now", "kind": "now"},
+                    {"id": "screenshots", "kind": "screenshots", "title": "旧截图", "isHidden": true},
+                    {"id": "files", "kind": "files", "title": "资料"},
+                    {"id": "mine", "kind": "board", "title": "我的"},
+                    {"id": "settings", "kind": "settings"}
+                  ],
+                  "homeWidgets": []
+                }
+                """.trimIndent(),
+            )
+
+            val config = WorkbenchStore(path.toString()).load()
+
+            assertEquals(2, config.schemaVersion)
+            assertEquals(
+                listOf("now", "files", "mine", "settings", "agent", "clipboard", "devices"),
+                config.panes.map { it.id },
+            )
+            assertEquals("资料", config.pane("files")?.title, "文件工作区的自定义名称要保留")
+            assertNull(config.pane("screenshots"), "schema 2 不再保留截图工作区")
         }
 
     @Test
@@ -90,7 +121,7 @@ class WorkbenchStoreTest {
             val config = WorkbenchStore(path.toString()).load()
 
             assertEquals(
-                listOf("now", "mine", "clipboard", "files", "screenshots", "devices", "settings"),
+                listOf("now", "mine", "agent", "clipboard", "files", "devices", "settings"),
                 config.panes.map { it.id },
             )
         }
@@ -106,7 +137,7 @@ class WorkbenchStoreTest {
         assertNotNull(hidden.pane("now"), "隐藏之后条目还在文件里，只是 tab bar 不画")
         assertTrue(hidden.pane("now")!!.isHidden)
         assertEquals(
-            listOf("clipboard", "files", "screenshots", "devices", "settings"),
+            listOf("agent", "clipboard", "files", "devices", "settings"),
             hidden.visiblePanes.map { it.id },
         )
     }
@@ -127,6 +158,7 @@ class WorkbenchStoreTest {
     fun `addPane refuses a builtin kind a taken id and a full list`() {
         val fresh = WorkbenchConfig.defaults()
         assertEquals(fresh, fresh.addPane(PaneInstance.builtin(PaneKind.NOW)), "内置工作区不该由用户加出来")
+        assertEquals(fresh, fresh.addPane(PaneInstance.builtin(PaneKind.SCREENSHOTS)), "历史截图工作区也不该由用户加出来")
         assertEquals(fresh, fresh.addPane(PaneInstance(id = "now", kind = PaneKind.BOARD)), "id 撞车了")
 
         val full = WorkbenchConfig(panes = (0 until 20).map { PaneInstance(id = "c$it", kind = PaneKind.BOARD) }).normalized()

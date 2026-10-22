@@ -1,0 +1,42 @@
+---
+title: Covio 项目说明书
+description: 从产品地图到组件样张，读懂 Covio 的界面、状态和真实取舍。
+template: splash
+---
+
+import GuideHero from '../../components/guide/GuideHero.astro';
+import Legend from '../../components/guide/Legend.astro';
+import mark from './assets/covio-mark.png';
+
+<GuideHero mark={mark} />
+
+<div class="guide-section-intro">
+  <p class="guide-eyebrow">阅读路径</p>
+  <h2>先认识产品，再看清组件。</h2>
+  <p>章节负责串联上下文。组件页负责给出可核对的细节。</p>
+</div>
+
+<div class="guide-paths">
+  <a href="/chapters/">
+    <span>01</span>
+    <strong>产品地图</strong>
+    <p>先了解 Covio 解决的问题和主要界面。</p>
+  </a>
+  <a href="/read/how-to-read/">
+    <span>02</span>
+    <strong>阅读方法</strong>
+    <p>认识图例、证据卡和组件页的结构。</p>
+  </a>
+  <a href="/components/">
+    <span>03</span>
+    <strong>组件图鉴</strong>
+    <p>从总览进入组件页，查看真机实例和功能说明。</p>
+  </a>
+</div>
+
+<Legend />
+
+<div class="guide-quote">
+  <p>“说明书不是功能清单。它要解释一个界面为什么存在，以及它在什么条件下改变。”</p>
+  <span>Covio 项目说明书编辑原则</span>
+</div>

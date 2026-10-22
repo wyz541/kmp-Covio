@@ -21,7 +21,7 @@ Apple Silicon 内建屏能否在合盖后保持点亮，并设置为最低亮度
 
 GitHub 审计发现了一条私有 API 路径：`disablesleep` 保持系统运行，再用 `DisplayServicesSetBrightness(0)` 把面板压暗，同时保留 framebuffer。
 2026-10-21 的本机写入、回读和恢复探针通过。
-ADR-0008 接受该路径作为默认关闭的实验能力。
+ADR-0012 接受该路径作为默认关闭的实验能力。
 `0.0` 在视觉上接近黑屏，不是可见的最低亮度画面。
 完整仓库对比见 `github-lid-brightness.md`。
 
@@ -37,7 +37,7 @@ Covio 只提供显式开启的实验性“内建屏 `0.0`”路径。
 4. Apple M1 Max 上直接调用公开 IOKit 亮度接口返回 `kIOReturnUnsupported`。
 5. 可用的内建屏亮度接口依赖私有 `DisplayServices`。
 6. ADR-0007 首版不接私有亮度 API。
-7. ADR-0008 只接受默认关闭的实验路径，不接受稳定能力承诺。
+7. ADR-0012 只接受默认关闭的实验路径，不接受稳定能力承诺。
 
 ## 决策
 

@@ -1,0 +1,37 @@
+---
+title: 章节总览
+description: 按阅读顺序浏览 Covio 的产品地图。
+---
+
+import IndexCard from '../../../components/guide/IndexCard.astro';
+
+章节负责解释产品背景、界面关系和核心流程。组件细节放在独立页面，避免同一事实重复维护。
+
+<div class="guide-index-grid">
+  <IndexCard
+    index="01"
+    title="Covio 是什么"
+    description="建立产品、界面和组件三个观察层。"
+    href="/chapters/what-is-covio/"
+    meta="产品定义"
+  />
+  <IndexCard
+    index="02"
+    title="界面地图"
+    description="查看 7 个高层区域和全部合同组件归属。"
+    href="/chapters/interface-map/"
+    meta="结构"
+  />
+  <IndexCard
+    index="03"
+    title="核心流程"
+    description="从菜单栏进入，经过工作区，最后确认结果。"
+    href="/chapters/core-loop/"
+    meta="流程"
+  />
+</div>
+
+<div class="guide-index-note">
+  <strong>先读方法</strong>
+  <p>第一次阅读时，先看<a href="/read/how-to-read/">阅读方法</a>和<a href="/appendices/legend/">图例与约定</a>。</p>
+</div>

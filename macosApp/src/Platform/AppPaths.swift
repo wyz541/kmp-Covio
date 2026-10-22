@@ -22,12 +22,13 @@ enum AppPaths {
     /// 调试构建可用 `COVIO_SUPPORT_DIR` 指向隔离目录。
     /// 真机验收因此能同时运行第二个实例，不碰正在使用的配置与锁。
     static var supportDirectory: URL {
-        #if DEBUG
-        if let override = ProcessInfo.processInfo.environment["COVIO_SUPPORT_DIR"],
-           !override.isEmpty {
+        supportDirectory(environment: ProcessInfo.processInfo.environment)
+    }
+
+    static func supportDirectory(environment: [String: String]) -> URL {
+        if let override = environment["COVIO_SUPPORT_DIR"], !override.isEmpty {
             return URL(fileURLWithPath: override, isDirectory: true)
         }
-        #endif
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
         let root = base.first ?? URL(fileURLWithPath: NSHomeDirectory())
             .appendingPathComponent("Library/Application Support")
@@ -59,6 +60,11 @@ enum AppPaths {
     /// 与 `config.json` 分两个文件：工作台配置损坏时只回退布局，不动用户设置。
     static var workbenchFile: URL {
         supportDirectory.appendingPathComponent("workbench.json")
+    }
+
+    /// 文件重命名的撤销计划。每条计划在改名之前写入。
+    static var renameUndoDirectory: URL {
+        supportDirectory.appendingPathComponent("rename-undo", isDirectory: true)
     }
 
     /// SwiftUI 版的单实例锁文件。

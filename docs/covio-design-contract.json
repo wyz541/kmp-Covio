@@ -3,7 +3,7 @@
   "metadata": {
     "name": "Covio Product Design Contract",
     "status": "native-source-verified",
-    "updatedAt": "2026-10-20",
+    "updatedAt": "2026-10-22",
     "authority": "docs/covio-design-contract.json",
     "visualProjection": {
       "fileName": "Covio — Product Design · macOS 27",
@@ -22,7 +22,7 @@
       "deliveryPages": 8,
       "sections": 8,
       "boards": 35,
-      "componentSets": 24,
+      "componentSets": 30,
       "sourceComponentSets": 130,
       "componentNodes": 186,
       "variables": 147,
@@ -92,7 +92,7 @@
       },
       {
         "area": "Native-only interface copy",
-        "difference": "The macOS host needs copy that no delivery page carries: the six hub tab names and their summaries, the top shelf window title and its errors, and the whole clipboard group. These entries have no Figma node. The values are the strings the SwiftUI host ships, taken verbatim, so adding them changes no visible text. They live here because the contract is the single source that every host reads copy from.",
+        "difference": "The macOS host needs copy that no delivery page carries: the seven built-in hub tab names and their summaries, the top shelf window title and its errors, and the whole clipboard group. These entries have no Figma node. The values are the strings the SwiftUI host ships, taken verbatim, so adding them changes no visible text. They live here because the contract is the single source that every host reads copy from.",
         "status": "accepted-native-copy-addition"
       },
       {
@@ -114,6 +114,16 @@
         "area": "Power management copy",
         "difference": "The Monitor Power management preview adds native-only copy for status, sessions, safety rules, and history. No delivery page carries these strings yet.",
         "status": "accepted-native-copy-addition"
+      },
+      {
+        "area": "Agent hub tab",
+        "difference": "The offline Agent tab and chat interface have no Figma delivery page. The tab copy, local-service labels and confirmation copy live in the design contract. Light and dark previews are stored as 207-agent-tab-light-1.png and 207-agent-tab-dark-1.png.",
+        "status": "accepted-native-preview"
+      },
+      {
+        "area": "Unified file area",
+        "difference": "The third file-area preview has no Figma delivery page. Its single focus, quiet grid, filter menu, empty state, and context menu are defined here from preview #201.",
+        "status": "accepted-native-preview"
       }
     ],
     "sourceKit": {
@@ -1558,6 +1568,16 @@
       "maxMs": 500,
       "curve": "指针移出后等待，然后收起",
       "purpose": "指针移出 Hub 后收起的等待时间。"
+    },
+    "token/motion/file-focus-switch": {
+      "name": "Covio/Motion/File Focus Switch",
+      "type": "duration",
+      "durationMs": 120,
+      "minMs": 100,
+      "maxMs": 160,
+      "reducedMotionMs": 80,
+      "curve": "缓出",
+      "purpose": "Switch the detailed file focus with a short fade."
     }
   },
   "components": {
@@ -2839,6 +2859,292 @@
       "swiftMapping": {
         "target": "HubContentRoot",
         "behavior": "Hub 把内容内联展开，不使用 NSPopover。"
+      }
+    },
+    "component/file-area": {
+      "name": "Covio/File Area",
+      "figmaComponentSetId": "",
+      "purpose": "Unified file area with one detailed focus and a quiet four-column grid.",
+      "variants": [
+        "DEFAULT",
+        "EMPTY",
+        "NO_MATCH"
+      ],
+      "properties": [
+        {
+          "name": "state",
+          "type": "VARIANT",
+          "defaultValue": "DEFAULT"
+        }
+      ],
+      "states": [
+        "state/component/file-area/default",
+        "state/component/file-area/empty",
+        "state/component/file-area/no-match"
+      ],
+      "accessibilityRules": [
+        "Do not use color as the only status indicator.",
+        "Keep keyboard focus visible and expose a readable accessible name.",
+        "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows.",
+        "Do not indicate the focused item by size alone. Expose the selected item to assistive technology."
+      ],
+      "composeMapping": {
+        "target": "FileAreaPreview",
+        "behavior": "One filter menu, one Add button, one focus card, and a quiet four-column grid."
+      },
+      "nativeSize": {
+        "width": 912,
+        "height": 538
+      },
+      "modeVariants": [
+        "Light",
+        "Dark"
+      ],
+      "figmaComponentSetIds": [],
+      "sourceAuthority": "Compose web preview (designPreview, #201)",
+      "swiftMapping": {
+        "target": "FilesTabView",
+        "behavior": "唯一焦点位加四列安静网格。顶部只有筛选菜单、数量、实时状态和加入按钮。空状态与无匹配隐藏顶部工具行。"
+      }
+    },
+    "component/file-focus-card": {
+      "name": "Covio/File Focus Card",
+      "figmaComponentSetId": "",
+      "purpose": "The only detailed item in the file area.",
+      "variants": [
+        "DEFAULT",
+        "HOVER",
+        "FOCUSED",
+        "TRANSFER",
+        "FAILED",
+        "UNAVAILABLE"
+      ],
+      "properties": [
+        {
+          "name": "state",
+          "type": "VARIANT",
+          "defaultValue": "DEFAULT"
+        }
+      ],
+      "states": [
+        "state/component/file-focus-card/default",
+        "state/component/file-focus-card/hover",
+        "state/component/file-focus-card/focused",
+        "state/component/file-focus-card/transfer",
+        "state/component/file-focus-card/failed",
+        "state/component/file-focus-card/unavailable"
+      ],
+      "accessibilityRules": [
+        "Do not use color as the only status indicator.",
+        "Keep keyboard focus visible and expose a readable accessible name.",
+        "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows.",
+        "Announce the file name, type, source, status, and actions."
+      ],
+      "composeMapping": {
+        "target": "FileFocusCard",
+        "behavior": "A full-width 176-point card with a preview and one primary action group."
+      },
+      "nativeSize": {
+        "width": 912,
+        "height": 176
+      },
+      "modeVariants": [
+        "Light",
+        "Dark"
+      ],
+      "figmaComponentSetIds": [],
+      "sourceAuthority": "Compose web preview (designPreview, #201)",
+      "swiftMapping": {
+        "target": "FileFocusCardView",
+        "behavior": "全宽 176 点焦点卡。左侧显示内容，右侧显示名称、来源、状态、最多三个动作和键盘提示。"
+      }
+    },
+    "component/file-quiet-tile": {
+      "name": "Covio/File Quiet Tile",
+      "figmaComponentSetId": "",
+      "purpose": "A content-first item in the quiet file grid.",
+      "variants": [
+        "DEFAULT",
+        "HOVER",
+        "REMOTE",
+        "FETCHING",
+        "FAILED",
+        "UNAVAILABLE"
+      ],
+      "properties": [
+        {
+          "name": "state",
+          "type": "VARIANT",
+          "defaultValue": "DEFAULT"
+        }
+      ],
+      "states": [
+        "state/component/file-quiet-tile/default",
+        "state/component/file-quiet-tile/hover",
+        "state/component/file-quiet-tile/remote",
+        "state/component/file-quiet-tile/fetching",
+        "state/component/file-quiet-tile/failed",
+        "state/component/file-quiet-tile/unavailable"
+      ],
+      "accessibilityRules": [
+        "Do not use color as the only status indicator.",
+        "Keep keyboard focus visible and expose a readable accessible name.",
+        "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows.",
+        "Expose one primary action and a full context menu."
+      ],
+      "composeMapping": {
+        "target": "FileQuietTile",
+        "behavior": "A 217.5 by 146 point tile with a 104-point preview, one title, and one status line."
+      },
+      "nativeSize": {
+        "width": 217.5,
+        "height": 146
+      },
+      "modeVariants": [
+        "Light",
+        "Dark"
+      ],
+      "figmaComponentSetIds": [],
+      "sourceAuthority": "Compose web preview (designPreview, #201)",
+      "swiftMapping": {
+        "target": "FileQuietTileView",
+        "behavior": "安静条目只显示预览、名称和一行状态。悬停显示一个主快捷动作和菜单按钮。点击后进入焦点位。"
+      }
+    },
+    "component/file-filter-menu": {
+      "name": "Covio/File Filter Menu",
+      "figmaComponentSetId": "",
+      "purpose": "A single macOS menu that switches the file area filter.",
+      "variants": [
+        "CLOSED",
+        "OPEN",
+        "FOCUSED"
+      ],
+      "properties": [
+        {
+          "name": "state",
+          "type": "VARIANT",
+          "defaultValue": "CLOSED"
+        }
+      ],
+      "states": [
+        "state/component/file-filter-menu/closed",
+        "state/component/file-filter-menu/open",
+        "state/component/file-filter-menu/focused"
+      ],
+      "accessibilityRules": [
+        "Do not use color as the only status indicator.",
+        "Keep keyboard focus visible and expose a readable accessible name.",
+        "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows.",
+        "Expose the selected filter and the item count for each option."
+      ],
+      "composeMapping": {
+        "target": "FileFilterMenu",
+        "behavior": "The menu contains All, Screenshots, Files, Text, and Transfers with counts."
+      },
+      "nativeSize": {
+        "width": 158,
+        "height": 178
+      },
+      "modeVariants": [
+        "Light",
+        "Dark"
+      ],
+      "figmaComponentSetIds": [],
+      "sourceAuthority": "Compose web preview (designPreview, #201)",
+      "swiftMapping": {
+        "target": "FileFilterMenuView",
+        "behavior": "28 点触发按钮，菜单项高 30 点。显示当前筛选、各项数量和选中勾号。"
+      }
+    },
+    "component/file-empty-state": {
+      "name": "Covio/File Empty State",
+      "figmaComponentSetId": "",
+      "purpose": "The empty and no-match states of the file area.",
+      "variants": [
+        "EMPTY",
+        "NO_MATCH"
+      ],
+      "properties": [
+        {
+          "name": "state",
+          "type": "VARIANT",
+          "defaultValue": "EMPTY"
+        }
+      ],
+      "states": [
+        "state/component/file-empty-state/empty",
+        "state/component/file-empty-state/no-match"
+      ],
+      "accessibilityRules": [
+        "Do not use color as the only status indicator.",
+        "Keep keyboard focus visible and expose a readable accessible name.",
+        "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows.",
+        "Keep the import and new-text actions reachable by keyboard."
+      ],
+      "composeMapping": {
+        "target": "FileEmptyState",
+        "behavior": "Short centered copy with one primary action and one secondary action."
+      },
+      "nativeSize": {
+        "width": 912,
+        "height": 300
+      },
+      "modeVariants": [
+        "Light",
+        "Dark"
+      ],
+      "figmaComponentSetIds": [],
+      "sourceAuthority": "Compose web preview (designPreview, #201)",
+      "swiftMapping": {
+        "target": "FileEmptyStateView",
+        "behavior": "空状态显示加入入口和快捷键。无匹配只显示提示与清除筛选。"
+      }
+    },
+    "component/file-context-menu": {
+      "name": "Covio/File Context Menu",
+      "figmaComponentSetId": "",
+      "purpose": "Complete file actions with macOS menu rhythm.",
+      "variants": [
+        "CLOSED",
+        "OPEN",
+        "DISABLED"
+      ],
+      "properties": [
+        {
+          "name": "state",
+          "type": "VARIANT",
+          "defaultValue": "CLOSED"
+        }
+      ],
+      "states": [
+        "state/component/file-context-menu/closed",
+        "state/component/file-context-menu/open",
+        "state/component/file-context-menu/disabled"
+      ],
+      "accessibilityRules": [
+        "Do not use color as the only status indicator.",
+        "Keep keyboard focus visible and expose a readable accessible name.",
+        "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows.",
+        "Keep destructive actions last and label them in text."
+      ],
+      "composeMapping": {
+        "target": "FileContextMenu",
+        "behavior": "Thirty-point menu rows. A separator precedes Delete."
+      },
+      "nativeSize": {
+        "width": 152,
+        "height": 180
+      },
+      "modeVariants": [
+        "Light",
+        "Dark"
+      ],
+      "figmaComponentSetIds": [],
+      "sourceAuthority": "Compose web preview (designPreview, #201)",
+      "swiftMapping": {
+        "target": "FileContextMenuView",
+        "behavior": "使用原生菜单语义。行高 30 点，删除动作放在最后，并在删除前加分隔线。"
       }
     }
   },
@@ -4202,8 +4508,8 @@
       "zh-Hans": "监控"
     },
     "copy/hub/tab/devices/summary": {
-      "en": "Live CPU, GPU, memory, disk, network, and battery metrics.",
-      "zh-Hans": "CPU、GPU、内存、磁盘、网络和电池的实时指标。"
+      "en": "Live CPU, GPU, memory, disk, network, and power metrics.",
+      "zh-Hans": "CPU、GPU、内存、磁盘、网络和电源的实时指标。"
     },
     "copy/hub/tab/files": {
       "en": "Files",
@@ -4366,8 +4672,8 @@
       "zh-Hans": "网络"
     },
     "copy/monitor/title/battery": {
-      "en": "Battery",
-      "zh-Hans": "电池"
+      "en": "Power",
+      "zh-Hans": "电源"
     },
     "copy/monitor/live": {
       "en": "Live",
@@ -5472,6 +5778,550 @@
     "copy/power/overview/note": {
       "en": "The existing live metrics stay in Overview.",
       "zh-Hans": "现有实时指标保留在概览中。"
+    },
+    "copy/agent/action-cancelled": {
+      "en": "Local action cancelled.",
+      "zh-Hans": "本地操作已取消。"
+    },
+    "copy/agent/action-completed": {
+      "en": "Local action completed.",
+      "zh-Hans": "本地操作已完成。"
+    },
+    "copy/agent/action-failed": {
+      "en": "Local action failed.",
+      "zh-Hans": "本地操作失败。"
+    },
+    "copy/agent/cancel": {
+      "en": "Cancel",
+      "zh-Hans": "取消"
+    },
+    "copy/agent/clear": {
+      "en": "New chat",
+      "zh-Hans": "新对话"
+    },
+    "copy/agent/confirm": {
+      "en": "Allow",
+      "zh-Hans": "允许"
+    },
+    "copy/agent/confirm-body": {
+      "en": "The agent will run this local service after your confirmation.",
+      "zh-Hans": "确认后 Agent 将执行此本地服务。"
+    },
+    "copy/agent/confirm-title": {
+      "en": "Allow local action?",
+      "zh-Hans": "允许本地操作？"
+    },
+    "copy/agent/copy-characters": {
+      "en": "Copy %d characters to the clipboard.",
+      "zh-Hans": "复制 %d 个字符到剪贴板。"
+    },
+    "copy/agent/empty-body": {
+      "en": "It can check monitor, power, workspace, screenshots, and clipboard metadata. Side effects need confirmation.",
+      "zh-Hans": "可查询监控、电源、工作区、截图和剪贴板元数据。有副作用的操作需要确认。"
+    },
+    "copy/agent/empty-response": {
+      "en": "No response.",
+      "zh-Hans": "没有返回内容。"
+    },
+    "copy/agent/empty-title": {
+      "en": "Ask the local agent",
+      "zh-Hans": "询问本地 Agent"
+    },
+    "copy/agent/error": {
+      "en": "The local agent could not complete this request.",
+      "zh-Hans": "本地 Agent 无法完成此请求。"
+    },
+    "copy/agent/name": {
+      "en": "Covio Agent",
+      "zh-Hans": "Covio Agent"
+    },
+    "copy/agent/offline": {
+      "en": "Local only",
+      "zh-Hans": "仅本地"
+    },
+    "copy/agent/placeholder": {
+      "en": "Ask about this Mac or your workspace",
+      "zh-Hans": "询问这台 Mac 或工作区"
+    },
+    "copy/agent/send": {
+      "en": "Send",
+      "zh-Hans": "发送"
+    },
+    "copy/agent/stopped": {
+      "en": "Stopped.",
+      "zh-Hans": "已停止。"
+    },
+    "copy/agent/stop": {
+      "en": "Stop",
+      "zh-Hans": "停止"
+    },
+    "copy/agent/thinking": {
+      "en": "Using local services…",
+      "zh-Hans": "正在使用本地服务…"
+    },
+    "copy/agent/you": {
+      "en": "You",
+      "zh-Hans": "你"
+    },
+    "copy/auto-naming/action/apply": {
+      "en": "Rename Selected",
+      "zh-Hans": "重命名所选"
+    },
+    "copy/auto-naming/action/auto-name": {
+      "en": "Auto Name…",
+      "zh-Hans": "自动命名…"
+    },
+    "copy/auto-naming/action/cancel": {
+      "en": "Cancel",
+      "zh-Hans": "取消"
+    },
+    "copy/auto-naming/action/close": {
+      "en": "Close",
+      "zh-Hans": "关闭"
+    },
+    "copy/auto-naming/action/select": {
+      "en": "Include this file",
+      "zh-Hans": "选择这个文件"
+    },
+    "copy/auto-naming/action/undo": {
+      "en": "Undo Renames",
+      "zh-Hans": "撤销重命名"
+    },
+    "copy/auto-naming/error/analysis": {
+      "en": "Auto naming could not finish. No files were changed.",
+      "zh-Hans": "自动命名未完成。文件没有改动。"
+    },
+    "copy/auto-naming/error/rename": {
+      "en": "The rename run failed. No file was overwritten.",
+      "zh-Hans": "重命名失败。没有文件被覆盖。"
+    },
+    "copy/auto-naming/error/undo": {
+      "en": "Undo could not finish. No file was overwritten.",
+      "zh-Hans": "撤销未完成。没有文件被覆盖。"
+    },
+    "copy/auto-naming/label/evidence": {
+      "en": "Evidence",
+      "zh-Hans": "依据"
+    },
+    "copy/auto-naming/label/original": {
+      "en": "Current name",
+      "zh-Hans": "当前名称"
+    },
+    "copy/auto-naming/label/target": {
+      "en": "Proposed name",
+      "zh-Hans": "建议名称"
+    },
+    "copy/auto-naming/label/warnings": {
+      "en": "Warnings",
+      "zh-Hans": "警告"
+    },
+    "copy/auto-naming/notice/applied": {
+      "en": "Selected files were renamed.",
+      "zh-Hans": "所选文件已重命名。"
+    },
+    "copy/auto-naming/notice/cancelled": {
+      "en": "Auto naming canceled.",
+      "zh-Hans": "已取消自动命名。"
+    },
+    "copy/auto-naming/notice/no-files": {
+      "en": "Choose at least one file.",
+      "zh-Hans": "请选择至少一个文件。"
+    },
+    "copy/auto-naming/notice/no-results": {
+      "en": "No file could be analyzed.",
+      "zh-Hans": "没有可分析的文件。"
+    },
+    "copy/auto-naming/notice/no-selection": {
+      "en": "Select at least one ready file.",
+      "zh-Hans": "请选择至少一个可重命名文件。"
+    },
+    "copy/auto-naming/notice/partial-failure": {
+      "en": "Some files were renamed. Review the failed items.",
+      "zh-Hans": "部分文件已重命名。请检查失败条目。"
+    },
+    "copy/auto-naming/notice/partial-undo": {
+      "en": "Some files were restored. Review the failed items.",
+      "zh-Hans": "部分文件已恢复。请检查失败条目。"
+    },
+    "copy/auto-naming/notice/undone": {
+      "en": "The last rename run was undone.",
+      "zh-Hans": "已撤销上次重命名。"
+    },
+    "copy/auto-naming/risk/conflict": {
+      "en": "Name conflict",
+      "zh-Hans": "名称冲突"
+    },
+    "copy/auto-naming/risk/fallback": {
+      "en": "Fallback title",
+      "zh-Hans": "回退标题"
+    },
+    "copy/auto-naming/risk/low-confidence": {
+      "en": "Low confidence",
+      "zh-Hans": "低可信"
+    },
+    "copy/auto-naming/risk/mixed": {
+      "en": "Mixed content",
+      "zh-Hans": "混合内容"
+    },
+    "copy/auto-naming/risk/prompt-injection": {
+      "en": "Possible prompt injection",
+      "zh-Hans": "可能存在提示注入"
+    },
+    "copy/auto-naming/risk/scanned": {
+      "en": "Scanned document",
+      "zh-Hans": "扫描件"
+    },
+    "copy/auto-naming/risk/truncated": {
+      "en": "Input truncated",
+      "zh-Hans": "输入已截断"
+    },
+    "copy/auto-naming/status/blocked": {
+      "en": "Blocked",
+      "zh-Hans": "已阻止"
+    },
+    "copy/auto-naming/status/failed": {
+      "en": "Failed",
+      "zh-Hans": "失败"
+    },
+    "copy/auto-naming/status/ready": {
+      "en": "Ready",
+      "zh-Hans": "可重命名"
+    },
+    "copy/auto-naming/status/renamed": {
+      "en": "Renamed",
+      "zh-Hans": "已重命名"
+    },
+    "copy/auto-naming/status/undone": {
+      "en": "Undone",
+      "zh-Hans": "已撤销"
+    },
+    "copy/auto-naming/subtitle": {
+      "en": "Files stay in their original folders. Review every proposed name before applying.",
+      "zh-Hans": "文件留在原目录。应用前请检查每个建议名称。"
+    },
+    "copy/auto-naming/title": {
+      "en": "Review Auto Names",
+      "zh-Hans": "检查自动命名"
+    },
+    "copy/hub/tab/agent": {
+      "en": "Agent",
+      "zh-Hans": "助手"
+    },
+    "copy/hub/tab/agent/summary": {
+      "en": "Chat with the offline local agent and its local services.",
+      "zh-Hans": "与离线本地 Agent 对话并使用本地服务。"
+    },
+    "copy/monitor/power/state/battery": {
+      "en": "On battery",
+      "zh-Hans": "电池供电"
+    },
+    "copy/monitor/power/state/connected": {
+      "en": "Power connected",
+      "zh-Hans": "已接通电源"
+    },
+    "copy/monitor/power/temperature": {
+      "en": "Temperature",
+      "zh-Hans": "温度"
+    },
+    "copy/monitor/power/draw": {
+      "en": "Power draw",
+      "zh-Hans": "功耗"
+    },
+    "copy/monitor/power/remaining": {
+      "en": "Estimated time",
+      "zh-Hans": "预计可使用"
+    },
+    "copy/monitor/power/top-apps": {
+      "en": "Top energy · 1 hour",
+      "zh-Hans": "耗电 Top3 · 近 1 小时"
+    },
+    "copy/monitor/power/no-data": {
+      "en": "No data",
+      "zh-Hans": "暂无数据"
+    },
+    "copy/monitor/power/no-battery": {
+      "en": "No battery",
+      "zh-Hans": "无电池设备"
+    },
+    "copy/monitor/power/low-battery": {
+      "en": "Low battery",
+      "zh-Hans": "电量低"
+    },
+    "copy/monitor/power/critical-battery": {
+      "en": "Battery critical",
+      "zh-Hans": "电量极低"
+    },
+    "copy/monitor/power/high-temperature": {
+      "en": "Battery hot",
+      "zh-Hans": "电池温度高"
+    },
+    "copy/monitor/power/read-failed": {
+      "en": "Some readings unavailable",
+      "zh-Hans": "部分读数不可用"
+    },
+    "copy/monitor/power/trend/title": {
+      "en": "Recent trend",
+      "zh-Hans": "近期趋势"
+    },
+    "copy/monitor/power/trend/window": {
+      "en": "Last 1 min",
+      "zh-Hans": "近 1 分钟"
+    },
+    "copy/monitor/power/details/expand": {
+      "en": "Show details",
+      "zh-Hans": "展开详情"
+    },
+    "copy/monitor/power/details/collapse": {
+      "en": "Hide details",
+      "zh-Hans": "收起详情"
+    },
+    "copy/monitor/power/details/title": {
+      "en": "Power details",
+      "zh-Hans": "电源详情"
+    },
+    "copy/monitor/power/details/close": {
+      "en": "Close power details",
+      "zh-Hans": "关闭电源详情"
+    },
+    "copy/monitor/power/history/title": {
+      "en": "Power and temperature · 30 min",
+      "zh-Hans": "功耗与温度 · 近 30 分钟"
+    },
+    "copy/monitor/power/history/accumulating": {
+      "en": "Collecting data",
+      "zh-Hans": "数据积累中"
+    },
+    "copy/monitor/power/estimate/basis": {
+      "en": "Based on recent average power",
+      "zh-Hans": "按近期平均功耗估算"
+    },
+    "copy/monitor/power/average/draw": {
+      "en": "Average power",
+      "zh-Hans": "平均功耗"
+    },
+    "copy/monitor/power/charge/title": {
+      "en": "Charging information",
+      "zh-Hans": "充电信息"
+    },
+    "copy/monitor/power/charge/power": {
+      "en": "Charging power",
+      "zh-Hans": "充电功率"
+    },
+    "copy/monitor/power/charge/time-to-full": {
+      "en": "Time to full",
+      "zh-Hans": "预计充满"
+    },
+    "copy/monitor/power/charge/health": {
+      "en": "Battery health",
+      "zh-Hans": "电池健康度"
+    },
+    "copy/monitor/power/charge-limit/apply": {
+      "en": "Apply limit",
+      "zh-Hans": "应用上限"
+    },
+    "copy/monitor/power/charge-limit/applying": {
+      "en": "Applying charge limit",
+      "zh-Hans": "正在应用充电上限"
+    },
+    "copy/monitor/power/charge-limit/current-charge": {
+      "en": "Current charge",
+      "zh-Hans": "当前电量"
+    },
+    "copy/monitor/power/charge-limit/current-target": {
+      "en": "Current target",
+      "zh-Hans": "当前目标"
+    },
+    "copy/monitor/power/charge-limit/enable": {
+      "en": "Enable limit",
+      "zh-Hans": "启用上限"
+    },
+    "copy/monitor/power/charge-limit/failed": {
+      "en": "Charge limit did not apply",
+      "zh-Hans": "充电上限未生效"
+    },
+    "copy/monitor/power/charge-limit/helper-required": {
+      "en": "Install or repair the helper",
+      "zh-Hans": "请安装或修复 helper"
+    },
+    "copy/monitor/power/charge-limit/restore": {
+      "en": "Restore system default",
+      "zh-Hans": "恢复系统默认"
+    },
+    "copy/monitor/power/charge-limit/resume-at": {
+      "en": "Resume charging at",
+      "zh-Hans": "恢复充电阈值"
+    },
+    "copy/monitor/power/charge-limit/state/above-limit": {
+      "en": "Above limit",
+      "zh-Hans": "高于上限"
+    },
+    "copy/monitor/power/charge-limit/state/bypass": {
+      "en": "Bypass power",
+      "zh-Hans": "旁路供电"
+    },
+    "copy/monitor/power/charge-limit/state/calibration": {
+      "en": "Calibration in progress",
+      "zh-Hans": "校准中"
+    },
+    "copy/monitor/power/charge-limit/state/conflict": {
+      "en": "System policy conflict",
+      "zh-Hans": "系统策略冲突"
+    },
+    "copy/monitor/power/charge-limit/state/error": {
+      "en": "Charge limit error",
+      "zh-Hans": "充电上限错误"
+    },
+    "copy/monitor/power/charge-limit/state/holding": {
+      "en": "Charging paused",
+      "zh-Hans": "已暂停充电"
+    },
+    "copy/monitor/power/charge-limit/state/protection": {
+      "en": "System protection",
+      "zh-Hans": "系统保护中"
+    },
+    "copy/monitor/power/charge-limit/state/sailing": {
+      "en": "Holding current level",
+      "zh-Hans": "保持当前电量"
+    },
+    "copy/monitor/power/charge-limit/state/system": {
+      "en": "macOS controls the charge limit",
+      "zh-Hans": "macOS 控制充电上限"
+    },
+    "copy/monitor/power/charge-limit/state/unplugged": {
+      "en": "Connect the power adapter",
+      "zh-Hans": "请接通电源适配器"
+    },
+    "copy/monitor/power/charge-limit/title": {
+      "en": "Charge limit",
+      "zh-Hans": "充电上限"
+    },
+    "copy/monitor/power/charge-limit/unsupported": {
+      "en": "Charge limit is unavailable",
+      "zh-Hans": "当前设备不支持充电上限"
+    },
+    "copy/monitor/power/events/title": {
+      "en": "Power events · 24 h",
+      "zh-Hans": "供电事件 · 近 24 小时"
+    },
+    "copy/monitor/power/events/connected": {
+      "en": "Adapter connected",
+      "zh-Hans": "已接通电源"
+    },
+    "copy/monitor/power/events/disconnected": {
+      "en": "Adapter disconnected",
+      "zh-Hans": "已断开电源"
+    },
+    "copy/monitor/power/events/fully-charged": {
+      "en": "Fully charged",
+      "zh-Hans": "已充满"
+    },
+    "copy/hub/files/count/items": {
+      "en": "items",
+      "zh-Hans": "项"
+    },
+    "copy/hub/files/status/active": {
+      "en": "active",
+      "zh-Hans": "进行中"
+    },
+    "copy/hub/files/filter/all": {
+      "en": "All",
+      "zh-Hans": "全部"
+    },
+    "copy/hub/files/filter/screenshots": {
+      "en": "Screenshots",
+      "zh-Hans": "截图"
+    },
+    "copy/hub/files/filter/files": {
+      "en": "Files",
+      "zh-Hans": "文件"
+    },
+    "copy/hub/files/filter/text": {
+      "en": "Text",
+      "zh-Hans": "文本"
+    },
+    "copy/hub/files/filter/transfers": {
+      "en": "Transfers",
+      "zh-Hans": "传输"
+    },
+    "copy/hub/files/action/add": {
+      "en": "Add…",
+      "zh-Hans": "加入…"
+    },
+    "copy/hub/files/action/more": {
+      "en": "More",
+      "zh-Hans": "更多"
+    },
+    "copy/hub/files/action/copy": {
+      "en": "Copy",
+      "zh-Hans": "复制"
+    },
+    "copy/hub/files/action/markup": {
+      "en": "Mark Up",
+      "zh-Hans": "标注"
+    },
+    "copy/hub/files/action/save-to-workspace": {
+      "en": "Save to Workspace",
+      "zh-Hans": "存入工作区"
+    },
+    "copy/hub/files/action/copy-text": {
+      "en": "Copy Text",
+      "zh-Hans": "复制正文"
+    },
+    "copy/hub/files/action/download": {
+      "en": "Download",
+      "zh-Hans": "下载"
+    },
+    "copy/hub/files/action/retry": {
+      "en": "Retry",
+      "zh-Hans": "重试"
+    },
+    "copy/hub/files/action/cancel-transfer": {
+      "en": "Cancel Transfer",
+      "zh-Hans": "取消传输"
+    },
+    "copy/hub/files/action/new-text": {
+      "en": "New Text…",
+      "zh-Hans": "新建文本…"
+    },
+    "copy/hub/files/action/clear-filter": {
+      "en": "Clear Filter",
+      "zh-Hans": "清除筛选"
+    },
+    "copy/hub/files/empty/title": {
+      "en": "Drop the next item here",
+      "zh-Hans": "把下一件内容放进来"
+    },
+    "copy/hub/files/empty/hint": {
+      "en": "Screenshots, files, and text stay in recent use.",
+      "zh-Hans": "截图、文件或文本会停在最近使用的位置。"
+    },
+    "copy/hub/files/no-match/title": {
+      "en": "No matching files",
+      "zh-Hans": "没有匹配的文件"
+    },
+    "copy/hub/files/no-match/hint": {
+      "en": "Try another keyword or clear the current filter.",
+      "zh-Hans": "换一个关键词，或清除当前筛选。"
+    },
+    "copy/hub/files/state/on-other-device": {
+      "en": "On another device",
+      "zh-Hans": "在另一台设备"
+    },
+    "copy/hub/files/state/fetching": {
+      "en": "Retrieving",
+      "zh-Hans": "正在取回"
+    },
+    "copy/hub/files/state/transfer-failed": {
+      "en": "Transfer failed",
+      "zh-Hans": "传输失败"
+    },
+    "copy/hub/files/state/unavailable": {
+      "en": "Content unavailable",
+      "zh-Hans": "内容不可用"
+    },
+    "copy/hub/files/state/local": {
+      "en": "Available on this Mac",
+      "zh-Hans": "本机可用"
     }
   },
   "platformMapping": {
@@ -5663,6 +6513,48 @@
       "behavior": "Use the 10-point popover radius and the native focus-return rule.",
       "status": "native-source-mapped",
       "swiftRuntimeTarget": "HubContentRoot"
+    },
+    "platform/component/file-area": {
+      "componentKey": "component/file-area",
+      "runtimeTarget": "FileAreaPreview",
+      "behavior": "One filter menu, one Add button, one focus card, and a quiet four-column grid.",
+      "status": "dual-source-mapped",
+      "swiftRuntimeTarget": "FilesTabView"
+    },
+    "platform/component/file-focus-card": {
+      "componentKey": "component/file-focus-card",
+      "runtimeTarget": "FileFocusCard",
+      "behavior": "Full-width detailed item with preview and compact actions.",
+      "status": "dual-source-mapped",
+      "swiftRuntimeTarget": "FileFocusCardView"
+    },
+    "platform/component/file-quiet-tile": {
+      "componentKey": "component/file-quiet-tile",
+      "runtimeTarget": "FileQuietTile",
+      "behavior": "Content-first grid tile with one primary action on hover.",
+      "status": "dual-source-mapped",
+      "swiftRuntimeTarget": "FileQuietTileView"
+    },
+    "platform/component/file-filter-menu": {
+      "componentKey": "component/file-filter-menu",
+      "runtimeTarget": "FileFilterMenu",
+      "behavior": "Single menu for All, Screenshots, Files, Text, and Transfers.",
+      "status": "dual-source-mapped",
+      "swiftRuntimeTarget": "FileFilterMenuView"
+    },
+    "platform/component/file-empty-state": {
+      "componentKey": "component/file-empty-state",
+      "runtimeTarget": "FileEmptyState",
+      "behavior": "Compact empty and no-match states.",
+      "status": "dual-source-mapped",
+      "swiftRuntimeTarget": "FileEmptyStateView"
+    },
+    "platform/component/file-context-menu": {
+      "componentKey": "component/file-context-menu",
+      "runtimeTarget": "FileContextMenu",
+      "behavior": "Native menu rhythm with destructive action last.",
+      "status": "dual-source-mapped",
+      "swiftRuntimeTarget": "FileContextMenuView"
     }
   },
   "figmaNodeMap": {

@@ -22,6 +22,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // LSUIElement 已经让进程成为代理应用。这里显式再设一次，防止从 Xcode 直接运行时不一致。
         NSApp.setActivationPolicy(.accessory)
 
+        if let path = ProcessInfo.processInfo.environment["COVIO_FILE_NAMING_ACCEPTANCE_PATH"],
+           !path.isEmpty
+        {
+            Task { @MainActor in
+                exit(
+                    await FileNamingAcceptanceVerifier.run(
+                        outputURL: URL(fileURLWithPath: path)
+                    )
+                )
+            }
+            return
+        }
+
+        if let path = ProcessInfo.processInfo.environment["COVIO_FILE_NAMING_SMOKE_PATH"],
+           !path.isEmpty
+        {
+            Task { @MainActor in
+                exit(
+                    await FileNamingSmokeVerifier.run(
+                        outputURL: URL(fileURLWithPath: path)
+                    )
+                )
+            }
+            return
+        }
+
+        if let path = ProcessInfo.processInfo.environment["COVIO_AGENT_ACCEPTANCE_PATH"],
+           !path.isEmpty
+        {
+            Task { @MainActor in
+                exit(
+                    await AgentAcceptanceVerifier.run(
+                        outputURL: URL(fileURLWithPath: path)
+                    )
+                )
+            }
+            return
+        }
+
         // 调试构建可以用环境变量换玻璃底材，便于同一次构建对照截图。
         GlassSurfaceMode.applyEnvironmentOverride()
         MacTheme.applyEnvironmentOverride()
@@ -30,6 +69,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let path = ProcessInfo.processInfo.environment["COVIO_MONITOR_RENDER"], !path.isEmpty {
             Task { @MainActor in
                 exit(await MonitorSnapshotRenderer.render(to: path) ? 0 : 1)
+            }
+            return
+        }
+        if let path = ProcessInfo.processInfo.environment["COVIO_MONITOR_DETAIL_RENDER"], !path.isEmpty {
+            Task { @MainActor in
+                exit(await MonitorPowerDetailRenderer.render(to: path) ? 0 : 1)
             }
             return
         }
@@ -70,6 +115,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             )
             monitorPreview = preview
             preview.showWindow(nil)
+            return
+        }
+        if let path = ProcessInfo.processInfo.environment["COVIO_AGENT_RENDER"], !path.isEmpty {
+            Task { @MainActor in
+                exit(await AgentPreviewRenderer.render(to: path) ? 0 : 1)
+            }
             return
         }
         #endif

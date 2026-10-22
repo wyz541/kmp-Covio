@@ -1,10 +1,13 @@
 package com.wyz.covio.core
 
+import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
@@ -44,6 +47,8 @@ class ConfigStore(
     /**
      * 写入配置。保留文件里本版不认识的键。
      *
+     * `fileNaming` 是嵌套对象，保存时单独合并它，避免抹掉新版写入的未知子键。
+     *
      * **写盘失败不抛异常。** Kotlin 的异常跨到 Swift 没有接收方，
      * 会直接终止进程。磁盘满、目录被删、权限不对都会走到这里。
      * 与 [load] 和 [clear] 一样咽掉：内存里的配置照常生效，只是这一版没落盘。
@@ -59,14 +64,21 @@ class ConfigStore(
             }.getOrNull() ?: JsonObject(emptyMap())
 
             val encoded = json.encodeToJsonElement(AppConfig.serializer(), normalized) as JsonObject
-            val merged = JsonObject(existing.toMutableMap().apply {
-                putAll(encoded)
-                val previousPower = existing["power"] as? JsonObject
-                val nextPower = encoded["power"] as? JsonObject
-                if (previousPower != null && nextPower != null) {
-                    put("power", JsonObject(previousPower + nextPower))
-                }
-            })
+            val mergedObject = existing.toMutableMap().apply { putAll(encoded) }
+
+            val previousPower = existing["power"] as? JsonObject
+            val nextPower = encoded["power"] as? JsonObject
+            if (previousPower != null && nextPower != null) {
+                mergedObject["power"] = JsonObject(previousPower + nextPower)
+            }
+
+            val existingFileNaming = existing["fileNaming"] as? JsonObject
+            val encodedFileNaming = encoded["fileNaming"] as? JsonObject
+            if (existingFileNaming != null && encodedFileNaming != null) {
+                mergedObject["fileNaming"] = JsonObject(existingFileNaming + encodedFileNaming)
+            }
+
+            val merged = JsonObject(mergedObject)
 
             val temporary = temporaryPath(target)
             fileSystem.write(temporary) { writeUtf8(json.encodeToString(JsonObject.serializer(), merged)) }
@@ -152,6 +164,50 @@ class ConfigStore(
                     powerDefaults.closedLidZeroBrightness,
                 ),
             ),
+            chargeLimitEnabled = bool("chargeLimitEnabled", defaults.chargeLimitEnabled),
+            chargeLimitPercent = int("chargeLimitPercent", defaults.chargeLimitPercent),
+            fileNaming = decodeFileNaming(root["fileNaming"], defaults.fileNaming),
+        ).normalized()
+    }
+
+    /**
+     * 文件命名配置是嵌套对象。旧配置没有它，坏掉的字段只回退该字段。
+     */
+    private fun decodeFileNaming(
+        element: JsonElement?,
+        fallback: FileNamingPolicy,
+    ): FileNamingPolicy {
+        val root = element as? JsonObject ?: return fallback
+        fun bool(name: String, defaultValue: Boolean): Boolean =
+            root[name]?.jsonPrimitive?.booleanOrNull ?: defaultValue
+        fun int(name: String, defaultValue: Int): Int =
+            root[name]?.jsonPrimitive?.intOrNull ?: defaultValue
+        fun double(name: String, defaultValue: Double): Double =
+            root[name]?.jsonPrimitive?.doubleOrNull ?: defaultValue
+        fun string(name: String, defaultValue: String): String =
+            root[name]?.jsonPrimitive?.contentOrNull ?: defaultValue
+        fun <T> decoded(name: String, serializer: DeserializationStrategy<T>, defaultValue: T): T =
+            root[name]?.let { value ->
+                runCatching { json.decodeFromJsonElement(serializer, value) }.getOrNull()
+            } ?: defaultValue
+
+        return FileNamingPolicy(
+            schemaVersion = int("schemaVersion", fallback.schemaVersion),
+            template = string("template", fallback.template),
+            maxUTF8Bytes = int("maxUTF8Bytes", fallback.maxUTF8Bytes),
+            separator = string("separator", fallback.separator),
+            lowercaseLatin = bool("lowercaseLatin", fallback.lowercaseLatin),
+            preserveExtension = bool("preserveExtension", fallback.preserveExtension),
+            dateSource = decoded("dateSource", FileNamingDateSource.serializer(), fallback.dateSource),
+            conflictPolicy = decoded(
+                "conflictPolicy",
+                FileNamingConflictPolicy.serializer(),
+                fallback.conflictPolicy,
+            ),
+            conflictSuffix = string("conflictSuffix", fallback.conflictSuffix),
+            minConfidence = double("minConfidence", fallback.minConfidence),
+            requirePreview = bool("requirePreview", fallback.requirePreview),
+            allowVision = bool("allowVision", fallback.allowVision),
         ).normalized()
     }
 
@@ -176,7 +232,7 @@ class ConfigStore(
         /**
          * 本版默认配置，等价于 `AppConfig()`。
          *
-         * Swift 侧调用 `AppConfig()` 要写全所有参数，默认值又抄不过去。
+         * Swift 侧调用 `AppConfig()` 要写全全部参数，默认值又抄不过去。
          * 清除配置时从这一个入口取默认值。
          */
         fun defaults(): AppConfig = AppConfig()

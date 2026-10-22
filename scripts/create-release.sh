@@ -31,6 +31,14 @@ if [[ ! -f "$DMG" ]]; then
   exit 1
 fi
 
+DMG_BYTES="$(stat -f %z "$DMG")"
+GITHUB_ASSET_LIMIT=2147483648
+if [[ "$DMG_BYTES" -ge "$GITHUB_ASSET_LIMIT" ]]; then
+  printf 'DMG is %s bytes. GitHub assets must be smaller than %s bytes.\n'     "$DMG_BYTES" "$GITHUB_ASSET_LIMIT" >&2
+  exit 1
+fi
+bash "$ROOT/scripts/verify-file-naming-bundle.sh" "$DMG"
+
 # The app reads the Releases page.
 # Therefore this release must stay a full release, not a pre-release.
 gh release create "$TAG" "$DMG" \

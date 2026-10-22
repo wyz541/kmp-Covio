@@ -1,4 +1,4 @@
-# ADR-0008：默认关闭的实验性合盖零亮度
+# ADR-0012：默认关闭的实验性合盖零亮度
 
 - Status：accepted
 - Kind：architecture
@@ -20,7 +20,7 @@ GitHub 方案审计发现一条私有路径。
 连续 5 次写入 `0.0` 并恢复 `0.06250307`，每次回读一致。
 
 该 API 是私有 API。它没有稳定头文件，也没有跨版本兼容承诺。
-ADR-0007 的首版范围排除私有亮度接口。
+ADR-0011 的首版范围排除私有亮度接口。
 本 ADR 只修改这一条范围限制。
 
 ## 决策
@@ -106,4 +106,4 @@ ADR-0007 的首版范围排除私有亮度接口。
 - [#203 实验性合盖零亮度](https://github.com/wyz541/kmp-Covio/issues/203)
 - [GitHub 合盖亮度方案审计](../research/github-lid-brightness.md)
 - [合盖显示与最低亮度研究](../research/lid-display-minimum-brightness.md)
-- [ADR-0007：用持久化意图与租约统一电源 Engine](adr-0007-power-engine-policy.md)
+- [ADR-0011：用持久化意图与租约统一电源 Engine](adr-0007-power-engine-policy.md)

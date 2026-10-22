@@ -8,6 +8,7 @@ import com.wyz.covio.core.HelperWire
 import com.wyz.covio.core.HELPER_ALLOWED_COMMANDS as SHARED_ALLOWED_COMMANDS
 import com.wyz.covio.core.HELPER_ALLOWED_UID_PATH as SHARED_ALLOWED_UID_PATH
 import com.wyz.covio.core.HELPER_APP_PATH_FILE as SHARED_APP_PATH_FILE
+import com.wyz.covio.core.HELPER_CLIENT_REQUIREMENT_PATH as SHARED_CLIENT_REQUIREMENT_PATH
 import com.wyz.covio.core.HELPER_DIRECTORY as SHARED_DIRECTORY
 import com.wyz.covio.core.HELPER_LOG_PATH as SHARED_LOG_PATH
 import com.wyz.covio.core.HELPER_PLIST_PATH as SHARED_PLIST_PATH
@@ -30,6 +31,7 @@ object HelperProtocol {
     const val SOCKET_PATH = SHARED_SOCKET_PATH
     const val HELPER_DIRECTORY = SHARED_DIRECTORY
     const val ALLOWED_UID_PATH = SHARED_ALLOWED_UID_PATH
+    const val CLIENT_REQUIREMENT_PATH = SHARED_CLIENT_REQUIREMENT_PATH
     const val VERSION_PATH = SHARED_VERSION_PATH
     const val APP_PATH_FILE = SHARED_APP_PATH_FILE
     const val LOG_PATH = SHARED_LOG_PATH

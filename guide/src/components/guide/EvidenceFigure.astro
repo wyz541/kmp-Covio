@@ -1,0 +1,65 @@
+---
+import { Image } from 'astro:assets';
+const data = Astro.locals.starlightRoute.entry.data as {
+  evidence?: Array<{
+    id: string;
+    image: ImageMetadata;
+    alt: string;
+    capturedAt: Date;
+    device: string;
+    os: string;
+    appearance?: string;
+    scene: string;
+    sourceCommit: string;
+    sourceBranch?: string;
+    sha256: string;
+    status: string;
+    maxWidth?: number;
+  }>;
+};
+const evidence = data.evidence ?? [];
+---
+
+<section class="evidence-section" aria-labelledby="evidence-title">
+  <div class="evidence-section__heading">
+    <div>
+      <p class="guide-eyebrow">真机实例</p>
+      <h2 id="evidence-title">在真实设备上核对界面</h2>
+    </div>
+    <p>图例中的绿色标记表示素材来自实际 Mac。来源分支仅用于内部预览。</p>
+  </div>
+  {evidence.map((item) => (
+    <figure class="evidence-figure">
+      <div class="evidence-figure__image">
+        <Image
+          src={item.image}
+          alt={item.alt}
+          widths={[720, 1200, 1800]}
+          sizes="(max-width: 60rem) 100vw, 60rem"
+          loading="eager"
+          style={item.maxWidth ? `max-width: ${item.maxWidth}px` : undefined}
+        />
+      </div>
+      <figcaption>
+        <div class="evidence-figure__scene">
+          <span class="marker marker--evidence" aria-hidden="true"></span>
+          <strong>{item.scene}</strong>
+        </div>
+        <dl>
+          <div><dt>证据 ID</dt><dd>{item.id}</dd></div>
+          <div><dt>设备</dt><dd>{item.device}</dd></div>
+          <div><dt>系统</dt><dd>{item.os}</dd></div>
+          <div><dt>外观</dt><dd>{item.appearance === 'dark' ? '深色' : '浅色'}</dd></div>
+          <div><dt>日期</dt><dd>{item.capturedAt.toISOString().slice(0, 10)}</dd></div>
+          <div><dt>状态</dt><dd>{item.status}</dd></div>
+        </dl>
+        <details>
+          <summary>核对来源</summary>
+          <p>提交：<code>{item.sourceCommit}</code></p>
+          {item.sourceBranch && <p>分支：<code>{item.sourceBranch}</code></p>}
+          <p>SHA-256：<code>{item.sha256}</code></p>
+        </details>
+      </figcaption>
+    </figure>
+  ))}
+</section>

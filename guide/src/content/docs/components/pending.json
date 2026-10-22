@@ -1,0 +1,31 @@
+{
+  "components": [
+    "alert",
+    "badge",
+    "bento-grid",
+    "card",
+    "clothespin",
+    "dialog",
+    "file-area",
+    "file-context-menu",
+    "file-empty-state",
+    "file-filter-menu",
+    "file-focus-card",
+    "file-quiet-tile",
+    "material",
+    "number-field",
+    "page-title",
+    "popover",
+    "segmented",
+    "setting-row",
+    "switch",
+    "tab-bar",
+    "toast",
+    "toolbar",
+    "tray-menu",
+    "tray-menu-item",
+    "widget-card",
+    "window-bar",
+    "window-shell"
+  ]
+}

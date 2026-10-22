@@ -12,6 +12,15 @@ final class AppPathsTests: XCTestCase {
         XCTAssertTrue(AppPaths.supportDirectory.path.hasSuffix("Application Support/com.wyz.covio"))
     }
 
+    func testSupportDirectoryCanBeIsolatedForBundleVerification() {
+        let expected = FileManager.default.temporaryDirectory
+            .appendingPathComponent("covio-support-\(UUID().uuidString)", isDirectory: true)
+        let actual = AppPaths.supportDirectory(
+            environment: ["COVIO_SUPPORT_DIR": expected.path]
+        )
+        XCTAssertEqual(actual.path, expected.path)
+    }
+
     func testBothVersionsUseDifferentLockFiles() {
         XCTAssertNotEqual(AppPaths.lockFile, AppPaths.composeLockFile)
         XCTAssertEqual(AppPaths.lockFile.lastPathComponent, "app.swiftui.lock")

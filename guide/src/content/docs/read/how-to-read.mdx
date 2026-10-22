@@ -4,6 +4,7 @@ description: 认识章节、组件页、图例和真机证据的组织方式。
 ---
 
 import Legend from '../../../components/guide/Legend.astro';
+import PendingCount from '../../../components/guide/PendingCount.astro';
 
 每一页只回答一个问题。章节回答“它为什么存在”。组件页回答“它是什么，怎样工作”。
 
@@ -23,6 +24,8 @@ import Legend from '../../../components/guide/Legend.astro';
 
 <Legend />
 
+完整的标记和状态含义见[图例与约定](/appendices/legend/)。
+
 ## 阅读顺序
 
 1. 读定义。确认页面讨论的对象。
@@ -32,5 +35,5 @@ import Legend from '../../../components/guide/Legend.astro';
 5. 查看限制。确认结论的适用范围。
 
 :::note[预览限制]
-当前站点只验证信息结构。正式发布前要补齐 24 个设计合同组件，并替换所有预览素材。
+当前还有 <PendingCount /> 个设计合同组件待补。正式发布前必须补齐这些页面。
 :::

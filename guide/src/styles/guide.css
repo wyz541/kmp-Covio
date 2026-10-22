@@ -82,6 +82,7 @@ header.header {
   align-items: center;
   min-height: min(43rem, 78vh);
   padding: clamp(2rem, 6vw, 5rem) 0;
+  overflow: clip;
 }
 
 .guide-hero::before {
@@ -667,6 +668,7 @@ header.header {
   font-family: "Songti SC", "STSong", ui-serif, serif;
   font-size: clamp(1.7rem, 3vw, 2.5rem);
   line-height: 1.15;
+  text-wrap: balance;
 }
 
 .guide-index-card p {
@@ -770,6 +772,165 @@ header.header {
 
 @media (max-width: 50rem) {
   .component-rules {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+.guide-legend__intro > p:last-child {
+  color: var(--sl-color-gray-2);
+}
+
+.guide-legend__groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+.guide-legend__group h3 {
+  margin: 0 0 0.35rem;
+  font-family: var(--sl-font-system-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sl-color-gray-3);
+}
+
+.guide-legend__group li {
+  grid-template-columns: 1rem minmax(5.5rem, 0.35fr) minmax(0, 1fr);
+}
+
+.marker--shell { background: #7656d6; color: #7656d6; }
+.marker--surface { background: var(--covio-brand); color: var(--covio-brand); }
+.marker--component { background: #0a84ff; color: #0a84ff; }
+.marker--state { background: #c18716; color: #c18716; }
+.marker--evidence { background: var(--covio-mint); color: var(--covio-mint); }
+.marker--limit { background: #d70015; color: #d70015; }
+
+.guide-flow {
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+
+.guide-flow article a {
+  display: inline-block;
+  margin-top: 1rem;
+  color: var(--covio-brand);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.surface-map {
+  display: grid;
+  gap: 1rem;
+  margin: 2rem 0 4rem;
+}
+
+.surface-card {
+  padding: 1.35rem;
+  border: 1px solid var(--covio-line);
+  border-radius: 1.25rem;
+  background: var(--covio-card);
+}
+
+.surface-card__heading {
+  display: grid;
+  grid-template-columns: 2.2rem minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.surface-card__heading > span {
+  color: var(--covio-brand);
+  font-family: var(--sl-font-mono);
+  font-size: 0.75rem;
+}
+
+.surface-card h2 {
+  margin: 0;
+  font-family: "Songti SC", "STSong", ui-serif, serif;
+  font-size: clamp(1.7rem, 3vw, 2.5rem);
+}
+
+.surface-card__heading p {
+  max-width: 45rem;
+  margin: 0.5rem 0 0;
+  color: var(--sl-color-gray-2);
+}
+
+.surface-components {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.surface-component {
+  display: inline-flex;
+  gap: 0.45rem;
+  align-items: center;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--covio-line);
+  border-radius: 999px;
+  color: inherit;
+  font-size: 0.82rem;
+  text-decoration: none;
+}
+
+a.surface-component {
+  border-color: color-mix(in srgb, var(--covio-brand) 45%, var(--covio-line));
+  color: var(--covio-brand);
+}
+
+.surface-component--pending {
+  border-style: dashed;
+  color: var(--sl-color-gray-3);
+}
+
+.surface-component small {
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 50rem) {
+  .guide-legend__groups {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 42rem) {
+  .surface-card__heading {
+    grid-template-columns: 1fr;
+  }
+}
+
+.guide-legend {
+  grid-template-columns: 1fr;
+}
+
+.guide-legend__intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(14rem, 0.65fr);
+  gap: 1.5rem;
+  align-items: end;
+}
+
+.guide-legend__intro h2 {
+  max-width: 14ch;
+}
+
+.guide-legend__intro > p:last-child {
+  margin: 0;
+}
+
+.guide-legend__groups {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 50rem) {
+  .guide-legend__intro,
+  .guide-legend__groups {
     grid-template-columns: 1fr;
   }
 }

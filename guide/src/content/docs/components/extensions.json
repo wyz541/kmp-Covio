@@ -5,5 +5,86 @@
       "status": "preview",
       "reason": "High-level power management surface used to validate the evidence pipeline."
     }
+  ],
+  "surfaces": [
+    {
+      "id": "menu-bar",
+      "title": "菜单栏入口",
+      "summary": "用户从系统菜单栏进入 Covio，并查看最高优先级状态。",
+      "componentIds": [
+        "tray-icon",
+        "tray-menu",
+        "tray-menu-item"
+      ]
+    },
+    {
+      "id": "hub-home",
+      "title": "Hub 首页",
+      "summary": "用户从首页组件卡进入常用工作区。",
+      "componentIds": [
+        "bento-grid",
+        "widget-card"
+      ]
+    },
+    {
+      "id": "hub-shell",
+      "title": "Hub 外壳与导航",
+      "summary": "窗口底材、页标题、页签和工具栏共同组织工作区。",
+      "componentIds": [
+        "window-bar",
+        "window-shell",
+        "page-title",
+        "tab-bar",
+        "toolbar",
+        "material"
+      ]
+    },
+    {
+      "id": "files",
+      "title": "统一文件区",
+      "summary": "文件在一个区域里完成浏览、筛选、聚焦和操作。",
+      "componentIds": [
+        "file-area",
+        "file-focus-card",
+        "file-quiet-tile",
+        "file-filter-menu",
+        "file-empty-state",
+        "file-context-menu"
+      ]
+    },
+    {
+      "id": "screenshots",
+      "title": "截图晾衣线",
+      "summary": "截图以卡片和夹子挂在同一根晾衣线上。",
+      "componentIds": [
+        "screenshot-card",
+        "clothespin"
+      ]
+    },
+    {
+      "id": "settings",
+      "title": "设置",
+      "summary": "设置页用卡片、设置行和输入控件组成可搜索的配置界面。",
+      "componentIds": [
+        "card",
+        "setting-row",
+        "switch",
+        "number-field",
+        "segmented",
+        "button"
+      ]
+    },
+    {
+      "id": "feedback",
+      "title": "浮层与反馈",
+      "summary": "对话框、浮层和提示说明操作结果和下一步。",
+      "componentIds": [
+        "dialog",
+        "popover",
+        "alert",
+        "toast",
+        "badge"
+      ]
+    }
   ]
 }

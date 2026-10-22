@@ -1,3 +1,4 @@
+import MLXLMCommon
 import XCTest
 @testable import Covio
 
@@ -45,6 +46,42 @@ final class AgentChatRuntimeTests: XCTestCase {
         XCTAssertTrue(runtime.toolAudits.isEmpty)
     }
 
+    func testCancelAndStopCannotInterruptAnExecutingSideEffect() async {
+        let counter = CopyCounter()
+        let gateway = AgentServiceGateway(
+            handlers: AgentServiceHandlers(
+                monitorSnapshot: { .failure("unused") },
+                powerStatus: { .failure("unused") },
+                workspaceFiles: { _, _ in .failure("unused") },
+                screenshots: { _ in .failure("unused") },
+                clipboardMetadata: { _ in .failure("unused") },
+                copyText: { _ in
+                    try? await Task.sleep(for: .milliseconds(150))
+                    await counter.increment()
+                    return AgentServiceResult(ok: true, summary: "copied", data: nil)
+                }
+            )
+        )
+        let model = PendingCopyAgentModel(gateway: gateway)
+        let runtime = AgentChatRuntime(model: model, gateway: gateway)
+
+        runtime.send("copy")
+        await waitUntil { runtime.stage == .awaitingConfirmation }
+        runtime.confirmPendingAction()
+
+        XCTAssertEqual(runtime.stage, .executing)
+        runtime.cancelPendingAction()
+        runtime.stop()
+        XCTAssertEqual(runtime.stage, .executing)
+
+        await waitUntil { runtime.stage == .idle }
+        let copyCount = await counter.value
+        XCTAssertEqual(copyCount, 1)
+        XCTAssertNil(runtime.pendingAction)
+        let recordedTool = await model.recordedToolName
+        XCTAssertEqual(recordedTool, "copy_text")
+    }
+
     private func waitUntil(_ condition: @escaping @MainActor () -> Bool) async {
         for _ in 0..<100 {
             if condition() { return }
@@ -64,6 +101,48 @@ final class AgentChatRuntimeTests: XCTestCase {
                 copyText: { _ in .failure("unused") }
             )
         )
+    }
+}
+
+private actor CopyCounter {
+    private(set) var value = 0
+
+    func increment() {
+        value += 1
+    }
+}
+
+private actor PendingCopyAgentModel: AgentModelServing {
+    private let gateway: AgentServiceGateway
+    private(set) var recordedToolName: String?
+
+    init(gateway: AgentServiceGateway) {
+        self.gateway = gateway
+    }
+
+    func respond(
+        to prompt: String,
+        onChunk: @Sendable @escaping (String) async -> Void
+    ) async throws -> String {
+        _ = await gateway.handle(
+            ToolCall(function: .init(
+                name: "copy_text",
+                arguments: ["text": .string("confirm me")]
+            ))
+        )
+        return ""
+    }
+
+    func reset() async {}
+    func release() async {}
+
+    func respondAfterServiceResult(
+        toolName: String,
+        result: AgentServiceResult,
+        onChunk: @Sendable @escaping (String) async -> Void
+    ) async throws -> String {
+        recordedToolName = toolName
+        return ""
     }
 }
 

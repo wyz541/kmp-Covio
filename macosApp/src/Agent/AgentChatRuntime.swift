@@ -40,6 +40,7 @@ final class AgentChatRuntime {
     private let model: any AgentModelServing
     private let gateway: AgentServiceGateway
     private var generationTask: Task<Void, Never>?
+    private var executionTask: Task<Void, Never>?
     private var generationID = UUID()
 
     init(
@@ -102,6 +103,7 @@ final class AgentChatRuntime {
     }
 
     func stop() {
+        guard stage != .executing else { return }
         generationTask?.cancel()
         generationTask = nil
         generationID = UUID()
@@ -115,23 +117,54 @@ final class AgentChatRuntime {
 
     func confirmPendingAction() {
         guard let pendingAction, stage == .awaitingConfirmation else { return }
+        errorText = nil
         stage = .executing
         let actionID = pendingAction.id
-        Task {
+        let toolName = pendingAction.toolName
+        executionTask = Task {
             let result = await gateway.confirmPending()
-            guard self.pendingAction?.id == actionID else { return }
+            guard self.pendingAction?.id == actionID else {
+                self.executionTask = nil
+                return
+            }
             self.pendingAction = nil
             let message = result.ok
                 ? ContractCopy.copyAgentActionCompleted.text(for: self.language)
                 : ContractCopy.copyAgentActionFailed.text(for: self.language)
             self.messages.append(AgentChatMessage(role: .service, text: message))
             await self.refreshToolState()
+
+            let assistantID = UUID()
+            self.messages.append(AgentChatMessage(id: assistantID, role: .assistant, text: ""))
+            do {
+                _ = try await model.respondAfterServiceResult(
+                    toolName: toolName,
+                    result: result
+                ) { [weak self] chunk in
+                    await MainActor.run {
+                        guard let self,
+                              let index = self.messages.firstIndex(where: { $0.id == assistantID })
+                        else { return }
+                        self.messages[index].text += chunk
+                    }
+                }
+            } catch is CancellationError {
+                // The action already completed. A cancelled explanation must not change its result.
+            } catch {
+                self.errorText = ContractCopy.copyAgentError.text(for: self.language)
+            }
+            if let index = self.messages.firstIndex(where: { $0.id == assistantID }),
+               self.messages[index].text.isEmpty
+            {
+                self.messages.remove(at: index)
+            }
+            self.executionTask = nil
             self.stage = .idle
         }
     }
 
     func cancelPendingAction() {
-        guard pendingAction != nil else { return }
+        guard pendingAction != nil, stage == .awaitingConfirmation else { return }
         Task {
             await gateway.cancelPending()
             self.pendingAction = nil
@@ -147,9 +180,11 @@ final class AgentChatRuntime {
     }
 
     func clear() {
+        guard !isBusy else { return }
         stop()
         messages = []
         pendingAction = nil
+        executionTask = nil
         toolAudits = []
         errorText = nil
         stage = .idle
@@ -227,7 +262,8 @@ final class AgentChatRuntime {
             id: "preview-copy",
             toolName: "copy_text",
             summary: "Copy 4 characters to the clipboard.",
-            characterCount: 4
+            characterCount: 4,
+            textPreview: "项目周报"
         )
         runtime.toolAudits = [
             AgentToolAudit(

@@ -119,12 +119,151 @@ final class AgentChatRuntimeTests: XCTestCase {
         XCTAssertEqual(recordedTool, "preview_file_names")
     }
 
+    func testRestoreHistoryLoadsTheMostRecentConversation() async throws {
+        let store = makeHistoryStore()
+        let first = AgentChatRuntime(
+            model: FakeAgentModel(chunks: ["saved answer"]),
+            gateway: gateway(),
+            historyStore: store
+        )
+        first.send("saved question")
+        await waitUntil { first.stage == .idle }
+        await first.flushHistory()
+
+        let restored = AgentChatRuntime(
+            model: FakeAgentModel(chunks: ["unused"]),
+            gateway: gateway(),
+            historyStore: store
+        )
+        await restored.restoreHistory()
+
+        XCTAssertEqual(restored.messages.map(\.text), ["saved question", "saved answer"])
+        let latest = try await store.loadLatestSession()
+        XCTAssertEqual(latest?.messages.map(\.text), ["saved question", "saved answer"])
+    }
+
+    func testToolAuditPersistsWithRiskStatusAndDuration() async throws {
+        let store = makeHistoryStore()
+        let gateway = AgentServiceGateway(
+            handlers: AgentServiceHandlers(
+                monitorSnapshot: { .failure("unused") },
+                powerStatus: { .failure("unused") },
+                workspaceFiles: { _, _ in .failure("unused") },
+                screenshots: { _ in .failure("unused") },
+                clipboardMetadata: { _ in .failure("unused") },
+                copyText: { _ in
+                    AgentServiceResult(ok: true, summary: "copied", data: nil)
+                }
+            )
+        )
+        let runtime = AgentChatRuntime(
+            model: PendingCopyAgentModel(gateway: gateway),
+            gateway: gateway,
+            historyStore: store
+        )
+
+        runtime.send("copy")
+        await waitUntil { runtime.stage == .awaitingConfirmation }
+        runtime.confirmPendingAction()
+        await waitUntil { runtime.stage == .idle }
+        await runtime.flushHistory()
+
+        let latest = try await store.loadLatestSession()
+        let completed = latest?.audits.first {
+            $0.toolName == "copy_text" && $0.status == .completed
+        }
+        XCTAssertEqual(completed?.risk, .sideEffect)
+        XCTAssertNotNil(completed?.durationMilliseconds)
+    }
+
+    func testFileDerivedAnswerIsRedactedFromPersistentHistory() async throws {
+        let store = makeHistoryStore()
+        let fileId = "workspace:\(String(repeating: "d", count: 64))"
+        let gateway = AgentServiceGateway(
+            handlers: AgentServiceHandlers(
+                monitorSnapshot: { .failure("unused") },
+                powerStatus: { .failure("unused") },
+                workspaceFiles: { _, _ in .failure("unused") },
+                screenshots: { _ in .failure("unused") },
+                clipboardMetadata: { _ in .failure("unused") },
+                copyText: { _ in .failure("unused") },
+                inspectFile: { id, _ in
+                    AgentServiceResult(
+                        ok: true,
+                        summary: "Inspected",
+                        data: .object([
+                            "fileId": .string(id),
+                            "text": .string("secret-file-body-42"),
+                        ])
+                    )
+                }
+            )
+        )
+        let runtime = AgentChatRuntime(
+            model: FileInspectAgentModel(gateway: gateway, fileId: fileId),
+            gateway: gateway,
+            historyStore: store
+        )
+
+        runtime.send("what is in the file?")
+        await waitUntil { runtime.stage == .idle }
+        await runtime.flushHistory()
+
+        let latest = try await store.loadLatestSession()
+        XCTAssertEqual(
+            latest?.messages.first(where: { $0.role == .assistant })?.text,
+            "[File-derived response omitted from local history.]"
+        )
+        XCTAssertFalse(latest?.messages.contains(where: {
+            $0.text.contains("secret-file-body-42")
+        }) ?? true)
+    }
+
+    func testClearDeletesCurrentSessionAndClearAllDeletesRemainingHistory() async throws {
+        let store = makeHistoryStore()
+        let runtime = AgentChatRuntime(
+            model: FakeAgentModel(chunks: ["answer"]),
+            gateway: gateway(),
+            historyStore: store
+        )
+        runtime.send("first")
+        await waitUntil { runtime.stage == .idle }
+        await runtime.flushHistory()
+
+        runtime.clear()
+        await runtime.flushHistory()
+        let afterClear = try await store.loadLatestSession()
+        XCTAssertNil(afterClear)
+
+        runtime.send("second")
+        await waitUntil { runtime.stage == .idle }
+        await runtime.flushHistory()
+        let afterSecond = try await store.loadLatestSession()
+        XCTAssertNotNil(afterSecond)
+
+        runtime.clearAllHistory()
+        await runtime.flushHistory()
+        let afterClearAll = try await store.loadLatestSession()
+        XCTAssertNil(afterClearAll)
+    }
+
     private func waitUntil(_ condition: @escaping @MainActor () -> Bool) async {
         for _ in 0..<100 {
             if condition() { return }
             try? await Task.sleep(for: .milliseconds(20))
         }
         XCTFail("Condition did not become true")
+    }
+
+    private func makeHistoryStore() -> AgentHistoryStore {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("covio-agent-runtime-history-\(UUID().uuidString)", isDirectory: true)
+        addTeardownBlock {
+            try? FileManager.default.removeItem(at: directory)
+        }
+        return AgentHistoryStore(
+            path: directory.appendingPathComponent("history.sqlite3")
+        )
     }
 
     private func gateway() -> AgentServiceGateway {
@@ -222,6 +361,34 @@ private actor DeferredPreviewAgentModel: AgentModelServing {
         recordedToolName = toolName
         await onChunk("Preview ready.")
         return "Preview ready."
+    }
+
+    func reset() async {}
+    func release() async {}
+}
+
+private actor FileInspectAgentModel: AgentModelServing {
+    private let gateway: AgentServiceGateway
+    private let fileId: String
+
+    init(gateway: AgentServiceGateway, fileId: String) {
+        self.gateway = gateway
+        self.fileId = fileId
+    }
+
+    func respond(
+        to prompt: String,
+        onChunk: @Sendable @escaping (String) async -> Void
+    ) async throws -> String {
+        _ = await gateway.handle(
+            ToolCall(function: .init(
+                name: "inspect_file",
+                arguments: ["fileId": .string(fileId), "maxCharacters": .int(2_000)]
+            ))
+        )
+        let answer = "The file says secret-file-body-42."
+        await onChunk(answer)
+        return answer
     }
 
     func reset() async {}

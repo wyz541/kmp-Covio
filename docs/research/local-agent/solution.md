@@ -9,7 +9,7 @@ flowchart LR
   L --> G["AgentServiceGateway"]
   G --> S["AppRuntime services"]
   G --> C["Confirmation"]
-  G --> A["Audit"]
+  R --> D["Local history"]
   S --> M["Monitor"]
   S --> P["Power"]
   S --> W["Workspace"]
@@ -24,7 +24,8 @@ flowchart LR
 | `AgentTabView` | SwiftUI | 聊天、停止、确认和错误显示 |
 | `AgentChatRuntime` | Swift | 会话状态和任务生命周期 |
 | `LocalAgentModel` | Swift | 模型加载、流式生成和 tool dispatch |
-| `AgentServiceGateway` | Swift | allowlist、schema、确认和审计 |
+| `AgentServiceGateway` | Swift | allowlist、schema、确认和运行期审计 |
+| `AgentHistoryStore` | Swift + SQLite | 持久保存最近会话、消息和工具审计 |
 | `AgentAppServices` | Swift | 连接现有 AppRuntime 服务 |
 | `PaneKind.AGENT` | Kotlin | 导航级工作区种类 |
 
@@ -46,6 +47,7 @@ flowchart LR
 - `kmpDomain/src/com/wyz/covio/core/WorkbenchModels.kt`
 - `macosApp/src/Agent/AgentServiceModels.swift`
 - `macosApp/src/Agent/AgentServiceGateway.swift`
+- `macosApp/src/Agent/AgentHistoryStore.swift`
 - `macosApp/src/Agent/AgentAppServices.swift`
 - `macosApp/src/Agent/LocalAgentModel.swift`
 - `macosApp/src/Agent/AgentChatRuntime.swift`
@@ -107,6 +109,13 @@ tool call -> validate -> execute -> JSON -> model
 tool call -> validate -> pending -> confirm -> execute once -> audit
 ```
 
+### 本地历史
+
+```text
+message or audit -> serialized snapshot -> SQLite transaction
+                 -> latest session restore -> Agent UI
+```
+
 ### 模型绑定只读工具
 
 ```text
@@ -130,6 +139,9 @@ tool call -> validate -> queue -> finish response -> release model lease
 12. 延迟自动执行只允许只读工具。
 13. Agent 重命名只允许用户授权附件，不允许直接修改工作区副本。
 14. 重命名前复核文件身份，同名目标必须拒绝。
+15. SQLite 只保存会话、消息和工具元数据，不保存工具返回的正文数据。
+16. 文件内容参与回答后，持久历史保存占位文本，不保存派生回答。
+17. 清空会话和清空全部历史必须同时删除 SQLite 记录。
 
 ## 可靠性与失败模式
 
@@ -155,6 +167,9 @@ tool call -> validate -> queue -> finish response -> release model lease
 - [x] 设计预览完成。
 - [x] 7 GB Apple Silicon 完成安装包验收。
 - [x] 运行时没有非 loopback 网络连接。
+- [x] 重启后恢复最近会话。
+- [x] 工具调用保存名称、风险、状态、耗时和错误码。
+- [x] 清空会话和清空全部历史会删除 SQLite 记录。
 
 ## 实施计划
 

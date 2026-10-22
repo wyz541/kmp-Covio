@@ -35,6 +35,12 @@ enum ContractCopy {
     static let copyAgentEmptyTitle = LocalizedCopy(key: "copy/agent/empty-title", en: "Ask the local agent", zhHans: "询问本地 Agent")
     /// `copy/agent/error`
     static let copyAgentError = LocalizedCopy(key: "copy/agent/error", en: "The local agent could not complete this request.", zhHans: "本地 Agent 无法完成此请求。")
+    /// `copy/agent/history/clear-all`
+    static let copyAgentHistoryClearAll = LocalizedCopy(key: "copy/agent/history/clear-all", en: "Clear All History", zhHans: "清除全部历史")
+    /// `copy/agent/history/clear-body`
+    static let copyAgentHistoryClearBody = LocalizedCopy(key: "copy/agent/history/clear-body", en: "This removes saved conversations and tool audit records from this Mac. It cannot be undone.", zhHans: "此操作会删除这台 Mac 上保存的会话和工具审计记录。此操作无法撤销。")
+    /// `copy/agent/history/clear-title`
+    static let copyAgentHistoryClearTitle = LocalizedCopy(key: "copy/agent/history/clear-title", en: "Clear all local Agent history?", zhHans: "清除全部本地 Agent 历史？")
     /// `copy/agent/name`
     static let copyAgentName = LocalizedCopy(key: "copy/agent/name", en: "Covio Agent", zhHans: "Covio Agent")
     /// `copy/agent/offline`
@@ -1137,6 +1143,9 @@ enum ContractCopy {
         copyAgentEmptyResponse,
         copyAgentEmptyTitle,
         copyAgentError,
+        copyAgentHistoryClearAll,
+        copyAgentHistoryClearBody,
+        copyAgentHistoryClearTitle,
         copyAgentName,
         copyAgentOffline,
         copyAgentPlaceholder,

@@ -182,13 +182,13 @@ struct MonitorReportBuilder: Sendable {
 
         var observed: TimeInterval = 0
         for (index, sample) in samples.enumerated() {
-            let interval = MonitorHistorySamplingPolicy.interval(for: sample)
+            let interval = MonitorHistoryCadence.interval(for: sample)
             let naturalEnd = sample.sampledAt.addingTimeInterval(interval)
             let segmentEnd: Date
             if index + 1 < samples.count {
                 let next = samples[index + 1].sampledAt
                 if next.timeIntervalSince(sample.sampledAt)
-                    <= MonitorHistorySamplingPolicy.gapThreshold(for: interval) {
+                    <= MonitorHistoryCadence.gapThreshold(for: interval) {
                     segmentEnd = next
                 } else {
                     segmentEnd = naturalEnd
@@ -399,7 +399,7 @@ struct MonitorReportBuilder: Sendable {
             }
             let end = min(
                 sample.sampledAt.addingTimeInterval(
-                    MonitorHistorySamplingPolicy.interval(for: sample)
+                    MonitorHistoryCadence.interval(for: sample)
                 ),
                 range.end
             )
@@ -471,7 +471,7 @@ struct MonitorReportBuilder: Sendable {
             }
             let end = min(
                 sample.sampledAt.addingTimeInterval(
-                    MonitorHistorySamplingPolicy.interval(for: sample)
+                    MonitorHistoryCadence.interval(for: sample)
                 ),
                 range.end
             )

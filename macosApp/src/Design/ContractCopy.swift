@@ -757,8 +757,12 @@ enum ContractCopy {
     static let copyMonitorReportOpen = LocalizedCopy(key: "copy/monitor/report/open", en: "Report", zhHans: "历史报告")
     /// `copy/monitor/report/partial`
     static let copyMonitorReportPartial = LocalizedCopy(key: "copy/monitor/report/partial", en: "Coverage is incomplete. The report marks missing time.", zhHans: "覆盖不完整。报告会标出缺失时间。")
+    /// `copy/monitor/report/peaks/metric`
+    static let copyMonitorReportPeaksMetric = LocalizedCopy(key: "copy/monitor/report/peaks/metric", en: "Metric", zhHans: "指标")
     /// `copy/monitor/report/peaks/title`
     static let copyMonitorReportPeaksTitle = LocalizedCopy(key: "copy/monitor/report/peaks/title", en: "Peaks", zhHans: "峰值")
+    /// `copy/monitor/report/peaks/value`
+    static let copyMonitorReportPeaksValue = LocalizedCopy(key: "copy/monitor/report/peaks/value", en: "Peak", zhHans: "峰值")
     /// `copy/monitor/report/range/end`
     static let copyMonitorReportRangeEnd = LocalizedCopy(key: "copy/monitor/report/range/end", en: "End", zhHans: "结束")
     /// `copy/monitor/report/range/last-10-days`
@@ -769,18 +773,46 @@ enum ContractCopy {
     static let copyMonitorReportRangeStart = LocalizedCopy(key: "copy/monitor/report/range/start", en: "Start", zhHans: "开始")
     /// `copy/monitor/report/summary`
     static let copyMonitorReportSummary = LocalizedCopy(key: "copy/monitor/report/summary", en: "Export a local report for the selected time range.", zhHans: "导出所选时间段的本机报告。")
+    /// `copy/monitor/report/system/chip`
+    static let copyMonitorReportSystemChip = LocalizedCopy(key: "copy/monitor/report/system/chip", en: "Chip", zhHans: "芯片")
+    /// `copy/monitor/report/system/disk`
+    static let copyMonitorReportSystemDisk = LocalizedCopy(key: "copy/monitor/report/system/disk", en: "Disk", zhHans: "磁盘")
+    /// `copy/monitor/report/system/memory`
+    static let copyMonitorReportSystemMemory = LocalizedCopy(key: "copy/monitor/report/system/memory", en: "Memory", zhHans: "内存")
+    /// `copy/monitor/report/system/model`
+    static let copyMonitorReportSystemModel = LocalizedCopy(key: "copy/monitor/report/system/model", en: "Model", zhHans: "机型")
+    /// `copy/monitor/report/system/os`
+    static let copyMonitorReportSystemOs = LocalizedCopy(key: "copy/monitor/report/system/os", en: "macOS", zhHans: "macOS")
+    /// `copy/monitor/report/system/start`
+    static let copyMonitorReportSystemStart = LocalizedCopy(key: "copy/monitor/report/system/start", en: "Start", zhHans: "开始")
     /// `copy/monitor/report/system/title`
     static let copyMonitorReportSystemTitle = LocalizedCopy(key: "copy/monitor/report/system/title", en: "System", zhHans: "系统")
+    /// `copy/monitor/report/table/confidence`
+    static let copyMonitorReportTableConfidence = LocalizedCopy(key: "copy/monitor/report/table/confidence", en: "Confidence", zhHans: "置信度")
+    /// `copy/monitor/report/table/count`
+    static let copyMonitorReportTableCount = LocalizedCopy(key: "copy/monitor/report/table/count", en: "Count", zhHans: "次数")
     /// `copy/monitor/report/table/cpu`
     static let copyMonitorReportTableCpu = LocalizedCopy(key: "copy/monitor/report/table/cpu", en: "CPU", zhHans: "CPU")
+    /// `copy/monitor/report/table/data`
+    static let copyMonitorReportTableData = LocalizedCopy(key: "copy/monitor/report/table/data", en: "Data table", zhHans: "数据表")
+    /// `copy/monitor/report/table/duration`
+    static let copyMonitorReportTableDuration = LocalizedCopy(key: "copy/monitor/report/table/duration", en: "Duration", zhHans: "持续")
+    /// `copy/monitor/report/table/event`
+    static let copyMonitorReportTableEvent = LocalizedCopy(key: "copy/monitor/report/table/event", en: "Event", zhHans: "事件")
     /// `copy/monitor/report/table/gpu`
     static let copyMonitorReportTableGpu = LocalizedCopy(key: "copy/monitor/report/table/gpu", en: "GPU", zhHans: "GPU")
+    /// `copy/monitor/report/table/kind`
+    static let copyMonitorReportTableKind = LocalizedCopy(key: "copy/monitor/report/table/kind", en: "Kind", zhHans: "类型")
     /// `copy/monitor/report/table/memory`
     static let copyMonitorReportTableMemory = LocalizedCopy(key: "copy/monitor/report/table/memory", en: "Memory", zhHans: "内存")
     /// `copy/monitor/report/table/network-down`
     static let copyMonitorReportTableNetworkDown = LocalizedCopy(key: "copy/monitor/report/table/network-down", en: "Download", zhHans: "下行")
     /// `copy/monitor/report/table/network-up`
     static let copyMonitorReportTableNetworkUp = LocalizedCopy(key: "copy/monitor/report/table/network-up", en: "Upload", zhHans: "上行")
+    /// `copy/monitor/report/table/reason`
+    static let copyMonitorReportTableReason = LocalizedCopy(key: "copy/monitor/report/table/reason", en: "Reason", zhHans: "原因")
+    /// `copy/monitor/report/table/source`
+    static let copyMonitorReportTableSource = LocalizedCopy(key: "copy/monitor/report/table/source", en: "Source", zhHans: "来源")
     /// `copy/monitor/report/table/time`
     static let copyMonitorReportTableTime = LocalizedCopy(key: "copy/monitor/report/table/time", en: "Time", zhHans: "时间")
     /// `copy/monitor/report/thresholds/title`
@@ -1636,18 +1668,34 @@ enum ContractCopy {
         copyMonitorReportNoDataHint,
         copyMonitorReportOpen,
         copyMonitorReportPartial,
+        copyMonitorReportPeaksMetric,
         copyMonitorReportPeaksTitle,
+        copyMonitorReportPeaksValue,
         copyMonitorReportRangeEnd,
         copyMonitorReportRangeLast10Days,
         copyMonitorReportRangeLimit,
         copyMonitorReportRangeStart,
         copyMonitorReportSummary,
+        copyMonitorReportSystemChip,
+        copyMonitorReportSystemDisk,
+        copyMonitorReportSystemMemory,
+        copyMonitorReportSystemModel,
+        copyMonitorReportSystemOs,
+        copyMonitorReportSystemStart,
         copyMonitorReportSystemTitle,
+        copyMonitorReportTableConfidence,
+        copyMonitorReportTableCount,
         copyMonitorReportTableCpu,
+        copyMonitorReportTableData,
+        copyMonitorReportTableDuration,
+        copyMonitorReportTableEvent,
         copyMonitorReportTableGpu,
+        copyMonitorReportTableKind,
         copyMonitorReportTableMemory,
         copyMonitorReportTableNetworkDown,
         copyMonitorReportTableNetworkUp,
+        copyMonitorReportTableReason,
+        copyMonitorReportTableSource,
         copyMonitorReportTableTime,
         copyMonitorReportThresholdsTitle,
         copyMonitorReportTitle,

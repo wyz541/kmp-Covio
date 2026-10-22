@@ -4,7 +4,7 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 状态 | 部分完成 |
+| 状态 | 通过，10 天 soak 执行中 |
 | 日期 | 2026-10-22 |
 | 执行人 | agent |
 | 复核人 | 待填写 |
@@ -16,6 +16,7 @@
 | Case 1 | macOS 历史数据覆盖 | 通过，有限制 | [case-macos-log-retention.md](case-macos-log-retention.md) |
 | Case 2 | 监控读取成本 | 通过，有限制 | [case-sampler-cost.md](case-sampler-cost.md) |
 | Case 3 | SQLite 容量与查询 | 通过 | [case-sqlite-capacity.md](case-sqlite-capacity.md) |
+| Case 4 | 真实采样、HTML 导出与 soak | 通过，soak 执行中 | [case-macos-performance-history-soak.md](case-macos-performance-history-soak.md) |
 
 ## 3. 验证目标
 
@@ -31,16 +32,18 @@
 - 公开接口。
 - 只读探针。
 - 合成 14 天样本。
+- 1 小时真实后台采样。
+- 10 天合成报告。
+- HTML 和 SwiftUI 报告界面。
 
 ## 5. 范围外事项
 
-- 真实 10 天后台运行。
 - Intel Mac。
 - 台式机。
 - 独立 GPU。
 - App Sandbox。
 - 电池续航对照。
-- 报告视觉验收。
+- agent 主动触发的系统睡眠和重启。
 
 ## 6. 当前事实
 
@@ -89,11 +92,13 @@
 | V01 | 统一日志、电源日志和诊断报告覆盖 | 已完成 | [Case 1](case-macos-log-retention.md) |
 | V02 | 现有读取器单次与摊薄 CPU 成本 | 已完成 | [Case 2](case-sampler-cost.md) |
 | V03 | 14 天 SQLite 容量与查询 | 已完成 | [Case 3](case-sqlite-capacity.md) |
-| V04 | 1 小时后台采样与睡眠唤醒 | 待执行 | 实现后补 |
-| V05 | 14 天合成报告与缺口表达 | 待执行 | 实现后补 |
-| V06 | 真实 10 天覆盖 | 待执行 | 实现后长时验收 |
+| V04 | 1 小时真实后台采样 | 已完成 | [Case 4](case-macos-performance-history-soak.md) |
+| V05 | 10 天合成报告与缺口表达 | 已完成 | [Case 4](case-macos-performance-history-soak.md) |
+| V06 | 真实 10 天覆盖 | 执行中 | [Case 4](case-macos-performance-history-soak.md) |
 | V07 | Intel 与台式机矩阵 | 待执行 | 找到设备后补 |
-| V08 | 低电量模式耗电 | 待执行 | 实现后补 |
+| V08 | 低电量模式耗电 | 未执行 | 需要电池供电环境 |
+| V09 | 睡眠、暗唤醒、完整唤醒和重启状态机 | 已完成 | [Case 4](case-macos-performance-history-soak.md) |
+| V10 | HTML、浏览器和 SwiftUI 报告界面 | 已完成 | [Case 4](case-macos-performance-history-soak.md) |
 
 ## 11. 证据要求
 
@@ -111,7 +116,9 @@
 4. 确认没有保存原始隐私日志。
 5. 确认临时目录为空。
 
-本目录的三个案例已完成清理。
+合成报告和 1 小时结果已保存到 Covio 项目证据目录。
+长期 soak 目录继续保留。
+Scratch 内的临时截图和 Preview 副本在任务结束时清理。
 
 ## 13. 关联文档
 

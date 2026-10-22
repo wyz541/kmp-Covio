@@ -121,7 +121,12 @@ struct MonitorReportHTMLExporter: Sendable {
             description: text(.copyMonitorReportChartMemory, language),
             buckets: report.buckets,
             series: [
-                .init(name: "Memory", values: report.buckets.map(\.memoryFraction), maximum: 1, color: "#30D158"),
+                .init(
+                    name: text(.copyMonitorReportTableMemory, language),
+                    values: report.buckets.map(\.memoryFraction),
+                    maximum: 1,
+                    color: "#30D158"
+                ),
             ]
         )
         let networkMaximum = max(
@@ -209,19 +214,19 @@ struct MonitorReportHTMLExporter: Sendable {
 
           <h2>\(escape(text(.copyMonitorReportSystemTitle, language)))</h2>
           <div class="scroll"><table>
-            <thead><tr><th>Start</th><th>macOS</th><th>Model</th><th>Chip</th><th>Memory</th><th>Disk</th></tr></thead>
+            <thead><tr><th>\(escape(text(.copyMonitorReportSystemStart, language)))</th><th>\(escape(text(.copyMonitorReportSystemOs, language)))</th><th>\(escape(text(.copyMonitorReportSystemModel, language)))</th><th>\(escape(text(.copyMonitorReportSystemChip, language)))</th><th>\(escape(text(.copyMonitorReportSystemMemory, language)))</th><th>\(escape(text(.copyMonitorReportSystemDisk, language)))</th></tr></thead>
             <tbody>\(systemRows)</tbody>
           </table></div>
 
           <h2>\(escape(text(.copyMonitorReportPeaksTitle, language)))</h2>
           <div class="scroll"><table>
-            <thead><tr><th>Metric</th><th>Peak</th><th>\(escape(text(.copyMonitorReportTableTime, language)))</th></tr></thead>
+            <thead><tr><th>\(escape(text(.copyMonitorReportPeaksMetric, language)))</th><th>\(escape(text(.copyMonitorReportPeaksValue, language)))</th><th>\(escape(text(.copyMonitorReportTableTime, language)))</th></tr></thead>
             <tbody>\(peakRows)</tbody>
           </table></div>
 
           <h2>\(escape(text(.copyMonitorReportThresholdsTitle, language)))</h2>
           <div class="scroll"><table>
-            <thead><tr><th>Kind</th><th>Start</th><th>End</th><th>Duration</th></tr></thead>
+            <thead><tr><th>\(escape(text(.copyMonitorReportTableKind, language)))</th><th>\(escape(text(.copyMonitorReportSystemStart, language)))</th><th>\(escape(text(.copyMonitorReportRangeEnd, language)))</th><th>\(escape(text(.copyMonitorReportTableDuration, language)))</th></tr></thead>
             <tbody>\(thresholdRows)</tbody>
           </table></div>
 
@@ -231,7 +236,7 @@ struct MonitorReportHTMLExporter: Sendable {
           \(networkChart)
 
           <details>
-            <summary>\(escape(text(.copyMonitorReportCoverageTitle, language)))</summary>
+            <summary>\(escape(text(.copyMonitorReportTableData, language)))</summary>
             <div class="scroll"><table>
               <thead><tr><th>\(escape(text(.copyMonitorReportTableTime, language)))</th><th>\(escape(text(.copyMonitorReportTableCpu, language)))</th><th>\(escape(text(.copyMonitorReportTableGpu, language)))</th><th>\(escape(text(.copyMonitorReportTableMemory, language)))</th><th>\(escape(text(.copyMonitorReportTableNetworkDown, language)))</th><th>\(escape(text(.copyMonitorReportTableNetworkUp, language)))</th></tr></thead>
               <tbody>\(tableRows)</tbody>
@@ -240,13 +245,13 @@ struct MonitorReportHTMLExporter: Sendable {
 
           <h2>\(escape(text(.copyMonitorReportEventsTitle, language)))</h2>
           <div class="scroll"><table>
-            <thead><tr><th>Time</th><th>Event</th><th>Source</th><th>Confidence</th></tr></thead>
+            <thead><tr><th>\(escape(text(.copyMonitorReportTableTime, language)))</th><th>\(escape(text(.copyMonitorReportTableEvent, language)))</th><th>\(escape(text(.copyMonitorReportTableSource, language)))</th><th>\(escape(text(.copyMonitorReportTableConfidence, language)))</th></tr></thead>
             <tbody>\(eventRows)</tbody>
           </table></div>
 
           <h2>\(escape(text(.copyMonitorReportGapsTitle, language)))</h2>
           <div class="scroll"><table>
-            <thead><tr><th>Reason</th><th>Count</th><th>Duration</th></tr></thead>
+            <thead><tr><th>\(escape(text(.copyMonitorReportTableReason, language)))</th><th>\(escape(text(.copyMonitorReportTableCount, language)))</th><th>\(escape(text(.copyMonitorReportTableDuration, language)))</th></tr></thead>
             <tbody>\(gapRows)</tbody>
           </table></div>
 
@@ -283,16 +288,29 @@ struct MonitorReportHTMLExporter: Sendable {
         let innerWidth = 940.0
         let innerHeight = 170.0
         let pointCount = max(1, buckets.count)
-        let paths = series.map { series -> String in
-            let points = series.values.enumerated().compactMap { index, value -> String? in
-                guard let value, value.isFinite else { return nil }
+        let paths = series.flatMap { series -> [String] in
+            var segments: [String] = []
+            var current = ""
+            for (index, value) in series.values.enumerated() {
+                guard let value, value.isFinite, buckets[index].sampleCount > 0 else {
+                    if !current.isEmpty {
+                        segments.append(current)
+                        current = ""
+                    }
+                    continue
+                }
                 let x = 30 + innerWidth * Double(index) / Double(max(1, pointCount - 1))
                 let normalized = min(1, max(0, value / max(series.maximum, 0.000_001)))
                 let y = 20 + innerHeight * (1 - normalized)
-                return String(format: "%.2f,%.2f", x, y)
-            }.joined(separator: " ")
+                current += current.isEmpty
+                    ? "M \(String(format: "%.2f", x)) \(String(format: "%.2f", y))"
+                    : " L \(String(format: "%.2f", x)) \(String(format: "%.2f", y))"
+            }
+            if !current.isEmpty { segments.append(current) }
             let safeName = escape(series.name)
-            return "<polyline points=\"\(points)\" fill=\"none\" stroke=\"\(series.color)\" stroke-width=\"2.5\" stroke-linejoin=\"round\" stroke-linecap=\"round\" aria-label=\"\(safeName)\"/>"
+            return segments.map {
+                "<path d=\"\($0)\" fill=\"none\" stroke=\"\(series.color)\" stroke-width=\"2.5\" stroke-linejoin=\"round\" stroke-linecap=\"round\" aria-label=\"\(safeName)\"/>"
+            }
         }.joined(separator: "\n")
         let legend = series.map {
             "<span style=\"display:inline-flex;gap:6px;align-items:center;margin-right:14px\"><span style=\"width:10px;height:10px;border-radius:50%;background:\($0.color)\"></span>\(escape($0.name))</span>"
@@ -340,6 +358,22 @@ struct MonitorReportHTMLExporter: Sendable {
         case copyMonitorReportMethod
         case copyMonitorReportGenerated
         case copyMonitorReportPartial
+        case copyMonitorReportSystemStart
+        case copyMonitorReportSystemOs
+        case copyMonitorReportSystemModel
+        case copyMonitorReportSystemChip
+        case copyMonitorReportSystemMemory
+        case copyMonitorReportSystemDisk
+        case copyMonitorReportPeaksMetric
+        case copyMonitorReportPeaksValue
+        case copyMonitorReportTableDuration
+        case copyMonitorReportTableKind
+        case copyMonitorReportTableEvent
+        case copyMonitorReportTableSource
+        case copyMonitorReportTableConfidence
+        case copyMonitorReportTableReason
+        case copyMonitorReportTableCount
+        case copyMonitorReportTableData
     }
 
     private func text(_ key: TextKey, _ language: AppLanguage) -> String {
@@ -371,6 +405,22 @@ struct MonitorReportHTMLExporter: Sendable {
         case .copyMonitorReportMethod: ContractCopy.copyMonitorReportMethod.text(for: language)
         case .copyMonitorReportGenerated: ContractCopy.copyMonitorReportGenerated.text(for: language)
         case .copyMonitorReportPartial: ContractCopy.copyMonitorReportPartial.text(for: language)
+        case .copyMonitorReportSystemStart: ContractCopy.copyMonitorReportSystemStart.text(for: language)
+        case .copyMonitorReportSystemOs: ContractCopy.copyMonitorReportSystemOs.text(for: language)
+        case .copyMonitorReportSystemModel: ContractCopy.copyMonitorReportSystemModel.text(for: language)
+        case .copyMonitorReportSystemChip: ContractCopy.copyMonitorReportSystemChip.text(for: language)
+        case .copyMonitorReportSystemMemory: ContractCopy.copyMonitorReportSystemMemory.text(for: language)
+        case .copyMonitorReportSystemDisk: ContractCopy.copyMonitorReportSystemDisk.text(for: language)
+        case .copyMonitorReportPeaksMetric: ContractCopy.copyMonitorReportPeaksMetric.text(for: language)
+        case .copyMonitorReportPeaksValue: ContractCopy.copyMonitorReportPeaksValue.text(for: language)
+        case .copyMonitorReportTableDuration: ContractCopy.copyMonitorReportTableDuration.text(for: language)
+        case .copyMonitorReportTableKind: ContractCopy.copyMonitorReportTableKind.text(for: language)
+        case .copyMonitorReportTableEvent: ContractCopy.copyMonitorReportTableEvent.text(for: language)
+        case .copyMonitorReportTableSource: ContractCopy.copyMonitorReportTableSource.text(for: language)
+        case .copyMonitorReportTableConfidence: ContractCopy.copyMonitorReportTableConfidence.text(for: language)
+        case .copyMonitorReportTableReason: ContractCopy.copyMonitorReportTableReason.text(for: language)
+        case .copyMonitorReportTableCount: ContractCopy.copyMonitorReportTableCount.text(for: language)
+        case .copyMonitorReportTableData: ContractCopy.copyMonitorReportTableData.text(for: language)
         }
     }
 
@@ -392,9 +442,16 @@ struct MonitorReportHTMLExporter: Sendable {
             return percent(value, fraction: metric != .batteryPercent)
         case .diskReadRate, .diskWriteRate, .networkReceiveRate, .networkTransmitRate:
             return formatRate(value, language: language)
-        case .swapUsed, .batteryTemperature, .systemPower, .batteryPower,
-             .cpuTemperature, .gpuTemperature, .fanRPM, .cpuFrequency:
-            return String(format: "%.2f", value)
+        case .swapUsed:
+            return formatBytes(value, language: language)
+        case .batteryTemperature, .cpuTemperature, .gpuTemperature:
+            return String(format: "%.1f ℃", value)
+        case .systemPower, .batteryPower:
+            return String(format: "%.1f W", value)
+        case .fanRPM:
+            return "\(Int(value.rounded())) rpm"
+        case .cpuFrequency:
+            return "\(String(format: "%.1f", value)) Hz"
         }
     }
 

@@ -76,6 +76,13 @@ enum AppPaths {
             .appendingPathComponent("history.sqlite3")
     }
 
+    /// Monitor 历史性能样本的本地 SQLite 数据库。
+    static var monitorHistoryFile: URL {
+        supportDirectory
+            .appendingPathComponent("Monitor", isDirectory: true)
+            .appendingPathComponent("history.sqlite")
+    }
+
     /// 文件重命名的撤销计划。每条计划在改名之前写入。
     static var renameUndoDirectory: URL {
         supportDirectory.appendingPathComponent("rename-undo", isDirectory: true)

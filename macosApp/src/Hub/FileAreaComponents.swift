@@ -42,6 +42,9 @@ enum FileAreaAction: Hashable {
     case saveToWorkspace
     case reveal
     case pin(Bool)
+    case download
+    case cancelTransfer
+    case retry
     case remove
 
     var title: LocalizedCopy {
@@ -54,6 +57,9 @@ enum FileAreaAction: Hashable {
         case .reveal: ContractCopy.copyHubFilesActionReveal
         case .pin(let pinned):
             pinned ? ContractCopy.copyHubFilesActionUnpin : ContractCopy.copyHubFilesActionPin
+        case .download: ContractCopy.copyHubFilesActionDownload
+        case .cancelTransfer: ContractCopy.copyHubFilesActionCancelTransfer
+        case .retry: ContractCopy.copyHubFilesActionRetry
         case .remove: ContractCopy.copyHubFilesActionRemove
         }
     }
@@ -67,6 +73,9 @@ enum FileAreaAction: Hashable {
         case .saveToWorkspace: "tray.and.arrow.down"
         case .reveal: "folder"
         case .pin: "pin"
+        case .download: "arrow.down.circle"
+        case .cancelTransfer: "xmark.circle"
+        case .retry: "arrow.clockwise"
         case .remove: "trash"
         }
     }
@@ -108,28 +117,41 @@ enum FileAreaPresentation {
         }
     }
 
-    /// 排序后的完整右键菜单。删除永远在最后，并在它前面加分隔线。
-    static func contextActions(for item: FileAreaItem) -> [FileAreaAction] {
+    /// 排序后的完整右键菜单。传输动作排第一，删除永远在最后。
+    static func contextActions(
+        for item: FileAreaItem,
+        task: WorkspaceTransferTask? = nil
+    ) -> [FileAreaAction] {
         var actions: [FileAreaAction] = []
         let capabilities = item.capabilities
 
-        if capabilities.canCopy {
-            actions.append(.copy)
-        } else if capabilities.canCopyText {
-            actions.append(.copyText)
+        if let transferAction = transferAction(for: item, task: task) {
+            actions.append(transferAction)
+        } else {
+            if capabilities.canCopy {
+                actions.append(.copy)
+            } else if capabilities.canCopyText {
+                actions.append(.copyText)
+            }
+            if capabilities.canOpen { actions.append(.open) }
+            if capabilities.canMarkup { actions.append(.markup) }
+            if capabilities.canSaveToWorkspace { actions.append(.saveToWorkspace) }
+            if capabilities.canReveal { actions.append(.reveal) }
+            if capabilities.canPin { actions.append(.pin(item.pinned)) }
         }
-        if capabilities.canOpen { actions.append(.open) }
-        if capabilities.canMarkup { actions.append(.markup) }
-        if capabilities.canSaveToWorkspace { actions.append(.saveToWorkspace) }
-        if capabilities.canReveal { actions.append(.reveal) }
-        if capabilities.canPin { actions.append(.pin(item.pinned)) }
         if capabilities.canRemove { actions.append(.remove) }
         return actions
     }
 
-    /// 焦点卡最多显示三个主动作。打开总是主操作。
-    static func focusActions(for item: FileAreaItem) -> [FileAreaAction] {
+    /// 焦点卡最多显示三个主动作。传输动作拥有最高优先级。
+    static func focusActions(
+        for item: FileAreaItem,
+        task: WorkspaceTransferTask? = nil
+    ) -> [FileAreaAction] {
         var actions: [FileAreaAction] = []
+        if let transferAction = transferAction(for: item, task: task) {
+            actions.append(transferAction)
+        }
         if item.capabilities.canOpen { actions.append(.open) }
         if item.capabilities.canCopy {
             actions.append(.copy)
@@ -142,8 +164,14 @@ enum FileAreaPresentation {
         return Array(actions.prefix(3))
     }
 
-    /// 安静格子只显示一个快捷动作。
-    static func quickAction(for item: FileAreaItem) -> FileAreaAction? {
+    /// 安静格子只显示一个快捷动作。传输状态总是先给出取消或重试。
+    static func quickAction(
+        for item: FileAreaItem,
+        task: WorkspaceTransferTask? = nil
+    ) -> FileAreaAction? {
+        if let transferAction = transferAction(for: item, task: task) {
+            return transferAction
+        }
         if item.capabilities.canOpen { return .open }
         if item.capabilities.canCopyText { return .copyText }
         if item.capabilities.canCopy { return .copy }
@@ -171,28 +199,82 @@ enum FileAreaPresentation {
     }
 
     /// 状态文字。颜色不是唯一线索，所以每个状态都有文字。
-    static func statusTitle(for item: FileAreaItem, language: AppLanguage) -> String? {
+    static func statusTitle(
+        for item: FileAreaItem,
+        language: AppLanguage,
+        task: WorkspaceTransferTask? = nil
+    ) -> String? {
+        if let task {
+            switch task.phase {
+            case .waiting:
+                return ContractCopy.copyHubFilesStateWaiting.text(for: language)
+            case .transferring:
+                let percent = Int((task.progress * 100).rounded())
+                return "\(ContractCopy.copyHubFilesStateTransferring.text(for: language)) \(percent)%"
+            case .failed:
+                return ContractCopy.copyHubFilesStateTransferFailed.text(for: language)
+            case .cancelled:
+                return ContractCopy.copyHubFilesStateTransferCancelled.text(for: language)
+            }
+        }
         switch item.availability {
-        case FileAreaAvailability.remote: ContractCopy.copyHubFilesStateOnOtherDevice.text(for: language)
-        case FileAreaAvailability.fetching: ContractCopy.copyHubFilesStateFetching.text(for: language)
-        case FileAreaAvailability.unavailable: ContractCopy.copyHubFilesStateUnavailable.text(for: language)
-        default: nil
+        case FileAreaAvailability.remote:
+            return ContractCopy.copyHubFilesStateOnOtherDevice.text(for: language)
+        case FileAreaAvailability.fetching:
+            return ContractCopy.copyHubFilesStateFetching.text(for: language)
+        case FileAreaAvailability.unavailable:
+            return ContractCopy.copyHubFilesStateUnavailable.text(for: language)
+        default:
+            return nil
+        }
+    }
+
+    /// 失败任务的恢复说明。错误码保持可追踪，界面文案按用户能处理的动作分类。
+    static func transferFailureDetail(
+        for task: WorkspaceTransferTask,
+        language: AppLanguage
+    ) -> String? {
+        guard task.phase == .failed, let failure = task.failure else { return nil }
+        switch failure {
+        case .quotaExceeded:
+            return ContractCopy.copyHubFilesErrorQuota.text(for: language)
+        case .storageFull:
+            return ContractCopy.copyHubFilesErrorSave.text(for: language)
+        case .connectionFailed:
+            return ContractCopy.copyHubFilesErrorConnection.text(for: language)
+        case .entryMissing:
+            return ContractCopy.copyHubFilesErrorMissing.text(for: language)
         }
     }
 
     /// 焦点卡第二行。远端条目省略本机文件大小，避免让索引看起来像已下载。
-    static func subtitle(for item: FileAreaItem, url: URL?, language: AppLanguage) -> String {
+    static func subtitle(
+        for item: FileAreaItem,
+        url: URL?,
+        language: AppLanguage,
+        task: WorkspaceTransferTask? = nil
+    ) -> String {
         let origin = item.originDeviceId.isEmpty
             ? ContractCopy.copyHubFilesStateLocal.text(for: language)
             : item.originDeviceId
-        let detail = statusTitle(for: item, language: language)
+        var detail = statusTitle(for: item, language: language, task: task)
             ?? metadata(for: item, url: url, language: language)
+        if let task,
+           let failure = transferFailureDetail(for: task, language: language),
+           !failure.isEmpty {
+            detail = "\(detail) · \(failure)"
+        }
         return detail.isEmpty ? origin : "\(origin) · \(detail)"
     }
 
-    static func accessibilityValue(for item: FileAreaItem, url: URL?, language: AppLanguage) -> String {
+    static func accessibilityValue(
+        for item: FileAreaItem,
+        url: URL?,
+        language: AppLanguage,
+        task: WorkspaceTransferTask? = nil
+    ) -> String {
         let type = typeTitle(for: item, language: language)
-        let subtitle = subtitle(for: item, url: url, language: language)
+        let subtitle = subtitle(for: item, url: url, language: language, task: task)
         return "\(type), \(subtitle)"
     }
 
@@ -207,6 +289,20 @@ enum FileAreaPresentation {
             statusTitle(for: item, language: language) ?? "",
         ]
         return fields.contains { $0.localizedCaseInsensitiveContains(needle) }
+    }
+
+    private static func transferAction(
+        for item: FileAreaItem,
+        task: WorkspaceTransferTask?
+    ) -> FileAreaAction? {
+        if let task {
+            switch task.phase {
+            case .waiting, .transferring: return .cancelTransfer
+            case .failed, .cancelled: return .retry
+            }
+        }
+        if item.capabilities.canDownload { return .download }
+        return nil
     }
 
     private static func fileSize(_ url: URL?) -> Int64 {
@@ -352,10 +448,11 @@ struct FileEmptyStateView: View {
 struct FileContextMenuView: View {
     let item: FileAreaItem
     let language: AppLanguage
+    var transferTask: WorkspaceTransferTask? = nil
     let onAction: (FileAreaAction) -> Void
 
     var body: some View {
-        ForEach(Array(FileAreaPresentation.contextActions(for: item).enumerated()), id: \.offset) { _, action in
+        ForEach(Array(FileAreaPresentation.contextActions(for: item, task: transferTask).enumerated()), id: \.offset) { _, action in
             if action.separatorBefore {
                 Divider()
             }
@@ -381,6 +478,7 @@ struct FileFocusCardView: View {
     let item: FileAreaItem
     let url: URL?
     let language: AppLanguage
+    var transferTask: WorkspaceTransferTask? = nil
     let onAction: (FileAreaAction) -> Void
 
     @State private var hovered = false
@@ -397,7 +495,7 @@ struct FileFocusCardView: View {
                         }
                     }
                     .overlay {
-                        FileStatusOverlay(item: item, language: language)
+                        FileStatusOverlay(item: item, language: language, transferTask: transferTask)
                     }
 
                 details
@@ -421,14 +519,14 @@ struct FileFocusCardView: View {
         .onHover { hovered = $0 }
         .onTapGesture(count: 2) { onAction(.open) }
         .contextMenu {
-            FileContextMenuView(item: item, language: language, onAction: onAction)
+            FileContextMenuView(item: item, language: language, transferTask: transferTask, onAction: onAction)
         }
         .fileDragSource(url: url, enabled: item.capabilities.canDragOut)
         .focusable()
         .focused($keyboardFocused)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(item.displayName)
-        .accessibilityValue(FileAreaPresentation.accessibilityValue(for: item, url: url, language: language))
+        .accessibilityValue(FileAreaPresentation.accessibilityValue(for: item, url: url, language: language, task: transferTask))
     }
 
     private var details: some View {
@@ -439,7 +537,7 @@ struct FileFocusCardView: View {
                     .foregroundStyle(MacTheme.textSecondary)
                 Spacer(minLength: 0)
                 Menu {
-                    FileContextMenuView(item: item, language: language, onAction: onAction)
+                    FileContextMenuView(item: item, language: language, transferTask: transferTask, onAction: onAction)
                 } label: {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 12, weight: .medium))
@@ -459,7 +557,7 @@ struct FileFocusCardView: View {
                 .lineLimit(2)
                 .padding(.top, 5)
 
-            Text(FileAreaPresentation.subtitle(for: item, url: url, language: language))
+            Text(FileAreaPresentation.subtitle(for: item, url: url, language: language, task: transferTask))
                 .font(.system(size: 9.5))
                 .foregroundStyle(MacTheme.textSecondary)
                 .lineLimit(1)
@@ -468,7 +566,7 @@ struct FileFocusCardView: View {
             Spacer(minLength: 8)
 
             HStack(spacing: 6) {
-                ForEach(Array(FileAreaPresentation.focusActions(for: item).enumerated()), id: \.offset) { index, action in
+                ForEach(Array(FileAreaPresentation.focusActions(for: item, task: transferTask).enumerated()), id: \.offset) { index, action in
                     FileMiniButton(
                         title: action.title.text(for: language),
                         primary: index == 0
@@ -478,13 +576,30 @@ struct FileFocusCardView: View {
                 }
             }
 
-            Text("↵  \(ContractCopy.copyHubFilesActionOpen.text(for: language))   ⌘C  \(copyShortcut)   ⌘⌫  \(ContractCopy.copyHubFilesActionRemove.text(for: language))")
+            Text(keyboardHint)
                 .font(.system(size: 8))
                 .foregroundStyle(MacTheme.disabledText)
                 .padding(.top, 7)
         }
         .padding(.horizontal, 17)
         .padding(.vertical, 14)
+    }
+
+    private var keyboardHint: String {
+        if let transferTask {
+            let transferHint: String
+            switch transferTask.phase {
+            case .waiting, .transferring:
+                transferHint = ContractCopy.copyHubFilesActionCancelTransfer.text(for: language)
+            case .failed, .cancelled:
+                transferHint = ContractCopy.copyHubFilesActionRetry.text(for: language)
+            }
+            return "\(transferHint)   ⌘⌫  \(ContractCopy.copyHubFilesActionRemove.text(for: language))"
+        }
+        if item.availability == FileAreaAvailability.remote {
+            return "\(ContractCopy.copyHubFilesActionDownload.text(for: language))   ⌘⌫  \(ContractCopy.copyHubFilesActionRemove.text(for: language))"
+        }
+        return "↵  \(ContractCopy.copyHubFilesActionOpen.text(for: language))   ⌘C  \(copyShortcut)   ⌘⌫  \(ContractCopy.copyHubFilesActionRemove.text(for: language))"
     }
 
     private var copyShortcut: String {
@@ -499,6 +614,7 @@ struct FileQuietTileView: View {
     let item: FileAreaItem
     let url: URL?
     let language: AppLanguage
+    var transferTask: WorkspaceTransferTask? = nil
     let onSelect: () -> Void
     let onAction: (FileAreaAction) -> Void
 
@@ -526,7 +642,7 @@ struct FileQuietTileView: View {
         .onTapGesture(perform: onSelect)
         .onTapGesture(count: 2) { onAction(.open) }
         .contextMenu {
-            FileContextMenuView(item: item, language: language, onAction: onAction)
+            FileContextMenuView(item: item, language: language, transferTask: transferTask, onAction: onAction)
         }
         .fileDragSource(url: url, enabled: item.capabilities.canDragOut)
         .focusable()
@@ -537,7 +653,7 @@ struct FileQuietTileView: View {
         )
         .accessibilityElement(children: .contain)
         .accessibilityLabel(item.displayName)
-        .accessibilityValue(FileAreaPresentation.accessibilityValue(for: item, url: url, language: language))
+        .accessibilityValue(FileAreaPresentation.accessibilityValue(for: item, url: url, language: language, task: transferTask))
         .accessibilityAddTraits(.isButton)
     }
 
@@ -559,7 +675,7 @@ struct FileQuietTileView: View {
                 }
             }
             .overlay {
-                FileStatusOverlay(item: item, language: language, compact: true)
+                FileStatusOverlay(item: item, language: language, transferTask: transferTask, compact: true)
             }
             .overlay(alignment: .bottom) {
                 if hovered {
@@ -572,7 +688,7 @@ struct FileQuietTileView: View {
 
     private var hoverActions: some View {
         HStack(spacing: 4) {
-            if let action = FileAreaPresentation.quickAction(for: item) {
+            if let action = FileAreaPresentation.quickAction(for: item, task: transferTask) {
                 Button {
                     onAction(action)
                 } label: {
@@ -589,7 +705,7 @@ struct FileQuietTileView: View {
             }
 
             Menu {
-                FileContextMenuView(item: item, language: language, onAction: onAction)
+                FileContextMenuView(item: item, language: language, transferTask: transferTask, onAction: onAction)
             } label: {
                 Image(systemName: "ellipsis")
                     .font(.system(size: 9, weight: .semibold))
@@ -617,16 +733,24 @@ struct FileQuietTileView: View {
     }
 
     private var statusText: String {
-        if let status = FileAreaPresentation.statusTitle(for: item, language: language) {
+        if let status = FileAreaPresentation.statusTitle(for: item, language: language, task: transferTask) {
             return status
         }
         return FileAreaPresentation.metadata(for: item, url: url, language: language)
     }
 
     private var statusColor: Color {
+        if transferTask?.phase == .failed {
+            return MacTheme.errorText
+        }
+        if transferTask?.phase == .waiting || transferTask?.phase == .transferring {
+            return MacTheme.brand
+        }
         switch item.availability {
-        case FileAreaAvailability.remote, FileAreaAvailability.fetching: MacTheme.brand
-        default: MacTheme.textSecondary
+        case FileAreaAvailability.remote, FileAreaAvailability.fetching:
+            return MacTheme.brand
+        default:
+            return MacTheme.textSecondary
         }
     }
 }
@@ -721,9 +845,52 @@ struct FilePreviewView: View {
 private struct FileStatusOverlay: View {
     let item: FileAreaItem
     let language: AppLanguage
+    var transferTask: WorkspaceTransferTask? = nil
     var compact = false
 
     var body: some View {
+        if let transferTask {
+            transferStatus(transferTask)
+        } else {
+            itemStatus
+        }
+    }
+
+    @ViewBuilder
+    private func transferStatus(_ task: WorkspaceTransferTask) -> some View {
+        switch task.phase {
+        case .waiting:
+            bottomStatus(
+                ContractCopy.copyHubFilesStateWaiting.text(for: language),
+                progress: nil,
+                background: .black.opacity(compact ? 0.42 : 0.72)
+            )
+        case .transferring:
+            bottomStatus(
+                FileAreaPresentation.statusTitle(for: item, language: language, task: task)
+                    ?? ContractCopy.copyHubFilesStateTransferring.text(for: language),
+                progress: task.progress,
+                background: .black.opacity(compact ? 0.42 : 0.72)
+            )
+        case .failed:
+            bottomStatus(
+                "\(ContractCopy.copyHubFilesStateTransferFailed.text(for: language)) · \(ContractCopy.copyHubFilesActionRetry.text(for: language))",
+                progress: nil,
+                background: MacTheme.errorText.opacity(0.9),
+                showsSpinner: false
+            )
+        case .cancelled:
+            bottomStatus(
+                "\(ContractCopy.copyHubFilesStateTransferCancelled.text(for: language)) · \(ContractCopy.copyHubFilesActionRetry.text(for: language))",
+                progress: nil,
+                background: .black.opacity(0.66),
+                showsSpinner: false
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var itemStatus: some View {
         switch item.availability {
         case FileAreaAvailability.remote:
             fullStatus(
@@ -732,20 +899,11 @@ private struct FileStatusOverlay: View {
                 background: .black.opacity(0.58)
             )
         case FileAreaAvailability.fetching:
-            VStack {
-                Spacer()
-                HStack(spacing: 6) {
-                    ProgressView()
-                        .controlSize(.small)
-                    Text(ContractCopy.copyHubFilesStateFetching.text(for: language))
-                        .font(.system(size: 8.5, weight: .medium))
-                        .foregroundStyle(.white)
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
-                .background(.black.opacity(compact ? 0.42 : 0.72))
-            }
+            bottomStatus(
+                ContractCopy.copyHubFilesStateFetching.text(for: language),
+                progress: nil,
+                background: .black.opacity(compact ? 0.42 : 0.72)
+            )
         case FileAreaAvailability.unavailable:
             fullStatus(
                 title: ContractCopy.copyHubFilesStateUnavailable.text(for: language),
@@ -754,6 +912,37 @@ private struct FileStatusOverlay: View {
             )
         default:
             EmptyView()
+        }
+    }
+
+    private func bottomStatus(
+        _ title: String,
+        progress: Double?,
+        background: Color,
+        showsSpinner: Bool = true
+    ) -> some View {
+        VStack {
+            Spacer()
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    if showsSpinner {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                    Text(title)
+                        .font(.system(size: 8.5, weight: .medium))
+                        .foregroundStyle(.white)
+                    Spacer(minLength: 0)
+                }
+                if let progress {
+                    ProgressView(value: progress)
+                        .progressViewStyle(.linear)
+                        .tint(MacTheme.brand)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(background)
         }
     }
 

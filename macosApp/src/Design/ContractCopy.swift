@@ -323,6 +323,8 @@ enum ContractCopy {
     static let copyHubFilesEmptyHint = LocalizedCopy(key: "copy/hub/files/empty/hint", en: "Screenshots, files, and text stay in recent use.", zhHans: "截图、文件或文本会停在最近使用的位置。")
     /// `copy/hub/files/empty/title`
     static let copyHubFilesEmptyTitle = LocalizedCopy(key: "copy/hub/files/empty/title", en: "Drop the next item here", zhHans: "把下一件内容放进来")
+    /// `copy/hub/files/error/connection`
+    static let copyHubFilesErrorConnection = LocalizedCopy(key: "copy/hub/files/error/connection", en: "Cannot reach the other device.", zhHans: "无法连接另一台设备。")
     /// `copy/hub/files/error/copy`
     static let copyHubFilesErrorCopy = LocalizedCopy(key: "copy/hub/files/error/copy", en: "Cannot copy this item.", zhHans: "无法复制这件内容。")
     /// `copy/hub/files/error/import`
@@ -369,10 +371,16 @@ enum ContractCopy {
     static let copyHubFilesStateLocal = LocalizedCopy(key: "copy/hub/files/state/local", en: "Available on this Mac", zhHans: "本机可用")
     /// `copy/hub/files/state/on-other-device`
     static let copyHubFilesStateOnOtherDevice = LocalizedCopy(key: "copy/hub/files/state/on-other-device", en: "On another device", zhHans: "在另一台设备")
+    /// `copy/hub/files/state/transfer-cancelled`
+    static let copyHubFilesStateTransferCancelled = LocalizedCopy(key: "copy/hub/files/state/transfer-cancelled", en: "Transfer cancelled", zhHans: "已取消传输")
     /// `copy/hub/files/state/transfer-failed`
     static let copyHubFilesStateTransferFailed = LocalizedCopy(key: "copy/hub/files/state/transfer-failed", en: "Transfer failed", zhHans: "传输失败")
+    /// `copy/hub/files/state/transferring`
+    static let copyHubFilesStateTransferring = LocalizedCopy(key: "copy/hub/files/state/transferring", en: "Transferring", zhHans: "正在传输")
     /// `copy/hub/files/state/unavailable`
     static let copyHubFilesStateUnavailable = LocalizedCopy(key: "copy/hub/files/state/unavailable", en: "Content unavailable", zhHans: "内容不可用")
+    /// `copy/hub/files/state/waiting`
+    static let copyHubFilesStateWaiting = LocalizedCopy(key: "copy/hub/files/state/waiting", en: "Waiting to transfer", zhHans: "等待传输")
     /// `copy/hub/files/status/active`
     static let copyHubFilesStatusActive = LocalizedCopy(key: "copy/hub/files/status/active", en: "active", zhHans: "进行中")
     /// `copy/hub/files/usage`
@@ -1273,6 +1281,7 @@ enum ContractCopy {
         copyHubFilesEmpty,
         copyHubFilesEmptyHint,
         copyHubFilesEmptyTitle,
+        copyHubFilesErrorConnection,
         copyHubFilesErrorCopy,
         copyHubFilesErrorImport,
         copyHubFilesErrorMissing,
@@ -1296,8 +1305,11 @@ enum ContractCopy {
         copyHubFilesStateFetching,
         copyHubFilesStateLocal,
         copyHubFilesStateOnOtherDevice,
+        copyHubFilesStateTransferCancelled,
         copyHubFilesStateTransferFailed,
+        copyHubFilesStateTransferring,
         copyHubFilesStateUnavailable,
+        copyHubFilesStateWaiting,
         copyHubFilesStatusActive,
         copyHubFilesUsage,
         copyHubHomeEmptyHint,

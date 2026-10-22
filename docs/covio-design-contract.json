@@ -4447,6 +4447,10 @@
       "en": "Cannot copy this item.",
       "zh-Hans": "无法复制这件内容。"
     },
+    "copy/hub/files/error/connection": {
+      "en": "Cannot reach the other device.",
+      "zh-Hans": "无法连接另一台设备。"
+    },
     "copy/hub/files/error/import": {
       "en": "Cannot read this file.",
       "zh-Hans": "读不到这个文件。"
@@ -6326,6 +6330,18 @@
     "copy/hub/files/state/fetching": {
       "en": "Retrieving",
       "zh-Hans": "正在取回"
+    },
+    "copy/hub/files/state/waiting": {
+      "en": "Waiting to transfer",
+      "zh-Hans": "等待传输"
+    },
+    "copy/hub/files/state/transferring": {
+      "en": "Transferring",
+      "zh-Hans": "正在传输"
+    },
+    "copy/hub/files/state/transfer-cancelled": {
+      "en": "Transfer cancelled",
+      "zh-Hans": "已取消传输"
     },
     "copy/hub/files/state/transfer-failed": {
       "en": "Transfer failed",

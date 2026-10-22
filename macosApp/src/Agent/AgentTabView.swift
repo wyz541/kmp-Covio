@@ -383,7 +383,7 @@ struct AgentHeadingActions: View {
             }
             .buttonStyle(.plain)
             .font(.system(size: 11, weight: .medium))
-            .disabled(agent.isBusy || agent.messages.isEmpty)
+            .disabled(agent.isBusy || (agent.messages.isEmpty && agent.attachments.isEmpty))
             .accessibilityLabel(ContractCopy.copyAgentClear.text(for: language))
 
             Button {

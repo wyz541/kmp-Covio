@@ -205,7 +205,7 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         XCTAssertEqual(try runtime.status().get().phase, "off")
     }
 
-    func testFailedLimitChangeKeepsThePreviousIntent() throws {
+    func testFailedLimitChangeRestoresTheSystemAndClearsTheIntent() throws {
         let backend = FakeChargeLimitBackend()
         let runtime = makeRuntime(
             backend: backend,
@@ -219,7 +219,9 @@ final class ChargeLimitRuntimeTests: XCTestCase {
             runtime.configure(userLimitPercent: 90),
             .failure(.readbackFailed("target"))
         )
-        XCTAssertEqual(try stateStore.load()?.userLimitPercent, 85)
+        XCTAssertNil(try stateStore.load())
+        XCTAssertTrue(backend.restoreCalled)
+        XCTAssertEqual(try runtime.status().get().phase, "off")
     }
 
     func testExternalTargetChangeStopsWritesAndReportsConflict() throws {

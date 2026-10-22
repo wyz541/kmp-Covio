@@ -645,6 +645,7 @@ final class AppRuntime {
             return false
         }
         guard chargeLimitClient.setChargeLimit(percent: percent) else {
+            _ = updateConfigDraft { $0.chargeLimitEnabled = false }
             statusMessage = ContractCopy.copyToastError.text(for: language)
             refreshChargeLimitStatus()
             return false

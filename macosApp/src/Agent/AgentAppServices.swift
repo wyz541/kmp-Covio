@@ -8,9 +8,11 @@ enum AgentAppServices {
     static func handlers(
         shelf: ShelfRuntime,
         clipboard: ClipboardRuntime,
-        workspace: WorkspaceRuntime
+        workspace: WorkspaceRuntime,
+        attachments: AgentAttachmentStore
     ) -> AgentServiceHandlers {
         let monitor = MonitorSampler()
+        let inspector = AgentFileInspector()
         return AgentServiceHandlers(
             monitorSnapshot: {
                 let snapshot = await monitor.sample()
@@ -39,6 +41,16 @@ enum AgentAppServices {
                 await MainActor.run {
                     copyTextResult(text)
                 }
+            },
+            inspectFile: { fileId, maxCharacters in
+                guard let file = await MainActor.run(body: {
+                    resolveFile(fileId: fileId, workspace: workspace, attachments: attachments)
+                }) else {
+                    return .failure("The file is not authorized.", code: .fileUnavailable)
+                }
+                return await Task.detached(priority: .userInitiated) {
+                    inspector.inspect(file, maxCharacters: maxCharacters)
+                }.value
             }
         )
     }
@@ -130,6 +142,7 @@ enum AgentAppServices {
             .prefix(limit)
             .map { entry in
                 JSONValue.object([
+                    "fileId": .string("workspace:\(entry.entryId)"),
                     "name": .string(entry.displayName),
                     "kind": .string(workspaceKindName(entry.kind)),
                     "contentType": .string(entry.contentType),
@@ -144,6 +157,33 @@ enum AgentAppServices {
             summary: "Found \(Array(matches).count) workspace entries.",
             data: .object(["items": .array(Array(matches))])
         )
+    }
+
+    @MainActor
+    private static func resolveFile(
+        fileId: String,
+        workspace: WorkspaceRuntime,
+        attachments: AgentAttachmentStore
+    ) -> ResolvedAgentFile? {
+        guard let reference = AgentFileReference(fileId: fileId) else { return nil }
+        switch reference {
+        case .workspace(let entryId):
+            guard let entry = workspace.entries.first(where: { $0.entryId == entryId }),
+                  let url = workspace.contentURL(entryId)
+            else { return nil }
+            return ResolvedAgentFile(
+                fileId: fileId,
+                displayName: entry.displayName,
+                url: url
+            )
+        case .attachment:
+            guard let file = attachments.file(id: fileId) else { return nil }
+            return ResolvedAgentFile(
+                fileId: file.id,
+                displayName: file.displayName,
+                url: file.url
+            )
+        }
     }
 
     private static func screenshotResult(_ items: [ShelfItem], limit: Int) -> AgentServiceResult {

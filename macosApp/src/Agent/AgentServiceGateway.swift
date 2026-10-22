@@ -170,6 +170,16 @@ actor AgentServiceGateway {
                 stringValue(arguments["query"]),
                 boundedLimit(arguments["limit"], defaultValue: 8)
             )
+        case "inspect_file":
+            guard let fileId = stringValue(arguments["fileId"]),
+                  AgentFileReference(fileId: fileId) != nil
+            else {
+                return .failure("File ID is required.", code: .invalidArguments)
+            }
+            return await handlers.inspectFile(
+                fileId,
+                boundedCharacterLimit(arguments["maxCharacters"], defaultValue: 6_000)
+            )
         case "list_screenshots":
             return await handlers.screenshots(boundedLimit(arguments["limit"], defaultValue: 8))
         case "list_clipboard_metadata":
@@ -194,6 +204,8 @@ actor AgentServiceGateway {
             allowed = []
         case "list_workspace_files":
             allowed = ["query", "limit"]
+        case "inspect_file":
+            allowed = ["fileId", "maxCharacters"]
         case "list_screenshots", "list_clipboard_metadata":
             allowed = ["limit"]
         case "copy_text":
@@ -208,6 +220,18 @@ actor AgentServiceGateway {
         }
         if let limit = arguments["limit"], limit != .null {
             guard let value = intValue(limit), (1...20).contains(value) else { return false }
+        }
+        if descriptor.name == "inspect_file" {
+            guard let fileId = stringValue(arguments["fileId"]),
+                  !fileId.isEmpty,
+                  fileId.count <= 256,
+                  AgentFileReference(fileId: fileId) != nil
+            else { return false }
+            if let maxCharacters = arguments["maxCharacters"], maxCharacters != .null {
+                guard let value = intValue(maxCharacters), (500...20_000).contains(value) else {
+                    return false
+                }
+            }
         }
         if descriptor.name == "copy_text" {
             guard let text = stringValue(arguments["text"]),
@@ -243,6 +267,10 @@ actor AgentServiceGateway {
 
     private func boundedLimit(_ value: JSONValue?, defaultValue: Int) -> Int {
         min(20, max(1, intValue(value) ?? defaultValue))
+    }
+
+    private func boundedCharacterLimit(_ value: JSONValue?, defaultValue: Int) -> Int {
+        min(20_000, max(500, intValue(value) ?? defaultValue))
     }
 
     private func record(

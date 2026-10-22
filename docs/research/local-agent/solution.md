@@ -78,6 +78,7 @@ flowchart LR
 4. `list_screenshots`
 5. `list_clipboard_metadata`
 6. `copy_text`
+7. `inspect_file`
 
 ## 错误码
 
@@ -113,6 +114,8 @@ tool call -> validate -> pending -> confirm -> execute once -> audit
 6. 副作用必须确认。
 7. 取消后不执行。
 8. 工具结果不包含聊天正文或文件正文。
+9. 文件工具只接受稳定文件 ID，不接受任意路径。
+10. 文件正文标记为不可信数据。
 
 ## 可靠性与失败模式
 

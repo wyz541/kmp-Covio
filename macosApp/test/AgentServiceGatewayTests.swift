@@ -141,11 +141,40 @@ final class AgentServiceGatewayTests: XCTestCase {
         XCTAssertEqual(audits.last?.errorCode, .timeout)
     }
 
+    func testInspectFileRequiresStableWorkspaceOrAttachmentId() async {
+        let counter = Counter()
+        let validId = "workspace:\(String(repeating: "a", count: 64))"
+        let gateway = AgentServiceGateway(
+            handlers: handlers(counter: counter) { fileId, _ in
+                await counter.increment(text: fileId)
+                return AgentServiceResult(ok: true, summary: "inspected", data: nil)
+            }
+        )
+
+        _ = await gateway.handle(
+            call(name: "inspect_file", arguments: ["fileId": .string(validId)])
+        )
+        let rejected = await gateway.handle(
+            call(name: "inspect_file", arguments: ["fileId": .string("/etc/passwd")])
+        )
+
+        XCTAssertTrue(rejected.contains("invalidArguments"))
+        let count = await counter.value
+        let lastText = await counter.lastText
+        XCTAssertEqual(count, 1)
+        XCTAssertEqual(lastText, validId)
+    }
+
     private func call(name: String, arguments: [String: JSONValue]) -> ToolCall {
         ToolCall(function: .init(name: name, arguments: arguments))
     }
 
-    private func handlers(counter: Counter) -> AgentServiceHandlers {
+    private func handlers(
+        counter: Counter,
+        inspectFile: @escaping @Sendable (String, Int) async -> AgentServiceResult = { _, _ in
+            .failure("unused", code: .fileUnavailable)
+        }
+    ) -> AgentServiceHandlers {
         let readOnly = AgentServiceResult(
             ok: true,
             summary: "read",
@@ -175,7 +204,8 @@ final class AgentServiceGatewayTests: XCTestCase {
             copyText: { text in
                 await counter.increment(text: text)
                 return AgentServiceResult(ok: true, summary: "copied", data: nil)
-            }
+            },
+            inspectFile: inspectFile
         )
     }
 }

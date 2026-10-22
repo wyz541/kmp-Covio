@@ -2,6 +2,18 @@ import AppKit
 import SwiftUI
 import kmpDomain
 
+private struct FileAreaReduceMotionOverrideKey: EnvironmentKey {
+    static let defaultValue: Bool? = nil
+}
+
+extension EnvironmentValues {
+    /// 调试预览可固定减弱动态效果；正常运行时使用系统设置。
+    var fileAreaReduceMotionOverride: Bool? {
+        get { self[FileAreaReduceMotionOverrideKey.self] }
+        set { self[FileAreaReduceMotionOverrideKey.self] = newValue }
+    }
+}
+
 /// 文件区筛选。Kotlin 的 `FileAreaFilter` 负责数据筛选，这个 Swift 枚举只负责菜单状态。
 enum FileAreaFilterChoice: String, CaseIterable, Identifiable {
     case all
@@ -275,7 +287,10 @@ enum FileAreaPresentation {
     ) -> String {
         let type = typeTitle(for: item, language: language)
         let subtitle = subtitle(for: item, url: url, language: language, task: task)
-        return "\(type), \(subtitle)"
+        let actions = contextActions(for: item, task: task)
+            .map { $0.title.text(for: language) }
+            .joined(separator: ", ")
+        return actions.isEmpty ? "\(type), \(subtitle)" : "\(type), \(subtitle), \(actions)"
     }
 
     /// 搜索同时覆盖名称、来源和类别。筛选仍由 KMP 投影执行。
@@ -444,6 +459,77 @@ struct FileEmptyStateView: View {
     }
 }
 
+/// 键盘打开的完整动作菜单。视觉与右键菜单同序，焦点由上下键和 Tab 管理。
+struct FileKeyboardActionMenuView: View {
+    let item: FileAreaItem
+    let language: AppLanguage
+    var transferTask: WorkspaceTransferTask? = nil
+    let onDismiss: () -> Void
+    let onAction: (FileAreaAction) -> Void
+
+    @FocusState private var focusedAction: Int?
+
+    private var actions: [FileAreaAction] {
+        FileAreaPresentation.contextActions(for: item, task: transferTask)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(actions.enumerated()), id: \.offset) { index, action in
+                if action.separatorBefore {
+                    Divider().padding(.vertical, 4)
+                }
+                Button {
+                    onDismiss()
+                    onAction(action)
+                } label: {
+                    Label(action.title.text(for: language), systemImage: action.symbol)
+                        .font(.system(size: 11))
+                        .foregroundStyle(action.isDestructive ? MacTheme.errorText : MacTheme.textPrimary)
+                        .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
+                        .padding(.horizontal, 8)
+                        .background(
+                            focusedAction == index ? MacTheme.brand.opacity(0.12) : .clear,
+                            in: RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        )
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .focusable()
+                .focused($focusedAction, equals: index)
+            }
+        }
+        .padding(6)
+        .frame(width: 160)
+        .background(.regularMaterial)
+        .onAppear {
+            Task { @MainActor in
+                await Task.yield()
+                focusedAction = 0
+            }
+        }
+        .onKeyPress(.downArrow) {
+            moveFocus(by: 1)
+            return .handled
+        }
+        .onKeyPress(.upArrow) {
+            moveFocus(by: -1)
+            return .handled
+        }
+        .onKeyPress(.escape) {
+            onDismiss()
+            return .handled
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    private func moveFocus(by delta: Int) {
+        guard !actions.isEmpty else { return }
+        let current = focusedAction ?? 0
+        focusedAction = min(max(0, current + delta), actions.count - 1)
+    }
+}
+
 /// 原生右键菜单的内容。删除动作在最后，并使用独立的破坏性样式与分隔线。
 struct FileContextMenuView: View {
     let item: FileAreaItem
@@ -479,10 +565,14 @@ struct FileFocusCardView: View {
     let url: URL?
     let language: AppLanguage
     var transferTask: WorkspaceTransferTask? = nil
+    var keyboardFocused = false
+    var keyboardMenuRequested = false
+    var keyboardMenuRequestNonce = 0
+    var onKeyboardMenuDismissed: () -> Void = {}
     let onAction: (FileAreaAction) -> Void
 
     @State private var hovered = false
-    @FocusState private var keyboardFocused: Bool
+    @State private var keyboardMenuPresented = false
 
     var body: some View {
         GeometryReader { geometry in
@@ -517,13 +607,22 @@ struct FileFocusCardView: View {
         .frame(height: FileAreaMetrics.focusHeight)
         .contentShape(Rectangle())
         .onHover { hovered = $0 }
-        .onTapGesture(count: 2) { onAction(.open) }
+        .onTapGesture(count: 2) {
+            if item.capabilities.canOpen { onAction(.open) }
+        }
         .contextMenu {
             FileContextMenuView(item: item, language: language, transferTask: transferTask, onAction: onAction)
         }
         .fileDragSource(url: url, enabled: item.capabilities.canDragOut)
-        .focusable()
-        .focused($keyboardFocused)
+        .onChange(of: keyboardMenuRequestNonce) { _, _ in
+            if keyboardMenuRequested { keyboardMenuPresented = true }
+        }
+        .onChange(of: keyboardMenuPresented) { _, presented in
+            if !presented { onKeyboardMenuDismissed() }
+        }
+        .popover(isPresented: $keyboardMenuPresented, arrowEdge: .bottom) {
+            keyboardMenu
+        }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(item.displayName)
         .accessibilityValue(FileAreaPresentation.accessibilityValue(for: item, url: url, language: language, task: transferTask))
@@ -566,7 +665,7 @@ struct FileFocusCardView: View {
             Spacer(minLength: 8)
 
             HStack(spacing: 6) {
-                ForEach(Array(FileAreaPresentation.focusActions(for: item, task: transferTask).enumerated()), id: \.offset) { index, action in
+                ForEach(Array(actions.enumerated()), id: \.offset) { index, action in
                     FileMiniButton(
                         title: action.title.text(for: language),
                         primary: index == 0
@@ -585,6 +684,20 @@ struct FileFocusCardView: View {
         .padding(.vertical, 14)
     }
 
+    private var keyboardMenu: some View {
+        FileKeyboardActionMenuView(
+            item: item,
+            language: language,
+            transferTask: transferTask,
+            onDismiss: { keyboardMenuPresented = false },
+            onAction: onAction
+        )
+    }
+
+    private var actions: [FileAreaAction] {
+        FileAreaPresentation.focusActions(for: item, task: transferTask)
+    }
+
     private var keyboardHint: String {
         if let transferTask {
             let transferHint: String
@@ -594,12 +707,12 @@ struct FileFocusCardView: View {
             case .failed, .cancelled:
                 transferHint = ContractCopy.copyHubFilesActionRetry.text(for: language)
             }
-            return "\(transferHint)   ⌘⌫  \(ContractCopy.copyHubFilesActionRemove.text(for: language))"
+            return "\(transferHint)   M  \(ContractCopy.copyHubFilesActionMore.text(for: language))   ⌘⌫  \(ContractCopy.copyHubFilesActionRemove.text(for: language))"
         }
         if item.availability == FileAreaAvailability.remote {
-            return "\(ContractCopy.copyHubFilesActionDownload.text(for: language))   ⌘⌫  \(ContractCopy.copyHubFilesActionRemove.text(for: language))"
+            return "\(ContractCopy.copyHubFilesActionDownload.text(for: language))   M  \(ContractCopy.copyHubFilesActionMore.text(for: language))   ⌘⌫  \(ContractCopy.copyHubFilesActionRemove.text(for: language))"
         }
-        return "↵  \(ContractCopy.copyHubFilesActionOpen.text(for: language))   ⌘C  \(copyShortcut)   ⌘⌫  \(ContractCopy.copyHubFilesActionRemove.text(for: language))"
+        return "↵  \(ContractCopy.copyHubFilesActionOpen.text(for: language))   ⌘C  \(copyShortcut)   M  \(ContractCopy.copyHubFilesActionMore.text(for: language))   ⌘⌫  \(ContractCopy.copyHubFilesActionRemove.text(for: language))"
     }
 
     private var copyShortcut: String {
@@ -615,38 +728,60 @@ struct FileQuietTileView: View {
     let url: URL?
     let language: AppLanguage
     var transferTask: WorkspaceTransferTask? = nil
+    var keyboardFocused = false
+    var keyboardMenuRequested = false
+    var keyboardMenuRequestNonce = 0
+    var onKeyboardMenuDismissed: () -> Void = {}
     let onSelect: () -> Void
     let onAction: (FileAreaAction) -> Void
 
     @State private var hovered = false
-    @FocusState private var keyboardFocused: Bool
+    @State private var keyboardMenuPresented = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            preview
-            Text(item.displayName)
-                .font(.system(size: 10.5, weight: .medium))
-                .foregroundStyle(MacTheme.textPrimary)
-                .lineLimit(2)
-                .frame(maxWidth: .infinity, minHeight: 24, maxHeight: 24, alignment: .topLeading)
-            Text(statusText)
-                .font(.system(size: 8.3))
-                .foregroundStyle(statusColor)
-                .lineLimit(1)
-                .frame(maxWidth: .infinity, minHeight: 10, maxHeight: 10, alignment: .topLeading)
+        GeometryReader { geometry in
+            VStack(alignment: .leading, spacing: 3) {
+                preview
+                Text(item.displayName)
+                    .font(.system(size: 10.5, weight: .medium))
+                    .foregroundStyle(MacTheme.textPrimary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .truncationMode(.tail)
+                    .frame(width: geometry.size.width, alignment: .topLeading)
+                    .frame(height: 24, alignment: .topLeading)
+                Text(statusText)
+                    .font(.system(size: 8.3))
+                    .foregroundStyle(statusColor)
+                    .lineLimit(1)
+                    .multilineTextAlignment(.leading)
+                    .truncationMode(.tail)
+                    .frame(width: geometry.size.width, alignment: .topLeading)
+                    .frame(height: 10, alignment: .topLeading)
+            }
+            .frame(width: geometry.size.width, height: FileAreaMetrics.quietTileHeight, alignment: .topLeading)
         }
-        .frame(height: FileAreaMetrics.quietTileHeight, alignment: .top)
+        .frame(height: FileAreaMetrics.quietTileHeight)
         .clipped()
         .contentShape(Rectangle())
         .onHover { hovered = $0 }
         .onTapGesture(perform: onSelect)
-        .onTapGesture(count: 2) { onAction(.open) }
+        .onTapGesture(count: 2) {
+            if item.capabilities.canOpen { onAction(.open) }
+        }
         .contextMenu {
             FileContextMenuView(item: item, language: language, transferTask: transferTask, onAction: onAction)
         }
         .fileDragSource(url: url, enabled: item.capabilities.canDragOut)
-        .focusable()
-        .focused($keyboardFocused)
+        .onChange(of: keyboardMenuRequestNonce) { _, _ in
+            if keyboardMenuRequested { keyboardMenuPresented = true }
+        }
+        .onChange(of: keyboardMenuPresented) { _, presented in
+            if !presented { onKeyboardMenuDismissed() }
+        }
+        .popover(isPresented: $keyboardMenuPresented, arrowEdge: .bottom) {
+            keyboardMenu
+        }
         .overlay(
             RoundedRectangle(cornerRadius: FileAreaMetrics.tileCornerRadius, style: .continuous)
                 .strokeBorder(keyboardFocused ? MacTheme.focusRing : .clear, lineWidth: 2)
@@ -678,7 +813,7 @@ struct FileQuietTileView: View {
                 FileStatusOverlay(item: item, language: language, transferTask: transferTask, compact: true)
             }
             .overlay(alignment: .bottom) {
-                if hovered {
+                if hovered || keyboardFocused || keyboardMenuPresented {
                     hoverActions
                         .padding(.horizontal, 4)
                         .padding(.bottom, 3)
@@ -688,7 +823,7 @@ struct FileQuietTileView: View {
 
     private var hoverActions: some View {
         HStack(spacing: 4) {
-            if let action = FileAreaPresentation.quickAction(for: item, task: transferTask) {
+            if let action = quickAction {
                 Button {
                     onAction(action)
                 } label: {
@@ -730,6 +865,20 @@ struct FileQuietTileView: View {
                 endPoint: .bottom
             )
         )
+    }
+
+    private var keyboardMenu: some View {
+        FileKeyboardActionMenuView(
+            item: item,
+            language: language,
+            transferTask: transferTask,
+            onDismiss: { keyboardMenuPresented = false },
+            onAction: onAction
+        )
+    }
+
+    private var quickAction: FileAreaAction? {
+        FileAreaPresentation.quickAction(for: item, task: transferTask)
     }
 
     private var statusText: String {
@@ -1028,5 +1177,69 @@ private struct FileDragSourceModifier: ViewModifier {
 private extension View {
     func fileDragSource(url: URL?, enabled: Bool) -> some View {
         modifier(FileDragSourceModifier(url: url, enabled: enabled))
+    }
+}
+
+/// 在 ScrollView 内，SwiftUI 的方向键事件可能先被滚动容器吃掉。
+/// 这个零尺寸 AppKit 监视器只处理文件区已聚焦时的四个方向键，不改其它键盘事件。
+struct FileAreaArrowKeyMonitor: NSViewRepresentable {
+    let isActive: Bool
+    let onMove: (MoveCommandDirection) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(isActive: isActive, onMove: onMove)
+    }
+
+    func makeNSView(context: Context) -> NSView {
+        context.coordinator.install()
+        return NSView(frame: .zero)
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.isActive = isActive
+        context.coordinator.onMove = onMove
+    }
+
+    static func dismantleNSView(_ nsView: NSView, coordinator: Coordinator) {
+        coordinator.remove()
+    }
+
+    @MainActor
+    final class Coordinator {
+        var isActive: Bool
+        var onMove: (MoveCommandDirection) -> Void
+        private var monitor: Any?
+
+        init(isActive: Bool, onMove: @escaping (MoveCommandDirection) -> Void) {
+            self.isActive = isActive
+            self.onMove = onMove
+        }
+
+        func install() {
+            guard monitor == nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                guard let self, self.isActive else { return event }
+                let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+                guard modifiers.isDisjoint(with: [.command, .control, .option]) else { return event }
+                let direction: MoveCommandDirection?
+                switch event.keyCode {
+                case 123: direction = .left
+                case 124: direction = .right
+                case 126: direction = .up
+                case 125: direction = .down
+                default: direction = nil
+                }
+                guard let direction else { return event }
+                self.onMove(direction)
+                return nil
+            }
+        }
+
+        func remove() {
+            if let monitor {
+                NSEvent.removeMonitor(monitor)
+                self.monitor = nil
+            }
+        }
     }
 }

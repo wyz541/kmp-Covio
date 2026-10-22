@@ -6308,6 +6308,10 @@
       "en": "Clear Filter",
       "zh-Hans": "清除筛选"
     },
+    "copy/hub/files/action/dismiss": {
+      "en": "Dismiss",
+      "zh-Hans": "关闭"
+    },
     "copy/hub/files/empty/title": {
       "en": "Drop the next item here",
       "zh-Hans": "把下一件内容放进来"

@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     #if DEBUG
     private var monitorPreview: MonitorPreviewWindowController?
     private var fileAreaPreview: NSWindow?
+    private var fileAreaLivePreview: FileAreaLivePreviewController?
     #endif
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -130,6 +131,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor in
                 exit(FileAreaPreviewRenderer.render(panelWidth: width, to: path) ? 0 : 1)
             }
+            return
+        }
+        if ProcessInfo.processInfo.environment["COVIO_FILE_AREA_LIVE_PREVIEW"] == "1" {
+            NSApp.setActivationPolicy(.regular)
+            let width = Double(ProcessInfo.processInfo.environment["COVIO_FILE_AREA_WIDTH"] ?? "960") ?? 960
+            let state = FileAreaLivePreviewState(
+                rawValue: ProcessInfo.processInfo.environment["COVIO_FILE_AREA_PREVIEW_STATE"] ?? "normal"
+            ) ?? .normal
+            let reduceMotion = ProcessInfo.processInfo.environment["COVIO_FILE_AREA_REDUCE_MOTION"] == "1"
+            let preview = FileAreaLivePreviewController(
+                panelWidth: width,
+                state: state,
+                reduceMotion: reduceMotion
+            )
+            fileAreaLivePreview = preview
+            preview.present()
             return
         }
         if ProcessInfo.processInfo.environment["COVIO_FILE_AREA_PREVIEW"] == "1" {

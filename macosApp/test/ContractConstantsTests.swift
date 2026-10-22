@@ -220,6 +220,7 @@ final class ContractConstantsTests: XCTestCase {
             "copy/hub/files/kind/audio",
             "copy/hub/files/error/copy",
             "copy/hub/files/error/connection",
+            "copy/hub/files/action/dismiss",
             "copy/hub/files/state/waiting",
             "copy/hub/files/state/transferring",
             "copy/hub/files/state/transfer-cancelled",

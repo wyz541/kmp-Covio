@@ -76,14 +76,19 @@ enum CovioMain {
 #if DEBUG
     /// Debug 构建的硬件验证入口。命令仍由 helper 校验客户端签名和参数范围。
     private static func handleChargeLimitMaintenance(_ arguments: [String]) -> Bool {
+        if arguments.contains(DebugChargeCommand.helperStatus) {
+            exit(printHelperStatus())
+        }
         if arguments.contains(DebugChargeCommand.status) {
             exit(printChargeLimitReply(
-                command: HelperWire.shared.COMMAND_CHARGE_LIMIT_STATUS
+                command: HelperWire.shared.COMMAND_CHARGE_LIMIT_STATUS,
+                timeoutMillis: 3_000
             ))
         }
         if arguments.contains(DebugChargeCommand.restore) {
             exit(printChargeLimitReply(
-                command: HelperWire.shared.COMMAND_CHARGE_LIMIT_RESTORE
+                command: HelperWire.shared.COMMAND_CHARGE_LIMIT_RESTORE,
+                timeoutMillis: 20_000
             ))
         }
         if let index = arguments.firstIndex(of: DebugChargeCommand.configure) {
@@ -95,7 +100,8 @@ enum CovioMain {
             }
             exit(printChargeLimitReply(
                 command: HelperWire.shared.COMMAND_CHARGE_LIMIT_CONFIGURE,
-                payload: ["percent": String(percent)]
+                payload: ["percent": String(percent)],
+                timeoutMillis: 20_000
             ))
         }
         return false
@@ -103,14 +109,40 @@ enum CovioMain {
 
     private static func printChargeLimitReply(
         command: String,
-        payload: [String: String] = [:]
+        payload: [String: String] = [:],
+        timeoutMillis: Int? = nil
     ) -> Int32 {
-        guard let reply = HelperClient().request(command: command, payload: payload) else {
+        guard let reply = HelperClient().request(
+            command: command,
+            payload: payload,
+            timeoutMillis: timeoutMillis
+        ) else {
             log("Helper did not reply to \(command)")
             return 1
         }
         print(HelperWire.shared.encodeReply(reply: reply))
         return reply.ok ? 0 : 1
+    }
+
+    private static func printHelperStatus() -> Int32 {
+        let exists = FileManager.default.fileExists(atPath: HelperProtocol.socketPath)
+        let client = HelperClient()
+        let info = client.versionInfo()
+        let ops = MacPrivilegedOps(
+            logger: FileAppLogger(),
+            executablePath: executablePath,
+            client: client
+        )
+        let sameVersion = info?.version == ModelsKt.APP_VERSION
+        let sameProtocol = info?.protocolVersion == HelperProtocol.protocolVersion
+        print("socket=\(HelperProtocol.socketPath)")
+        print("exists=\(exists)")
+        print("version=\(info?.version ?? "nil")")
+        print("protocol=\(info?.protocolVersion ?? "nil")")
+        print("expectedVersion=\(ModelsKt.APP_VERSION)")
+        print("expectedProtocol=\(HelperProtocol.protocolVersion)")
+        print("opsStatus=\(ops.status())")
+        return exists && sameVersion && sameProtocol ? 0 : 1
     }
 #endif
 }
@@ -130,6 +162,7 @@ enum MaintenanceCommand {
 #if DEBUG
 /// 只用于真机验证的调试命令。发布构建不包含这些入口。
 enum DebugChargeCommand {
+    static let helperStatus = "--helper-status"
     static let status = "--charge-limit-status"
     static let configure = "--charge-limit-configure"
     static let restore = "--charge-limit-restore"

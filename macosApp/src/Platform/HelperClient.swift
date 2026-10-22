@@ -173,12 +173,12 @@ final class HelperClient: @unchecked Sendable {
         request(
             command: "chargeLimitConfigure",
             payload: ["percent": String(percent)],
-            timeoutMillis: 10_000
+            timeoutMillis: 20_000
         )?.ok == true
     }
 
     func restoreChargeLimit() -> Bool {
-        request(command: "chargeLimitRestore", timeoutMillis: 10_000)?.ok == true
+        request(command: "chargeLimitRestore", timeoutMillis: 20_000)?.ok == true
     }
 
     // MARK: - 私有

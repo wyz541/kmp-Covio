@@ -693,7 +693,10 @@ final class AppRuntime {
         if config.chargeLimitEnabled {
             let desired = Int(config.chargeLimitPercent)
             if status?.enabled != true || status?.userLimitPercent != desired {
-                _ = chargeLimitClient.setChargeLimit(percent: desired)
+                if !chargeLimitClient.setChargeLimit(percent: desired) {
+                    _ = updateConfigDraft { $0.chargeLimitEnabled = false }
+                    statusMessage = ContractCopy.copyToastError.text(for: language)
+                }
                 chargeLimitStatus = chargeLimitClient.chargeLimitStatus()
             }
         } else if status?.enabled == true {

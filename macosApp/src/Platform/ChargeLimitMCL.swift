@@ -7,6 +7,8 @@ enum DirectMCLPreference {
     static let keyOptimizedChargingEnabled = "enabled"
     static let keyFeatureState = "MCLFeatureState"
     static let keyLimitValue = "mclLimitValue"
+    static let keyCheckpoint = "checkpoint"
+    static let keyCurrentState = "currentState"
     static let changedNotification = "com.apple.smartcharging.defaultschanged"
 }
 
@@ -438,6 +440,8 @@ final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
         preferences.writeBool(DirectMCLPreference.keyOptimizedChargingEnabled, value: false)
         preferences.writeInt(DirectMCLPreference.keyFeatureState, value: 1)
         preferences.writeInt(DirectMCLPreference.keyLimitValue, value: targetPercent)
+        preferences.remove(DirectMCLPreference.keyCheckpoint)
+        preferences.remove(DirectMCLPreference.keyCurrentState)
         guard preferences.synchronize() else { return false }
         preferences.notifyChanged()
         guard preferences.readBool(DirectMCLPreference.keyOptimizedChargingEnabled) == false,
@@ -471,6 +475,8 @@ final class ChargeLimitMCLController: ChargeLimitBackend, @unchecked Sendable {
             DirectMCLPreference.keyOptimizedChargingEnabled,
             value: original.optimizedChargingEnabled
         )
+        preferences.remove(DirectMCLPreference.keyCheckpoint)
+        preferences.remove(DirectMCLPreference.keyCurrentState)
         guard preferences.synchronize() else { return false }
         preferences.notifyChanged()
         return preferences.readInt(DirectMCLPreference.keyFeatureState) == original.featureState &&

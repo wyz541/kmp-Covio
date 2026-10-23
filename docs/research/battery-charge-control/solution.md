@@ -42,13 +42,14 @@
 2. 写入 Covio 配置。
 3. 目标不低于 `80%` 时调用 `enableMCL:error:` 与 `setMCLLimit:error:`。
 4. 目标低于 `80%` 时先保持 MCL 开启，再写入 `enabled=false`、`MCLFeatureState=1` 与 `mclLimitValue`。
-5. 目标低于 `80%` 时发送 `com.apple.smartcharging.defaultschanged` Darwin 通知。
-6. 等待系统注册策略。
-7. 读取 `PowerUI getMCLLimitWithError:` 与 `pmset -g battlimit`。
-8. 校验目标值、电池充电状态和功率。
-9. PowerUI 接受写入后，保持 `applying` 等待 powerd 确认。
-10. 充电时 powerd 可能等待下一次电量 `1%` 步进。
-11. `pmset` 与 PowerUI 目标一致后退出等待态。
+5. 目标低于 `80%` 时删除 `checkpoint` 与 `currentState`，重置 PowerUI 状态机。
+6. 目标低于 `80%` 时发送 `com.apple.smartcharging.defaultschanged` Darwin 通知。
+7. 等待系统注册策略。
+8. 读取 `PowerUI getMCLLimitWithError:` 与 `pmset -g battlimit`。
+9. 校验目标值、电池充电状态和功率。
+10. PowerUI 接受写入后，保持 `applying` 等待 powerd 确认。
+11. 充电时 powerd 可能等待下一次电量 `1%` 步进。
+12. `pmset` 与 PowerUI 目标一致后退出等待态。
 
 如果任一步失败，执行恢复流程。
 

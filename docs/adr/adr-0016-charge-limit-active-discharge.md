@@ -29,6 +29,7 @@ SMC `CHIE` 可以强制旁路，但这是额外的硬件写入风险。
 8. helper 协议升级为 `5`。客户端必须发送 `activeDischarge` 值。
 9. 首版不写 SMC `CHIE`。
 10. 写入失败时恢复原策略，并关闭主动放电意图。
+11. 低档位写入删除 `checkpoint` 与 `currentState`，重置 PowerUI 状态机。
 
 ## 后果
 

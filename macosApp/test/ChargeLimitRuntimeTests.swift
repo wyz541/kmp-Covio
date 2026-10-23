@@ -5,6 +5,7 @@ import kmpDomain
 final class ChargeLimitRuntimeTests: XCTestCase {
     private var directory: URL!
     private var stateStore: ChargeLimitRuntimeStateStore!
+    private var activeDischargePort: FakeChargeLimitActiveDischarge!
 
     override func setUpWithError() throws {
         directory = FileManager.default.temporaryDirectory
@@ -13,6 +14,7 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         stateStore = ChargeLimitRuntimeStateStore(
             url: directory.appendingPathComponent("charge-limit/runtime.json")
         )
+        activeDischargePort = FakeChargeLimitActiveDischarge()
     }
 
     override func tearDownWithError() throws {
@@ -104,12 +106,15 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         XCTAssertEqual(status.phase, "discharging")
         XCTAssertEqual(status.effectiveTargetPercent, 70)
         XCTAssertTrue(status.activeDischargeEnabled)
+        XCTAssertTrue(status.activeDischargeSupported)
         XCTAssertEqual(backend.appliedTargets, [70])
+        XCTAssertTrue(activeDischargePort.engaged)
 
         reader.reading = reading(current: 70)
         let holding = try runtime.evaluateNow().get()
         XCTAssertEqual(holding.phase, "holding")
         XCTAssertEqual(holding.effectiveTargetPercent, 70)
+        XCTAssertFalse(activeDischargePort.engaged)
 
         reader.reading = reading(current: 65)
         let charging = try runtime.evaluateNow().get()
@@ -122,11 +127,35 @@ final class ChargeLimitRuntimeTests: XCTestCase {
             userLimitPercent: 70,
             activeDischargeEnabled: false
         ).get()
+        XCTAssertFalse(activeDischargePort.engaged)
         let stopping = try runtime.evaluateNow().get()
         XCTAssertEqual(stopping.phase, "stoppingDischarge")
 
         reader.reading = reading(current: 80)
         XCTAssertEqual(try runtime.evaluateNow().get().phase, "aboveLimit")
+    }
+
+    func testEngagedChieKeepsActiveDischargeDespiteAdapterVisibility() throws {
+        let backend = FakeChargeLimitBackend()
+        let reader = FakeChargeLimitPowerReader(reading: reading(current: 79))
+        let runtime = makeRuntime(backend: backend, reader: reader)
+        defer { _ = runtime.restore() }
+
+        _ = try runtime.configure(
+            userLimitPercent: 70,
+            activeDischargeEnabled: true
+        ).get()
+        XCTAssertTrue(activeDischargePort.engaged)
+
+        reader.reading = reading(
+            current: 79,
+            adapter: false,
+            activelyDischarging: true
+        )
+        let status = try runtime.evaluateNow().get()
+
+        XCTAssertEqual(status.phase, "discharging")
+        XCTAssertTrue(activeDischargePort.engaged)
     }
 
     func testActiveDischargeNudgesWhenPowerdDropsTheTarget() throws {
@@ -186,6 +215,21 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         reader.reading = reading(current: 80)
         _ = try runtime.evaluateNow().get()
         XCTAssertEqual(backend.appliedTargets, [70, 71])
+    }
+
+    func testActiveDischargeRequiresChieSupport() {
+        activeDischargePort.supported = false
+        let backend = FakeChargeLimitBackend()
+        let runtime = makeRuntime(
+            backend: backend,
+            reader: FakeChargeLimitPowerReader(reading: reading(current: 80))
+        )
+
+        XCTAssertEqual(
+            runtime.configure(userLimitPercent: 70, activeDischargeEnabled: true),
+            .failure(.readbackFailed("CHIE active discharge support"))
+        )
+        XCTAssertTrue(backend.appliedTargets.isEmpty)
     }
 
     func testFirstConfigurePersistsAMatchingObservedTarget() throws {
@@ -470,6 +514,7 @@ final class ChargeLimitRuntimeTests: XCTestCase {
             backend: backend,
             powerReader: reader,
             stateStore: stateStore,
+            activeDischargePort: activeDischargePort,
             intervalSeconds: 3_600,
             activeDischargeNudgeDelaySeconds: activeDischargeNudgeDelaySeconds,
             activeDischargeNudgeCooldownSeconds: activeDischargeNudgeCooldownSeconds
@@ -550,5 +595,25 @@ private final class FakeChargeLimitBackend: ChargeLimitBackend, @unchecked Senda
         restoreCalled = true
         state = nil
         return .success(())
+    }
+}
+
+private final class FakeChargeLimitActiveDischarge: ChargeLimitActiveDischargePort, @unchecked Sendable {
+    var supported = true
+    var engaged = false
+    var engageResult = true
+    var releaseResult = true
+
+    func capability() -> Bool { supported }
+    func isEngaged() -> Bool? { engaged }
+    func engage() -> Bool {
+        guard supported, engageResult else { return false }
+        engaged = true
+        return true
+    }
+    func release() -> Bool {
+        guard releaseResult else { return false }
+        engaged = false
+        return true
     }
 }

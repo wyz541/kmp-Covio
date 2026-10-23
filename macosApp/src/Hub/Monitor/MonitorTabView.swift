@@ -1290,7 +1290,11 @@ private struct MonitorPowerChargeLimitControls: View {
             }
             .toggleStyle(.switch)
             .controlSize(.mini)
-            .disabled(controlsDisabled || pendingLimit >= 100)
+            .disabled(
+                controlsDisabled ||
+                    pendingLimit >= 100 ||
+                    status?.activeDischargeSupported == false
+            )
 
             if pendingActiveDischarge {
                 Text(ContractCopy.copyMonitorPowerChargeLimitActiveDischargeWarning.text(for: language))

@@ -204,7 +204,32 @@ com.apple.private.usernotifications.bundle-identifiers
 
 详细步骤和结果见 issue #162。
 
-## 12. 未执行
+## 12. `CHIE` 主动放电真机验证（2026-10-23）
+
+环境：MacBookPro18,2，macOS `27.0.1`。
+
+只读检查：
+
+- `CHIE` 存在。
+- 数据长度为 `1`。
+- 属性为 `0xd4`，包含可写位。
+- 原值为 `0x00`。
+
+受控写入：
+
+| 操作 | 结果 |
+| --- | --- |
+| 写入 `CHIE=0x08` | 回读为 `0x08` |
+| 写入后供电 | `pmset` 显示 `Battery Power` |
+| 写入后充电 | `IsCharging=No` |
+| 写入后 AC 字段 | `ExternalConnected=No` |
+| 写入 `CHIE=0x00` | 回读为 `0x00` |
+| 恢复后供电 | `pmset` 显示 `AC Power` |
+
+结论：`CHIE=0x08` 可以让本机使用电池，`0x00` 可以恢复 AC 路径。
+测试脚本使用退出 trap，确保异常时恢复 `0x00`。
+
+## 13. 未执行
 
 1. 未写 SMC 键。
 2. 未修改 `com.apple.powerd.charging`。

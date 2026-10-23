@@ -19,7 +19,8 @@ enum HelperServer {
         powerReader: MacChargeLimitPowerReader(),
         stateStore: ChargeLimitRuntimeStateStore(
             url: URL(fileURLWithPath: HelperProtocol.chargeLimitRuntimePath)
-        )
+        ),
+        activeDischargePort: SMCChargeLimitActiveDischarge()
     )
     private static let chargeLimitHandler = ChargeLimitHelperCommandHandler(
         runtime: chargeLimitRuntime
@@ -40,6 +41,7 @@ enum HelperServer {
             source.setEventHandler {
                 // 充电状态跨越 helper 重启。卸载路径会先显式恢复原策略，
                 // 通用 SIGTERM 不能清除状态，否则下一次启动无法恢复用户上限。
+                chargeLimitRuntime.prepareForExit()
                 exit(0)
             }
             source.resume()

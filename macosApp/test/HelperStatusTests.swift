@@ -128,6 +128,7 @@ final class HelperStatusTests: XCTestCase {
         XCTAssertEqual(status.originalFeatureState, 0)
         XCTAssertEqual(status.originalLimitPercent, 80)
         XCTAssertTrue(status.activeDischargeEnabled)
+        XCTAssertTrue(status.activeDischargeSupported)
         XCTAssertEqual(helper.commands.last, "chargeLimitStatus")
     }
 
@@ -276,6 +277,7 @@ private final class FakeHelper {
                         "originalFeatureState": "0",
                         "originalLimitPercent": "80",
                         "activeDischarge": "true",
+                        "activeDischargeSupported": "true",
                     ]
                 )
             } else {

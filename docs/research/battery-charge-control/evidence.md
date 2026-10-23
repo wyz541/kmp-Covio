@@ -159,6 +159,7 @@ com.apple.private.usernotifications.bundle-identifiers
 - 观察：root helper 写入 `com.apple.smartcharging.topoffprotection`。
 - 观察：写入 `MCLFeatureState` 和 `mclLimitValue`。
 - 观察：删除 `checkpoint` 和 `currentState` 重置状态机。
+- 观察：powerd 仍拒绝目标时，写入 `目标+1`，随后写回目标。
 - 观察：发送 `com.apple.smartcharging.defaultschanged`。
 - 观察：低于 `80%` 依赖 root 私有路径。
 - 限制：私有偏好可能被系统校准覆盖。
@@ -198,12 +199,57 @@ com.apple.private.usernotifications.bundle-identifiers
 | 原生恢复 `80%` | `PowerUI` 返回 `80`，MCL 保持启用 |
 | root `70%`（早期记录） | `PowerUI`、`pmset` 与 helper 均显示 `70` |
 | root `70%`（2026-10-22 复测） | 目标未稳定登记到 powerd；等待下一次电量 `1%` 步进复核 |
+| root `70%`（2026-10-23 独占 MCL） | 从 `71%` 放电到 `70%`；AC 下保持 `70%` 5 分钟 |
 | 电量高于上限 | 目标保持当前电量，没有主动放电 |
 | 睡眠与唤醒 | 多轮事件后 App 仍存活 |
 
 详细步骤和结果见 issue #162。
 
-## 12. 未执行
+## 12. `CHIE` 主动放电真机验证（2026-10-23）
+
+环境：MacBookPro18,2，macOS `27.0.1`。
+
+只读检查：
+
+- `CHIE` 存在。
+- 数据长度为 `1`。
+- 属性为 `0xd4`，包含可写位。
+- 原值为 `0x00`。
+
+受控写入：
+
+| 操作 | 结果 |
+| --- | --- |
+| 写入 `CHIE=0x08` | 回读为 `0x08` |
+| 写入后供电 | `pmset` 显示 `Battery Power` |
+| 写入后充电 | `IsCharging=No` |
+| 写入后 AC 字段 | `ExternalConnected=No` |
+| 写入 `CHIE=0x00` | 回读为 `0x00` |
+| 恢复后供电 | `pmset` 显示 `AC Power` |
+
+结论：`CHIE=0x08` 可以让本机使用电池，`0x00` 可以恢复 AC 路径。
+测试脚本使用退出 trap，确保异常时恢复 `0x00`。
+
+## 13. `70%` AC 保持验证（2026-10-23）
+
+环境：MacBookPro18,2，macOS `27.0.1`，helper 协议 `8`，代码基线 `9d3ceb4`。
+
+测试前退出 AlDente。
+AlDente 的 `80%` 配置会持续覆盖 PowerUI 目标。
+
+| 阶段 | 观察 |
+| --- | --- |
+| 主动放电 | `CHIE=0x08`，Battery Power，电池电流为负 |
+| 到达 `70%` | `CHIE=0x00`；系统目标变为 `70/70` |
+| AC 保持 | `IsCharging=No`，电池电流为 `0 mA` |
+| 5 分钟后 | 电量仍为 `70%`，目标仍为 `70/70` |
+| helper | `phase=holding`，`targetPercent=70` |
+
+结论：独占 MCL 时，Covio 可以从 `71%` 放电到 `70%`，并在 AC 下保持 `70%`。
+第三方 MCL 写入程序会破坏该结果。
+详细步骤见 V20 案例。
+
+## 14. 未执行
 
 1. 未写 SMC 键。
 2. 未修改 `com.apple.powerd.charging`。

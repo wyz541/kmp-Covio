@@ -36,7 +36,7 @@
 | V10 校准周期 | Apple Silicon，macOS 27 | MCL | 部分通过 |
 | V11 设置 `70%` | Apple Silicon，macOS 27 | root 私有 | 部分通过 |
 | V11b `40%`、`45%`、`50%`、`65%`、`75%` | Apple Silicon，macOS 27 | root 私有 | 待执行 |
-| V11c 主动放电到 `70%` | Apple Silicon，macOS 27 | root 私有 | 待执行 |
+| V11c 主动放电到 `70%` | Apple Silicon，macOS 27 | root 私有 | 通过 |
 | V12 Intel 原生 MCL | Intel MacBook | 无写入能力检测 | 待执行 |
 | V13 Intel `BCLM` | Intel MacBook | SMC | 未批准 |
 | V14 无电池设备 | Mac desktop | 无 | 待执行 |
@@ -44,6 +44,8 @@
 | V16 API 形状变化 | 模拟 | 无 | 待执行 |
 | V17 卸载前恢复 | Apple Silicon | MCL | 部分通过 |
 | V18 校准后恢复 | Apple Silicon | MCL | 部分通过 |
+| V19 `CHIE=0x08` 临时放电 | M1 Max，macOS 27.0.1 | SMC | 通过 |
+| V20 AC 下保持 `70%` | M1 Max，macOS 27.0.1 | MCL 与 SMC | 通过 |
 
 ### 2026-10-22 状态说明
 
@@ -55,8 +57,21 @@
 6. 该问题已补测试：显式应用覆盖一次冲突，自动刷新继续保护外部修改。
 7. 新 helper 已验证 `enabled=false`、`MCLFeatureState=1` 与 `mclLimitValue` 写入后的 powerd 回读。
 10. 低档位写入同时删除 `checkpoint` 与 `currentState`，避免 powerd 状态机沿用旧目标。
+11. 主动放电期间 powerd 目标回退时，helper 最多每 `120` 秒纠偏一次。
+12. 到达目标时释放 `CHIE`；重新充电且目标未修复时短时重新启用。
+13. 主动放电低于目标时，充电锁存必须回充到目标。
 8. PowerUI 写入后 powerd 可能等待下一次电量 `1%` 步进。
 9. 状态必须保持 `applying`，不能按 `4` 秒判失败。
+
+### 2026-10-23 状态说明
+
+1. 主动放电从 `71%` 到 `70%` 通过。
+2. 到达 `70%` 后 `CHIE=0x00`，系统目标保持 `70/70`。
+3. AC 已接入，`IsCharging=No`，电池电流为 `0 mA`。
+4. 保持状态连续观察 5 分钟，没有充电到 `80%`，也没有继续放电。
+5. 本轮有效验收要求退出其他 MCL 写入程序。AlDente 配置为 `80%` 时会覆盖 Covio 目标。
+6. 回差恢复、睡眠、重启和其他机型仍未完成。
+7. 详细结果见 [V20 案例](case-macbookpro18-2-macos-27-charge-70-hold-2026-10-23.md)。
 
 V11 真机顺序：
 
@@ -86,7 +101,7 @@ V11c 真机顺序：
 | 风险 | 影响 | 控制 |
 | --- | --- | --- |
 | 私有 API 变化 | 功能失效 | 运行时检测、fail closed |
-| SMC 错误写入 | 硬件风险 | 不写 SMC |
+| SMC 错误写入 | 硬件风险 | 只写 `CHIE` 固定值 `0x08` 与 `0x00`，读回验证 |
 | root 偏好变化 | 低档位失效或被系统覆盖 | 保存原值、`PowerUI` 与 `pmset` 回读、失败关闭 |
 | 恢复失败 | 系统策略残留 | 保存原值、回读、重试 |
 | 校准覆盖 | 临时充到 100% | 显示系统接管，不误报 |

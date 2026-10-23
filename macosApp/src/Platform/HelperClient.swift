@@ -166,7 +166,9 @@ final class HelperClient: @unchecked Sendable {
             originalLimitPercent: reply.result?["originalLimitPercent"].flatMap(Int.init),
             originalOptimizedChargingEnabled: reply.result?["originalOptimizedChargingEnabled"]
                 .flatMap(Bool.init),
-            activeDischargeEnabled: reply.result?["activeDischarge"].flatMap(Bool.init) ?? false
+            activeDischargeEnabled: reply.result?["activeDischarge"].flatMap(Bool.init) ?? false,
+            activeDischargeSupported: reply.result?["activeDischargeSupported"]
+                .flatMap(Bool.init) ?? false
         )
     }
 
@@ -267,6 +269,7 @@ struct ChargeLimitHelperStatus: Equatable, Sendable {
     let originalLimitPercent: Int?
     let originalOptimizedChargingEnabled: Bool?
     var activeDischargeEnabled: Bool = false
+    var activeDischargeSupported: Bool = false
 }
 
 /// `sockaddr_un` 的构造与长度计算集中在这里，调用方不用碰 C 指针。

@@ -11,6 +11,7 @@ struct ChargeLimitPowerReading: Equatable, Sendable {
     let systemProtectionActive: Bool
     let bypassEngaged: Bool
     var activelyDischarging: Bool = false
+    var isCharging: Bool = false
 }
 
 protocol ChargeLimitPowerReadingSource: Sendable {
@@ -105,6 +106,7 @@ struct ChargeLimitRuntimeStatus: Equatable, Sendable {
     let bypassEngaged: Bool
     let original: ChargeLimitOriginals?
     var activeDischargeEnabled: Bool = false
+    var activeDischargeSupported: Bool = false
 }
 
 protocol ChargeLimitRuntimeControlling: Sendable {
@@ -131,21 +133,32 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
     private let backend: ChargeLimitBackend
     private let powerReader: ChargeLimitPowerReadingSource
     private let stateStore: ChargeLimitRuntimeStateStore
+    private let activeDischargePort: any ChargeLimitActiveDischargePort
     private let intervalSeconds: TimeInterval
+    private let activeDischargeNudgeDelaySeconds: TimeInterval
+    private let activeDischargeNudgeCooldownSeconds: TimeInterval
     private let queue = DispatchQueue(label: "com.wyz.covio.charge-limit-runtime")
     private var timer: DispatchSourceTimer?
     private var bypassEngaged = false
+    private var activeDischargeNudgePending = false
+    private var lastActiveDischargeNudgeAt: Date?
 
     init(
         backend: ChargeLimitBackend,
         powerReader: ChargeLimitPowerReadingSource,
         stateStore: ChargeLimitRuntimeStateStore,
-        intervalSeconds: TimeInterval = 5
+        activeDischargePort: any ChargeLimitActiveDischargePort,
+        intervalSeconds: TimeInterval = 5,
+        activeDischargeNudgeDelaySeconds: TimeInterval = 8,
+        activeDischargeNudgeCooldownSeconds: TimeInterval = 120
     ) {
         self.backend = backend
         self.powerReader = powerReader
         self.stateStore = stateStore
+        self.activeDischargePort = activeDischargePort
         self.intervalSeconds = max(0.1, intervalSeconds)
+        self.activeDischargeNudgeDelaySeconds = max(0, activeDischargeNudgeDelaySeconds)
+        self.activeDischargeNudgeCooldownSeconds = max(0, activeDischargeNudgeCooldownSeconds)
         queue.setSpecific(key: queueKey, value: ())
     }
 
@@ -153,10 +166,15 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
     func resumeOnStartup() -> Result<Void, ChargeLimitMCLFailure> {
         syncOnQueue {
             do {
-                guard try stateStore.load() != nil else { return .success(()) }
+                guard try stateStore.load() != nil else {
+                    _ = activeDischargePort.release()
+                    return .success(())
+                }
             } catch let failure as ChargeLimitMCLFailure {
+                _ = activeDischargePort.release()
                 return .failure(failure)
             } catch {
+                _ = activeDischargePort.release()
                 return .failure(.stateUnreadable)
             }
             startTimerLocked()
@@ -180,10 +198,13 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
         guard ChargeLimitPolicy.shared.isValidUpperLimit(percent: Int32(userLimitPercent)) else {
             return .failure(.invalidTarget(userLimitPercent))
         }
+        if activeDischargeEnabled, !activeDischargePort.capability() {
+            return .failure(.readbackFailed("CHIE active discharge support"))
+        }
         return syncOnQueue {
             let state = ChargeLimitRuntimeState(
                 userLimitPercent: userLimitPercent,
-                chargingLatch: false,
+                chargingLatch: activeDischargeEnabled,
                 lastPhase: "applying",
                 activeDischargeEnabled: activeDischargeEnabled
             )
@@ -207,7 +228,11 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
 
     func restore() -> Result<Void, ChargeLimitMCLFailure> {
         syncOnQueue {
+            activeDischargeNudgePending = false
             stopTimerLocked()
+            guard activeDischargePort.release() else {
+                return .failure(.readbackFailed("CHIE release"))
+            }
             let restored = backend.restore()
             guard case .success = restored else { return restored }
             do {
@@ -219,6 +244,15 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
             }
             bypassEngaged = false
             return .success(())
+        }
+    }
+
+    /// helper 退出时只释放临时旁路，保留 macOS 执行的 MCL 上限。
+    func prepareForExit() {
+        syncOnQueue {
+            activeDischargeNudgePending = false
+            stopTimerLocked()
+            _ = activeDischargePort.release()
         }
     }
 
@@ -255,6 +289,7 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
         recoveringFromStartup: Bool = false,
         explicitUserRequest: Bool = false
     ) -> Result<Void, ChargeLimitMCLFailure> {
+        guard !activeDischargeNudgePending else { return .success(()) }
         let state: ChargeLimitRuntimeState
         do {
             guard let loaded = try stateStore.load() else { return .success(()) }
@@ -275,6 +310,28 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
             return .failure(failure)
         }
         let observedTarget = backend.observedTargetPercent()
+        let alreadyEngaged = activeDischargePort.isEngaged() ?? false
+        let currentPercent = reading.currentPercent ?? Int.min
+        let targetNeedsRepair = state.activeDischargeEnabled == true &&
+            observedTarget != state.userLimitPercent
+        let keepChieWhileChargingAtLimit = targetNeedsRepair &&
+            currentPercent == state.userLimitPercent &&
+            reading.isCharging
+        let wantsActiveDischarge = state.activeDischargeEnabled == true && (
+            (currentPercent > state.userLimitPercent && (reading.adapterConnected || alreadyEngaged)) ||
+                keepChieWhileChargingAtLimit
+        )
+        let releasedActiveDischarge = state.activeDischargeEnabled == true &&
+            alreadyEngaged &&
+            !wantsActiveDischarge
+        if wantsActiveDischarge {
+            if !alreadyEngaged, !activeDischargePort.engage() {
+                return .failure(.readbackFailed("CHIE active discharge"))
+            }
+        } else if alreadyEngaged, !activeDischargePort.release() {
+            return .failure(.readbackFailed("CHIE release"))
+        }
+        let effectiveAdapterConnected = reading.adapterConnected || wantsActiveDischarge
         let expectedTarget = effectiveTarget(backendState?.targetPercent)
         let pendingTarget = state.pendingTargetPercent
         let pendingMatchesBackend = pendingTarget != nil && backendState?.targetPercent == pendingTarget
@@ -287,10 +344,31 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
             returningFromCalibration ||
             explicitUserRequest ||
             hasPendingTarget
+        let activeDischargeTargetMismatch = state.activeDischargeEnabled == true &&
+            effectiveAdapterConnected &&
+            currentPercent >= state.userLimitPercent &&
+            observedTarget != state.userLimitPercent &&
+            !targetMayBeReplaced
+        if activeDischargeTargetMismatch {
+            if reading.isCharging {
+                return saveApplyingStateLocked(
+                    state: state,
+                    pendingTargetPercent: nil
+                )
+            }
+            if let last = lastActiveDischargeNudgeAt,
+               Date().timeIntervalSince(last) < activeDischargeNudgeCooldownSeconds {
+                return saveApplyingStateLocked(
+                    state: state,
+                    pendingTargetPercent: nil
+                )
+            }
+            return beginActiveDischargeNudgeLocked(state: state)
+        }
         let observation = ChargeLimitObservation(
             enabled: true,
             upperLimitPercent: Int32(state.userLimitPercent),
-            adapterConnected: reading.adapterConnected,
+            adapterConnected: effectiveAdapterConnected,
             currentPercent: reading.currentPercent.map { KotlinInt(int: Int32($0)) },
             helperInstalled: true,
             support: backend.capability(),
@@ -310,7 +388,9 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
         )
         let decision = ChargeLimitPolicy.shared.evaluate(
             observation: observation,
-            previous: ChargeLimitPolicyState(chargingLatch: state.chargingLatch)
+            previous: ChargeLimitPolicyState(
+                chargingLatch: state.chargingLatch || releasedActiveDischarge
+            )
         )
         bypassEngaged = decision.bypassEngaged
         let updated = ChargeLimitRuntimeState(
@@ -389,9 +469,83 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
         }
     }
 
+    private func beginActiveDischargeNudgeLocked(
+        state: ChargeLimitRuntimeState
+    ) -> Result<Void, ChargeLimitMCLFailure> {
+        let intermediate = min(100, state.userLimitPercent + 1)
+        guard intermediate > state.userLimitPercent else {
+            return saveApplyingStateLocked(state: state, pendingTargetPercent: state.userLimitPercent)
+        }
+        switch backend.apply(targetPercent: intermediate) {
+        case .success:
+            activeDischargeNudgePending = true
+            lastActiveDischargeNudgeAt = Date()
+            let result = saveApplyingStateLocked(state: state, pendingTargetPercent: nil)
+            guard case .success = result else {
+                activeDischargeNudgePending = false
+                return result
+            }
+            queue.asyncAfter(deadline: .now() + activeDischargeNudgeDelaySeconds) { [weak self] in
+                self?.finishActiveDischargeNudge()
+            }
+            return .success(())
+        case .failure(let failure):
+            return .failure(failure)
+        }
+    }
+
+    private func finishActiveDischargeNudge() {
+        activeDischargeNudgePending = false
+        let state: ChargeLimitRuntimeState
+        do {
+            guard let loaded = try stateStore.load() else { return }
+            state = loaded
+        } catch {
+            return
+        }
+        guard state.activeDischargeEnabled == true else {
+            _ = evaluateLocked()
+            return
+        }
+        switch backend.apply(targetPercent: state.userLimitPercent) {
+        case .success:
+            guard case .success = saveApplyingStateLocked(
+                state: state,
+                pendingTargetPercent: state.userLimitPercent
+            ) else { return }
+            _ = evaluateLocked()
+        case .failure:
+            return
+        }
+    }
+
+    private func saveApplyingStateLocked(
+        state: ChargeLimitRuntimeState,
+        pendingTargetPercent: Int?
+    ) -> Result<Void, ChargeLimitMCLFailure> {
+        let applying = ChargeLimitRuntimeState(
+            userLimitPercent: state.userLimitPercent,
+            chargingLatch: state.chargingLatch,
+            calibrationTargetPercent: state.calibrationTargetPercent,
+            pendingTargetPercent: pendingTargetPercent,
+            lastPhase: "applying",
+            activeDischargeEnabled: state.activeDischargeEnabled
+        )
+        do {
+            try stateStore.save(applying)
+            return .success(())
+        } catch let failure as ChargeLimitMCLFailure {
+            return .failure(failure)
+        } catch {
+            return .failure(.stateWriteFailed)
+        }
+    }
+
     /// 新设置失败时停止自动重试，并清除用户意图。后端会恢复首次覆盖前的状态。
     private func rollbackConfigurationLocked() -> ChargeLimitMCLFailure? {
+        activeDischargeNudgePending = false
         stopTimerLocked()
+        _ = activeDischargePort.release()
         let restored = backend.restore()
         guard case .success = restored else {
             if case .failure(let failure) = restored { return failure }
@@ -425,7 +579,8 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
                     chargingLatch: false,
                     phase: "off",
                     bypassEngaged: false,
-                    original: nil
+                    original: nil,
+                    activeDischargeSupported: activeDischargePort.capability()
                 )
             )
         }
@@ -444,7 +599,8 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
                 phase: state.lastPhase,
                 bypassEngaged: bypassEngaged,
                 original: backendState?.original,
-                activeDischargeEnabled: state.activeDischargeEnabled ?? false
+                activeDischargeEnabled: state.activeDischargeEnabled ?? false,
+                activeDischargeSupported: activeDischargePort.capability()
             )
         )
     }

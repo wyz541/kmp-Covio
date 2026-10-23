@@ -5,6 +5,7 @@ import kmpDomain
 final class ChargeLimitRuntimeTests: XCTestCase {
     private var directory: URL!
     private var stateStore: ChargeLimitRuntimeStateStore!
+    private var activeDischargePort: FakeChargeLimitActiveDischarge!
 
     override func setUpWithError() throws {
         directory = FileManager.default.temporaryDirectory
@@ -13,6 +14,7 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         stateStore = ChargeLimitRuntimeStateStore(
             url: directory.appendingPathComponent("charge-limit/runtime.json")
         )
+        activeDischargePort = FakeChargeLimitActiveDischarge()
     }
 
     override func tearDownWithError() throws {
@@ -104,12 +106,15 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         XCTAssertEqual(status.phase, "discharging")
         XCTAssertEqual(status.effectiveTargetPercent, 70)
         XCTAssertTrue(status.activeDischargeEnabled)
+        XCTAssertTrue(status.activeDischargeSupported)
         XCTAssertEqual(backend.appliedTargets, [70])
+        XCTAssertTrue(activeDischargePort.engaged)
 
         reader.reading = reading(current: 70)
         let holding = try runtime.evaluateNow().get()
         XCTAssertEqual(holding.phase, "holding")
         XCTAssertEqual(holding.effectiveTargetPercent, 70)
+        XCTAssertFalse(activeDischargePort.engaged)
 
         reader.reading = reading(current: 65)
         let charging = try runtime.evaluateNow().get()
@@ -122,11 +127,186 @@ final class ChargeLimitRuntimeTests: XCTestCase {
             userLimitPercent: 70,
             activeDischargeEnabled: false
         ).get()
+        XCTAssertFalse(activeDischargePort.engaged)
         let stopping = try runtime.evaluateNow().get()
         XCTAssertEqual(stopping.phase, "stoppingDischarge")
 
         reader.reading = reading(current: 80)
         XCTAssertEqual(try runtime.evaluateNow().get().phase, "aboveLimit")
+    }
+
+    func testEngagedChieKeepsActiveDischargeDespiteAdapterVisibility() throws {
+        let backend = FakeChargeLimitBackend()
+        let reader = FakeChargeLimitPowerReader(reading: reading(current: 79))
+        let runtime = makeRuntime(backend: backend, reader: reader)
+        defer { _ = runtime.restore() }
+
+        _ = try runtime.configure(
+            userLimitPercent: 70,
+            activeDischargeEnabled: true
+        ).get()
+        XCTAssertTrue(activeDischargePort.engaged)
+
+        reader.reading = reading(
+            current: 79,
+            adapter: false,
+            activelyDischarging: true
+        )
+        let status = try runtime.evaluateNow().get()
+
+        XCTAssertEqual(status.phase, "discharging")
+        XCTAssertTrue(activeDischargePort.engaged)
+    }
+
+    func testActiveDischargeNudgesWhenPowerdDropsTheTarget() throws {
+        let backend = FakeChargeLimitBackend()
+        backend.observedTargetOverride = 70
+        let reader = FakeChargeLimitPowerReader(
+            reading: reading(current: 79, activelyDischarging: true)
+        )
+        let runtime = makeRuntime(
+            backend: backend,
+            reader: reader,
+            activeDischargeNudgeDelaySeconds: 0.05,
+            activeDischargeNudgeCooldownSeconds: 0
+        )
+        defer { _ = runtime.restore() }
+
+        _ = try runtime.configure(
+            userLimitPercent: 70,
+            activeDischargeEnabled: true
+        ).get()
+        backend.observedTargetOverride = 80
+
+        XCTAssertEqual(try runtime.evaluateNow().get().phase, "applying")
+        XCTAssertEqual(backend.appliedTargets, [70, 71])
+
+        let completed = expectation(description: "nudge completes")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            XCTAssertEqual(backend.appliedTargets, [70, 71, 70])
+            completed.fulfill()
+        }
+        wait(for: [completed], timeout: 1)
+    }
+
+    func testActiveDischargeWaitsForChargingToStopBeforeNudging() throws {
+        let backend = FakeChargeLimitBackend()
+        backend.observedTargetOverride = 70
+        let reader = FakeChargeLimitPowerReader(
+            reading: reading(current: 79, isCharging: true)
+        )
+        let runtime = makeRuntime(
+            backend: backend,
+            reader: reader,
+            activeDischargeNudgeDelaySeconds: 0.05,
+            activeDischargeNudgeCooldownSeconds: 0
+        )
+        defer { _ = runtime.restore() }
+
+        _ = try runtime.configure(
+            userLimitPercent: 70,
+            activeDischargeEnabled: true
+        ).get()
+        backend.observedTargetOverride = 80
+
+        XCTAssertEqual(try runtime.evaluateNow().get().phase, "applying")
+        XCTAssertEqual(backend.appliedTargets, [70])
+
+        reader.reading = reading(current: 80)
+        _ = try runtime.evaluateNow().get()
+        XCTAssertEqual(backend.appliedTargets, [70, 71])
+    }
+
+    func testAtLimitReleasesChieBeforeTargetRepair() throws {
+        let backend = FakeChargeLimitBackend()
+        backend.observedTargetOverride = 70
+        let reader = FakeChargeLimitPowerReader(reading: reading(current: 80))
+        let runtime = makeRuntime(
+            backend: backend,
+            reader: reader,
+            activeDischargeNudgeDelaySeconds: 0.05,
+            activeDischargeNudgeCooldownSeconds: 0
+        )
+        defer { _ = runtime.restore() }
+
+        _ = try runtime.configure(
+            userLimitPercent: 70,
+            activeDischargeEnabled: true
+        ).get()
+        XCTAssertTrue(activeDischargePort.engaged)
+
+        backend.observedTargetOverride = 80
+        reader.reading = reading(current: 70, activelyDischarging: true)
+        XCTAssertEqual(try runtime.evaluateNow().get().phase, "applying")
+        XCTAssertFalse(activeDischargePort.engaged)
+
+        let completed = expectation(description: "at-limit nudge completes")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            XCTAssertEqual(backend.appliedTargets, [70, 71, 70])
+            completed.fulfill()
+        }
+        wait(for: [completed], timeout: 1)
+
+        backend.observedTargetOverride = 70
+        let holding = try runtime.evaluateNow().get()
+        XCTAssertEqual(holding.phase, "holding")
+        XCTAssertFalse(activeDischargePort.engaged)
+    }
+
+    func testAtLimitReengagesChieWhenChargingStartsBeforeRepair() throws {
+        let backend = FakeChargeLimitBackend()
+        backend.observedTargetOverride = 70
+        let reader = FakeChargeLimitPowerReader(reading: reading(current: 80))
+        let runtime = makeRuntime(
+            backend: backend,
+            reader: reader,
+            activeDischargeNudgeDelaySeconds: 10,
+            activeDischargeNudgeCooldownSeconds: 0
+        )
+        defer { _ = runtime.restore() }
+
+        _ = try runtime.configure(
+            userLimitPercent: 70,
+            activeDischargeEnabled: true
+        ).get()
+        activeDischargePort.engaged = false
+        backend.observedTargetOverride = 80
+        reader.reading = reading(current: 70, isCharging: true)
+
+        XCTAssertEqual(try runtime.evaluateNow().get().phase, "applying")
+        XCTAssertTrue(activeDischargePort.engaged)
+    }
+
+    func testActiveDischargeRequiresChieSupport() {
+        activeDischargePort.supported = false
+        let backend = FakeChargeLimitBackend()
+        let runtime = makeRuntime(
+            backend: backend,
+            reader: FakeChargeLimitPowerReader(reading: reading(current: 80))
+        )
+
+        XCTAssertEqual(
+            runtime.configure(userLimitPercent: 70, activeDischargeEnabled: true),
+            .failure(.readbackFailed("CHIE active discharge support"))
+        )
+        XCTAssertTrue(backend.appliedTargets.isEmpty)
+    }
+
+    func testActiveDischargeRefillsWhenStartedBelowTheLimit() throws {
+        let backend = FakeChargeLimitBackend()
+        let reader = FakeChargeLimitPowerReader(reading: reading(current: 69))
+        let runtime = makeRuntime(backend: backend, reader: reader)
+        defer { _ = runtime.restore() }
+
+        _ = try runtime.configure(
+            userLimitPercent: 70,
+            activeDischargeEnabled: true
+        ).get()
+        let status = try runtime.evaluateNow().get()
+
+        XCTAssertEqual(status.phase, "charging")
+        XCTAssertTrue(status.chargingLatch)
+        XCTAssertEqual(status.effectiveTargetPercent, 70)
     }
 
     func testFirstConfigurePersistsAMatchingObservedTarget() throws {
@@ -403,13 +583,18 @@ final class ChargeLimitRuntimeTests: XCTestCase {
 
     private func makeRuntime(
         backend: FakeChargeLimitBackend,
-        reader: FakeChargeLimitPowerReader
+        reader: FakeChargeLimitPowerReader,
+        activeDischargeNudgeDelaySeconds: TimeInterval = 0.05,
+        activeDischargeNudgeCooldownSeconds: TimeInterval = 0
     ) -> ChargeLimitRuntimeController {
         ChargeLimitRuntimeController(
             backend: backend,
             powerReader: reader,
             stateStore: stateStore,
-            intervalSeconds: 3_600
+            activeDischargePort: activeDischargePort,
+            intervalSeconds: 3_600,
+            activeDischargeNudgeDelaySeconds: activeDischargeNudgeDelaySeconds,
+            activeDischargeNudgeCooldownSeconds: activeDischargeNudgeCooldownSeconds
         )
     }
 
@@ -420,7 +605,8 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         calibrationActive: Bool = false,
         protectionActive: Bool = false,
         bypassEngaged: Bool = false,
-        activelyDischarging: Bool = false
+        activelyDischarging: Bool = false,
+        isCharging: Bool = false
     ) -> ChargeLimitPowerReading {
         ChargeLimitPowerReading(
             adapterConnected: adapter,
@@ -430,7 +616,8 @@ final class ChargeLimitRuntimeTests: XCTestCase {
             calibrationActive: calibrationActive,
             systemProtectionActive: protectionActive,
             bypassEngaged: bypassEngaged,
-            activelyDischarging: activelyDischarging
+            activelyDischarging: activelyDischarging,
+            isCharging: isCharging
         )
     }
 }
@@ -485,5 +672,25 @@ private final class FakeChargeLimitBackend: ChargeLimitBackend, @unchecked Senda
         restoreCalled = true
         state = nil
         return .success(())
+    }
+}
+
+private final class FakeChargeLimitActiveDischarge: ChargeLimitActiveDischargePort, @unchecked Sendable {
+    var supported = true
+    var engaged = false
+    var engageResult = true
+    var releaseResult = true
+
+    func capability() -> Bool { supported }
+    func isEngaged() -> Bool? { engaged }
+    func engage() -> Bool {
+        guard supported, engageResult else { return false }
+        engaged = true
+        return true
+    }
+    func release() -> Bool {
+        guard releaseResult else { return false }
+        engaged = false
+        return true
     }
 }

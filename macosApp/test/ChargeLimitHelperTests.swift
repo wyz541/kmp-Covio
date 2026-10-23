@@ -26,7 +26,8 @@ final class ChargeLimitHelperTests: XCTestCase {
                 featureState: 0,
                 limitPercent: 80
             ),
-            activeDischargeEnabled: true
+            activeDischargeEnabled: true,
+            activeDischargeSupported: true
         )
         let handler = ChargeLimitHelperCommandHandler(runtime: runtime)
 
@@ -41,6 +42,7 @@ final class ChargeLimitHelperTests: XCTestCase {
         XCTAssertEqual(reply?.result?["originalLimitPercent"], "80")
         XCTAssertEqual(reply?.result?["originalOptimizedChargingEnabled"], "true")
         XCTAssertEqual(reply?.result?["activeDischarge"], "true")
+        XCTAssertEqual(reply?.result?["activeDischargeSupported"], "true")
     }
 
     func testConfigurePassesTheTargetToTheBackend() {

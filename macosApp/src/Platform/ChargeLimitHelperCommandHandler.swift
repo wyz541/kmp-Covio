@@ -39,9 +39,11 @@ final class ChargeLimitHelperCommandHandler: @unchecked Sendable {
     private func statusReply(requestId: String) -> HelperReply {
         switch runtime.status() {
         case .success(let status) where status.phase == "off" && status.userLimitPercent == 0:
+            var result = resultMap(status)
+            result["enabled"] = "false"
             return HelperWire.shared.success(
                 requestId: requestId,
-                result: ["enabled": "false"]
+                result: result
             )
         case .success(let status):
             return HelperWire.shared.success(
@@ -98,6 +100,7 @@ final class ChargeLimitHelperCommandHandler: @unchecked Sendable {
             "phase": status.phase,
             "bypassEngaged": String(status.bypassEngaged),
             "activeDischarge": String(status.activeDischargeEnabled),
+            "activeDischargeSupported": String(status.activeDischargeSupported),
         ]
         if let target = status.effectiveTargetPercent {
             result["targetPercent"] = String(target)

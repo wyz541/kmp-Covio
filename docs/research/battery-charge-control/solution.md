@@ -50,6 +50,13 @@
 10. PowerUI 接受写入后，保持 `applying` 等待 powerd 确认。
 11. 充电时 powerd 可能等待下一次电量 `1%` 步进。
 12. `pmset` 与 PowerUI 目标一致后退出等待态。
+13. 主动放电期间 powerd 回到旧目标时，先等待充电停止。
+14. 再写 `目标+1`，随后写回目标。
+15. 自动纠偏最多每 `120` 秒执行一次。
+16. 到达目标时先释放 `CHIE`，让 powerd 目标重新可见。
+17. 如果目标未修复且重新开始充电，短时重新启用 `CHIE` 阻止越界。
+18. 目标稳定为目标值后，最终释放 `CHIE`。
+19. 主动放电越过目标时，启用充电锁存，先回充到目标。
 
 如果任一步失败，执行恢复流程。
 
@@ -113,8 +120,10 @@ Covio 状态机实现固定的 `5%` 回差。
 电量低于回差阈值时，目标回到用户上限。
 电量在回差区间内且没有充电锁存时，保持当前电量。
 
-主动放电首版只使用 MCL。
-首版不写 SMC `CHIE`。
+主动放电使用 MCL 保存上限。
+主动放电同时写 SMC `CHIE=0x08`，强制使用电池。
+停止、到达上限、恢复默认和 helper 退出时写回 `CHIE=0x00`。
+首版不写其他 SMC 键。
 主动放电需要显式开关和电池循环警告。
 关闭主动放电后，powerd 可能延迟数十秒才停止电池电流。
 Helper 读取 `Amperage`，在电流归零前显示 `stoppingDischarge`。
@@ -146,14 +155,15 @@ Helper 读取 `Amperage`，在电流归零前显示 `stoppingDischarge`。
 6. 主动放电时 `BatteryPower<0`。
 7. 主动放电到上限后停止放电。
 8. 关闭主动放电后，电流归零前显示 `stoppingDischarge`。
-9. `BatteryPower=0` 且 `BypassEngaged`。
-10. 系统设置外部修改。
-11. 睡眠和唤醒。
-12. 重启。
-13. 校准周期。
-14. 无电池设备。
-15. Intel 设备。
-16. 卸载和 helper 缺失。
-17. `bash scripts/test-all.sh` 通过。
+9. 低档位目标回退后自动纠偏。
+10. `BatteryPower=0` 且 `BypassEngaged`。
+11. 系统设置外部修改。
+12. 睡眠和唤醒。
+13. 重启。
+14. 校准周期。
+15. 无电池设备。
+16. Intel 设备。
+17. 卸载和 helper 缺失。
+18. `bash scripts/test-all.sh` 通过。
 
 详细矩阵见 [validation/README.md](validation/README.md)。

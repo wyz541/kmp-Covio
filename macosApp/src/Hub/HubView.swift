@@ -89,15 +89,32 @@ struct HubView: View {
     /// 内容区先铺满整个面板。顶栏最后叠在内容之上，所以内容在视觉与布局上都
     /// 延伸到导航层背后。Apple Maps 的侧边栏使用同一层级关系。
     private var navigationLayers: some View {
-        GlassEffectContainer(spacing: 0) {
-            ZStack(alignment: .top) {
-                contentArea
-                topBarLayer
+        ZStack(alignment: .top) {
+            // 底板独立成背景层。它不能进入下面的 GlassEffectContainer，
+            // 否则大底板会与顶栏材质合并，顶栏文字会被干扰。
+            plateLayer
+            GlassEffectContainer(spacing: 0) {
+                ZStack(alignment: .top) {
+                    contentArea
+                    topBarLayer
+                }
             }
         }
         .frame(width: HubMetrics.panelWidth, height: plateStackHeight, alignment: .top)
         // 高亮行从环境里取，六个设置页不必各自拿一遍模型。
         .environment(\.highlightedSettingsRow, chrome.highlightedRowID)
+    }
+
+    /// 内容底板。默认是 Liquid Glass；`.system` 可供调试对照。
+    private var plateLayer: some View {
+        Color.clear
+            .frame(width: HubMetrics.panelWidth, height: plateStackHeight)
+            .glassSurface(
+                cornerRadius: HubMetrics.contentPlateRadius,
+                tint: GlassSurfaceMode.plateTint,
+                mode: GlassSurfaceMode.plateMode
+            )
+            .allowsHitTesting(false)
     }
 
     private var topBarLayer: some View {
@@ -129,15 +146,10 @@ struct HubView: View {
 
     /// 内容层铺满整个面板，顶栏叠在它上方。
     ///
-    /// 内容底材走系统语义材质（`.hudWindow`）。卡片叠在内容层里，不带着色。
+    /// 内容底材默认走 Liquid Glass。卡片叠在内容层里，不带着色。
     private var contentArea: some View {
         contentColumn
             .frame(width: HubMetrics.panelWidth, height: plateStackHeight, alignment: .top)
-            .glassSurface(
-                cornerRadius: HubMetrics.contentPlateRadius,
-                tint: GlassSurfaceMode.plateTint,
-                mode: GlassSurfaceMode.plateMode
-            )
     }
 
     // MARK: - 内容列

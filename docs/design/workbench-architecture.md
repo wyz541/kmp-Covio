@@ -139,12 +139,20 @@ R7 不做主屏手势。系统不向第三方应用开放 iOS 主屏手势入口
 | 顶栏与菜单栏之间的缝 | 11 点。 |
 | 顶栏 | 圆角 23 点，胶囊形。高 46 点，宽 960 点。顶栏叠在内容层上方。 |
 | 内容区 | 宽 960 点，高度覆盖整个面板。内容延伸到顶栏背后，底板圆角 23 点。 |
-| 底板材质 | 系统的语义材质 `.hudWindow`，不带边框，不加着色。`GlassSurfaceMode.plateMode = .system`，`plateMaterial = .hudWindow`，`plateTintOpacity = 0`。 |
+| 底板材质 | Liquid Glass 的 `.regular` 变体，不加着色。`GlassSurfaceMode.plateMode = .glass`，`plateTintOpacity = 0`。`.system` 与 `.hudWindow` 保留为调试对照。 |
 | 卡片材质 | 叠在底板上，底材 `Glass.clear`。填充取色值乘 `MacTheme.tintedCardOpacity`，当前取 `0.1`。 |
 | 顶栏材质 | 无边框超薄材质。`GlassSurfaceMode.topBarMode = .ultraThin`。 |
-| 边框 | 内容底板与顶栏都没有边框。卡片保留 Liquid Glass 自带的镜面亮边。 |
+| 边框 | 内容底板保留 Liquid Glass 自带的镜面亮边。顶栏没有边框。卡片保留自己的亮边。 |
 | 投影 | 顶栏与内容层都没有投影。 |
 | 菜单栏胶囊 | 高 20 点。内容是品牌菱形加名字。 |
+
+### 底板升级预览
+
+| 变更前 | 变更后 |
+| --- | --- |
+| ![亮色变更前](previews/315-glass-plate-light-before-1.png) | ![亮色变更后](previews/315-glass-plate-light-after-1.png) |
+| ![深色变更前](previews/315-glass-plate-dark-before-1.png) | ![深色变更后](previews/315-glass-plate-dark-after-1.png) |
+
 
 控制中心是两层。一层是面板级的模糊底板，把桌面与工作区分开；模块叠在底板上面，自己走 clear，只加一层薄高光，不重复模糊。真机对照：把一个带文字的窗口摆在面板下面，控制中心打开后整片面板区域的文字都被抹平，模块之间与模块周围也一样。模糊来自底板，不是来自模块本身。所以 `.clear` 只有在底下已经有模糊时才成立；单独把 `.clear` 压在桌面上，背后窗口的文字会原样透上来。
 
@@ -164,9 +172,9 @@ R7 不做主屏手势。系统不向第三方应用开放 iOS 主屏手势入口
 
 工作台此前看起来像一块死灰板，压平曲线的是那层黑 0.4 着色，不是 Liquid Glass 自己。同一种 `.glass`，去掉着色以后斜率从 0.28 回到 0.50。
 
-底板最后没有用 Liquid Glass，改用系统给的语义材质。AppKit 头文件把这条规则写死了：`AppearanceBased`、`Light`、`Dark`、`MediumLight`、`UltraDark` 这一组都标了废弃，注释是「You should instead choose an appropriate semantic material.」；剩下的材质按所属的界面元素命名并说明。浮在桌面上的面板对应 `.hudWindow`，说明是「The material used as the background of heads-up display (HUD) windows.」SwiftUI 的 `Material` 没有面板这一档（只有 `ultraThin` 到 `ultraThick` 和 `bar`），所以底板走 `NSVisualEffectView`。
+2026-10-17 的版本曾改用系统语义材质 `.hudWindow`。该材质仍是调试对照，原因是 AppKit 将具体外观材质标为废弃，并按界面元素提供语义材质。2026-10-23 起，按产品要求把默认底板升级为 Liquid Glass。新的默认值使用 `.glass`，不添加着色。历史测量保留，用于解释视觉差异和后续回归。
 
-改用系统材质顺带解决了边框：`NSVisualEffectView` 不带 Liquid Glass 的镜面亮边。真机对照（2026-10-17）：Liquid Glass 沿上边缘有一条浅蓝亮线，控制中心的**底板**边缘是干净的，只有**模块**带亮边。当前版本不把内容与顶栏上下分板。内容层铺满面板，顶栏以超薄材质叠在内容上方，层级与 Apple Maps 的侧边栏一致。
+Liquid Glass 会带回镜面亮边。当前版本接受这条亮边，并把它作为底板材质的一部分。底板独立成背景层，内容和顶栏放在 `GlassEffectContainer` 内叠在上面。这样大底板不会与顶栏材质合并，也不会干扰顶栏文字。内容层仍铺满面板，顶栏以超薄材质叠在内容上方。
 
 **底板的填充取不到控制中心的水平。** 底材的输出是 `α·模糊(桌面) + (1−α)·F`。`α` 是透光比例，`F` 是填充色。把上表换成这两个量：
 
@@ -206,7 +214,7 @@ R7 不做主屏手势。系统不向第三方应用开放 iOS 主屏手势入口
 
 **私有接口也到不了。** 手工搭一个 AppKit 自用的 `CABackdropLayer`（`windowServerAware`、`groupName = NSCGSWindowBehindWindowCaptureBackdropGroup`、`scale = 0.125`，滤镜 `sdrNormalize` + `gaussianBlur(30)` + `colorSaturate(1.9)`，也就是从 `NSVisualEffectView` 的图层树里读出来的那一套），去掉上面的着色层以后实测透光 0.61、填充 140，条纹残留 44%。这个层自己也带填充；而且它的 `filters` 不生效 —— 半径取 0、20、80，三格与不带滤镜那一格逐字节相同。所以换私有接口买不到控制中心的效果。
 
-**结论：这条差距关不掉。** 工作台按系统给的语义材质落地（`.hudWindow`），材质原样使用，不乘不透明度倍率，不加着色。模糊到位；填充由材质给定，板比桌面亮。这是公开接口上能达到的最接近的一点。这条取值在真机上重新验收（2026-10-17）。
+**结论：这条差距仍在。** 当前底板按产品要求使用 Liquid Glass（`.glass`），材质原样使用，不乘不透明度倍率，不加着色。底板会比控制中心更亮，也会带镜面亮边。该取舍已在亮色与深色真机预览中复核（2026-10-23）。
 
 **动效**：
 

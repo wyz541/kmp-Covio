@@ -26,6 +26,7 @@
 - The search box searches settings. Selecting a result jumps to that row and highlights it.
 - The app requires macOS 26 or later.
 - The app adds the clipboard history.
+- The Hub base plate uses Liquid Glass with a native glass rim and adaptive blur.
 - The Files tab adds local offline auto naming with preview, safe rename, and undo.
 - The Monitor tab shows a Stats-style dashboard for CPU, GPU, memory, disk, network, and battery.
 - The Monitor power card shows the supply state, battery level, temperature, power draw,

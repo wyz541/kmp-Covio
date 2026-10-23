@@ -603,6 +603,10 @@ enum ContractCopy {
     static let copyMonitorPerCore = LocalizedCopy(key: "copy/monitor/per-core", en: "Per core", zhHans: "每核")
     /// `copy/monitor/power/average/draw`
     static let copyMonitorPowerAverageDraw = LocalizedCopy(key: "copy/monitor/power/average/draw", en: "Average power", zhHans: "平均功耗")
+    /// `copy/monitor/power/charge-limit/active-discharge`
+    static let copyMonitorPowerChargeLimitActiveDischarge = LocalizedCopy(key: "copy/monitor/power/charge-limit/active-discharge", en: "Discharge above limit", zhHans: "高于上限时主动放电")
+    /// `copy/monitor/power/charge-limit/active-discharge-warning`
+    static let copyMonitorPowerChargeLimitActiveDischargeWarning = LocalizedCopy(key: "copy/monitor/power/charge-limit/active-discharge-warning", en: "Warning: this option increases battery cycles.", zhHans: "警告：此选项会增加电池循环。")
     /// `copy/monitor/power/charge-limit/apply`
     static let copyMonitorPowerChargeLimitApply = LocalizedCopy(key: "copy/monitor/power/charge-limit/apply", en: "Apply limit", zhHans: "应用上限")
     /// `copy/monitor/power/charge-limit/applying`
@@ -629,6 +633,8 @@ enum ContractCopy {
     static let copyMonitorPowerChargeLimitStateCalibration = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/calibration", en: "Calibration in progress", zhHans: "校准中")
     /// `copy/monitor/power/charge-limit/state/conflict`
     static let copyMonitorPowerChargeLimitStateConflict = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/conflict", en: "System policy conflict", zhHans: "系统策略冲突")
+    /// `copy/monitor/power/charge-limit/state/discharging`
+    static let copyMonitorPowerChargeLimitStateDischarging = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/discharging", en: "Discharging to limit", zhHans: "正在放电至上限")
     /// `copy/monitor/power/charge-limit/state/error`
     static let copyMonitorPowerChargeLimitStateError = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/error", en: "Charge limit error", zhHans: "充电上限错误")
     /// `copy/monitor/power/charge-limit/state/holding`
@@ -637,6 +643,8 @@ enum ContractCopy {
     static let copyMonitorPowerChargeLimitStateProtection = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/protection", en: "System protection", zhHans: "系统保护中")
     /// `copy/monitor/power/charge-limit/state/sailing`
     static let copyMonitorPowerChargeLimitStateSailing = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/sailing", en: "Holding current level", zhHans: "保持当前电量")
+    /// `copy/monitor/power/charge-limit/state/stopping-discharge`
+    static let copyMonitorPowerChargeLimitStateStoppingDischarge = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/stopping-discharge", en: "Stopping discharge", zhHans: "正在停止放电")
     /// `copy/monitor/power/charge-limit/state/system`
     static let copyMonitorPowerChargeLimitStateSystem = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/system", en: "macOS controls the charge limit", zhHans: "macOS 控制充电上限")
     /// `copy/monitor/power/charge-limit/state/unplugged`
@@ -1591,6 +1599,8 @@ enum ContractCopy {
         copyMonitorNetworkUpload,
         copyMonitorPerCore,
         copyMonitorPowerAverageDraw,
+        copyMonitorPowerChargeLimitActiveDischarge,
+        copyMonitorPowerChargeLimitActiveDischargeWarning,
         copyMonitorPowerChargeLimitApply,
         copyMonitorPowerChargeLimitApplying,
         copyMonitorPowerChargeLimitCurrentCharge,
@@ -1604,10 +1614,12 @@ enum ContractCopy {
         copyMonitorPowerChargeLimitStateBypass,
         copyMonitorPowerChargeLimitStateCalibration,
         copyMonitorPowerChargeLimitStateConflict,
+        copyMonitorPowerChargeLimitStateDischarging,
         copyMonitorPowerChargeLimitStateError,
         copyMonitorPowerChargeLimitStateHolding,
         copyMonitorPowerChargeLimitStateProtection,
         copyMonitorPowerChargeLimitStateSailing,
+        copyMonitorPowerChargeLimitStateStoppingDischarge,
         copyMonitorPowerChargeLimitStateSystem,
         copyMonitorPowerChargeLimitStateUnplugged,
         copyMonitorPowerChargeLimitTitle,

@@ -10,6 +10,7 @@ struct ChargeLimitPowerReading: Equatable, Sendable {
     let calibrationActive: Bool
     let systemProtectionActive: Bool
     let bypassEngaged: Bool
+    var activelyDischarging: Bool = false
 }
 
 protocol ChargeLimitPowerReadingSource: Sendable {
@@ -28,6 +29,7 @@ struct ChargeLimitRuntimeState: Codable, Equatable {
     /// 已写入 PowerUI，但 powerd 尚未确认的目标。
     var pendingTargetPercent: Int? = nil
     var lastPhase = "off"
+    var activeDischargeEnabled: Bool? = nil
 }
 
 /// runtime 状态文件。与根偏好状态分开，避免把用户上限和 MCL 执行目标混在一起。
@@ -102,12 +104,22 @@ struct ChargeLimitRuntimeStatus: Equatable, Sendable {
     let phase: String
     let bypassEngaged: Bool
     let original: ChargeLimitOriginals?
+    var activeDischargeEnabled: Bool = false
 }
 
 protocol ChargeLimitRuntimeControlling: Sendable {
     func status() -> Result<ChargeLimitRuntimeStatus, ChargeLimitMCLFailure>
-    func configure(userLimitPercent: Int) -> Result<ChargeLimitRuntimeStatus, ChargeLimitMCLFailure>
+    func configure(
+        userLimitPercent: Int,
+        activeDischargeEnabled: Bool
+    ) -> Result<ChargeLimitRuntimeStatus, ChargeLimitMCLFailure>
     func restore() -> Result<Void, ChargeLimitMCLFailure>
+}
+
+extension ChargeLimitRuntimeController {
+    func configure(userLimitPercent: Int) -> Result<ChargeLimitRuntimeStatus, ChargeLimitMCLFailure> {
+        configure(userLimitPercent: userLimitPercent, activeDischargeEnabled: false)
+    }
 }
 
 /// 持续执行 5% 回差策略的 helper 运行时。
@@ -161,7 +173,10 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
         syncOnQueue { statusLocked() }
     }
 
-    func configure(userLimitPercent: Int) -> Result<ChargeLimitRuntimeStatus, ChargeLimitMCLFailure> {
+    func configure(
+        userLimitPercent: Int,
+        activeDischargeEnabled: Bool
+    ) -> Result<ChargeLimitRuntimeStatus, ChargeLimitMCLFailure> {
         guard ChargeLimitPolicy.shared.isValidUpperLimit(percent: Int32(userLimitPercent)) else {
             return .failure(.invalidTarget(userLimitPercent))
         }
@@ -169,7 +184,8 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
             let state = ChargeLimitRuntimeState(
                 userLimitPercent: userLimitPercent,
                 chargingLatch: false,
-                lastPhase: "applying"
+                lastPhase: "applying",
+                activeDischargeEnabled: activeDischargeEnabled
             )
             do {
                 try stateStore.save(state)
@@ -288,7 +304,9 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
                 KotlinInt(int: Int32($0))
             },
             writePending: hasPendingTarget,
-            bypassEngaged: reading.bypassEngaged
+            bypassEngaged: reading.bypassEngaged,
+            activeDischargeEnabled: state.activeDischargeEnabled ?? false,
+            activelyDischarging: reading.activelyDischarging
         )
         let decision = ChargeLimitPolicy.shared.evaluate(
             observation: observation,
@@ -300,7 +318,8 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
             chargingLatch: decision.chargingLatch,
             calibrationTargetPercent: reading.calibrationActive ? observedTarget : nil,
             pendingTargetPercent: hasPendingTarget ? pendingTarget : nil,
-            lastPhase: phaseName(decision.phase)
+            lastPhase: phaseName(decision.phase),
+            activeDischargeEnabled: state.activeDischargeEnabled
         )
         do {
             try stateStore.save(updated)
@@ -357,7 +376,8 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
             chargingLatch: state.chargingLatch,
             calibrationTargetPercent: state.calibrationTargetPercent,
             pendingTargetPercent: targetPercent,
-            lastPhase: "applying"
+            lastPhase: "applying",
+            activeDischargeEnabled: state.activeDischargeEnabled
         )
         do {
             try stateStore.save(pending)
@@ -423,7 +443,8 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
                 chargingLatch: state.chargingLatch,
                 phase: state.lastPhase,
                 bypassEngaged: bypassEngaged,
-                original: backendState?.original
+                original: backendState?.original,
+                activeDischargeEnabled: state.activeDischargeEnabled ?? false
             )
         )
     }
@@ -440,6 +461,8 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
         case .noBattery: "noBattery"
         case .unplugged: "unplugged"
         case .applying: "applying"
+        case .discharging: "discharging"
+        case .stoppingDischarge: "stoppingDischarge"
         case .charging: "charging"
         case .sailing: "sailing"
         case .holding: "holding"

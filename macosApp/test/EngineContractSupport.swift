@@ -42,7 +42,8 @@ enum AppConfigs {
         enabled: Bool? = nil,
         power: PowerConfig? = nil,
         chargeLimitEnabled: Bool? = nil,
-        chargeLimitPercent: Int32? = nil
+        chargeLimitPercent: Int32? = nil,
+        chargeLimitActiveDischarge: Bool? = nil
     ) -> AppConfig {
         base.doCopy(
             schemaVersion: base.schemaVersion,
@@ -72,6 +73,7 @@ enum AppConfigs {
             power: power ?? base.power,
             chargeLimitEnabled: chargeLimitEnabled ?? base.chargeLimitEnabled,
             chargeLimitPercent: chargeLimitPercent ?? base.chargeLimitPercent,
+            chargeLimitActiveDischarge: chargeLimitActiveDischarge ?? base.chargeLimitActiveDischarge,
             fileNaming: base.fileNaming
         )
     }

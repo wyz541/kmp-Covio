@@ -89,6 +89,46 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         XCTAssertEqual(backend.appliedTargets, [75])
     }
 
+    func testActiveDischargeTargetsTheUpperLimit() throws {
+        let backend = FakeChargeLimitBackend()
+        let reader = FakeChargeLimitPowerReader(reading: reading(current: 75))
+        let runtime = makeRuntime(backend: backend, reader: reader)
+        defer { _ = runtime.restore() }
+
+        _ = try runtime.configure(
+            userLimitPercent: 70,
+            activeDischargeEnabled: true
+        ).get()
+        let status = try runtime.evaluateNow().get()
+
+        XCTAssertEqual(status.phase, "discharging")
+        XCTAssertEqual(status.effectiveTargetPercent, 70)
+        XCTAssertTrue(status.activeDischargeEnabled)
+        XCTAssertEqual(backend.appliedTargets, [70])
+
+        reader.reading = reading(current: 70)
+        let holding = try runtime.evaluateNow().get()
+        XCTAssertEqual(holding.phase, "holding")
+        XCTAssertEqual(holding.effectiveTargetPercent, 70)
+
+        reader.reading = reading(current: 65)
+        let charging = try runtime.evaluateNow().get()
+        XCTAssertEqual(charging.phase, "charging")
+        XCTAssertTrue(charging.chargingLatch)
+        XCTAssertEqual(charging.effectiveTargetPercent, 70)
+
+        reader.reading = reading(current: 80, activelyDischarging: true)
+        _ = try runtime.configure(
+            userLimitPercent: 70,
+            activeDischargeEnabled: false
+        ).get()
+        let stopping = try runtime.evaluateNow().get()
+        XCTAssertEqual(stopping.phase, "stoppingDischarge")
+
+        reader.reading = reading(current: 80)
+        XCTAssertEqual(try runtime.evaluateNow().get().phase, "aboveLimit")
+    }
+
     func testFirstConfigurePersistsAMatchingObservedTarget() throws {
         let backend = FakeChargeLimitBackend()
         backend.observedTargetOverride = 75
@@ -379,7 +419,8 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         charged: Bool = false,
         calibrationActive: Bool = false,
         protectionActive: Bool = false,
-        bypassEngaged: Bool = false
+        bypassEngaged: Bool = false,
+        activelyDischarging: Bool = false
     ) -> ChargeLimitPowerReading {
         ChargeLimitPowerReading(
             adapterConnected: adapter,
@@ -388,7 +429,8 @@ final class ChargeLimitRuntimeTests: XCTestCase {
             isCharged: charged,
             calibrationActive: calibrationActive,
             systemProtectionActive: protectionActive,
-            bypassEngaged: bypassEngaged
+            bypassEngaged: bypassEngaged,
+            activelyDischarging: activelyDischarging
         )
     }
 }

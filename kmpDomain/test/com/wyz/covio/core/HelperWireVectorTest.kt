@@ -127,7 +127,7 @@ class HelperWireVectorTest {
         assertEquals(APP_VERSION, reply.result?.get("version"))
         assertEquals(HELPER_PROTOCOL_VERSION, reply.result?.get("protocolVersion"))
         assertEquals(
-            """{"version":"4","requestId":"r","ok":true,"result":{"version":"$APP_VERSION","protocolVersion":"$HELPER_PROTOCOL_VERSION"}}""",
+            """{"version":"5","requestId":"r","ok":true,"result":{"version":"$APP_VERSION","protocolVersion":"$HELPER_PROTOCOL_VERSION"}}""",
             HelperWire.encodeReply(reply),
         )
     }

@@ -165,6 +165,10 @@ object HelperWire {
         if (request.command == COMMAND_CHARGE_LIMIT_CONFIGURE) {
             val percent = request.payload["percent"]?.toIntOrNull() ?: return "Missing charge limit"
             if (!ChargeLimitPolicy.isValidUpperLimit(percent)) return "Invalid charge limit"
+            val activeDischarge = request.payload["activeDischarge"]
+            if (activeDischarge != null && activeDischarge != "true" && activeDischarge != "false") {
+                return "Invalid active discharge value"
+            }
         }
         return null
     }

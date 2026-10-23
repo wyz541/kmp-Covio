@@ -6372,6 +6372,14 @@
       "en": "Apply limit",
       "zh-Hans": "应用上限"
     },
+    "copy/monitor/power/charge-limit/active-discharge": {
+      "en": "Discharge above limit",
+      "zh-Hans": "高于上限时主动放电"
+    },
+    "copy/monitor/power/charge-limit/active-discharge-warning": {
+      "en": "Warning: this option increases battery cycles.",
+      "zh-Hans": "警告：此选项会增加电池循环。"
+    },
     "copy/monitor/power/charge-limit/applying": {
       "en": "Applying charge limit",
       "zh-Hans": "正在应用充电上限"
@@ -6420,6 +6428,10 @@
       "en": "System policy conflict",
       "zh-Hans": "系统策略冲突"
     },
+    "copy/monitor/power/charge-limit/state/discharging": {
+      "en": "Discharging to limit",
+      "zh-Hans": "正在放电至上限"
+    },
     "copy/monitor/power/charge-limit/state/error": {
       "en": "Charge limit error",
       "zh-Hans": "充电上限错误"
@@ -6431,6 +6443,10 @@
     "copy/monitor/power/charge-limit/state/protection": {
       "en": "System protection",
       "zh-Hans": "系统保护中"
+    },
+    "copy/monitor/power/charge-limit/state/stopping-discharge": {
+      "en": "Stopping discharge",
+      "zh-Hans": "正在停止放电"
     },
     "copy/monitor/power/charge-limit/state/sailing": {
       "en": "Holding current level",

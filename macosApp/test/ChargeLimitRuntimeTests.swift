@@ -217,6 +217,42 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         XCTAssertEqual(backend.appliedTargets, [70, 71])
     }
 
+    func testActiveDischargeKeepsChieUntilTheAtLimitTargetIsRepaired() throws {
+        let backend = FakeChargeLimitBackend()
+        backend.observedTargetOverride = 70
+        let reader = FakeChargeLimitPowerReader(reading: reading(current: 80))
+        let runtime = makeRuntime(
+            backend: backend,
+            reader: reader,
+            activeDischargeNudgeDelaySeconds: 0.05,
+            activeDischargeNudgeCooldownSeconds: 0
+        )
+        defer { _ = runtime.restore() }
+
+        _ = try runtime.configure(
+            userLimitPercent: 70,
+            activeDischargeEnabled: true
+        ).get()
+        XCTAssertTrue(activeDischargePort.engaged)
+
+        backend.observedTargetOverride = 80
+        reader.reading = reading(current: 70, activelyDischarging: true)
+        XCTAssertEqual(try runtime.evaluateNow().get().phase, "applying")
+        XCTAssertTrue(activeDischargePort.engaged)
+
+        let completed = expectation(description: "at-limit nudge completes")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            XCTAssertEqual(backend.appliedTargets, [70, 71, 70])
+            completed.fulfill()
+        }
+        wait(for: [completed], timeout: 1)
+
+        backend.observedTargetOverride = 70
+        let holding = try runtime.evaluateNow().get()
+        XCTAssertEqual(holding.phase, "holding")
+        XCTAssertFalse(activeDischargePort.engaged)
+    }
+
     func testActiveDischargeRequiresChieSupport() {
         activeDischargePort.supported = false
         let backend = FakeChargeLimitBackend()

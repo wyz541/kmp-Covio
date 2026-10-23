@@ -311,9 +311,14 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
         }
         let observedTarget = backend.observedTargetPercent()
         let alreadyEngaged = activeDischargePort.isEngaged() ?? false
-        let wantsActiveDischarge = state.activeDischargeEnabled == true &&
-            (reading.currentPercent ?? Int.min) > state.userLimitPercent &&
-            (reading.adapterConnected || alreadyEngaged)
+        let currentPercent = reading.currentPercent ?? Int.min
+        let targetNeedsRepair = state.activeDischargeEnabled == true &&
+            observedTarget != state.userLimitPercent
+        let keepChieForTargetRepair = targetNeedsRepair && currentPercent == state.userLimitPercent
+        let wantsActiveDischarge = state.activeDischargeEnabled == true && (
+            (currentPercent > state.userLimitPercent && (reading.adapterConnected || alreadyEngaged)) ||
+                keepChieForTargetRepair
+        )
         if wantsActiveDischarge {
             if !alreadyEngaged, !activeDischargePort.engage() {
                 return .failure(.readbackFailed("CHIE active discharge"))
@@ -336,7 +341,7 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
             hasPendingTarget
         let activeDischargeTargetMismatch = state.activeDischargeEnabled == true &&
             effectiveAdapterConnected &&
-            (reading.currentPercent ?? Int.min) > state.userLimitPercent &&
+            currentPercent >= state.userLimitPercent &&
             observedTarget != state.userLimitPercent &&
             !targetMayBeReplaced
         if activeDischargeTargetMismatch {

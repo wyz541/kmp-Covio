@@ -199,7 +199,7 @@ class HelperWireTest {
     fun `an empty payload is left out of the request`() {
         val line = HelperWire.encodeRequest(request(HelperWire.COMMAND_VERSION))
 
-        assertEquals("""{"version":"5","requestId":"r1","command":"version"}""", line)
+        assertEquals("""{"version":"6","requestId":"r1","command":"version"}""", line)
     }
 
     @Test
@@ -209,7 +209,7 @@ class HelperWireTest {
         )
 
         assertEquals(
-            """{"version":"5","requestId":"r1","command":"setDisableSleep","payload":{"disabled":"true"}}""",
+            """{"version":"6","requestId":"r1","command":"setDisableSleep","payload":{"disabled":"true"}}""",
             line,
         )
     }
@@ -241,13 +241,13 @@ class HelperWireTest {
 
     @Test
     fun `a successful reply leaves an empty result out`() {
-        assertEquals("""{"version":"5","requestId":"r","ok":true}""", HelperWire.encodeReply(HelperWire.success("r")))
+        assertEquals("""{"version":"6","requestId":"r","ok":true}""", HelperWire.encodeReply(HelperWire.success("r")))
     }
 
     @Test
     fun `a successful reply keeps a non empty result`() {
         assertEquals(
-            """{"version":"5","requestId":"r","ok":true,"result":{"a":"b"}}""",
+            """{"version":"6","requestId":"r","ok":true,"result":{"a":"b"}}""",
             HelperWire.encodeReply(HelperWire.success("r", mapOf("a" to "b"))),
         )
     }
@@ -255,7 +255,7 @@ class HelperWireTest {
     @Test
     fun `a failure reply carries only the message`() {
         assertEquals(
-            """{"version":"5","requestId":"r","ok":false,"error":"boom"}""",
+            """{"version":"6","requestId":"r","ok":false,"error":"boom"}""",
             HelperWire.encodeReply(HelperWire.failure("r", "boom")),
         )
     }

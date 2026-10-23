@@ -129,6 +129,37 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         XCTAssertEqual(try runtime.evaluateNow().get().phase, "aboveLimit")
     }
 
+    func testActiveDischargeNudgesWhenPowerdDropsTheTarget() throws {
+        let backend = FakeChargeLimitBackend()
+        backend.observedTargetOverride = 70
+        let reader = FakeChargeLimitPowerReader(
+            reading: reading(current: 79, activelyDischarging: true)
+        )
+        let runtime = makeRuntime(
+            backend: backend,
+            reader: reader,
+            activeDischargeNudgeDelaySeconds: 0.05,
+            activeDischargeNudgeCooldownSeconds: 0
+        )
+        defer { _ = runtime.restore() }
+
+        _ = try runtime.configure(
+            userLimitPercent: 70,
+            activeDischargeEnabled: true
+        ).get()
+        backend.observedTargetOverride = 80
+
+        XCTAssertEqual(try runtime.evaluateNow().get().phase, "applying")
+        XCTAssertEqual(backend.appliedTargets, [70, 71])
+
+        let completed = expectation(description: "nudge completes")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            XCTAssertEqual(backend.appliedTargets, [70, 71, 70])
+            completed.fulfill()
+        }
+        wait(for: [completed], timeout: 1)
+    }
+
     func testFirstConfigurePersistsAMatchingObservedTarget() throws {
         let backend = FakeChargeLimitBackend()
         backend.observedTargetOverride = 75
@@ -403,13 +434,17 @@ final class ChargeLimitRuntimeTests: XCTestCase {
 
     private func makeRuntime(
         backend: FakeChargeLimitBackend,
-        reader: FakeChargeLimitPowerReader
+        reader: FakeChargeLimitPowerReader,
+        activeDischargeNudgeDelaySeconds: TimeInterval = 0.05,
+        activeDischargeNudgeCooldownSeconds: TimeInterval = 0
     ) -> ChargeLimitRuntimeController {
         ChargeLimitRuntimeController(
             backend: backend,
             powerReader: reader,
             stateStore: stateStore,
-            intervalSeconds: 3_600
+            intervalSeconds: 3_600,
+            activeDischargeNudgeDelaySeconds: activeDischargeNudgeDelaySeconds,
+            activeDischargeNudgeCooldownSeconds: activeDischargeNudgeCooldownSeconds
         )
     }
 

@@ -50,6 +50,8 @@
 10. PowerUI 接受写入后，保持 `applying` 等待 powerd 确认。
 11. 充电时 powerd 可能等待下一次电量 `1%` 步进。
 12. `pmset` 与 PowerUI 目标一致后退出等待态。
+13. 主动放电期间 powerd 回到旧目标时，先写 `目标+1`，再写回目标。
+14. 自动纠偏最多每 `120` 秒执行一次。
 
 如果任一步失败，执行恢复流程。
 
@@ -146,14 +148,15 @@ Helper 读取 `Amperage`，在电流归零前显示 `stoppingDischarge`。
 6. 主动放电时 `BatteryPower<0`。
 7. 主动放电到上限后停止放电。
 8. 关闭主动放电后，电流归零前显示 `stoppingDischarge`。
-9. `BatteryPower=0` 且 `BypassEngaged`。
-10. 系统设置外部修改。
-11. 睡眠和唤醒。
-12. 重启。
-13. 校准周期。
-14. 无电池设备。
-15. Intel 设备。
-16. 卸载和 helper 缺失。
-17. `bash scripts/test-all.sh` 通过。
+9. 低档位目标回退后自动纠偏。
+10. `BatteryPower=0` 且 `BypassEngaged`。
+11. 系统设置外部修改。
+12. 睡眠和唤醒。
+13. 重启。
+14. 校准周期。
+15. 无电池设备。
+16. Intel 设备。
+17. 卸载和 helper 缺失。
+18. `bash scripts/test-all.sh` 通过。
 
 详细矩阵见 [validation/README.md](validation/README.md)。

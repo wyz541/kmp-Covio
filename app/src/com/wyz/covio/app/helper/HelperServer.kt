@@ -131,6 +131,13 @@ internal class HelperServer(private val logger: HelperLog) {
                 runPmset(request.requestId, arguments)
             } else if (request.command == HelperWire.COMMAND_VERSION) {
                 HelperWire.versionReply(request.requestId)
+            } else if (HelperWire.isFanControlCommand(request.command)) {
+                // Fan control is implemented by the SwiftUI host. The Compose host
+                // answers explicitly instead of running an unsupported command.
+                HelperWire.failure(
+                    request.requestId,
+                    "Fan control is unavailable in the Compose app",
+                )
             } else {
                 // 白名单外的命令在校验那一步就被拒绝了，这里只是兜底。
                 HelperWire.failure(request.requestId, "Command is not allowed")

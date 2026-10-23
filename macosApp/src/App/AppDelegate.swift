@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     #if DEBUG
     private var monitorPreview: MonitorPreviewWindowController?
     private var glassPlatePreviewWindow: NSWindow?
+    private var fanPreviewWindow: NSWindow?
     private var reportPreview: MonitorReportPreviewWindowController?
     private var fileAreaPreview: NSWindow?
     private var fileAreaLivePreview: FileAreaLivePreviewController?
@@ -118,6 +119,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             return
         }
+        if let path = ProcessInfo.processInfo.environment["COVIO_MONITOR_FAN_DETAIL_RENDER"], !path.isEmpty {
+            Task { @MainActor in
+                exit(await MonitorFanDetailRenderer.render(to: path) ? 0 : 1)
+            }
+            return
+        }
+        if let path = ProcessInfo.processInfo.environment["COVIO_MONITOR_FAN_CARD_RENDER"], !path.isEmpty {
+            Task { @MainActor in
+                exit(await MonitorFanCardRenderer.render(to: path) ? 0 : 1)
+            }
+            return
+        }
         if ProcessInfo.processInfo.environment["COVIO_MONITOR_PREVIEW"] == "1" {
             NSApp.setActivationPolicy(.regular)
             let preview = MonitorPreviewWindowController()
@@ -147,6 +160,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             glassPlatePreviewWindow = window
+            return
+        }
+        if ProcessInfo.processInfo.environment["COVIO_MONITOR_FAN_PREVIEW"] == "1" {
+            NSApp.setActivationPolicy(.regular)
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 468, height: 668),
+                styleMask: [.titled, .closable],
+                backing: .buffered,
+                defer: false
+            )
+            window.title = "Covio Fan Control Preview"
+            let isDark = ProcessInfo.processInfo.environment["AppleInterfaceStyle"]?
+                .lowercased() == "dark"
+            let colorScheme: ColorScheme = isDark ? .dark : .light
+            window.contentView = NSHostingView(
+                rootView: MonitorFanPreviewRoot()
+                    .padding(24)
+                    .environment(\.colorScheme, colorScheme)
+            )
+            window.center()
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            fanPreviewWindow = window
             return
         }
         if ProcessInfo.processInfo.environment["COVIO_POWER_PREVIEW"] == "1" {
@@ -296,6 +332,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         hotKey?.unregister()
         statusItemController?.tearDown()
+        // Stop the lease before the helper expires it. The helper also restores
+        // after a crash, but normal quit should not leave fan control running.
+        FanControlLeaseKeeper.shared.stopAndRestore()
         // 先停引擎。它会撤销 `pmset` 的改动，必须在进程退出前跑完。
         runtime?.stop()
         shell.stop()

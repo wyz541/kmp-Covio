@@ -32,6 +32,9 @@
 - The Monitor power card shows the supply state, battery level, temperature, power draw,
   and recent trends. Its expandable detail panel shows estimated time, charging data,
   power events, and the top three energy users from the last hour.
+- The Monitor fan card shows control temperature, CPU use, fan RPM, and recent trends.
+  Its popover provides automatic and manual control, presets, sensor selection,
+  and automatic recovery to system control.
 - `config.json` is compatible with 0.4.2 in both directions.
 
 The details are in `README.md`, section "What is new in 0.5.0".

@@ -105,6 +105,57 @@ class HelperWireTest {
     }
 
     @Test
+    fun `fan configuration validates the curve and control values`() {
+        val valid = mapOf(
+            "enabled" to "true",
+            "mode" to "auto",
+            "start" to "58",
+            "full" to "86",
+            "sensors" to "TCMz,TG0D",
+            "manualRPM" to "0:2200,1:2400",
+        )
+        assertNull(HelperWire.validate(request(HelperWire.COMMAND_FAN_CONTROL_CONFIGURE, valid)))
+        assertEquals(
+            "Fan control must be enabled",
+            HelperWire.validate(
+                request(HelperWire.COMMAND_FAN_CONTROL_CONFIGURE, valid + ("enabled" to "false")),
+            ),
+        )
+        assertEquals(
+            "Invalid fan control mode",
+            HelperWire.validate(
+                request(HelperWire.COMMAND_FAN_CONTROL_CONFIGURE, valid + ("mode" to "off")),
+            ),
+        )
+        assertEquals(
+            "Invalid fan curve",
+            HelperWire.validate(
+                request(HelperWire.COMMAND_FAN_CONTROL_CONFIGURE, valid + ("full" to "60")),
+            ),
+        )
+        assertEquals(
+            "Invalid fan sensor key",
+            HelperWire.validate(
+                request(HelperWire.COMMAND_FAN_CONTROL_CONFIGURE, valid + ("sensors" to "CPU")),
+            ),
+        )
+        assertEquals(
+            "Invalid fan RPM",
+            HelperWire.validate(
+                request(HelperWire.COMMAND_FAN_CONTROL_CONFIGURE, valid + ("manualRPM" to "0:fast")),
+            ),
+        )
+    }
+
+    @Test
+    fun `fan commands require a client signature`() {
+        assertTrue(HelperWire.requiresClientSignature(HelperWire.COMMAND_FAN_CONTROL_CONFIGURE))
+        assertTrue(HelperWire.requiresClientSignature(HelperWire.COMMAND_FAN_CONTROL_KEEP_ALIVE))
+        assertTrue(HelperWire.requiresClientSignature(HelperWire.COMMAND_FAN_CONTROL_RESTORE))
+        assertFalse(HelperWire.requiresClientSignature(HelperWire.COMMAND_VERSION))
+    }
+
+    @Test
     fun `every supported hibernate mode passes`() {
         for (mode in SUPPORTED_HIBERNATE_MODES) {
             assertNull(
@@ -376,6 +427,10 @@ class HelperWireTest {
                 HelperWire.COMMAND_LID_LEASE_RENEW,
                 HelperWire.COMMAND_LID_LEASE_RELEASE,
                 HelperWire.COMMAND_LID_LEASE_STATUS,
+                HelperWire.COMMAND_FAN_CONTROL_STATUS,
+                HelperWire.COMMAND_FAN_CONTROL_CONFIGURE,
+                HelperWire.COMMAND_FAN_CONTROL_KEEP_ALIVE,
+                HelperWire.COMMAND_FAN_CONTROL_RESTORE,
             ),
             HELPER_ALLOWED_COMMANDS,
         )

@@ -1,0 +1,262 @@
+import Foundation
+import kmpDomain
+
+@MainActor
+final class MonitorFanControlModel: ObservableObject {
+    enum HelperAvailability: Equatable {
+        case checking
+        case ready
+        case missing
+        case outdated
+        case unavailable
+    }
+
+    @Published var configuration: MonitorFanConfiguration
+    @Published private(set) var availability: HelperAvailability = .checking
+    @Published private(set) var busy = false
+    @Published private(set) var helperStatus: FanControlHelperStatus?
+    @Published private(set) var message: String?
+
+    private let client: HelperClient
+    private let defaults: UserDefaults
+    private var didAdoptSensors = false
+    private var skipsAvailabilityRefresh = false
+
+    private static let preferencesKey = "monitor.fan.control.v1"
+
+    init(client: HelperClient = HelperClient(), defaults: UserDefaults = .standard) {
+        self.client = client
+        self.defaults = defaults
+        if let data = defaults.data(forKey: Self.preferencesKey),
+           let value = try? JSONDecoder().decode(MonitorFanConfiguration.self, from: data) {
+            configuration = value
+        } else {
+            configuration = .defaultValue
+        }
+    }
+
+    #if DEBUG
+    init(
+        previewConfiguration: MonitorFanConfiguration,
+        availability: HelperAvailability,
+        helperStatus: FanControlHelperStatus? = nil
+    ) {
+        client = HelperClient()
+        defaults = UserDefaults(suiteName: "CovioMonitorFanPreview") ?? .standard
+        configuration = previewConfiguration
+        self.availability = availability
+        self.helperStatus = helperStatus
+        skipsAvailabilityRefresh = true
+    }
+    #endif
+
+    func refreshAvailability() {
+        guard !busy, !skipsAvailabilityRefresh else { return }
+        Task.detached(priority: .userInitiated) { [client] in
+            let socketExists = FileManager.default.fileExists(atPath: client.socketPath)
+            let info = socketExists ? client.versionInfo() : nil
+            let availability: HelperAvailability
+            if !socketExists {
+                availability = .missing
+            } else if let info {
+                if info.version == ModelsKt.APP_VERSION,
+                   info.protocolVersion == HelperProtocol.protocolVersion {
+                    availability = .ready
+                } else {
+                    availability = .outdated
+                }
+            } else {
+                availability = .unavailable
+            }
+            let status = availability == .ready ? client.fanControlStatus() : nil
+            await MainActor.run {
+                self.availability = availability
+                self.helperStatus = status
+                if availability != .ready || status?.active != true {
+                    if self.configuration.enabled {
+                        self.configuration.enabled = false
+                        self.persist()
+                    }
+                }
+            }
+        }
+    }
+
+    func adoptDefaultSensors(from reading: MonitorFanReading) {
+        guard !didAdoptSensors else { return }
+        didAdoptSensors = true
+        let known = Set(reading.temperatures.map(\.key))
+        if configuration.selectedSensorKeys.isEmpty ||
+            configuration.selectedSensorKeys.allSatisfy({ !known.contains($0) }) {
+            configuration.selectedSensorKeys = SMCFanReader.controlSensorKeys(
+                for: reading.temperatures.map {
+                    SMCTemperatureReading(key: $0.key, celsius: $0.celsius)
+                },
+                allKeys: reading.temperatures.map(\.key)
+            )
+            persist()
+        }
+    }
+
+    func setEnabled(_ enabled: Bool, reading: MonitorFanReading) {
+        configuration.enabled = enabled
+        persist()
+        if enabled {
+            apply(reading: reading)
+        } else {
+            restore()
+        }
+    }
+
+    func setMode(_ mode: MonitorFanMode, reading: MonitorFanReading) {
+        configuration.mode = mode
+        persist()
+        if configuration.enabled {
+            apply(reading: reading)
+        }
+    }
+
+    func applyPreset(_ preset: MonitorFanConfiguration, reading: MonitorFanReading) {
+        let sensorKeys = configuration.selectedSensorKeys
+        configuration.startCelsius = preset.startCelsius
+        configuration.fullCelsius = preset.fullCelsius
+        configuration.mode = .automatic
+        configuration.enabled = true
+        configuration.selectedSensorKeys = sensorKeys
+        persist()
+        apply(reading: reading)
+    }
+
+    func applyCurve(reading: MonitorFanReading) {
+        guard configuration.enabled else {
+            persist()
+            return
+        }
+        apply(reading: reading)
+    }
+
+    func setManualRPM(_ rpm: Double, fanIndex: Int, reading: MonitorFanReading) {
+        configuration.manualRPM[String(fanIndex)] = rpm.rounded()
+        persist()
+        if configuration.enabled, configuration.mode == .manual {
+            apply(reading: reading)
+        }
+    }
+
+    func setSensor(_ key: String, enabled: Bool, reading: MonitorFanReading) {
+        var selected = Set(configuration.selectedSensorKeys)
+        if enabled {
+            selected.insert(key)
+        } else {
+            selected.remove(key)
+        }
+        if selected.isEmpty { return }
+        configuration.selectedSensorKeys = selected.sorted()
+        persist()
+        if configuration.enabled, configuration.mode == .automatic {
+            apply(reading: reading)
+        }
+    }
+
+    func restore() {
+        guard !busy else { return }
+        if skipsAvailabilityRefresh {
+            configuration.enabled = false
+            return
+        }
+        busy = true
+        message = nil
+        Task.detached(priority: .userInitiated) { [client] in
+            let result = client.restoreFanControl()
+            await MainActor.run {
+                self.busy = false
+                if result.ok {
+                    self.configuration.enabled = false
+                    self.helperStatus = FanControlHelperStatus(
+                        active: false,
+                        mode: "system",
+                        controlTemperature: nil,
+                        leaseRemainingSeconds: 0,
+                        error: nil
+                    )
+                    FanControlLeaseKeeper.shared.stop()
+                    self.persist()
+                } else {
+                    self.message = result.message
+                }
+            }
+        }
+    }
+
+    func installHelper(runtime: AppRuntime?) {
+        guard let runtime else { return }
+        runtime.installHelper()
+        message = nil
+        Task {
+            try? await Task.sleep(for: .seconds(2))
+            refreshAvailability()
+        }
+    }
+
+    private func apply(reading: MonitorFanReading) {
+        guard !busy else { return }
+        if skipsAvailabilityRefresh { return }
+        let minimums = Dictionary(uniqueKeysWithValues: reading.units.map {
+            ($0.index, $0.minimumRPM)
+        })
+        let maximums = Dictionary(uniqueKeysWithValues: reading.units.map {
+            ($0.index, $0.maximumRPM)
+        })
+        configuration = configuration.normalized(
+            fanMinimums: minimums,
+            fanMaximums: maximums
+        )
+        if configuration.selectedSensorKeys.isEmpty {
+            configuration.selectedSensorKeys = SMCFanReader.controlSensorKeys(
+                for: reading.temperatures.map {
+                    SMCTemperatureReading(key: $0.key, celsius: $0.celsius)
+                },
+                allKeys: reading.temperatures.map(\.key)
+            )
+        }
+        persist()
+
+        guard availability == .ready else {
+            configuration.enabled = false
+            persist()
+            message = nil
+            return
+        }
+
+        let configuration = configuration
+        busy = true
+        message = nil
+        Task.detached(priority: .userInitiated) { [client] in
+            let result = client.configureFanControl(configuration)
+            await MainActor.run {
+                self.busy = false
+                if result.ok {
+                    self.configuration.enabled = true
+                    self.helperStatus = FanControlHelperStatus(
+                        active: true,
+                        mode: configuration.mode.rawValue,
+                        controlTemperature: configuration.controlTemperature(in: reading),
+                        leaseRemainingSeconds: Int(MonitorFanPolicy.leaseSeconds),
+                        error: nil
+                    )
+                    FanControlLeaseKeeper.shared.start()
+                } else {
+                    self.configuration.enabled = false
+                    self.message = result.message
+                    FanControlLeaseKeeper.shared.stop()
+                }
+                self.persist()
+            }
+        }
+    }
+
+    private func persist() {
+        guard let data = try? JSONEncoder().encode(configuration) else { return }
+        defaults.set(data, forKey: Self.preferencesKey)
+    }
+}

@@ -73,6 +73,7 @@ struct MonitorSnapshot: Equatable, Sendable {
     let network: Network?
     let battery: Battery?
     let power: Power?
+    let fan: MonitorFanReading?
     let thermal: ThermalState
     let sampledAt: Date
 
@@ -84,6 +85,7 @@ struct MonitorSnapshot: Equatable, Sendable {
         network: nil,
         battery: nil,
         power: nil,
+        fan: nil,
         thermal: .nominal,
         sampledAt: .distantPast
     )
@@ -103,6 +105,7 @@ struct MonitorSnapshot: Equatable, Sendable {
             network: network,
             battery: battery,
             power: power,
+            fan: fan,
             thermal: thermal,
             sampledAt: sampledAt
         )
@@ -186,12 +189,14 @@ struct MonitorHistory: Equatable, Sendable {
     private(set) var download: [Double] = []
     private(set) var upload: [Double] = []
     private(set) var battery: [Double] = []
+    private(set) var fanTemperature: [Double] = []
+    private(set) var fanRPM: [Double] = []
 
     init(capacity: Int = 60) {
         self.capacity = max(1, capacity)
     }
 
-    mutating func append(_ snapshot: MonitorSnapshot) {
+    mutating func append(_ snapshot: MonitorSnapshot, fanControlTemperature: Double? = nil) {
         Self.append(snapshot.cpu?.usage, to: &cpu, capacity: capacity)
         Self.append(snapshot.gpu?.usage, to: &gpu, capacity: capacity)
         if let memoryReading = snapshot.memory, memoryReading.total > 0 {
@@ -203,6 +208,12 @@ struct MonitorHistory: Equatable, Sendable {
         Self.append(snapshot.network?.downloadRate, to: &download, capacity: capacity)
         Self.append(snapshot.network?.uploadRate, to: &upload, capacity: capacity)
         Self.append(snapshot.battery.map { $0.percent / 100 }, to: &battery, capacity: capacity)
+        Self.append(
+            fanControlTemperature ?? snapshot.fan?.maximumTemperature,
+            to: &fanTemperature,
+            capacity: capacity
+        )
+        Self.append(snapshot.fan?.units.map(\.rpm).max(), to: &fanRPM, capacity: capacity)
     }
 
     mutating func reset() {
@@ -213,6 +224,8 @@ struct MonitorHistory: Equatable, Sendable {
         download.removeAll(keepingCapacity: true)
         upload.removeAll(keepingCapacity: true)
         battery.removeAll(keepingCapacity: true)
+        fanTemperature.removeAll(keepingCapacity: true)
+        fanRPM.removeAll(keepingCapacity: true)
     }
 
     private static func append(_ value: Double?, to values: inout [Double], capacity: Int) {

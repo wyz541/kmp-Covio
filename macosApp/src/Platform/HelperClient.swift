@@ -345,3 +345,120 @@ enum UnixSocketIO {
         return true
     }
 }
+
+// MARK: - Fan control
+
+struct FanControlHelperStatus: Equatable, Sendable {
+    let active: Bool
+    let mode: String
+    let controlTemperature: Double?
+    let leaseRemainingSeconds: Int
+    let error: String?
+}
+
+struct FanControlCommandResult: Equatable, Sendable {
+    let ok: Bool
+    let message: String?
+}
+
+extension HelperClient {
+    func fanControlStatus() -> FanControlHelperStatus? {
+        guard let reply = request(
+            command: HelperWire.shared.COMMAND_FAN_CONTROL_STATUS,
+            timeoutMillis: 2_000
+        ), reply.ok else { return nil }
+        let result = reply.result ?? [:]
+        return FanControlHelperStatus(
+            active: result["active"] == "true",
+            mode: result["mode"] ?? "system",
+            controlTemperature: result["controlTemperature"].flatMap(Double.init),
+            leaseRemainingSeconds: result["leaseRemainingSeconds"].flatMap(Int.init) ?? 0,
+            error: result["error"]
+        )
+    }
+
+    func configureFanControl(_ configuration: MonitorFanConfiguration) -> FanControlCommandResult {
+        let reply = request(
+            command: HelperWire.shared.COMMAND_FAN_CONTROL_CONFIGURE,
+            payload: configuration.helperPayload(),
+            timeoutMillis: 30_000
+        )
+        return FanControlCommandResult(
+            ok: reply?.ok == true,
+            message: reply?.error
+        )
+    }
+
+    func keepAliveFanControl() -> FanControlHelperStatus? {
+        guard let reply = request(
+            command: HelperWire.shared.COMMAND_FAN_CONTROL_KEEP_ALIVE,
+            timeoutMillis: 2_000
+        ), reply.ok else { return nil }
+        let result = reply.result ?? [:]
+        return FanControlHelperStatus(
+            active: result["active"] == "true",
+            mode: result["mode"] ?? "system",
+            controlTemperature: result["controlTemperature"].flatMap(Double.init),
+            leaseRemainingSeconds: result["leaseRemainingSeconds"].flatMap(Int.init) ?? 0,
+            error: result["error"]
+        )
+    }
+
+    func restoreFanControl() -> FanControlCommandResult {
+        let reply = request(
+            command: HelperWire.shared.COMMAND_FAN_CONTROL_RESTORE,
+            timeoutMillis: 5_000
+        )
+        return FanControlCommandResult(
+            ok: reply?.ok == true,
+            message: reply?.error
+        )
+    }
+}
+
+/// Keeps the helper lease alive while Covio is running.
+/// The helper restores system control by itself if this process stops.
+final class FanControlLeaseKeeper: @unchecked Sendable {
+    static let shared = FanControlLeaseKeeper()
+
+    private let queue = DispatchQueue(label: "com.wyz.covio.fan-control-lease")
+    private let client: HelperClient
+    private var timer: DispatchSourceTimer?
+
+    init(client: HelperClient = HelperClient()) {
+        self.client = client
+    }
+
+    func start() {
+        queue.async { [weak self] in
+            guard let self, timer == nil else { return }
+            let source = DispatchSource.makeTimerSource(queue: queue)
+            source.schedule(
+                deadline: .now() + .seconds(Int(MonitorFanPolicy.heartbeatSeconds)),
+                repeating: .seconds(Int(MonitorFanPolicy.heartbeatSeconds))
+            )
+            source.setEventHandler { [weak self] in
+                guard let self else { return }
+                _ = client.keepAliveFanControl()
+            }
+            source.resume()
+            timer = source
+        }
+    }
+
+    func stop() {
+        queue.async { [weak self] in
+            self?.timer?.cancel()
+            self?.timer = nil
+        }
+    }
+
+    /// Called on normal app termination. A crash is covered by the helper lease.
+    func stopAndRestore() {
+        queue.sync {
+            timer?.cancel()
+            timer = nil
+            _ = client.restoreFanControl()
+        }
+    }
+}

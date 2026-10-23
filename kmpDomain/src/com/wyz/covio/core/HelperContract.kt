@@ -92,4 +92,8 @@ val HELPER_ALLOWED_COMMANDS: Set<String> = setOf(
     "lidLeaseRenew",
     "lidLeaseRelease",
     "lidLeaseStatus",
+    "fanControlStatus",
+    "fanControlConfigure",
+    "fanControlKeepAlive",
+    "fanControlRestore",
 )

@@ -9,7 +9,7 @@
 | 日期 | `2026-10-19` |
 | 适用对象 | Covio 产品、研发、测试和安全人员 |
 | 当前验证环境 | MacBookPro18,2，Apple M1 Max，macOS 27.0.1 |
-| 当前结论 | macOS 多数指标可无 root 读取。CPU 频率与 CPU 温度仍需私有接口；电池温度与整机功耗来自未文档化遥测字段。 |
+| 当前结论 | macOS 多数指标可无 root 读取。温度与风扇转速已通过 AppleSMC 接入 Monitor 页；风扇写入需要 root helper。电池温度与整机功耗来自未文档化遥测字段。 |
 | 验证状态 | 第一版自动测试与真机截图通过，见 [验证计划](validation/README.md) |
 
 本文回答一个问题：Covio 在工作台的监控页上能读到哪些硬件信息，每项信息的来源是什么。
@@ -53,7 +53,7 @@ macOS 的能力分三档。
 | 直接可读 | CPU 使用率、内存、磁盘容量与吞吐、网络吞吐、电池、合盖、热状态 | 无 |
 | 未文档化字段 | 电池温度、整机功耗遥测、按进程能耗 | 无 |
 | 需要授权 | Wi-Fi 名称与 BSSID、蓝牙设备电量 | 位置服务或蓝牙授权 |
-| 需要私有接口或未验证 | CPU 频率、CPU 温度、风扇转速 | 未定 |
+| 私有接口 | CPU 频率、温度传感器、风扇转速与控制 | 读取无 root；风扇写入需要 helper |
 
 结论、决策表和未决项见 [conclusion.md](conclusion.md)。
 每项结论的证据见 [evidence.md](evidence.md)。
@@ -73,6 +73,8 @@ macOS 的能力分三档。
 - 单元测试：`macosApp/test/MonitorMetricsTests.swift`
 - 页面只在可见时采样。接电源时每秒采样，使用电池时每 5 秒采样。
 - 第一版使用 Swift 侧读取器，不新增 KMP 端口。跨平台需求出现时再抽取共享模型。
+- 风扇卡片通过 `macosApp/src/Platform/SMC/` 读取 AppleSMC。
+- 风扇控制安全边界见 [Monitor 风扇卡片](../../design/monitor-fan-card.md)。
 
 ## 实现预期的手段
 

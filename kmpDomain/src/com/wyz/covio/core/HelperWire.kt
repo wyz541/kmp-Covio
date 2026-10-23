@@ -37,6 +37,10 @@ object HelperWire {
     const val COMMAND_CHARGE_LIMIT_STATUS = "chargeLimitStatus"
     const val COMMAND_CHARGE_LIMIT_CONFIGURE = "chargeLimitConfigure"
     const val COMMAND_CHARGE_LIMIT_RESTORE = "chargeLimitRestore"
+    const val COMMAND_FAN_CONTROL_STATUS = "fanControlStatus"
+    const val COMMAND_FAN_CONTROL_CONFIGURE = "fanControlConfigure"
+    const val COMMAND_FAN_CONTROL_KEEP_ALIVE = "fanControlKeepAlive"
+    const val COMMAND_FAN_CONTROL_RESTORE = "fanControlRestore"
 
     const val ERROR_UNSUPPORTED_PROTOCOL = "Unsupported protocol version"
     const val ERROR_EXTERNAL_DISPLAY = "Closed lid lease is blocked while an external display is connected"
@@ -170,6 +174,36 @@ object HelperWire {
                 return "Invalid active discharge value"
             }
         }
+        if (request.command == COMMAND_FAN_CONTROL_CONFIGURE) {
+            if (request.payload["enabled"] != "true") return "Fan control must be enabled"
+            val mode = request.payload["mode"]
+            if (mode != "auto" && mode != "manual") return "Invalid fan control mode"
+            val start = request.payload["start"]?.toDoubleOrNull()
+                ?: return "Missing fan start temperature"
+            val full = request.payload["full"]?.toDoubleOrNull()
+                ?: return "Missing fan full temperature"
+            if (!start.isFinite() || !full.isFinite() || start !in 35.0..80.0 ||
+                full !in (start + 5.0)..105.0
+            ) {
+                return "Invalid fan curve"
+            }
+            val sensors = request.payload["sensors"].orEmpty()
+            if (sensors.length > 512) return "Fan sensor list is too long"
+            val sensorKeys = sensors.split(',').filter { it.isNotBlank() }
+            if (sensorKeys.size > 32) return "Too many fan sensors"
+            if (sensorKeys.any { it.length != 4 }) return "Invalid fan sensor key"
+            val manual = request.payload["manualRPM"].orEmpty()
+            if (manual.length > 1024) return "Fan RPM list is too long"
+            for (pair in manual.split(',').filter { it.isNotBlank() }) {
+                val parts = pair.split(':', limit = 2)
+                if (parts.size != 2) return "Invalid fan RPM"
+                val fan = parts[0].toIntOrNull() ?: return "Invalid fan index"
+                val rpm = parts[1].toDoubleOrNull() ?: return "Invalid fan RPM"
+                if (fan !in 0..15 || !rpm.isFinite() || rpm !in 0.0..15000.0) {
+                    return "Invalid fan RPM"
+                }
+            }
+        }
         return null
     }
 
@@ -177,6 +211,15 @@ object HelperWire {
     fun isChargeLimitCommand(command: String): Boolean = command == COMMAND_CHARGE_LIMIT_STATUS ||
         command == COMMAND_CHARGE_LIMIT_CONFIGURE ||
         command == COMMAND_CHARGE_LIMIT_RESTORE
+
+    /** 风扇命令会写 SMC，必须和充电命令一样校验调用方签名。 */
+    fun isFanControlCommand(command: String): Boolean = command == COMMAND_FAN_CONTROL_STATUS ||
+        command == COMMAND_FAN_CONTROL_CONFIGURE ||
+        command == COMMAND_FAN_CONTROL_KEEP_ALIVE ||
+        command == COMMAND_FAN_CONTROL_RESTORE
+
+    fun requiresClientSignature(command: String): Boolean =
+        isChargeLimitCommand(command) || isFanControlCommand(command)
 
     // MARK: pmset 调用
 

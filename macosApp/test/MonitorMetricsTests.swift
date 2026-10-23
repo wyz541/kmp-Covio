@@ -467,6 +467,7 @@ final class MonitorMetricsTests: XCTestCase {
             network: nil,
             battery: battery,
             power: power,
+            fan: nil,
             thermal: .nominal,
             sampledAt: Date()
         )

@@ -204,7 +204,7 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
         return syncOnQueue {
             let state = ChargeLimitRuntimeState(
                 userLimitPercent: userLimitPercent,
-                chargingLatch: false,
+                chargingLatch: activeDischargeEnabled,
                 lastPhase: "applying",
                 activeDischargeEnabled: activeDischargeEnabled
             )
@@ -314,11 +314,16 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
         let currentPercent = reading.currentPercent ?? Int.min
         let targetNeedsRepair = state.activeDischargeEnabled == true &&
             observedTarget != state.userLimitPercent
-        let keepChieForTargetRepair = targetNeedsRepair && currentPercent == state.userLimitPercent
+        let keepChieWhileChargingAtLimit = targetNeedsRepair &&
+            currentPercent == state.userLimitPercent &&
+            reading.isCharging
         let wantsActiveDischarge = state.activeDischargeEnabled == true && (
             (currentPercent > state.userLimitPercent && (reading.adapterConnected || alreadyEngaged)) ||
-                keepChieForTargetRepair
+                keepChieWhileChargingAtLimit
         )
+        let releasedActiveDischarge = state.activeDischargeEnabled == true &&
+            alreadyEngaged &&
+            !wantsActiveDischarge
         if wantsActiveDischarge {
             if !alreadyEngaged, !activeDischargePort.engage() {
                 return .failure(.readbackFailed("CHIE active discharge"))
@@ -383,7 +388,9 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
         )
         let decision = ChargeLimitPolicy.shared.evaluate(
             observation: observation,
-            previous: ChargeLimitPolicyState(chargingLatch: state.chargingLatch)
+            previous: ChargeLimitPolicyState(
+                chargingLatch: state.chargingLatch || releasedActiveDischarge
+            )
         )
         bypassEngaged = decision.bypassEngaged
         let updated = ChargeLimitRuntimeState(

@@ -57,6 +57,8 @@
 7. 新 helper 已验证 `enabled=false`、`MCLFeatureState=1` 与 `mclLimitValue` 写入后的 powerd 回读。
 10. 低档位写入同时删除 `checkpoint` 与 `currentState`，避免 powerd 状态机沿用旧目标。
 11. 主动放电期间 powerd 目标回退时，helper 最多每 `120` 秒纠偏一次。
+12. 到达目标时释放 `CHIE`；重新充电且目标未修复时短时重新启用。
+13. 主动放电低于目标时，充电锁存必须回充到目标。
 8. PowerUI 写入后 powerd 可能等待下一次电量 `1%` 步进。
 9. 状态必须保持 `applying`，不能按 `4` 秒判失败。
 

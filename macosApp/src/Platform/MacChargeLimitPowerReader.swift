@@ -38,6 +38,8 @@ final class MacChargeLimitPowerReader: ChargeLimitPowerReadingSource, @unchecked
             let percent = rawStateOfCharge() ?? iopsPercent(description)
             let thermalState = ProcessInfo.processInfo.thermalState
             let amperage = batteryRegistryInt("Amperage") ?? 0
+            let isCharging = batteryRegistryBool("IsCharging")
+                ?? (description["Is Charging"] as? Bool ?? false)
             return ChargeLimitPowerReading(
                 adapterConnected: adapterConnected,
                 batteryPresent: true,
@@ -46,7 +48,8 @@ final class MacChargeLimitPowerReader: ChargeLimitPowerReadingSource, @unchecked
                 calibrationActive: calibrationState.value,
                 systemProtectionActive: thermalState == .serious || thermalState == .critical,
                 bypassEngaged: powerUI.bypassEngaged(),
-                activelyDischarging: amperage <= -100
+                activelyDischarging: amperage <= -100,
+                isCharging: isCharging
             )
         }
 

@@ -160,6 +160,34 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         wait(for: [completed], timeout: 1)
     }
 
+    func testActiveDischargeWaitsForChargingToStopBeforeNudging() throws {
+        let backend = FakeChargeLimitBackend()
+        backend.observedTargetOverride = 70
+        let reader = FakeChargeLimitPowerReader(
+            reading: reading(current: 79, isCharging: true)
+        )
+        let runtime = makeRuntime(
+            backend: backend,
+            reader: reader,
+            activeDischargeNudgeDelaySeconds: 0.05,
+            activeDischargeNudgeCooldownSeconds: 0
+        )
+        defer { _ = runtime.restore() }
+
+        _ = try runtime.configure(
+            userLimitPercent: 70,
+            activeDischargeEnabled: true
+        ).get()
+        backend.observedTargetOverride = 80
+
+        XCTAssertEqual(try runtime.evaluateNow().get().phase, "applying")
+        XCTAssertEqual(backend.appliedTargets, [70])
+
+        reader.reading = reading(current: 80)
+        _ = try runtime.evaluateNow().get()
+        XCTAssertEqual(backend.appliedTargets, [70, 71])
+    }
+
     func testFirstConfigurePersistsAMatchingObservedTarget() throws {
         let backend = FakeChargeLimitBackend()
         backend.observedTargetOverride = 75
@@ -455,7 +483,8 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         calibrationActive: Bool = false,
         protectionActive: Bool = false,
         bypassEngaged: Bool = false,
-        activelyDischarging: Bool = false
+        activelyDischarging: Bool = false,
+        isCharging: Bool = false
     ) -> ChargeLimitPowerReading {
         ChargeLimitPowerReading(
             adapterConnected: adapter,
@@ -465,7 +494,8 @@ final class ChargeLimitRuntimeTests: XCTestCase {
             calibrationActive: calibrationActive,
             systemProtectionActive: protectionActive,
             bypassEngaged: bypassEngaged,
-            activelyDischarging: activelyDischarging
+            activelyDischarging: activelyDischarging,
+            isCharging: isCharging
         )
     }
 }

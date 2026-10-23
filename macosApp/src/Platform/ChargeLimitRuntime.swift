@@ -11,6 +11,7 @@ struct ChargeLimitPowerReading: Equatable, Sendable {
     let systemProtectionActive: Bool
     let bypassEngaged: Bool
     var activelyDischarging: Bool = false
+    var isCharging: Bool = false
 }
 
 protocol ChargeLimitPowerReadingSource: Sendable {
@@ -297,12 +298,18 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
             returningFromCalibration ||
             explicitUserRequest ||
             hasPendingTarget
-        let activeDischargeRecoveryNeeded = state.activeDischargeEnabled == true &&
+        let activeDischargeTargetMismatch = state.activeDischargeEnabled == true &&
             reading.adapterConnected &&
             (reading.currentPercent ?? Int.min) > state.userLimitPercent &&
             observedTarget != state.userLimitPercent &&
             !targetMayBeReplaced
-        if activeDischargeRecoveryNeeded {
+        if activeDischargeTargetMismatch {
+            if reading.isCharging {
+                return saveApplyingStateLocked(
+                    state: state,
+                    pendingTargetPercent: nil
+                )
+            }
             if let last = lastActiveDischargeNudgeAt,
                Date().timeIntervalSince(last) < activeDischargeNudgeCooldownSeconds {
                 return saveApplyingStateLocked(

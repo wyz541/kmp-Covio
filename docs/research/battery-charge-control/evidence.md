@@ -199,6 +199,7 @@ com.apple.private.usernotifications.bundle-identifiers
 | 原生恢复 `80%` | `PowerUI` 返回 `80`，MCL 保持启用 |
 | root `70%`（早期记录） | `PowerUI`、`pmset` 与 helper 均显示 `70` |
 | root `70%`（2026-10-22 复测） | 目标未稳定登记到 powerd；等待下一次电量 `1%` 步进复核 |
+| root `70%`（2026-10-23 独占 MCL） | 从 `71%` 放电到 `70%`；AC 下保持 `70%` 5 分钟 |
 | 电量高于上限 | 目标保持当前电量，没有主动放电 |
 | 睡眠与唤醒 | 多轮事件后 App 仍存活 |
 
@@ -229,7 +230,26 @@ com.apple.private.usernotifications.bundle-identifiers
 结论：`CHIE=0x08` 可以让本机使用电池，`0x00` 可以恢复 AC 路径。
 测试脚本使用退出 trap，确保异常时恢复 `0x00`。
 
-## 13. 未执行
+## 13. `70%` AC 保持验证（2026-10-23）
+
+环境：MacBookPro18,2，macOS `27.0.1`，helper 协议 `8`，代码基线 `9d3ceb4`。
+
+测试前退出 AlDente。
+AlDente 的 `80%` 配置会持续覆盖 PowerUI 目标。
+
+| 阶段 | 观察 |
+| --- | --- |
+| 主动放电 | `CHIE=0x08`，Battery Power，电池电流为负 |
+| 到达 `70%` | `CHIE=0x00`；系统目标变为 `70/70` |
+| AC 保持 | `IsCharging=No`，电池电流为 `0 mA` |
+| 5 分钟后 | 电量仍为 `70%`，目标仍为 `70/70` |
+| helper | `phase=holding`，`targetPercent=70` |
+
+结论：独占 MCL 时，Covio 可以从 `71%` 放电到 `70%`，并在 AC 下保持 `70%`。
+第三方 MCL 写入程序会破坏该结果。
+详细步骤见 V20 案例。
+
+## 14. 未执行
 
 1. 未写 SMC 键。
 2. 未修改 `com.apple.powerd.charging`。

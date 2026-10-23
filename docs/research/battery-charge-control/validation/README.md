@@ -36,7 +36,7 @@
 | V10 校准周期 | Apple Silicon，macOS 27 | MCL | 部分通过 |
 | V11 设置 `70%` | Apple Silicon，macOS 27 | root 私有 | 部分通过 |
 | V11b `40%`、`45%`、`50%`、`65%`、`75%` | Apple Silicon，macOS 27 | root 私有 | 待执行 |
-| V11c 主动放电到 `70%` | Apple Silicon，macOS 27 | root 私有 | 待执行 |
+| V11c 主动放电到 `70%` | Apple Silicon，macOS 27 | root 私有 | 通过 |
 | V12 Intel 原生 MCL | Intel MacBook | 无写入能力检测 | 待执行 |
 | V13 Intel `BCLM` | Intel MacBook | SMC | 未批准 |
 | V14 无电池设备 | Mac desktop | 无 | 待执行 |
@@ -45,6 +45,7 @@
 | V17 卸载前恢复 | Apple Silicon | MCL | 部分通过 |
 | V18 校准后恢复 | Apple Silicon | MCL | 部分通过 |
 | V19 `CHIE=0x08` 临时放电 | M1 Max，macOS 27.0.1 | SMC | 通过 |
+| V20 AC 下保持 `70%` | M1 Max，macOS 27.0.1 | MCL 与 SMC | 通过 |
 
 ### 2026-10-22 状态说明
 
@@ -61,6 +62,16 @@
 13. 主动放电低于目标时，充电锁存必须回充到目标。
 8. PowerUI 写入后 powerd 可能等待下一次电量 `1%` 步进。
 9. 状态必须保持 `applying`，不能按 `4` 秒判失败。
+
+### 2026-10-23 状态说明
+
+1. 主动放电从 `71%` 到 `70%` 通过。
+2. 到达 `70%` 后 `CHIE=0x00`，系统目标保持 `70/70`。
+3. AC 已接入，`IsCharging=No`，电池电流为 `0 mA`。
+4. 保持状态连续观察 5 分钟，没有充电到 `80%`，也没有继续放电。
+5. 本轮有效验收要求退出其他 MCL 写入程序。AlDente 配置为 `80%` 时会覆盖 Covio 目标。
+6. 回差恢复、睡眠、重启和其他机型仍未完成。
+7. 详细结果见 [V20 案例](case-macbookpro18-2-macos-27-charge-70-hold-2026-10-23.md)。
 
 V11 真机顺序：
 

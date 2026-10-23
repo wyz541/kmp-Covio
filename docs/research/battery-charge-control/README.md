@@ -30,6 +30,7 @@ macOS 27 可以在无 root 条件下控制 `80%` 到 `100%`。
 真机验证确认原生 `PowerUISmartChargeClient` 可以注册 `85%`。
 早期验证曾观察到 root 偏好注册 `70%`。
 2026-10-22 复测未复现该结果。
+2026-10-23 在退出其他 MCL 写入程序后，Covio 从 `71%` 放电到 `70%`，并在 AC 下保持 `70%` 5 分钟。
 早期低档位失败发生在 `4` 秒判定。PowerUIAgent 可能等待下一次 `1%` 电量步进。
 主动放电使用可选开关。
 开关开启时，高于上限的目标写为上限，由 macOS 放电。
@@ -82,6 +83,7 @@ flowchart TD
 | [evidence.md](evidence.md) | 本机证据、源码和 issue |
 | [validation/README.md](validation/README.md) | 验证矩阵、风险和清理要求 |
 | [validation/case-macbookpro18-2-macos-27.md](validation/case-macbookpro18-2-macos-27.md) | 只读验证案例 |
+| [validation/case-macbookpro18-2-macos-27-charge-70-hold-2026-10-23.md](validation/case-macbookpro18-2-macos-27-charge-70-hold-2026-10-23.md) | `70%` 放电与保持案例 |
 
 ## 证据链阅读顺序
 

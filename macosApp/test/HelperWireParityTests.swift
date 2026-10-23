@@ -126,7 +126,7 @@ final class HelperWireParityTests: XCTestCase {
         XCTAssertEqual(reply.result?["protocolVersion"], HelperProtocol.protocolVersion)
         XCTAssertEqual(
             HelperWire.shared.encodeReply(reply: reply),
-            #"{"version":"5","requestId":"r","ok":true,"result":{"version":"\#(ModelsKt.APP_VERSION)","protocolVersion":"\#(HelperProtocol.protocolVersion)"}}"#
+            #"{"version":"6","requestId":"r","ok":true,"result":{"version":"\#(ModelsKt.APP_VERSION)","protocolVersion":"\#(HelperProtocol.protocolVersion)"}}"#
         )
     }
 

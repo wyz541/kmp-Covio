@@ -32,6 +32,7 @@ enum class ChargeLimitPhase {
     UNPLUGGED,
     APPLYING,
     DISCHARGING,
+    STOPPING_DISCHARGE,
     CHARGING,
     SAILING,
     HOLDING,
@@ -75,6 +76,7 @@ data class ChargeLimitObservation(
     val writePending: Boolean = false,
     val bypassEngaged: Boolean = false,
     val activeDischargeEnabled: Boolean = false,
+    val activelyDischarging: Boolean = false,
 )
 
 /** 需要跨一次判定保存的输入。 */
@@ -238,7 +240,11 @@ object ChargeLimitPolicy {
     ): ChargeLimitDecision {
         if (current > upper) {
             val target = if (activeDischargeEnabled) upper else current
-            val phase = if (activeDischargeEnabled) ChargeLimitPhase.DISCHARGING else ChargeLimitPhase.ABOVE_LIMIT
+            val phase = when {
+                activeDischargeEnabled -> ChargeLimitPhase.DISCHARGING
+                observation.activelyDischarging -> ChargeLimitPhase.STOPPING_DISCHARGE
+                else -> ChargeLimitPhase.ABOVE_LIMIT
+            }
             return decision(phase, false, ChargeLimitAction.SET_TARGET, target, null)
         }
         if (current == upper) {

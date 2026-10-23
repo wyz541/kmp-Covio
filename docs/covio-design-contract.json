@@ -6444,6 +6444,10 @@
       "en": "System protection",
       "zh-Hans": "系统保护中"
     },
+    "copy/monitor/power/charge-limit/state/stopping-discharge": {
+      "en": "Stopping discharge",
+      "zh-Hans": "正在停止放电"
+    },
     "copy/monitor/power/charge-limit/state/sailing": {
       "en": "Holding current level",
       "zh-Hans": "保持当前电量"

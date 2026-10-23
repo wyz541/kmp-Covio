@@ -643,6 +643,8 @@ enum ContractCopy {
     static let copyMonitorPowerChargeLimitStateProtection = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/protection", en: "System protection", zhHans: "系统保护中")
     /// `copy/monitor/power/charge-limit/state/sailing`
     static let copyMonitorPowerChargeLimitStateSailing = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/sailing", en: "Holding current level", zhHans: "保持当前电量")
+    /// `copy/monitor/power/charge-limit/state/stopping-discharge`
+    static let copyMonitorPowerChargeLimitStateStoppingDischarge = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/stopping-discharge", en: "Stopping discharge", zhHans: "正在停止放电")
     /// `copy/monitor/power/charge-limit/state/system`
     static let copyMonitorPowerChargeLimitStateSystem = LocalizedCopy(key: "copy/monitor/power/charge-limit/state/system", en: "macOS controls the charge limit", zhHans: "macOS 控制充电上限")
     /// `copy/monitor/power/charge-limit/state/unplugged`
@@ -1617,6 +1619,7 @@ enum ContractCopy {
         copyMonitorPowerChargeLimitStateHolding,
         copyMonitorPowerChargeLimitStateProtection,
         copyMonitorPowerChargeLimitStateSailing,
+        copyMonitorPowerChargeLimitStateStoppingDischarge,
         copyMonitorPowerChargeLimitStateSystem,
         copyMonitorPowerChargeLimitStateUnplugged,
         copyMonitorPowerChargeLimitTitle,

@@ -115,6 +115,8 @@ Covio 状态机实现固定的 `5%` 回差。
 主动放电首版只使用 MCL。
 首版不写 SMC `CHIE`。
 主动放电需要显式开关和电池循环警告。
+关闭主动放电后，powerd 可能延迟数十秒才停止电池电流。
+Helper 读取 `Amperage`，在电流归零前显示 `stoppingDischarge`。
 
 验证恢复充电时，先把电量降到回差阈值或更低。
 不要用 `66%` 到 `69%` 的区间值判定 `70%` 恢复失败。
@@ -142,14 +144,15 @@ Covio 状态机实现固定的 `5%` 回差。
 5. 达到上限后停止充电。
 6. 主动放电时 `BatteryPower<0`。
 7. 主动放电到上限后停止放电。
-8. `BatteryPower=0` 且 `BypassEngaged`。
-9. 系统设置外部修改。
-10. 睡眠和唤醒。
-11. 重启。
-12. 校准周期。
-13. 无电池设备。
-14. Intel 设备。
-15. 卸载和 helper 缺失。
-16. `bash scripts/test-all.sh` 通过。
+8. 关闭主动放电后，电流归零前显示 `stoppingDischarge`。
+9. `BatteryPower=0` 且 `BypassEngaged`。
+10. 系统设置外部修改。
+11. 睡眠和唤醒。
+12. 重启。
+13. 校准周期。
+14. 无电池设备。
+15. Intel 设备。
+16. 卸载和 helper 缺失。
+17. `bash scripts/test-all.sh` 通过。
 
 详细矩阵见 [validation/README.md](validation/README.md)。

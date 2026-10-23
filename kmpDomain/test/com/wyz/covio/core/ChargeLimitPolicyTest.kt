@@ -23,6 +23,7 @@ class ChargeLimitPolicyTest {
         writePending: Boolean = false,
         bypass: Boolean = false,
         activeDischarge: Boolean = false,
+        activelyDischarging: Boolean = false,
     ) = ChargeLimitObservation(
         enabled = enabled,
         upperLimitPercent = upper,
@@ -40,6 +41,7 @@ class ChargeLimitPolicyTest {
         writePending = writePending,
         bypassEngaged = bypass,
         activeDischargeEnabled = activeDischarge,
+        activelyDischarging = activelyDischarging,
     )
 
     @Test
@@ -192,6 +194,29 @@ class ChargeLimitPolicyTest {
         assertEquals(ChargeLimitPhase.DISCHARGING, decision.phase)
         assertEquals(70, decision.targetPercent)
         assertEquals(ChargeLimitAction.NONE, decision.action)
+    }
+
+    @Test
+    fun `a disabled active discharge reports until battery current stops`() {
+        val stopping = ChargeLimitPolicy.evaluate(
+            observation(
+                upper = 70,
+                current = 80,
+                observedTarget = 80,
+                activelyDischarging = true,
+            ),
+        )
+        val stopped = ChargeLimitPolicy.evaluate(
+            observation(
+                upper = 70,
+                current = 80,
+                observedTarget = 80,
+            ),
+        )
+
+        assertEquals(ChargeLimitPhase.STOPPING_DISCHARGE, stopping.phase)
+        assertEquals(ChargeLimitAction.NONE, stopping.action)
+        assertEquals(ChargeLimitPhase.ABOVE_LIMIT, stopped.phase)
     }
 
     @Test

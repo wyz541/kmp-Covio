@@ -10,6 +10,7 @@ struct ChargeLimitPowerReading: Equatable, Sendable {
     let calibrationActive: Bool
     let systemProtectionActive: Bool
     let bypassEngaged: Bool
+    var activelyDischarging: Bool = false
 }
 
 protocol ChargeLimitPowerReadingSource: Sendable {
@@ -304,7 +305,8 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
             },
             writePending: hasPendingTarget,
             bypassEngaged: reading.bypassEngaged,
-            activeDischargeEnabled: state.activeDischargeEnabled ?? false
+            activeDischargeEnabled: state.activeDischargeEnabled ?? false,
+            activelyDischarging: reading.activelyDischarging
         )
         let decision = ChargeLimitPolicy.shared.evaluate(
             observation: observation,
@@ -460,6 +462,7 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
         case .unplugged: "unplugged"
         case .applying: "applying"
         case .discharging: "discharging"
+        case .stoppingDischarge: "stoppingDischarge"
         case .charging: "charging"
         case .sailing: "sailing"
         case .holding: "holding"

@@ -77,7 +77,8 @@ V11c 真机顺序：
 4. 确认状态为 `discharging`。
 5. 确认 `ExternalConnected=Yes`、`IsCharging=No`、`BatteryPower<0`。
 6. 确认电量到 `70%` 后 `BatteryPower` 回到 `0`。
-7. 关闭主动放电，确认停止放电。
+7. 关闭主动放电，确认状态先为 `stoppingDischarge`。
+8. 确认 `Amperage` 归零后状态回到 `aboveLimit`。
 
 ## 风险
 

@@ -1144,6 +1144,7 @@ private struct MonitorPowerChargeLimitControls: View {
         return switch status.phase {
         case "charging", "full": "bolt.fill"
         case "discharging": "arrow.down.circle.fill"
+        case "stoppingDischarge": "arrow.down.circle"
         case "holding", "sailing", "aboveLimit": "pause.circle.fill"
         case "applying", "calibration", "systemProtection": "arrow.triangle.2.circlepath"
         case "unplugged": "powerplug"
@@ -1161,7 +1162,7 @@ private struct MonitorPowerChargeLimitControls: View {
         return switch status.phase {
         case "charging", "full", "holding", "sailing", "aboveLimit":
             MacTheme.successText
-        case "discharging":
+        case "discharging", "stoppingDischarge":
             MacTheme.warningText
         case "applying", "calibration", "systemProtection", "unplugged":
             MacTheme.warningText
@@ -1192,6 +1193,8 @@ private struct MonitorPowerChargeLimitControls: View {
             ContractCopy.copyMonitorPowerChargeLimitApplying.text(for: language)
         case "discharging":
             ContractCopy.copyMonitorPowerChargeLimitStateDischarging.text(for: language)
+        case "stoppingDischarge":
+            ContractCopy.copyMonitorPowerChargeLimitStateStoppingDischarge.text(for: language)
         case "charging":
             ContractCopy.copyMonitorStateCharging.text(for: language)
         case "holding":

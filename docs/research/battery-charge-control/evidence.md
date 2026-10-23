@@ -158,6 +158,7 @@ com.apple.private.usernotifications.bundle-identifiers
 - 文件：`Sources/SMCWriter/main.swift`
 - 观察：root helper 写入 `com.apple.smartcharging.topoffprotection`。
 - 观察：写入 `MCLFeatureState` 和 `mclLimitValue`。
+- 观察：删除 `checkpoint` 和 `currentState` 重置状态机。
 - 观察：发送 `com.apple.smartcharging.defaultschanged`。
 - 观察：低于 `80%` 依赖 root 私有路径。
 - 限制：私有偏好可能被系统校准覆盖。

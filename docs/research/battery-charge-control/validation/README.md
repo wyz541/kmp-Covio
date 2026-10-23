@@ -54,6 +54,7 @@
 5. `2026-10-22` 真机进入冲突态。显式重新应用仍保持 `80%` 目标。
 6. 该问题已补测试：显式应用覆盖一次冲突，自动刷新继续保护外部修改。
 7. 新 helper 已验证 `enabled=false`、`MCLFeatureState=1` 与 `mclLimitValue` 写入后的 powerd 回读。
+10. 低档位写入同时删除 `checkpoint` 与 `currentState`，避免 powerd 状态机沿用旧目标。
 8. PowerUI 写入后 powerd 可能等待下一次电量 `1%` 步进。
 9. 状态必须保持 `applying`，不能按 `4` 秒判失败。
 

@@ -60,6 +60,8 @@ final class ChargeLimitMCLTests: XCTestCase {
     }
 
     func testApplyBelowEightyUsesTheDirectPreferencePath() throws {
+        preferences.ints[DirectMCLPreference.keyCheckpoint] = 1
+        preferences.ints[DirectMCLPreference.keyCurrentState] = 1
         preferences.onNotify = { [weak self] in
             self?.powerUI.enabled = true
             self?.powerUI.currentPercent = 70
@@ -76,6 +78,8 @@ final class ChargeLimitMCLTests: XCTestCase {
         XCTAssertEqual(preferences.bools[DirectMCLPreference.keyOptimizedChargingEnabled], false)
         XCTAssertEqual(preferences.ints[DirectMCLPreference.keyLimitValue], 70)
         XCTAssertEqual(preferences.ints[DirectMCLPreference.keyFeatureState], 1)
+        XCTAssertTrue(preferences.removedKeys.contains(DirectMCLPreference.keyCheckpoint))
+        XCTAssertTrue(preferences.removedKeys.contains(DirectMCLPreference.keyCurrentState))
         XCTAssertEqual(preferences.notifications, 1)
         XCTAssertTrue(powerUI.appliedLimits.isEmpty)
         XCTAssertEqual(powerUI.currentPercent, 70)
@@ -326,6 +330,7 @@ private final class FakeChargeLimitPreferences: ChargeLimitPreferenceStore, @unc
     var ints: [String: Int] = [:]
     var bools: [String: Bool] = [:]
     var writeCounts: [String: Int] = [:]
+    var removedKeys: [String] = []
     var syncResult = true
     var notifications = 0
     var onNotify: (() -> Void)?
@@ -344,6 +349,7 @@ private final class FakeChargeLimitPreferences: ChargeLimitPreferenceStore, @unc
     }
 
     func remove(_ key: String) {
+        removedKeys.append(key)
         ints.removeValue(forKey: key)
         bools.removeValue(forKey: key)
     }

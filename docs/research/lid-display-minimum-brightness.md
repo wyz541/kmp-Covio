@@ -24,6 +24,7 @@ GitHub 审计发现了一条私有 API 路径：`disablesleep` 保持系统运�
 ADR-0012 接受该路径作为默认关闭的实验能力。
 `0.0` 在视觉上接近黑屏，不是可见的最低亮度画面。
 完整仓库对比见 `github-lid-brightness.md`。
+底层图形栈、framebuffer、屏幕捕获和 Computer Use 边界见 [合盖黑屏与 framebuffer 显示链路](lid-framebuffer-mechanism/README.md)。
 
 Covio 支持“合盖保持运行，内建屏关闭”。
 Covio 默认不支持“合盖保持运行，内建屏点亮并降到最低亮度”。

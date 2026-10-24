@@ -64,7 +64,7 @@ enum HelperInstaller {
     static func installScript(
         executablePath: String,
         uid: String = currentUid(),
-        version: String = ModelsKt.APP_VERSION,
+        version: String = GeneratedReleaseIdentityKt.APP_VERSION,
         clientRequirement: String? = nil
     ) -> String {
         HelperInstallScript.shared.installScript(

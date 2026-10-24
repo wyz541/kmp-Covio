@@ -39,7 +39,7 @@ struct OverviewPage: View {
                 MacStatusLine(text: runtime.batteryText())
                 MacStatusLine(text: helperText)
                 MacStatusLine(
-                    text: "\(ContractCopy.copyOverviewHelperVersion.text(for: runtime.language)): \(ModelsKt.APP_VERSION)"
+                    text: "\(ContractCopy.copyOverviewHelperVersion.text(for: runtime.language)): \(GeneratedReleaseIdentityKt.APP_VERSION)"
                 )
             }
         }

@@ -143,13 +143,13 @@ enum CovioMain {
             executablePath: executablePath,
             client: client
         )
-        let sameVersion = info?.version == ModelsKt.APP_VERSION
+        let sameVersion = info?.version == GeneratedReleaseIdentityKt.APP_VERSION
         let sameProtocol = info?.protocolVersion == HelperProtocol.protocolVersion
         print("socket=\(HelperProtocol.socketPath)")
         print("exists=\(exists)")
         print("version=\(info?.version ?? "nil")")
         print("protocol=\(info?.protocolVersion ?? "nil")")
-        print("expectedVersion=\(ModelsKt.APP_VERSION)")
+        print("expectedVersion=\(GeneratedReleaseIdentityKt.APP_VERSION)")
         print("expectedProtocol=\(HelperProtocol.protocolVersion)")
         print("opsStatus=\(ops.status())")
         return exists && sameVersion && sameProtocol ? 0 : 1

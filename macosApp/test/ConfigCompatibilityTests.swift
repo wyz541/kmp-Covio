@@ -282,7 +282,7 @@ final class HelperContractMirrorTests: XCTestCase {
         XCTAssertEqual(HelperProtocol.protocolVersion, HelperContractKt.HELPER_PROTOCOL_VERSION)
     }
 
-    /// 版本号只有一个来源：`Models.kt` 的 `APP_VERSION`。
+    /// 版本号只有一个来源：`release/release-manifest.json`。
     ///
     /// 界面、更新检查、helper 比对全都读它。这里守住它与包里的
     /// `MARKETING_VERSION` 一致——不一致的表现是更新检查一直提示
@@ -296,7 +296,31 @@ final class HelperContractMirrorTests: XCTestCase {
             bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String,
             "包里读不到 CFBundleShortVersionString"
         )
-        XCTAssertEqual(ModelsKt.APP_VERSION, short)
+        XCTAssertEqual(GeneratedReleaseIdentityKt.APP_VERSION, short)
+    }
+
+    /// Build number、release ID 和 helper 协议都来自生成的发布身份。
+    func testReleaseIdentityMatchesTheBundle() throws {
+        let bundle = Bundle.main
+        let short = try XCTUnwrap(bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
+        let build = try XCTUnwrap(bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String)
+        let channel = try XCTUnwrap(bundle.object(forInfoDictionaryKey: "CovioReleaseChannel") as? String)
+        let commit = try XCTUnwrap(bundle.object(forInfoDictionaryKey: "CovioGitCommit") as? String)
+        let releaseID = try XCTUnwrap(bundle.object(forInfoDictionaryKey: "CovioReleaseId") as? String)
+        let protocolVersion = try XCTUnwrap(
+            bundle.object(forInfoDictionaryKey: "CovioHelperProtocolVersion") as? String
+        )
+
+        XCTAssertEqual(GeneratedReleaseIdentity.productVersion, GeneratedReleaseIdentityKt.APP_VERSION)
+        XCTAssertEqual(GeneratedReleaseIdentity.buildNumber, Int(GeneratedReleaseIdentityKt.APP_BUILD_NUMBER))
+        XCTAssertEqual(GeneratedReleaseIdentity.channel, GeneratedReleaseIdentityKt.APP_RELEASE_CHANNEL)
+        XCTAssertEqual(short, GeneratedReleaseIdentity.productVersion)
+        XCTAssertEqual(build, String(GeneratedReleaseIdentity.buildNumber))
+        XCTAssertEqual(channel, GeneratedReleaseIdentity.channel)
+        XCTAssertEqual(protocolVersion, String(GeneratedReleaseIdentity.helperProtocolVersion))
+        XCTAssertEqual(protocolVersion, HelperProtocol.protocolVersion)
+        XCTAssertFalse(commit.isEmpty)
+        XCTAssertEqual(releaseID, "\(short)+\(build)+\(commit)")
     }
 
     /// helper 参数是命令行契约，跟安装脚本里写死的字面量必须一致。
@@ -305,7 +329,7 @@ final class HelperContractMirrorTests: XCTestCase {
         let script = HelperInstaller.installScript(
             executablePath: "/Applications/Covio.app/Contents/MacOS/Covio",
             uid: "501",
-            version: ModelsKt.APP_VERSION
+            version: GeneratedReleaseIdentityKt.APP_VERSION
         )
         XCTAssertTrue(
             script.contains("<string>\(HelperProtocol.helperArgument)</string>"),

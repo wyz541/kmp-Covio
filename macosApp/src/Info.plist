@@ -19,7 +19,15 @@
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>CovioReleaseChannel</key>
+	<string>$(COVIO_RELEASE_CHANNEL)</string>
+	<key>CovioGitCommit</key>
+	<string>$(COVIO_GIT_COMMIT)</string>
+	<key>CovioReleaseId</key>
+	<string>$(COVIO_RELEASE_ID)</string>
+	<key>CovioHelperProtocolVersion</key>
+	<string>$(COVIO_HELPER_PROTOCOL_VERSION)</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 	<!-- 归档时没有这一项会出一条警告。菜单栏工具属于 utilities。 -->

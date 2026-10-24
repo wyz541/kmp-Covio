@@ -332,20 +332,27 @@ The two versions use different lock files, so both can run at the same time.
 The file naming model is built into the app.
 The model weights are not in Git.
 
-1. Download the fixed model:
+1. Prepare the release identity:
+
+   ```sh
+   python3 scripts/release_manifest.py bump
+   python3 scripts/release_manifest.py check
+   ```
+
+2. Download the fixed model:
 
    ```sh
    python3 scripts/file_naming_model.py download build/models/Qwen3VL-2B-Instruct-4bit
    ```
 
-2. Package the app:
+3. Package the app:
 
    ```sh
    COVIO_FILE_NAMING_MODEL_DIR=build/models/Qwen3VL-2B-Instruct-4bit \
      bash scripts/package-macos-swift.sh
    ```
 
-3. Verify the signed DMG in a network-denied sandbox:
+4. Verify the signed DMG in a network-denied sandbox:
 
    ```sh
    bash scripts/verify-file-naming-bundle.sh dist/Covio-0.5.2.dmg
@@ -355,10 +362,12 @@ The package script writes these files:
 
 - `dist/Covio.app`
 - `dist/Covio-0.5.2.dmg`
+- `dist/release-manifest.json`
 
 The script verifies the model manifest, file sizes, SHA-256 values, license, and NOTICE.
 The script embeds the model under `Contents/Resources/Models/Qwen3VL-2B-Instruct-4bit/`.
-The script reads the version from `APP_VERSION` and checks that the bundle carries it.
+The script reads versions from `release/release-manifest.json` and checks that the bundle carries them.
+The script writes the final release identity, Git commit, and helper SHA-256 to `dist/release-manifest.json`.
 The script checks that the bundle carries `macosApp/src/Covio.icns` and applies an ad-hoc signature.
 The script builds the DMG with `diskutil image create`.
 The script prints app and DMG byte sizes.
@@ -380,7 +389,7 @@ File naming passed the 12-sample matrix on a 64 GB Apple Silicon Mac.
 Exact 8 GB hardware validation is tracked by [#185](https://github.com/wyz541/kmp-Covio/issues/185).
 
 1. Install the build under test.
-2. Confirm the app version matches `APP_VERSION` in `kmpDomain/src/com/wyz/covio/core/Models.kt`.
+2. Confirm the app version and build number match `release/release-manifest.json`.
 3. Install the privileged helper.
 4. Confirm the helper version matches the app version.
 5. Record `defaults read com.apple.screencapture`. Take a screenshot. Confirm the values do not change.

@@ -122,11 +122,11 @@ final class HelperWireParityTests: XCTestCase {
         let reply = HelperWire.shared.versionReply(requestId: "r")
 
         XCTAssertTrue(reply.ok)
-        XCTAssertEqual(reply.result?["version"], ModelsKt.APP_VERSION)
+        XCTAssertEqual(reply.result?["version"], GeneratedReleaseIdentityKt.APP_VERSION)
         XCTAssertEqual(reply.result?["protocolVersion"], HelperProtocol.protocolVersion)
         XCTAssertEqual(
             HelperWire.shared.encodeReply(reply: reply),
-            #"{"version":"8","requestId":"r","ok":true,"result":{"version":"\#(ModelsKt.APP_VERSION)","protocolVersion":"\#(HelperProtocol.protocolVersion)"}}"#
+            #"{"version":"8","requestId":"r","ok":true,"result":{"version":"\#(GeneratedReleaseIdentityKt.APP_VERSION)","protocolVersion":"\#(HelperProtocol.protocolVersion)"}}"#
         )
     }
 

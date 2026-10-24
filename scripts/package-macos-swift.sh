@@ -5,8 +5,8 @@ set -euo pipefail
 #
 # 这条链路不经过 jpackage：发布物由 Xcode 归档产出，不再是 jar 加 app-image。
 #
-# 版本号只有一个来源：kmpDomain 的 APP_VERSION。
-# 与 create-release.sh 用同一个来源，避免打出一个与包内版本不同的标签。
+# 发布身份只有一个来源：release/release-manifest.json。
+# 生成文件与工作树由 release_manifest.py 校验。
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST="$ROOT/dist"
@@ -18,7 +18,6 @@ ARCHIVE="$DERIVED_DATA/$SCHEME.xcarchive"
 APP_NAME="Covio"
 APP_ID="com.wyz.covio"
 ICON="$ROOT/macosApp/src/Covio.icns"
-MODELS="$ROOT/kmpDomain/src/com/wyz/covio/core/Models.kt"
 APP_IMAGE="$DIST/$APP_NAME.app"
 PLIST_BUDDY="/usr/libexec/PlistBuddy"
 FILE_NAMING_MODEL_DIR="${COVIO_FILE_NAMING_MODEL_DIR:-}"
@@ -46,11 +45,11 @@ if [[ -z "$FILE_NAMING_MODEL_DIR" ]]; then
 fi
 python3 -I "$MODEL_VERIFY" --manifest "$MODEL_MANIFEST" verify-directory "$FILE_NAMING_MODEL_DIR"
 
-VERSION="$(sed -n 's/^const val APP_VERSION = "\(.*\)"$/\1/p' "$MODELS")"
-if [[ -z "$VERSION" ]]; then
-  printf 'Could not read APP_VERSION from %s\n' "$MODELS" >&2
-  exit 1
-fi
+python3 -I "$ROOT/scripts/release_manifest.py" check-clean
+VERSION="$(python3 -I "$ROOT/scripts/release_manifest.py" value productVersion)"
+BUILD_NUMBER="$(python3 -I "$ROOT/scripts/release_manifest.py" value buildNumber)"
+COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
+RELEASE_ID="$(python3 -I "$ROOT/scripts/release_manifest.py" release-id --commit "$COMMIT")"
 DMG_PATH="$DIST/$APP_NAME-$VERSION.dmg"
 
 if [[ -d "$APP_IMAGE" ]]; then
@@ -77,6 +76,9 @@ xcodebuild \
   ARCHS=arm64 \
   ONLY_ACTIVE_ARCH=NO \
   MARKETING_VERSION="$VERSION" \
+  CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+  COVIO_GIT_COMMIT="$COMMIT" \
+  COVIO_RELEASE_ID="$RELEASE_ID" \
   archive
 
 ARCHIVED_APP="$ARCHIVE/Products/Applications/$APP_NAME.app"
@@ -112,7 +114,7 @@ read_plist() {
 }
 
 # 包内的键只断言，不回写。
-# 回写会造出第二个版本来源，和 APP_VERSION 漂移时两边都看不出来。
+# 回写会造出第二个版本来源。
 require_plist() {
   local key="$1"
   local expected="$2"
@@ -125,8 +127,13 @@ require_plist() {
   fi
 }
 
-# 版本从 APP_VERSION 走到 MARKETING_VERSION，再经 Info.plist 的 $(MARKETING_VERSION) 落进包内。
+# 版本从 release manifest 走到 MARKETING_VERSION，再经 Info.plist 落进包内。
 require_plist CFBundleShortVersionString "$VERSION"
+require_plist CFBundleVersion "$BUILD_NUMBER"
+require_plist CovioReleaseChannel "$(python3 -I "$ROOT/scripts/release_manifest.py" value channel)"
+require_plist CovioGitCommit "$COMMIT"
+require_plist CovioReleaseId "$RELEASE_ID"
+require_plist CovioHelperProtocolVersion "$(python3 -I "$ROOT/scripts/release_manifest.py" value helperProtocolVersion)"
 require_plist CFBundleIdentifier "$APP_ID"
 # 代理应用：只有菜单栏状态项与顶部热区，没有 Dock 图标。
 require_plist LSUIElement "true"
@@ -154,6 +161,11 @@ fi
 # 内嵌的 framework 由 --deep 一起签。
 /usr/bin/codesign --force --deep --sign - "$APP_IMAGE"
 /usr/bin/codesign --verify --deep --strict "$APP_IMAGE"
+
+python3 -I "$ROOT/scripts/release_manifest.py" generate-artifact \
+  --helper "$APP_IMAGE/Contents/MacOS/$APP_NAME" \
+  --output "$DIST/release-manifest.json" \
+  --commit "$COMMIT"
 
 # 镜像的根要同时有 app 与指向 /Applications 的链接，装的时候才能拖进去。
 STAGE="$(mktemp -d)"

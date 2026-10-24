@@ -18,6 +18,10 @@ cd "$ROOT"
 
 step() { printf '\n=== %s ===\n' "$1"; }
 
+step "发布身份"
+python3 -I "$ROOT/scripts/release_manifest.py" check
+python3 -I "$ROOT/scripts/test_release_manifest.py"
+
 step "Kotlin 共享层"
 bash "$ROOT/scripts/provision-amper-github-downloads.sh"
 /bin/sh ./kotlin test

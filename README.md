@@ -40,56 +40,50 @@ Progress is read from GitHub. The repository does not hold issue definitions.
 
 ## Download (internal test)
 
-This repository is under internal test.
-The current build is not a public release.
+Covio is under internal test.
+Covio 0.5.0 is the current build.
+It requires macOS 26 or later on Apple Silicon.
 
-0.4.2 is the last published build. It is the Compose version.
-0.5.0 is the SwiftUI version. It is not published yet.
-Build 0.5.0 locally with the model packaging steps below.
-
-- [Covio-0.4.2.dmg](https://github.com/wises231/kmp-Covio/releases/download/v0.4.2/Covio-0.4.2.dmg)
-- [Release page](https://github.com/wises231/kmp-Covio/releases/tag/v0.4.2)
+- [Covio-0.5.0.dmg](https://github.com/wyz541/kmp-Covio/releases/download/v0.5.0/Covio-0.5.0.dmg)
+- [Release page](https://github.com/wyz541/kmp-Covio/releases/tag/v0.5.0)
+- [SHA-256](https://github.com/wyz541/kmp-Covio/releases/download/v0.5.0/Covio-0.5.0.dmg.sha256)
+- [Covio 0.4.2](https://github.com/wyz541/kmp-Covio/releases/tag/v0.4.2) is the previous internal test.
 
 Install steps:
 
-1. Open `Covio-0.4.2.dmg`.
+1. Open `Covio-0.5.0.dmg`.
 2. Drag `Covio.app` to `Applications`.
 3. Open `Covio.app`.
 
 Covio uses a clean install.
 Covio does not copy settings from older internal-test builds.
-The old apps, helpers, and settings remain unchanged.
 
 **Warning:** This build uses an ad-hoc signature.
 macOS Gatekeeper rejects this build.
-If macOS blocks the app, allow the app in the "Privacy & Security" settings, or clear the quarantine flag:
+Allow the app in Privacy & Security, or clear the quarantine flag:
 
 ```sh
 xattr -dr com.apple.quarantine /Applications/Covio.app
 ```
 
-The download has this SHA-256 checksum:
+The DMG SHA-256 value is:
 
 ```text
-1237b65bdb8c0c15f1300a0b6ca095f8280db3b1894f1018fb2803b386333344  Covio-0.4.2.dmg
+844f2e88db4aee821532d47e3a99edc7375a59dd8bfb86e6e99914be5b1a7c61  Covio-0.5.0.dmg
 ```
 
 ## What is new in 0.5.0
 
-- The macOS interface is SwiftUI. The shared logic is Kotlin Multiplatform, module `kmpDomain`.
-- The app requires macOS 26 or later. Covio 0.4.x stays on macOS 12.
-- The Hub has a new layout. A floating navigation bar is at the top.
-  - The bar holds the home entry, the search box, the workspace tabs, and the current-page action.
-  - The content extends behind the navigation bar.
-- The search box searches settings. Selecting a result opens the Settings tab.
-  The Hub scrolls to that row and highlights it for 1.2 seconds.
-- Press Escape to clear the search. Press Escape again to collapse the Hub.
-- The top navigation bar uses a translucent functional layer like Apple Maps on macOS 26 Tahoe.
-- The app adds the clipboard history. See the Clipboard history section.
-- The Files tab adds local offline auto naming. It supports text, PDF, images, code, mixed files, preview, safe rename, and undo.
-- The screenshot toolbar behaves as in 0.4.2. The implementation is Swift.
-- The app keeps the sleep, lid, DarkWake, helper, and LaunchAgent functions.
-- The Settings tab keeps the same six sections.
+- The macOS interface is SwiftUI. Shared logic is Kotlin Multiplatform.
+- The app requires macOS 26 or later.
+- The Hub uses a Liquid Glass base plate and an adaptive glass navigation layer.
+- Settings search opens the matching row and highlights it.
+- Clipboard history keeps recent text, images, and files.
+- Files adds local offline auto naming with preview, safe rename, and undo.
+- Monitor shows CPU, GPU, memory, disk, network, battery, and power telemetry.
+- The power card shows charging data, power events, and top energy users.
+- The fan card shows RPM trends and provides automatic and manual fan control.
+- Sleep, lid, DarkWake, helper, screenshot toolbar, and LaunchAgent functions remain available.
 - `config.json` is compatible with 0.4.2 in both directions.
 
 ## What is new in 0.4.2

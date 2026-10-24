@@ -419,7 +419,7 @@ struct MonitorFanCardPreviewRoot: View {
 }
 
 @MainActor
-private enum MonitorFanPreviewSnapshot {
+enum MonitorFanPreviewSnapshot {
     static func write<Content: View>(
         _ content: Content,
         size: CGSize,

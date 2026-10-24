@@ -19,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var monitorPreview: MonitorPreviewWindowController?
     private var glassPlatePreviewWindow: NSWindow?
     private var fanPreviewWindow: NSWindow?
+    private var fanCapabilityPreviewWindow: NSWindow?
     private var reportPreview: MonitorReportPreviewWindowController?
     private var fileAreaPreview: NSWindow?
     private var fileAreaLivePreview: FileAreaLivePreviewController?
@@ -129,6 +130,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor in
                 exit(await MonitorFanCardRenderer.render(to: path) ? 0 : 1)
             }
+            return
+        }
+        if let path = ProcessInfo.processInfo.environment["COVIO_FAN_CAPABILITY_RENDER"], !path.isEmpty {
+            Task { @MainActor in
+                exit(await FanCapabilityPreviewRenderer.render(to: path) ? 0 : 1)
+            }
+            return
+        }
+        if ProcessInfo.processInfo.environment["COVIO_FAN_CAPABILITY_PREVIEW"] == "1" {
+            NSApp.setActivationPolicy(.regular)
+            let scenario = FanCapabilityPreviewRenderer.scenarioFromEnvironment
+            let isDark = scenario == .dark ||
+                ProcessInfo.processInfo.environment["AppleInterfaceStyle"]?.lowercased() == "dark"
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 1_200, height: 960),
+                styleMask: [.titled, .closable, .resizable],
+                backing: .buffered,
+                defer: false
+            )
+            window.title = "Covio Fan Capability Preview"
+            window.appearance = NSAppearance(named: isDark ? .darkAqua : .aqua)
+            window.contentView = NSHostingView(
+                rootView: FanCapabilityPreviewRoot(scenario: scenario, dark: isDark)
+                    .environment(\.colorScheme, isDark ? .dark : .light)
+            )
+            window.center()
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            fanCapabilityPreviewWindow = window
             return
         }
         if ProcessInfo.processInfo.environment["COVIO_MONITOR_PREVIEW"] == "1" {

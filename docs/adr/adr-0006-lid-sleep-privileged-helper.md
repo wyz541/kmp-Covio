@@ -4,6 +4,7 @@
 - Kind：architecture
 - Date：2026-10-16
 - Supersedes：none
+- Superseded by：ADR-0018（仅 helper 形式）
 - Implements：none
 - 相关：#119
 

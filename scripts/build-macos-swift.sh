@@ -24,6 +24,10 @@ fi
 
 cd "$ROOT"
 
+python3 -I "$ROOT/scripts/release_manifest.py" check
+COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
+RELEASE_ID="$(python3 -I "$ROOT/scripts/release_manifest.py" release-id --commit "$COMMIT")"
+
 # 本机有证书时把签名身份固定成证书。没有就保持工程默认的 ad-hoc。
 # 不固定的话每次构建换一个 cdhash，系统会把新构建当成新应用重新要权限。
 bash "$ROOT/scripts/setup-local-signing.sh"
@@ -37,6 +41,8 @@ xcodebuild \
   -derivedDataPath "$DERIVED_DATA" \
   -skipMacroValidation \
   -skipPackagePluginValidation \
+  COVIO_GIT_COMMIT="$COMMIT" \
+  COVIO_RELEASE_ID="$RELEASE_ID" \
   build
 
 APP="$DERIVED_DATA/Build/Products/$CONFIGURATION/Covio.app"

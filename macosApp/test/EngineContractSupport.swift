@@ -311,7 +311,7 @@ final class FakePrivilegedOps: NSObject, PrivilegedOps {
 
     func status() -> HelperStatus { installed ? .installed : .notInstalled }
 
-    func helperVersion() -> String? { ModelsKt.APP_VERSION }
+    func helperVersion() -> String? { GeneratedReleaseIdentityKt.APP_VERSION }
 
     func install() -> Bool { true }
 

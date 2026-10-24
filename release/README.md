@@ -1,0 +1,46 @@
+# Release identity
+
+`release/release-manifest.json` is the source of truth for:
+
+- product version
+- build number
+- release channel
+- helper protocol version
+
+Run the generator after changing the manifest:
+
+```sh
+python3 scripts/release_manifest.py write
+```
+
+Check for drift:
+
+```sh
+python3 scripts/release_manifest.py check
+```
+
+Increment the build number or start a new version:
+
+```sh
+python3 scripts/release_manifest.py bump
+python3 scripts/release_manifest.py bump --version 0.6.0
+```
+
+Generate the final artifact manifest from a signed helper or the signed app executable:
+
+```sh
+python3 scripts/release_manifest.py generate-artifact \
+  --helper dist/Covio.app/Contents/MacOS/Covio \
+  --output dist/release-manifest.json
+```
+
+The generated files are:
+
+- `kmpDomain/src/com/wyz/covio/core/GeneratedReleaseIdentity.kt`
+- `macosApp/src/Design/GeneratedReleaseIdentity.swift`
+- `macosApp/ReleaseIdentity.generated.xcconfig`
+
+Do not edit generated files by hand.
+
+The source manifest contains the release inputs.
+The artifact manifest adds `gitCommit`, `releaseId` and `helperSHA256`.

@@ -3,17 +3,12 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST="$ROOT/dist"
-# 版本号只有一个来源：kmpDomain 的 APP_VERSION。
-# 在这里抄一份会漂移，发布脚本就会打出一个与包内版本不同的标签。
-MODELS="$ROOT/kmpDomain/src/com/wyz/covio/core/Models.kt"
-VERSION="$(sed -n 's/^const val APP_VERSION = "\(.*\)"$/\1/p' "$MODELS")"
-if [[ -z "$VERSION" ]]; then
-  printf 'Could not read APP_VERSION from %s\n' "$MODELS" >&2
-  exit 1
-fi
+# 发布身份只有一个来源：release/release-manifest.json。
+VERSION="$(python3 -I "$ROOT/scripts/release_manifest.py" value productVersion)"
 TAG="v$VERSION"
 DMG="$DIST/Covio-$VERSION.dmg"
 CHECKSUM="$DMG.sha256"
+MANIFEST="$DIST/release-manifest.json"
 NOTES="$ROOT/RELEASE_NOTES.md"
 
 if ! command -v gh >/dev/null 2>&1; then
@@ -39,6 +34,14 @@ if [[ ! -f "$DMG" ]]; then
   printf 'Missing artifact: %s\nRun scripts/package-macos-swift.sh first.\n' "$DMG" >&2
   exit 1
 fi
+if [[ ! -f "$MANIFEST" ]]; then
+  printf 'Missing artifact manifest: %s\nRun scripts/package-macos-swift.sh first.\n' "$MANIFEST" >&2
+  exit 1
+fi
+
+python3 -I "$ROOT/scripts/release_manifest.py" verify-artifact \
+  "$MANIFEST" \
+  --helper "$DIST/Covio.app/Contents/MacOS/Covio"
 
 DMG_BYTES="$(stat -f %z "$DMG")"
 GITHUB_ASSET_LIMIT=2147483648
@@ -51,7 +54,7 @@ bash "$ROOT/scripts/verify-file-naming-bundle.sh" "$DMG"
 
 # The app reads the Releases page.
 # Therefore this release must stay a full release, not a pre-release.
-gh release create "$TAG" "$DMG" "$CHECKSUM" \
+gh release create "$TAG" "$DMG" "$CHECKSUM" "$MANIFEST" \
   --repo "$REPO" \
   --target "$TARGET" \
   --title "Covio $VERSION (internal test)" \

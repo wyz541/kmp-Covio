@@ -59,7 +59,7 @@ final class MonitorFanControlModel: ObservableObject {
             if !socketExists {
                 availability = .missing
             } else if let info {
-                if info.version == ModelsKt.APP_VERSION,
+                if info.version == GeneratedReleaseIdentityKt.APP_VERSION,
                    info.protocolVersion == HelperProtocol.protocolVersion {
                     availability = .ready
                 } else {

@@ -62,11 +62,11 @@ require_app() {
   fi
 }
 
-# 期望的版本号取自主可执行文件，不在这里抄。抄了会与 APP_VERSION 漂移。
+# 期望的版本号取自发布清单，不在这里抄。
 expected_version() {
   "$APP_BINARY" --helper-version >/dev/null 2>&1 || true
-  # 常量在 Kotlin 侧。从源码读一次，避免在脚本里写死。
-  sed -n 's/^const val APP_VERSION = "\(.*\)"$/\1/p' "$ROOT/kmpDomain/src/com/wyz/covio/core/Models.kt"
+  # 发布身份只有一份来源。
+  python3 -I "$ROOT/scripts/release_manifest.py" value productVersion
 }
 
 expected_protocol_version() {
@@ -147,7 +147,7 @@ cmd_verify() {
   expected="$(expected_version)"
   expected_protocol="$(expected_protocol_version)"
   if [[ -z "$expected" ]]; then
-    printf 'Could not read APP_VERSION from Models.kt\n' >&2
+    printf 'Could not read productVersion from release manifest\n' >&2
     exit 1
   fi
   if [[ -z "$expected_protocol" ]]; then
@@ -334,12 +334,12 @@ cmd_selftest() {
   local stub="$sandbox/Covio"
   mkdir -p "$helper_dir"
 
-  # 桩二进制。`verify` 用 `--helper-version` 问版本，桩照抄 Models.kt 的值。
+  # 桩二进制。`verify` 用 `--helper-version` 问版本，桩照抄发布清单的值。
   local version protocol_version
   version="$(expected_version)"
   protocol_version="$(expected_protocol_version)"
   if [[ -z "$version" ]]; then
-    printf 'Could not read APP_VERSION from Models.kt\n' >&2
+    printf 'Could not read productVersion from release manifest\n' >&2
     exit 1
   fi
   if [[ -z "$protocol_version" ]]; then

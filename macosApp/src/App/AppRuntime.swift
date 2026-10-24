@@ -498,7 +498,7 @@ final class AppRuntime {
     /// 启动引擎与两条后台节奏。可以重复调用，第二次没有副作用。
     func start() {
         guard tickTimer == nil else { return }
-        logger.info(message: "Covio \(ModelsKt.APP_VERSION) starting")
+        logger.info(message: "Covio \(GeneratedReleaseIdentityKt.APP_VERSION) starting")
 
         helperStatus = privileged.status()
         reconcileChargeLimit()
@@ -961,7 +961,7 @@ final class AppRuntime {
         if !manual && !UpdatePolicy.shared.shouldCheck(config: config, nowEpochSeconds: now) { return }
         Task { @MainActor in
             let release = await Self.fetchRelease(updateChecker).value
-            let update = UpdatePolicy.shared.selectUpdate(candidate: release, currentVersion: ModelsKt.APP_VERSION)
+            let update = UpdatePolicy.shared.selectUpdate(candidate: release, currentVersion: GeneratedReleaseIdentityKt.APP_VERSION)
             write { $0.lastUpdateCheckEpochSeconds = now }
             if let update {
                 notifier.notify(

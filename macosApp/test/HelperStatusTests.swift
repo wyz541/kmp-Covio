@@ -47,35 +47,35 @@ final class HelperStatusTests: XCTestCase {
     func testMatchingVersionAndProtocolMeansInstalled() throws {
         let helper = try FakeHelper(
             socketPath: socketPath,
-            version: ModelsKt.APP_VERSION,
+            version: GeneratedReleaseIdentityKt.APP_VERSION,
             protocolVersion: HelperProtocol.protocolVersion
         )
         defer { helper.stop() }
 
         XCTAssertEqual(ops().status(), .installed)
         XCTAssertTrue(ops().isInstalled())
-        XCTAssertEqual(ops().helperVersion(), ModelsKt.APP_VERSION)
+        XCTAssertEqual(ops().helperVersion(), GeneratedReleaseIdentityKt.APP_VERSION)
     }
 
     /// helper 能应答但协议不同 → OUTDATED。界面据此提示重装。
     func testDifferentProtocolMeansOutdated() throws {
         let helper = try FakeHelper(
             socketPath: socketPath,
-            version: ModelsKt.APP_VERSION,
+            version: GeneratedReleaseIdentityKt.APP_VERSION,
             protocolVersion: "1"
         )
         defer { helper.stop() }
 
         XCTAssertEqual(ops().status(), .outdated)
         XCTAssertTrue(ops().isInstalled(), "socket 在，所以算已安装")
-        XCTAssertEqual(ops().helperVersion(), ModelsKt.APP_VERSION)
+        XCTAssertEqual(ops().helperVersion(), GeneratedReleaseIdentityKt.APP_VERSION)
     }
 
     /// 旧 helper 缺少协议字段 → OUTDATED，即使应用版本相同。
     func testMissingProtocolMeansOutdated() throws {
         let helper = try FakeHelper(
             socketPath: socketPath,
-            version: ModelsKt.APP_VERSION,
+            version: GeneratedReleaseIdentityKt.APP_VERSION,
             protocolVersion: nil
         )
         defer { helper.stop() }
@@ -98,7 +98,7 @@ final class HelperStatusTests: XCTestCase {
     func testLidLeaseRequiresAnActiveOkReply() throws {
         let helper = try FakeHelper(
             socketPath: socketPath,
-            version: ModelsKt.APP_VERSION,
+            version: GeneratedReleaseIdentityKt.APP_VERSION,
             protocolVersion: HelperProtocol.protocolVersion
         )
         defer { helper.stop() }
@@ -113,7 +113,7 @@ final class HelperStatusTests: XCTestCase {
     }
 
     func testChargeLimitStatusParsesTheHelperReply() throws {
-        let helper = try FakeHelper(socketPath: socketPath, version: ModelsKt.APP_VERSION)
+        let helper = try FakeHelper(socketPath: socketPath, version: GeneratedReleaseIdentityKt.APP_VERSION)
         defer { helper.stop() }
 
         let client = HelperClient(socketPath: socketPath, timeoutMillis: 1_000)
@@ -133,7 +133,7 @@ final class HelperStatusTests: XCTestCase {
     }
 
     func testChargeLimitCommandsUseTheWireCommandNames() throws {
-        let helper = try FakeHelper(socketPath: socketPath, version: ModelsKt.APP_VERSION)
+        let helper = try FakeHelper(socketPath: socketPath, version: GeneratedReleaseIdentityKt.APP_VERSION)
         defer { helper.stop() }
 
         let client = HelperClient(socketPath: socketPath, timeoutMillis: 1_000)
@@ -149,7 +149,7 @@ final class HelperStatusTests: XCTestCase {
     func testChargeLimitCommandsCanOutliveTheDefaultSocketTimeout() throws {
         let helper = try FakeHelper(
             socketPath: socketPath,
-            version: ModelsKt.APP_VERSION,
+            version: GeneratedReleaseIdentityKt.APP_VERSION,
             responseDelayMilliseconds: 500
         )
         defer { helper.stop() }

@@ -48,7 +48,7 @@ final class MacPrivilegedOps: NSObject, PrivilegedOps {
     func status() -> HelperStatus {
         guard isInstalled() else { return .notInstalled }
         guard let info = client.versionInfo() else { return .error }
-        let sameVersion = info.version == ModelsKt.APP_VERSION
+        let sameVersion = info.version == GeneratedReleaseIdentityKt.APP_VERSION
         let sameProtocol = info.protocolVersion == HelperProtocol.protocolVersion
         return sameVersion && sameProtocol ? .installed : .outdated
     }

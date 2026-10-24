@@ -163,7 +163,7 @@ final class GithubUpdateChecker: NSObject, UpdateChecker {
         request.httpMethod = "GET"
         request.timeoutInterval = 10
         request.setValue("text/html", forHTTPHeaderField: "Accept")
-        request.setValue("Covio/\(ModelsKt.APP_VERSION)", forHTTPHeaderField: "User-Agent")
+        request.setValue("Covio/\(GeneratedReleaseIdentityKt.APP_VERSION)", forHTTPHeaderField: "User-Agent")
 
         // 端口方法不是 async，所以用信号量把异步请求变同步。
         // 请求有 10 秒超时，信号量再兜 15 秒，不会永久阻塞。

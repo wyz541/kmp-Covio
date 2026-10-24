@@ -82,7 +82,7 @@ actor AgentMCPRouter {
             ]),
             "serverInfo": .object([
                 "name": .string("Covio"),
-                "version": .string(ModelsKt.APP_VERSION),
+                "version": .string(GeneratedReleaseIdentityKt.APP_VERSION),
             ]),
             "instructions": .string(
                 "Covio local services. Side effects require confirmation in the Covio app."

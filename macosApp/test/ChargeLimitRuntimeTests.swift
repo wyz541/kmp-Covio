@@ -168,38 +168,7 @@ final class ChargeLimitRuntimeTests: XCTestCase {
             backend: backend,
             reader: reader,
             activeDischargeNudgeDelaySeconds: 0.05,
-            activeDischargeNudgeCooldownSeconds: 0
-        )
-        defer { _ = runtime.restore() }
-
-        _ = try runtime.configure(
-            userLimitPercent: 70,
-            activeDischargeEnabled: true
-        ).get()
-        backend.observedTargetOverride = 80
-
-        XCTAssertEqual(try runtime.evaluateNow().get().phase, "applying")
-        XCTAssertEqual(backend.appliedTargets, [70, 71])
-
-        let completed = expectation(description: "nudge completes")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            XCTAssertEqual(backend.appliedTargets, [70, 71, 70])
-            completed.fulfill()
-        }
-        wait(for: [completed], timeout: 1)
-    }
-
-    func testActiveDischargeWaitsForChargingToStopBeforeNudging() throws {
-        let backend = FakeChargeLimitBackend()
-        backend.observedTargetOverride = 70
-        let reader = FakeChargeLimitPowerReader(
-            reading: reading(current: 79, isCharging: true)
-        )
-        let runtime = makeRuntime(
-            backend: backend,
-            reader: reader,
-            activeDischargeNudgeDelaySeconds: 0.05,
-            activeDischargeNudgeCooldownSeconds: 0
+            activeDischargeNudgeCooldownSeconds: 1
         )
         defer { _ = runtime.restore() }
 
@@ -212,8 +181,51 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         XCTAssertEqual(try runtime.evaluateNow().get().phase, "applying")
         XCTAssertEqual(backend.appliedTargets, [70])
 
-        reader.reading = reading(current: 80)
-        _ = try runtime.evaluateNow().get()
+        let settled = expectation(description: "mismatch window elapsed")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            settled.fulfill()
+        }
+        wait(for: [settled], timeout: 1)
+        XCTAssertEqual(try runtime.evaluateNow().get().phase, "applying")
+        XCTAssertEqual(backend.appliedTargets, [70, 71])
+
+        let completed = expectation(description: "nudge completes")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            XCTAssertEqual(backend.appliedTargets, [70, 71, 70])
+            completed.fulfill()
+        }
+        wait(for: [completed], timeout: 1)
+    }
+
+    func testActiveDischargeRepairsTargetWhileCharging() throws {
+        let backend = FakeChargeLimitBackend()
+        backend.observedTargetOverride = 70
+        let reader = FakeChargeLimitPowerReader(
+            reading: reading(current: 79, isCharging: true)
+        )
+        let runtime = makeRuntime(
+            backend: backend,
+            reader: reader,
+            activeDischargeNudgeDelaySeconds: 0.05,
+            activeDischargeNudgeCooldownSeconds: 1
+        )
+        defer { _ = runtime.restore() }
+
+        _ = try runtime.configure(
+            userLimitPercent: 70,
+            activeDischargeEnabled: true
+        ).get()
+        backend.observedTargetOverride = 80
+
+        XCTAssertEqual(try runtime.evaluateNow().get().phase, "applying")
+        XCTAssertEqual(backend.appliedTargets, [70])
+
+        let settled = expectation(description: "mismatch window elapsed")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            settled.fulfill()
+        }
+        wait(for: [settled], timeout: 1)
+        XCTAssertEqual(try runtime.evaluateNow().get().phase, "applying")
         XCTAssertEqual(backend.appliedTargets, [70, 71])
     }
 
@@ -225,7 +237,7 @@ final class ChargeLimitRuntimeTests: XCTestCase {
             backend: backend,
             reader: reader,
             activeDischargeNudgeDelaySeconds: 0.05,
-            activeDischargeNudgeCooldownSeconds: 0
+            activeDischargeNudgeCooldownSeconds: 1
         )
         defer { _ = runtime.restore() }
 
@@ -240,6 +252,13 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         XCTAssertEqual(try runtime.evaluateNow().get().phase, "applying")
         XCTAssertFalse(activeDischargePort.engaged)
 
+        let mismatchWindow = expectation(description: "mismatch window elapsed")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            mismatchWindow.fulfill()
+        }
+        wait(for: [mismatchWindow], timeout: 1)
+        _ = try runtime.evaluateNow().get()
+
         let completed = expectation(description: "at-limit nudge completes")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             XCTAssertEqual(backend.appliedTargets, [70, 71, 70])
@@ -251,6 +270,21 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         let holding = try runtime.evaluateNow().get()
         XCTAssertEqual(holding.phase, "holding")
         XCTAssertFalse(activeDischargePort.engaged)
+    }
+
+    func testStatusReportsTheObservedSystemTarget() throws {
+        let backend = FakeChargeLimitBackend()
+        backend.observedTargetOverride = 80
+        let reader = FakeChargeLimitPowerReader(reading: reading(current: 75))
+        let runtime = makeRuntime(backend: backend, reader: reader)
+        defer { _ = runtime.restore() }
+
+        let status = try runtime.configure(
+            userLimitPercent: 70,
+            activeDischargeEnabled: true
+        ).get()
+
+        XCTAssertEqual(status.effectiveTargetPercent, 80)
     }
 
     func testAtLimitReengagesChieWhenChargingStartsBeforeRepair() throws {
@@ -333,7 +367,7 @@ final class ChargeLimitRuntimeTests: XCTestCase {
         let pending = try runtime.configure(userLimitPercent: 70).get()
 
         XCTAssertEqual(pending.phase, "applying")
-        XCTAssertEqual(pending.effectiveTargetPercent, 66)
+        XCTAssertEqual(pending.effectiveTargetPercent, 80)
         XCTAssertEqual(backend.appliedTargets, [66])
 
         backend.observedTargetOverride = 66

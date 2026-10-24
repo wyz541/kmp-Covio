@@ -142,6 +142,7 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
     private var bypassEngaged = false
     private var activeDischargeNudgePending = false
     private var lastActiveDischargeNudgeAt: Date?
+    private var targetMismatchSince: Date?
 
     init(
         backend: ChargeLimitBackend,
@@ -202,6 +203,7 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
             return .failure(.readbackFailed("CHIE active discharge support"))
         }
         return syncOnQueue {
+            targetMismatchSince = nil
             let state = ChargeLimitRuntimeState(
                 userLimitPercent: userLimitPercent,
                 chargingLatch: activeDischargeEnabled,
@@ -229,6 +231,7 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
     func restore() -> Result<Void, ChargeLimitMCLFailure> {
         syncOnQueue {
             activeDischargeNudgePending = false
+            targetMismatchSince = nil
             stopTimerLocked()
             guard activeDischargePort.release() else {
                 return .failure(.readbackFailed("CHIE release"))
@@ -340,24 +343,42 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
         let returningFromCalibration = state.lastPhase == "calibration" &&
             !reading.calibrationActive &&
             state.calibrationTargetPercent == observedTarget
-        let targetMayBeReplaced = recoveringFromStartup ||
+        let targetWriteMayBeReplaced = recoveringFromStartup ||
             returningFromCalibration ||
-            explicitUserRequest ||
-            hasPendingTarget
-        let activeDischargeTargetMismatch = state.activeDischargeEnabled == true &&
+            explicitUserRequest
+        let targetMayBeReplaced = targetWriteMayBeReplaced || hasPendingTarget
+        let resumeThreshold = Int(
+            ChargeLimitPolicy.shared.resumeThreshold(
+                upperLimitPercent: Int32(state.userLimitPercent)
+            )
+        )
+        let shouldMaintainActiveDischargeTarget =
+            currentPercent == state.userLimitPercent ||
+            currentPercent > state.userLimitPercent ||
+            (currentPercent < state.userLimitPercent &&
+                (state.chargingLatch || currentPercent <= resumeThreshold))
+        let targetMismatch = state.activeDischargeEnabled == true &&
+            shouldMaintainActiveDischargeTarget &&
+            reading.batteryPresent &&
+            !reading.calibrationActive &&
+            !reading.systemProtectionActive &&
             effectiveAdapterConnected &&
-            currentPercent >= state.userLimitPercent &&
             observedTarget != state.userLimitPercent &&
-            !targetMayBeReplaced
-        if activeDischargeTargetMismatch {
-            if reading.isCharging {
+            !targetWriteMayBeReplaced
+        if targetMismatch {
+            let now = Date()
+            if targetMismatchSince == nil {
+                targetMismatchSince = now
+            }
+            let mismatchAge = now.timeIntervalSince(targetMismatchSince ?? now)
+            if mismatchAge < activeDischargeNudgeDelaySeconds {
                 return saveApplyingStateLocked(
                     state: state,
                     pendingTargetPercent: nil
                 )
             }
             if let last = lastActiveDischargeNudgeAt,
-               Date().timeIntervalSince(last) < activeDischargeNudgeCooldownSeconds {
+               now.timeIntervalSince(last) < activeDischargeNudgeCooldownSeconds {
                 return saveApplyingStateLocked(
                     state: state,
                     pendingTargetPercent: nil
@@ -365,6 +386,7 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
             }
             return beginActiveDischargeNudgeLocked(state: state)
         }
+        targetMismatchSince = nil
         let observation = ChargeLimitObservation(
             enabled: true,
             upperLimitPercent: Int32(state.userLimitPercent),
@@ -591,10 +613,11 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
         case .failure(let failure):
             return .failure(failure)
         }
+        let observedTarget = backend.observedTargetPercent()
         return .success(
             ChargeLimitRuntimeStatus(
                 userLimitPercent: state.userLimitPercent,
-                effectiveTargetPercent: effectiveTarget(backendState?.targetPercent),
+                effectiveTargetPercent: effectiveTarget(observedTarget),
                 chargingLatch: state.chargingLatch,
                 phase: state.lastPhase,
                 bypassEngaged: bypassEngaged,

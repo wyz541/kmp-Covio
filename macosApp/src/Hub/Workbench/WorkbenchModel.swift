@@ -195,6 +195,13 @@ final class WorkbenchModel {
     private(set) var lastSwitchAt: Date?
 
     private var cooldownTask: Task<Void, Never>?
+    private var initialHoverProtectionTask: Task<Void, Never>?
+
+    /// 工作台刚展开时暂时忽略导航 hover。
+    ///
+    /// 保护从面板开始出现时生效，展开动画结束后再保留 0.5 秒。这样面板一上屏
+    /// 就不会被指针当前位置误切页，也不会在保护结束时补触发。
+    private(set) var isInitialHoverProtected = false
 
     /// 指针进入一个页签。冷却已经走完就立刻切，没走完就等它走完再切。
     ///
@@ -202,7 +209,7 @@ final class WorkbenchModel {
     /// 停在已经选中的页签上也不切，否则滑块会白闪一次。
     func pointerEntered(_ destination: HubDestination) {
         cancelHoverSwitch()
-        guard !isEditing, destination != self.destination else { return }
+        guard !isInitialHoverProtected, !isEditing, destination != self.destination else { return }
         let remaining = cooldownRemaining()
         guard remaining > 0 else {
             select(destination)
@@ -233,6 +240,33 @@ final class WorkbenchModel {
         cooldownTask?.cancel()
         cooldownTask = nil
         pendingDestination = nil
+    }
+
+    /// 面板开始出现时进入 hover 保护。每次展开都重新开始。
+    func beginInitialHoverProtection() {
+        initialHoverProtectionTask?.cancel()
+        initialHoverProtectionTask = nil
+        isInitialHoverProtected = true
+        cancelHoverSwitch()
+    }
+
+    /// 展开动画结束后，再保留指定的 hover 保护时间。
+    func scheduleInitialHoverProtectionEnd(after delay: TimeInterval) {
+        guard isInitialHoverProtected else { return }
+        initialHoverProtectionTask?.cancel()
+        initialHoverProtectionTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(delay))
+            guard !Task.isCancelled else { return }
+            self?.isInitialHoverProtected = false
+            self?.initialHoverProtectionTask = nil
+        }
+    }
+
+    /// 立即结束 hover 保护。测试和面板提前收起时使用。
+    func endInitialHoverProtection() {
+        initialHoverProtectionTask?.cancel()
+        initialHoverProtectionTask = nil
+        isInitialHoverProtected = false
     }
 
     /// 冷却走完，换到那一页。

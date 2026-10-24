@@ -9,6 +9,7 @@ struct MonitorTabView: View {
     let language: AppLanguage
     let powerModel: (any PowerManagementModel)?
     let runtime: AppRuntime?
+    let popoverCoordinator: HubPopoverCoordinator?
     private let runsSampling: Bool
 
     @State private var section: MonitorSection = .overview
@@ -24,6 +25,7 @@ struct MonitorTabView: View {
         language: AppLanguage,
         powerModel: (any PowerManagementModel)? = nil,
         runtime: AppRuntime? = nil,
+        popoverCoordinator: HubPopoverCoordinator? = nil,
         initialSnapshot: MonitorSnapshot = .empty,
         initialHistory: MonitorHistory = MonitorHistory(),
         initialPowerHistory: MonitorPowerHistory = MonitorPowerHistory(),
@@ -33,6 +35,7 @@ struct MonitorTabView: View {
         self.language = language
         self.powerModel = powerModel ?? runtime
         self.runtime = runtime
+        self.popoverCoordinator = popoverCoordinator
         self.runsSampling = runsSampling
         _section = State(initialValue: startsInPower ? .power : .overview)
         _snapshot = State(initialValue: initialSnapshot)
@@ -302,6 +305,7 @@ struct MonitorTabView: View {
                 language: language,
                 reduceMotion: reduceMotion,
                 runtime: runtime,
+                popoverCoordinator: popoverCoordinator,
                 onOpenApp: openApplication
             )
         } else {
@@ -311,6 +315,7 @@ struct MonitorTabView: View {
                 language: language,
                 reduceMotion: reduceMotion,
                 runtime: runtime,
+                popoverCoordinator: popoverCoordinator,
                 onOpenApp: openApplication
             )
         }
@@ -326,7 +331,8 @@ struct MonitorTabView: View {
                 rpmHistory: history.fanRPM,
                 language: language,
                 runtime: runtime,
-                model: fanControlModel
+                model: fanControlModel,
+                popoverCoordinator: popoverCoordinator
             )
         }
     }
@@ -423,10 +429,12 @@ private struct MonitorPowerCard: View {
     let language: AppLanguage
     let reduceMotion: Bool
     let runtime: AppRuntime?
+    let popoverCoordinator: HubPopoverCoordinator?
     let onOpenApp: (String) -> Void
 
     @AppStorage("monitor.power.detailsExpanded") private var detailsExpanded = false
     @State private var detailsPresented = false
+    @State private var popoverID = UUID().uuidString
     @State private var chargingPulse = false
     @FocusState private var isFocused: Bool
 
@@ -529,10 +537,16 @@ private struct MonitorPowerCard: View {
             return .handled
         }
         .onAppear {
-            detailsPresented = detailsExpanded
+            setDetailsPresented(detailsExpanded)
         }
         .onChange(of: detailsPresented) { _, presented in
             detailsExpanded = presented
+            if !presented {
+                popoverCoordinator?.setPresented(false, id: popoverID)
+            }
+        }
+        .onChange(of: popoverCoordinator?.dismissalRequest) { _, _ in
+            setDetailsPresented(false)
         }
         .popover(isPresented: $detailsPresented, arrowEdge: .trailing) {
             MonitorPowerDetailPanel(
@@ -542,8 +556,14 @@ private struct MonitorPowerCard: View {
                 reduceMotion: reduceMotion,
                 runtime: runtime,
                 onOpenApp: onOpenApp,
-                onClose: { detailsPresented = false }
+                onClose: { setDetailsPresented(false) }
             )
+            .onAppear {
+                popoverCoordinator?.setPresented(true, id: popoverID)
+            }
+            .onDisappear {
+                popoverCoordinator?.setPresented(false, id: popoverID)
+            }
         }
         .overlay {
             if isFocused {
@@ -555,6 +575,9 @@ private struct MonitorPowerCard: View {
         }
         .accessibilityLabel(accessibilityLabel)
         .accessibilityHint(detailActionText)
+        .onDisappear {
+            popoverCoordinator?.setPresented(false, id: popoverID)
+        }
         .task(id: power.supply) {
             chargingPulse = false
             guard power.supply == .charging, !reduceMotion else { return }
@@ -578,7 +601,13 @@ private struct MonitorPowerCard: View {
     }
 
     private func toggleDetails() {
-        detailsPresented.toggle()
+        setDetailsPresented(!detailsPresented)
+    }
+
+    /// 同时更新 Popover 与协调器。先登记再等窗口出现，避免指针事件抢先启动收起。
+    private func setDetailsPresented(_ presented: Bool) {
+        detailsPresented = presented
+        popoverCoordinator?.setPresented(presented, id: popoverID)
     }
 
     private var primaryRow: some View {

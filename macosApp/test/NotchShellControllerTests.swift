@@ -105,6 +105,68 @@ final class NotchShellControllerTests: XCTestCase {
         waitUntil("展开后应该进入 ACTIVE") { controller.state == .active }
     }
 
+    /// 每次展开都先禁用导航 hover，面板收起时立即清理保护。
+    func testExpansionStartsTheInitialHoverProtection() throws {
+        let controller = try controllerWithPointerInsideHub()
+        controller.start()
+        defer { controller.stop() }
+
+        controller.show()
+        XCTAssertTrue(controller.workbench.isInitialHoverProtected)
+        waitUntil("展开后应该进入 ACTIVE") { controller.state == .active }
+        XCTAssertTrue(controller.workbench.isInitialHoverProtected, "展开完成后还要保留 0.5 秒")
+
+        controller.requestCollapse()
+        waitUntil("收起后应该回到 HIDDEN") { controller.state == .hidden }
+        XCTAssertFalse(controller.workbench.isInitialHoverProtected)
+    }
+
+    /// Popover 打开后，指针移出 Hub 也不启动自动收起。
+    func testPopoverKeepsTheHubExpandedPastThePointerExitDelay() throws {
+        let rect = try hubPanelRect()
+        let inside = CGPoint(x: rect.midX, y: rect.maxY - 4)
+        let outside = CGPoint(x: rect.midX, y: rect.minY - 20)
+        var pointer = inside
+        let controller = NotchShellController(pointerLocation: { pointer })
+        controller.start()
+        defer { controller.stop() }
+
+        controller.show()
+        waitUntil("展开后应该进入 ACTIVE") { controller.state == .active }
+
+        controller.popoverCoordinator.setPresented(true, id: "test-popover")
+        pointer = outside
+        controller.pointerExitedHub()
+
+        let deadline = Date().addingTimeInterval(HubMotion.pointerExitCollapseDelay + 0.3)
+        while Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.02))
+        }
+        XCTAssertNotEqual(controller.state, .exit, "Popover 打开时不能自动收起")
+
+        controller.popoverCoordinator.setPresented(false, id: "test-popover")
+        waitUntil("关闭 Popover 后应恢复自动收起") { controller.state == .hidden }
+    }
+
+    /// 显式收起先关闭 Popover，再开始 Hub 的收起动画。
+    func testExplicitCollapseWaitsForThePopoverToClose() throws {
+        let controller = try controllerWithPointerInsideHub()
+        controller.start()
+        defer { controller.stop() }
+
+        controller.show()
+        waitUntil("展开后应该进入 ACTIVE") { controller.state == .active }
+        controller.popoverCoordinator.setPresented(true, id: "test-popover")
+
+        controller.requestCollapse()
+        XCTAssertEqual(controller.state, .active)
+        XCTAssertEqual(controller.popoverCoordinator.dismissalRequest, 1)
+
+        controller.popoverCoordinator.setPresented(false, id: "test-popover")
+        waitUntil("Popover 关闭后应执行显式收起") { controller.state == .exit }
+        waitUntil("收起动画结束后应回到 HIDDEN") { controller.state == .hidden }
+    }
+
     func testRequestingCollapseReturnsToHidden() throws {
         let controller = try controllerWithPointerInsideHub()
         controller.start()

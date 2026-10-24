@@ -145,7 +145,7 @@ Covio 不修改系统截图设置。
 | 底板材质 | Liquid Glass 的 `.regular` 变体，不加着色。`GlassSurfaceMode.plateMode = .glass`，`plateTintOpacity = 0`。`.system` 与 `.hudWindow` 保留为调试对照。 |
 | 卡片材质 | 叠在底板上，底材 `Glass.clear`。填充取色值乘 `MacTheme.tintedCardOpacity`，当前取 `0.1`。 |
 | 顶栏材质 | 无边框超薄材质。`GlassSurfaceMode.topBarMode = .ultraThin`。 |
-| 顶栏按钮 | 未选中时透明。选中、悬停或键盘聚焦时显示原生 clear Liquid Glass；选中态带强调色 tint。键盘焦点同时显示系统焦点框。 |
+| 顶栏按钮 | 未选中时透明。选中、悬停或键盘聚焦时显示原生 regular Liquid Glass；选中态带淡强调色 tint，并使用 `glassEffectID` 与 matchedGeometry transition 在页签之间形变。键盘焦点叠加高对比焦点环。 |
 | 边框 | 内容底板保留 Liquid Glass 自带的镜面亮边。顶栏没有边框。卡片保留自己的亮边。 |
 | 投影 | 顶栏与内容层都没有投影。 |
 | 菜单栏胶囊 | 高 20 点。内容是品牌菱形加名字。 |

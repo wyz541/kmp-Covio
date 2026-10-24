@@ -1,10 +1,10 @@
 import AppKit
 import kmpDomain
 
-/// 菜单栏状态项。挂帘的次级入口。
+/// 菜单栏状态项。胶囊不可见时的备用入口。
 ///
-/// 主入口是菜单栏上的品牌胶囊（`MenuBarCapsulePanel`）。这个状态项留着，
-/// 是为了在胶囊窗口万一没上屏时，仍然有地方打开挂帘、进设置、退出应用。
+/// 主入口是菜单栏上的品牌胶囊（`MenuBarCapsulePanel`）。这个状态项只在胶囊
+/// 不可见时显示，例如全屏 Space 中菜单栏藏起来时。两者不能同时出现。
 /// 状态项图形由 `CovioStatusIcon` 绘制，是随菜单栏明暗外观变化的模板图标。
 ///
 /// 行为来自设计合同 `component/tray-icon.swiftMapping`：左键开合挂帘，右键开菜单。
@@ -16,13 +16,22 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let statusItem: NSStatusItem
     private let menu = NSMenu()
 
-    init(shell: NotchShellController, runtime: AppRuntime? = nil) {
+    init(shell: NotchShellController, runtime: AppRuntime? = nil, capsuleVisible: Bool) {
         self.shell = shell
         self.runtime = runtime
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
         configureButton()
         configureMenu()
+        sync(capsuleVisible: capsuleVisible)
+    }
+
+    /// 状态项是否显示。正常 Space 中胶囊可见，所以状态项隐藏。
+    var isVisible: Bool { statusItem.isVisible }
+
+    /// 让备用状态项跟随主胶囊的可见性。
+    func sync(capsuleVisible: Bool) {
+        statusItem.isVisible = !capsuleVisible
     }
 
     private func configureButton() {
@@ -99,6 +108,11 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         statusItem.menu = menu
         statusItem.button?.performClick(nil)
         statusItem.menu = nil
+    }
+
+    /// 从胶囊的右键位置弹同一套菜单。
+    func showContextMenu() {
+        menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
     }
 
     // MARK: - 菜单动作

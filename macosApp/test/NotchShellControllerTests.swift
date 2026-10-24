@@ -356,6 +356,17 @@ final class NotchShellControllerTests: XCTestCase {
         XCTAssertFalse(capsule.canBecomeKey, "胶囊不该抢走 Hub 的键盘")
     }
 
+    /// 胶囊可见时备用状态项必须隐藏，菜单栏只能有一个 Covio 入口。
+    func testHostApplicationShowsExactlyOneMenuBarEntry() throws {
+        let appDelegate = try XCTUnwrap(AppDelegate.current)
+        let visibleCapsules = NSApp.windows
+            .compactMap { $0 as? MenuBarCapsulePanel }
+            .filter(\.isVisible)
+        let visibleStatusItem = appDelegate.statusItemController?.isVisible == true
+
+        XCTAssertEqual(visibleCapsules.count + (visibleStatusItem ? 1 : 0), 1)
+    }
+
     // MARK: - 宿主进程
 
     /// 测试是跑在被测应用进程里的，`AppDelegate` 已经启动了真正的 shell。

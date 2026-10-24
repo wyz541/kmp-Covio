@@ -26,11 +26,11 @@ python3 scripts/release_manifest.py bump
 python3 scripts/release_manifest.py bump --version 0.6.0
 ```
 
-Generate the final artifact manifest from a signed helper or the signed app executable:
+Generate the final artifact manifest from the signed helper:
 
 ```sh
 python3 scripts/release_manifest.py generate-artifact \
-  --helper dist/Covio.app/Contents/MacOS/Covio \
+  --helper dist/Covio.app/Contents/MacOS/CovioHelper \
   --output dist/release-manifest.json
 ```
 
@@ -44,3 +44,4 @@ Do not edit generated files by hand.
 
 The source manifest contains the release inputs.
 The artifact manifest adds `gitCommit`, `releaseId` and `helperSHA256`.
+`CovioHelper` statically links `kmpDomain`; the app bundle must not supply its runtime dependencies.

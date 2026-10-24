@@ -274,7 +274,7 @@ extension HelperLeaseCoordinator.Environment {
                 try? FileManager.default.removeItem(atPath: HelperProtocol.sleepOwnerPath)
             },
             externalDisplayCount: {
-                MacPowerObservationSource.readExternalDisplayCount()
+                ExternalDisplayReader.count()
             },
             schedule: { seconds, block in
                 DispatchQueue.global(qos: .utility).asyncAfter(

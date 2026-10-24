@@ -1,11 +1,10 @@
 import Foundation
 import kmpDomain
 
-/// 特权 helper 的服务端。以 `Covio --helper` 启动，由 LaunchDaemon 以 root 运行。
+/// 特权 helper 的请求处理器。
 ///
-/// 对应 Compose 版的 `app/src/com/wyz/covio/app/helper/HelperServer.kt`。
-/// 请求来自本机 Unix 域套接字。每个连接先校验 uid，再校验命令白名单。
-/// 充电命令还要校验调用方代码签名。
+/// 新 `CovioHelper` 通过 XPC 调用 [process]；legacy `Covio --helper` 继续处理
+/// Unix socket，供一次迁移使用。两条 transport 共用同一套校验和命令白名单。
 /// 现有设置命令交给 `/usr/bin/pmset`，充电命令交给 MCL 后端。
 /// 套接字是 OS 调用，所以这一层在两端各有一份，这是规范允许的重复。
 enum HelperServer {
@@ -34,9 +33,7 @@ enum HelperServer {
         signal(SIGPIPE, SIG_IGN)
         let log = HelperLog()
         let fanControlRuntime = FanControlRuntime(log: log)
-        if case .failure(let failure) = chargeLimitRuntime.resumeOnStartup() {
-            log.error("Charge limit runtime failed to resume: \(failure)")
-        }
+        resumeSharedChargeLimitRuntime(log: log)
         var terminationSources: [DispatchSourceSignal] = []
         for number in [SIGTERM, SIGINT] {
             signal(number, SIG_IGN)
@@ -44,7 +41,7 @@ enum HelperServer {
             source.setEventHandler {
                 // 充电状态跨越 helper 重启。卸载路径会先显式恢复原策略，
                 // 通用 SIGTERM 不能清除状态，否则下一次启动无法恢复用户上限。
-                chargeLimitRuntime.prepareForExit()
+                prepareSharedChargeLimitForExit()
                 // 风扇控制是进程内状态，helper 退出前必须恢复系统控制。
                 fanControlRuntime.shutdown()
                 exit(0)
@@ -60,6 +57,16 @@ enum HelperServer {
             log.error("Helper failed", error)
             return 1
         }
+    }
+
+    static func resumeSharedChargeLimitRuntime(log: HelperLog) {
+        if case .failure(let failure) = chargeLimitRuntime.resumeOnStartup() {
+            log.error("Charge limit runtime failed to resume: \(failure)")
+        }
+    }
+
+    static func prepareSharedChargeLimitForExit() {
+        chargeLimitRuntime.prepareForExit()
     }
 
     private static func serve(log: HelperLog, fanControlRuntime: FanControlRuntime) throws {
@@ -146,68 +153,79 @@ enum HelperServer {
             ) else {
                 return
             }
-            guard let request = HelperWire.shared.decodeRequest(line: line) else {
-                write(reply: HelperWire.shared.failure(requestId: "", message: "Invalid JSON request"), to: client)
-                return
-            }
-            if let validationError = HelperWire.shared.validate(request: request) {
-                write(
-                    reply: HelperWire.shared.failure(
-                        requestId: request.requestId,
-                        message: validationError
-                    ),
-                    to: client
-                )
-                return
-            }
-
-            if HelperWire.shared.requiresClientSignature(command: request.command) {
-                guard peerAuthorizer.isAuthorized(descriptor: client) else {
-                    log.info("Rejected privileged command from an unsigned client")
-                    write(
-                        reply: HelperWire.shared.failure(
-                            requestId: request.requestId,
-                            message: "Peer signature is not allowed"
-                        ),
-                        to: client
-                    )
-                    return
-                }
-                if HelperWire.shared.isChargeLimitCommand(command: request.command),
-                   let reply = chargeLimitHandler.handle(request) {
-                    write(reply: reply, to: client)
-                    return
-                }
-                if let reply = fanControlRuntime.handle(request) {
-                    write(reply: reply, to: client)
-                    return
-                }
-            }
-
-            let reply: HelperReply
-            if let arguments = HelperWire.shared.pmsetArguments(request: request) {
-                reply = runPmset(requestId: request.requestId, arguments: arguments)
-            } else if request.command == HelperWire.shared.COMMAND_VERSION {
-                if let identity = HelperReleaseIdentitySource.daemonIdentity {
-                    reply = HelperWire.shared.versionReply(
-                        requestId: request.requestId,
-                        identity: identity
-                    )
-                } else {
-                    log.error("Cannot report helper release identity")
-                    reply = HelperWire.shared.failure(
-                        requestId: request.requestId,
-                        message: "Helper release identity is unavailable"
-                    )
-                }
-            } else if let leaseReply = leaseCoordinator.handle(request) {
-                reply = leaseReply
-            } else {
-                // 白名单外的命令在校验那一步就被拒绝了，这里只是兜底。
-                reply = HelperWire.shared.failure(requestId: request.requestId, message: "Command is not allowed")
-            }
+            let reply = process(
+                line: line,
+                authorizePrivilegedCommand: {
+                    peerAuthorizer.isAuthorized(descriptor: client)
+                },
+                log: log,
+                leaseCoordinator: leaseCoordinator,
+                fanControlRuntime: fanControlRuntime
+            )
             write(reply: reply, to: client)
         }
+    }
+
+    /// 解码、校验并执行一条已传输到 helper 的请求。
+    ///
+    /// legacy socket 通过 `authorizePrivilegedCommand` 检查对端签名。
+    /// XPC 在连接阶段已完成同一检查，因此传入始终返回 true 的闭包。
+    static func process(
+        line: String,
+        authorizePrivilegedCommand: () -> Bool,
+        log: HelperLog,
+        leaseCoordinator: HelperLeaseCoordinator,
+        fanControlRuntime: FanControlRuntime
+    ) -> HelperReply {
+        guard let request = HelperWire.shared.decodeRequest(line: line) else {
+            return HelperWire.shared.failure(requestId: "", message: "Invalid JSON request")
+        }
+        if let validationError = HelperWire.shared.validate(request: request) {
+            return HelperWire.shared.failure(
+                requestId: request.requestId,
+                message: validationError
+            )
+        }
+
+        if HelperWire.shared.requiresClientSignature(command: request.command),
+           !authorizePrivilegedCommand() {
+            log.info("Rejected privileged command from an unauthorized client")
+            return HelperWire.shared.failure(
+                requestId: request.requestId,
+                message: "Peer signature is not allowed"
+            )
+        }
+        if HelperWire.shared.isChargeLimitCommand(command: request.command),
+           let reply = chargeLimitHandler.handle(request) {
+            return reply
+        }
+        if let reply = fanControlRuntime.handle(request) {
+            return reply
+        }
+        if let arguments = HelperWire.shared.pmsetArguments(request: request) {
+            return runPmset(requestId: request.requestId, arguments: arguments)
+        }
+        if request.command == HelperWire.shared.COMMAND_VERSION {
+            guard let identity = HelperReleaseIdentitySource.daemonIdentity else {
+                log.error("Cannot report helper release identity")
+                return HelperWire.shared.failure(
+                    requestId: request.requestId,
+                    message: "Helper release identity is unavailable"
+                )
+            }
+            return HelperWire.shared.versionReply(
+                requestId: request.requestId,
+                identity: identity
+            )
+        }
+        if let leaseReply = leaseCoordinator.handle(request) {
+            return leaseReply
+        }
+        // 白名单外的命令在校验那一步就被拒绝了，这里只是兜底。
+        return HelperWire.shared.failure(
+            requestId: request.requestId,
+            message: "Command is not allowed"
+        )
     }
 
     // MARK: - 私有
@@ -265,8 +283,7 @@ enum HelperError: Error {
 
 /// helper 自己的日志。写到 `/Library/Application Support/Covio/helper.log`。
 ///
-/// 不用 `os.Logger`，因为 LaunchDaemon 的输出已经从 plist 重定向到这里，
-/// 保持单一文件便于用户上报问题。
+/// 不用 `os.Logger`。app 和 helper 分开写入不同的持久日志，便于用户上报问题。
 ///
 /// 多个连接线程会同时写。`NSLock` 串行化写入，所以标记 `@unchecked Sendable`。
 final class HelperLog: @unchecked Sendable {

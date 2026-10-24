@@ -226,6 +226,24 @@ final class HelperStatusTests: XCTestCase {
         XCTAssertEqual(ops().status(), .match)
     }
 
+    func testRepairCanReleaseAnActiveLeaseAfterIdentityChanges() throws {
+        let helper = try FakeHelper(
+            socketPath: socketPath,
+            version: expectedIdentity.productVersion,
+            protocolVersion: expectedIdentity.protocolVersion,
+            identity: expectedIdentity
+        )
+        defer { helper.stop() }
+        let privileged = ops()
+
+        XCTAssertTrue(privileged.setDisableSleep(disabled: true))
+        helper.setIdentity(identity(helperHash: String(repeating: "c", count: 64)))
+        XCTAssertEqual(privileged.status(), .identityMismatch)
+
+        XCTAssertTrue(privileged.prepareForHelperChange())
+        XCTAssertTrue(helper.commands.contains(HelperWire.shared.COMMAND_LID_LEASE_RELEASE))
+    }
+
     /// 合盖保持只在 helper 确认租约与真实状态时返回 true。
     func testLidLeaseRequiresAnActiveOkReply() throws {
         let helper = try FakeHelper(
@@ -353,6 +371,10 @@ private final class FakeHelper {
         port.stopped = true
         shutdown(descriptor, SHUT_RDWR)
         close(descriptor)
+    }
+
+    func setIdentity(_ identity: HelperReleaseIdentity) {
+        port.identityResult = Self.identityResult(identity)
     }
 
     deinit { stop() }

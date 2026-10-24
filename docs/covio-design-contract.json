@@ -5780,6 +5780,34 @@
       "en": "Covio cannot verify the helper.",
       "zh-Hans": "Covio 无法验证 Helper。"
     },
+    "copy/helper/service/enabled": {
+      "en": "Managed by macOS",
+      "zh-Hans": "由 macOS 管理"
+    },
+    "copy/helper/service/error": {
+      "en": "Helper service needs attention",
+      "zh-Hans": "Helper 服务需要处理"
+    },
+    "copy/helper/service/legacy": {
+      "en": "Legacy helper needs migration",
+      "zh-Hans": "旧版 Helper 需要迁移"
+    },
+    "copy/helper/service/not-found": {
+      "en": "Bundled helper service is missing",
+      "zh-Hans": "应用内的 Helper 服务缺失"
+    },
+    "copy/helper/service/not-registered": {
+      "en": "Helper is not registered",
+      "zh-Hans": "Helper 未注册"
+    },
+    "copy/helper/service/requires-approval": {
+      "en": "Approve Covio Helper in System Settings",
+      "zh-Hans": "请在系统设置中批准 Covio Helper"
+    },
+    "copy/helper/service/unsupported": {
+      "en": "Helper service is unavailable on this macOS",
+      "zh-Hans": "当前 macOS 不支持 Helper 服务"
+    },
     "copy/status-item/idle-prevented": {
       "en": "Idle sleep is prevented.",
       "zh-Hans": "已阻止空闲休眠。"

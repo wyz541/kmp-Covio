@@ -15,6 +15,10 @@ enum HelperProtocol {
 
     /// 以 helper 身份启动的命令行参数。
     static var helperArgument: String { HelperContractKt.HELPER_ARGUMENT }
+    static var helperExecutableName: String { HelperContractKt.HELPER_EXECUTABLE_NAME }
+    static var helperExecutableBundlePath: String { HelperContractKt.HELPER_EXECUTABLE_BUNDLE_PATH }
+    static var daemonPlistName: String { HelperContractKt.HELPER_DAEMON_PLIST_NAME }
+    static var xpcServiceName: String { HelperContractKt.HELPER_XPC_SERVICE_NAME }
 
     static var socketPath: String { HelperContractKt.HELPER_SOCKET_PATH }
     static var helperDirectory: String { HelperContractKt.HELPER_DIRECTORY }

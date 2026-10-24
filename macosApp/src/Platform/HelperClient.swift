@@ -1,23 +1,50 @@
 import Foundation
 import kmpDomain
 
-/// 特权 helper 的 Unix 域套接字客户端。
+/// 特权 helper 客户端。
 ///
 /// 对应 Compose 版的 `app/src/com/wyz/covio/app/helper/HelperClient.kt`。
-/// 行为差异只有一处：Kotlin 版用非阻塞 channel 加 selector 做超时，
-/// 这里用 `SO_SNDTIMEO` 与 `SO_RCVTIMEO`，由内核负责超时。
+/// 新服务通过 XPC 通信；检测到 legacy helper 时回退到 Unix socket。
+/// 两条 transport 使用同一套共享层线协议。
 /// 对外语义一致：超时或失败返回 nil，不抛异常。
 ///
 /// 线上格式与校验在共享层的 `HelperWire`，两端的客户端发同样的字节。
 final class HelperClient: @unchecked Sendable {
+    private enum Transport {
+        case socket(String)
+        case xpc(HelperXPCClient)
+        case automatic(socketPath: String, xpc: HelperXPCClient)
+    }
+
     /// helper 的 socket 路径。`PrivilegedOps` 用它判断「装没装」，
     /// 测试也用它指向一个临时的假 helper。
     let socketPath: String
     private let timeout: TimeInterval
+    private let transport: Transport
 
-    init(socketPath: String = HelperProtocol.socketPath, timeoutMillis: Int = 2_000) {
+    var canReachHelper: Bool {
+        usesXPC || FileManager.default.fileExists(atPath: socketPath)
+    }
+
+    init() {
+        socketPath = HelperProtocol.socketPath
+        timeout = 2
+        transport = .automatic(
+            socketPath: HelperProtocol.socketPath,
+            xpc: HelperXPCClient(serviceName: HelperProtocol.xpcServiceName)
+        )
+    }
+
+    init(socketPath: String, timeoutMillis: Int = 2_000) {
         self.socketPath = socketPath
         self.timeout = TimeInterval(timeoutMillis) / 1_000
+        transport = .socket(socketPath)
+    }
+
+    init(xpcServiceName: String, timeoutMillis: Int = 2_000) {
+        socketPath = HelperProtocol.socketPath
+        timeout = TimeInterval(timeoutMillis) / 1_000
+        transport = .xpc(HelperXPCClient(serviceName: xpcServiceName))
     }
 
     func request(
@@ -28,7 +55,6 @@ final class HelperClient: @unchecked Sendable {
     ) -> HelperReply? {
         let requestTimeout = timeoutMillis.map { TimeInterval($0) / 1_000 } ?? timeout
         guard requestTimeout > 0 else { return nil }
-        guard FileManager.default.fileExists(atPath: socketPath) else { return nil }
 
         let request = HelperRequest(
             version: protocolVersion,
@@ -44,7 +70,6 @@ final class HelperClient: @unchecked Sendable {
 
     /// 使用 v1 `version` 探测 helper，并保留 socket 对端 PID 供签名校验。
     func versionProbe() -> HelperVersionProbe? {
-        guard FileManager.default.fileExists(atPath: socketPath) else { return nil }
         let request = HelperRequest(
             version: "1",
             requestId: UUID().uuidString,
@@ -60,7 +85,8 @@ final class HelperClient: @unchecked Sendable {
         }
         return HelperVersionProbe(
             result: transaction.reply.result ?? [:],
-            peerPID: transaction.peerPID
+            peerPID: transaction.peerPID,
+            transportTrusted: transaction.transportTrusted
         )
     }
 
@@ -214,6 +240,10 @@ final class HelperClient: @unchecked Sendable {
     // MARK: - 私有
 
     private func transact(_ line: String, timeout: TimeInterval) -> HelperTransaction? {
+        if usesXPC {
+            guard let reply = xpcClient.transact(line, timeout: timeout) else { return nil }
+            return HelperTransaction(reply: reply, peerPID: nil, transportTrusted: true)
+        }
         let descriptor = connect(timeout: timeout)
         guard descriptor >= 0 else { return nil }
         defer { close(descriptor) }
@@ -225,7 +255,27 @@ final class HelperClient: @unchecked Sendable {
             limit: Int(HelperWire.shared.MAX_REPLY_BYTES)
         ) else { return nil }
         guard let reply = HelperWire.shared.decodeReply(line: response) else { return nil }
-        return HelperTransaction(reply: reply, peerPID: peerPID)
+        return HelperTransaction(reply: reply, peerPID: peerPID, transportTrusted: false)
+    }
+
+    private var usesXPC: Bool {
+        switch transport {
+        case .xpc:
+            true
+        case .socket:
+            false
+        case .automatic:
+            SMAppHelperServiceManager.shared.state.allowsXPC
+        }
+    }
+
+    private var xpcClient: HelperXPCClient {
+        switch transport {
+        case .xpc(let client), .automatic(_, let client):
+            client
+        case .socket:
+            preconditionFailure("XPC client is unavailable for a socket-only HelperClient")
+        }
     }
 
     private func connect(timeout: TimeInterval) -> Int32 {
@@ -268,6 +318,7 @@ final class HelperClient: @unchecked Sendable {
 private struct HelperTransaction {
     let reply: HelperReply
     let peerPID: pid_t?
+    let transportTrusted: Bool
 }
 
 struct HelperVersionInfo {
@@ -278,6 +329,7 @@ struct HelperVersionInfo {
 struct HelperVersionProbe {
     let result: [String: String]
     let peerPID: pid_t?
+    let transportTrusted: Bool
 }
 
 /// 充电上限 helper 客户端端口。测试替换这个端口，避免连接真实 helper。
@@ -302,80 +354,6 @@ struct ChargeLimitHelperStatus: Equatable, Sendable {
     let originalOptimizedChargingEnabled: Bool?
     var activeDischargeEnabled: Bool = false
     var activeDischargeSupported: Bool = false
-}
-
-/// `sockaddr_un` 的构造与长度计算集中在这里，调用方不用碰 C 指针。
-struct UnixSocketAddress {
-    private var storage: sockaddr_un
-    /// 实际用到的长度。`sun_path` 之后的字节没有意义，不能算进去。
-    private let length: socklen_t
-
-    init?(path: String) {
-        var address = sockaddr_un()
-        address.sun_family = sa_family_t(AF_UNIX)
-        address.sun_len = UInt8(MemoryLayout<sockaddr_un>.size)
-
-        let bytes = Array(path.utf8)
-        let capacity = MemoryLayout.size(ofValue: address.sun_path)
-        // 末尾要留一个字节放结束符。
-        guard bytes.count < capacity else { return nil }
-
-        withUnsafeMutablePointer(to: &address.sun_path) { pointer in
-            pointer.withMemoryRebound(to: CChar.self, capacity: capacity) { buffer in
-                for (index, byte) in bytes.enumerated() {
-                    buffer[index] = CChar(bitPattern: byte)
-                }
-                buffer[bytes.count] = 0
-            }
-        }
-        storage = address
-        let pathOffset = MemoryLayout<sockaddr_un>.offset(of: \.sun_path) ?? 0
-        length = socklen_t(pathOffset + bytes.count + 1)
-    }
-
-    /// 把地址交给 `bind` 或 `connect`。
-    func withSockaddr<T>(_ body: (UnsafePointer<sockaddr>, socklen_t) -> T) -> T {
-        var address = storage
-        return withUnsafePointer(to: &address) { pointer in
-            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { body($0, length) }
-        }
-    }
-}
-
-/// 套接字上的按行读写。helper 的请求与回复都是单行 JSON。
-enum UnixSocketIO {
-    /// 读到换行或对端关闭为止。返回 nil 表示超过上限。
-    static func readLine(_ descriptor: Int32, limit: Int) -> String? {
-        var output = [UInt8]()
-        var byte: UInt8 = 0
-        while output.count < limit {
-            let count = Darwin.read(descriptor, &byte, 1)
-            if count <= 0 {
-                guard !output.isEmpty else { return nil }
-                return String(bytes: output, encoding: .utf8)
-            }
-            if byte == UInt8(ascii: "\n") {
-                return String(bytes: output, encoding: .utf8)
-            }
-            output.append(byte)
-        }
-        return nil
-    }
-
-    @discardableResult
-    static func writeAll(_ descriptor: Int32, _ text: String) -> Bool {
-        let bytes = Array(text.utf8)
-        var offset = 0
-        while offset < bytes.count {
-            let written = bytes.withUnsafeBytes { buffer -> Int in
-                guard let base = buffer.baseAddress else { return -1 }
-                return Darwin.write(descriptor, base.advanced(by: offset), buffer.count - offset)
-            }
-            if written <= 0 { return false }
-            offset += written
-        }
-        return true
-    }
 }
 
 // MARK: - Fan control

@@ -23,7 +23,7 @@ final class MacPowerObservationSource: NSObject, PowerObservationSource, @unchec
             batteryPercent: battery.percent.map { KotlinInt(int: Int32($0)) },
             hasBattery: battery.hasInternalBattery.map { KotlinBoolean(bool: $0) },
             powerState: Self.resolvePowerState(provider: provider, battery: battery.state),
-            externalDisplayCount: Self.readExternalDisplayCount().map { KotlinInt(int: Int32($0)) },
+            externalDisplayCount: ExternalDisplayReader.count().map { KotlinInt(int: Int32($0)) },
             lidState: MacLidSensor.readClamshellState(),
             thermalState: Self.mapThermalState(ProcessInfo.processInfo.thermalState),
             lowPowerModeEnabled: KotlinBoolean(bool: ProcessInfo.processInfo.isLowPowerModeEnabled)
@@ -153,18 +153,6 @@ final class MacPowerObservationSource: NSObject, PowerObservationSource, @unchec
 
     /// 统计在线且非内建的显示器。读取失败时返回 nil。
     static func readExternalDisplayCount() -> Int? {
-        var count: UInt32 = 0
-        guard CGGetOnlineDisplayList(0, nil, &count) == .success else { return nil }
-        if count == 0 {
-            return 0
-        }
-
-        var displays = [CGDirectDisplayID](repeating: 0, count: Int(count))
-        guard CGGetOnlineDisplayList(count, &displays, &count) == .success else { return nil }
-        return displays.prefix(Int(count)).reduce(into: 0) { total, display in
-            if CGDisplayIsBuiltin(display) == 0 {
-                total += 1
-            }
-        }
+        ExternalDisplayReader.count()
     }
 }

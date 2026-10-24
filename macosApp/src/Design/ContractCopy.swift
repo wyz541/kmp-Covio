@@ -311,6 +311,20 @@ enum ContractCopy {
     static let copyGeneralSleepModeFastest = LocalizedCopy(key: "copy/general/sleep-mode/fastest", en: "0 · Fastest", zhHans: "0 · 最快")
     /// `copy/general/sleep-mode/lowest-power`
     static let copyGeneralSleepModeLowestPower = LocalizedCopy(key: "copy/general/sleep-mode/lowest-power", en: "25 · Lowest power", zhHans: "25 · 最省电")
+    /// `copy/helper/service/enabled`
+    static let copyHelperServiceEnabled = LocalizedCopy(key: "copy/helper/service/enabled", en: "Managed by macOS", zhHans: "由 macOS 管理")
+    /// `copy/helper/service/error`
+    static let copyHelperServiceError = LocalizedCopy(key: "copy/helper/service/error", en: "Helper service needs attention", zhHans: "Helper 服务需要处理")
+    /// `copy/helper/service/legacy`
+    static let copyHelperServiceLegacy = LocalizedCopy(key: "copy/helper/service/legacy", en: "Legacy helper needs migration", zhHans: "旧版 Helper 需要迁移")
+    /// `copy/helper/service/not-found`
+    static let copyHelperServiceNotFound = LocalizedCopy(key: "copy/helper/service/not-found", en: "Bundled helper service is missing", zhHans: "应用内的 Helper 服务缺失")
+    /// `copy/helper/service/not-registered`
+    static let copyHelperServiceNotRegistered = LocalizedCopy(key: "copy/helper/service/not-registered", en: "Helper is not registered", zhHans: "Helper 未注册")
+    /// `copy/helper/service/requires-approval`
+    static let copyHelperServiceRequiresApproval = LocalizedCopy(key: "copy/helper/service/requires-approval", en: "Approve Covio Helper in System Settings", zhHans: "请在系统设置中批准 Covio Helper")
+    /// `copy/helper/service/unsupported`
+    static let copyHelperServiceUnsupported = LocalizedCopy(key: "copy/helper/service/unsupported", en: "Helper service is unavailable on this macOS", zhHans: "当前 macOS 不支持 Helper 服务")
     /// `copy/hub/action/back`
     static let copyHubActionBack = LocalizedCopy(key: "copy/hub/action/back", en: "Back", zhHans: "返回")
     /// `copy/hub/action/done`
@@ -1557,6 +1571,13 @@ enum ContractCopy {
         copyGeneralSleepModeDefault,
         copyGeneralSleepModeFastest,
         copyGeneralSleepModeLowestPower,
+        copyHelperServiceEnabled,
+        copyHelperServiceError,
+        copyHelperServiceLegacy,
+        copyHelperServiceNotFound,
+        copyHelperServiceNotRegistered,
+        copyHelperServiceRequiresApproval,
+        copyHelperServiceUnsupported,
         copyHubActionBack,
         copyHubActionDone,
         copyHubActionEdit,

@@ -38,7 +38,7 @@ final class MacPrivilegedOps: NSObject, PrivilegedOps {
             HelperCodeTrust.isTrusted(peerPID: $0, expectedExecutablePath: $1)
         },
         externalDisplayCount: @escaping () -> Int? = {
-            MacPowerObservationSource.readExternalDisplayCount()
+            ExternalDisplayReader.count()
         }
     ) {
         self.logger = logger
@@ -54,7 +54,7 @@ final class MacPrivilegedOps: NSObject, PrivilegedOps {
     /// 「已安装」的判据是 socket 文件存在，不是 LaunchDaemon 在跑。
     /// 这是 0.4.2 的既有语义：daemon 被 launchd 重启的瞬间不该让界面闪成未安装。
     func isInstalled() -> Bool {
-        FileManager.default.fileExists(atPath: client.socketPath)
+        client.canReachHelper
     }
 
     func status() -> HelperStatus {
@@ -82,13 +82,15 @@ final class MacPrivilegedOps: NSObject, PrivilegedOps {
             logger.warn(message: "Cannot install the privileged helper: unknown executable path", error: nil)
             return false
         }
+        guard prepareForHelperChange() else { return false }
         return HelperInstaller.install(executablePath: executablePath) { [logger] message in
             logger.info(message: message)
         }
     }
 
     func uninstall() -> Bool {
-        HelperInstaller.uninstall { [logger] message in
+        guard prepareForHelperChange() else { return false }
+        return HelperInstaller.uninstall { [logger] message in
             logger.info(message: message)
         }
     }
@@ -246,56 +248,20 @@ final class MacPrivilegedOps: NSObject, PrivilegedOps {
         }
         return true
     }
-}
 
-/// `pmset -g` 的读取。写操作不在这里，只有 helper 能改系统设置。
-enum PmsetReader {
-    /// 读取当前休眠模式。命令失败、超时或输出不含该键时返回 nil。
-    ///
-    /// 解析规则住在 `kmpDomain` 的 `PmsetConfigParser` 里，与 Compose 版共用一份。
-    static func hibernateMode(timeout: TimeInterval = 5) -> Int? {
-        guard let text = readConfiguration(timeout: timeout) else { return nil }
-        guard let mode = PmsetConfigParser.shared.hibernateMode(text: text) else { return nil }
-        return Int(mode.int32Value)
-    }
-
-    /// 读当前 `disablesleep`。helper 协议不兼容时由客户端做只读兜底。
-    static func sleepDisabled(timeout: TimeInterval = 5) -> Bool? {
-        guard let text = readConfiguration(timeout: timeout) else { return nil }
-        return PmsetConfigParser.shared.sleepDisabled(text: text)?.boolValue
-    }
-
-    /// 跑 `pmset -g` 并返回全部输出。命令失败或超时返回 nil。
-    static func readConfiguration(timeout: TimeInterval = 5) -> String? {
-        run(["-g"], timeout: timeout)
-    }
-
-    private static func run(_ arguments: [String], timeout: TimeInterval) -> String? {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
-        process.arguments = arguments
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = pipe
-        process.standardInput = FileHandle.nullDevice
-
-        do {
-            try process.run()
-        } catch {
-            return nil
+    /// 迁移和卸载允许释放本 app 进程持有的租约，即使当前发布身份不匹配。
+    func prepareForHelperChange() -> Bool {
+        guard stateLock.withLock({ leaseActive }) else { return true }
+        stopRenewTimer()
+        let status = client.releaseLidLease(leaseId: leaseId)
+        guard status.error == nil, status.sleepDisabled?.boolValue != true else {
+            logger.warn(
+                message: "Cannot release the lid lease before helper change: \(status.error ?? "SleepDisabled remains set")",
+                error: nil
+            )
+            return false
         }
-
-        // 先把输出读完再 waitUntilExit，否则管道写满会互相卡死。
-        let output = pipe.fileHandleForReading.readDataToEndOfFile()
-        let deadline = Date().addingTimeInterval(timeout)
-        while process.isRunning && Date() < deadline {
-            usleep(20_000)
-        }
-        if process.isRunning {
-            process.terminate()
-            return nil
-        }
-        guard process.terminationStatus == 0 else { return nil }
-        return String(data: output, encoding: .utf8)
+        stateLock.withLock { leaseActive = false }
+        return true
     }
 }

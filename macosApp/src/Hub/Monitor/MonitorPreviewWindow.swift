@@ -67,6 +67,7 @@ final class PowerPreviewModel: PowerManagementModel {
     var snapshot: PowerSnapshot
     var decision: PowerDecision
     var helperStatus: HelperStatus = .match
+    var helperServiceState: HelperServiceState = .enabled
     var executionError: String?
     var closedLidZeroBrightnessPhase: ClosedLidZeroBrightnessPhase = .ready
     var closedLidZeroBrightnessAvailability: ClosedLidBrightnessAvailability = .available
@@ -196,8 +197,11 @@ final class PowerPreviewModel: PowerManagementModel {
 
     func installHelper() {
         helperStatus = .match
+        helperServiceState = .enabled
         statusMessage = ContractCopy.copyOverviewHelperInstalled.text(for: language)
     }
+
+    func openHelperApproval() {}
 
     private func copyPower(
         enabled: Bool? = nil,

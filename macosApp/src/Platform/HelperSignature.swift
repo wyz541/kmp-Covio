@@ -25,6 +25,46 @@ enum HelperSignature {
         return text as String
     }
 
+    /// 读取指定可执行文件的 designated requirement。
+    static func designatedRequirement(forExecutableAt path: String) -> String? {
+        let url = URL(fileURLWithPath: path) as CFURL
+        var staticCode: SecStaticCode?
+        guard SecStaticCodeCreateWithPath(url, [], &staticCode) == errSecSuccess,
+              let staticCode
+        else {
+            return nil
+        }
+        var requirement: SecRequirement?
+        guard SecCodeCopyDesignatedRequirement(staticCode, [], &requirement) == errSecSuccess,
+              let requirement
+        else {
+            return nil
+        }
+        var text: CFString?
+        guard SecRequirementCopyString(requirement, [], &text) == errSecSuccess, let text else {
+            return nil
+        }
+        return text as String
+    }
+
+    /// helper 所在的 app bundle 中，主 app 可执行文件的 requirement。
+    static func mainAppRequirement() -> String? {
+        if let override = ProcessInfo.processInfo.environment["COVIO_XPC_CLIENT_REQUIREMENT"],
+           !override.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return override
+        }
+        guard let helperPath = Bundle.main.executablePath else { return nil }
+        let helperURL = URL(fileURLWithPath: helperPath)
+        let appRoot = helperURL
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let appExecutable = appRoot
+            .appendingPathComponent("Contents/MacOS/Covio")
+            .path
+        return designatedRequirement(forExecutableAt: appExecutable)
+    }
+
     /// 判断一个进程是否满足指定的 designated requirement。
     static func isAuthorized(pid: pid_t, requirementText: String) -> Bool {
         guard !requirementText.isEmpty else { return false }

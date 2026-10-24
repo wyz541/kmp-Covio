@@ -1,18 +1,18 @@
 # macOS 专注模式系统调整研究
 
-> 结论：Covio 应提供可编辑的专注配置模板。Covio 用 Shortcuts 控制 macOS Focus。Covio 用公开接口控制可恢复的应用和睡眠动作。
+> 结论：全局最优方案是“Focus Filter 事件桥 + 单个生成式 helper Shortcut + 可选 Full Disk Access + 安全降级”。
 
 ## 文档状态
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | `1.0` |
+| 文档版本 | `1.1` |
 | 状态 | 已完成，待评审 |
 | 日期 | `2026-10-24` |
 | 关联 issue | [#342](https://github.com/wyz541/kmp-Covio/issues/342) |
 | 适用对象 | 产品、研发、测试和安全评审人员 |
 | 当前验证环境 | Apple Silicon Mac，macOS 27.0.1，Covio 0.5.0 |
-| 当前结论 | Focus 写入交给 Shortcuts。应用与电源操作走公开接口。 |
+| 当前结论 | Focus Filter 负责系统事件。单个 helper 负责 Focus 切换。 |
 | 验证状态 | 只读能力探针部分通过。系统调整验证尚未执行。 |
 
 本文回答一个问题：Covio 应如何安全、可恢复地应用 video、game、coding、work、study 专注配置。
@@ -26,7 +26,7 @@
 
 直接退出应用有数据丢失风险。
 macOS Focus 没有公开写入接口。
-不同系统设置的可恢复程度不同。
+macOS Focus 没有公开名称读取接口。
 
 问题边界、状态矩阵和成功标准见 [context.md](context.md)。
 安全约束和失败条件见 [investigation.md](investigation.md)。
@@ -34,39 +34,42 @@ macOS Focus 没有公开写入接口。
 ## 背景
 
 macOS 已提供 Focus 功能。
-用户可创建 Work、Gaming 和自定义 Focus。
 Focus 可过滤通知、Mail、Calendar、Messages 和 Safari。
+公开 AppIntents 提供 `SetFocusFilterIntent`。
+Shortcuts 提供 `Set Focus` 动作和命令行执行入口。
 
-macOS SDK 只公开 Focus 状态读取。
-Shortcuts 提供 `Set Focus` 动作。
-命令行工具可以运行用户创建的 Shortcut。
+GitHub 参考实现分成两条有效路径。
 
-应用操作、睡眠断言和部分系统设置存在公开接口。
-亮度、蓝牙、窗口布局和部分系统开关缺少统一安全接口。
+1. Raycast 生成单个 helper Shortcut，控制全部 Focus。
+2. Thaw、Home Assistant 和 Outer Spaces 使用 Focus Filter 把系统 Focus 映射到应用配置。
+
+全局最优方案合并两条路径。
+详细仓库分析见 [github-references.md](github-references.md)。
 
 ## 过程
 
-调研分四步。
+调研分五步。
 
-1. 阅读 macOS 27 SDK 头文件和 Apple 官方帮助。
-2. 检查 Shortcuts 动作资源和命令行能力。
-3. 运行只读探针，检查 Focus 状态和 Shortcuts 环境。
-4. 对比公开接口、Shortcuts、GUI 自动化和私有接口。
+1. 阅读 macOS 27 SDK 和 Apple 官方帮助。
+2. 检查 Shortcuts 和 Focus Filter 能力。
+3. 筛选并核验 GitHub 参考仓库。
+4. 运行本地只读探针。
+5. 按用户结果、安全、隐私、兼容、成本和成熟度加权选型。
 
 方法和方案对比见 [investigation.md](investigation.md)。
+仓库比较和评分见 [github-references.md](github-references.md)。
 命令、观察和限制见 [evidence.md](evidence.md)。
-只读探针结果见 [Case 1](validation/case-readonly-focus-probe.md)。
 
 ## 结果
 
-Covio 的能力分三档。
+Covio 的推荐能力分四层。
 
-| 档 | 能力 | 实现路径 | 是否进入首版 |
+| 层 | 能力 | 实现路径 | 权限 |
 | --- | --- | --- | --- |
-| 核心 | 启动应用、隐藏应用、保持唤醒 | macOS 公开接口 | 是 |
-| 核心 | 切换 macOS Focus | 用户 Shortcut | 是，作为可选绑定 |
-| 扩展 | 自定义快捷指令 | 用户 Shortcut | 是，需明确警告 |
-| 后期 | 亮度、网络、蓝牙、窗口布局 | 私有接口或不稳定路径 | 否 |
+| 事件层 | 响应 macOS Focus 变化 | `SetFocusFilterIntent` | 无新增权限 |
+| 切换层 | 从 Covio 切换 Focus | 单个生成式 helper Shortcut | 可选 Full Disk Access |
+| 执行层 | 启动、隐藏、保持唤醒 | macOS 公开接口 | 无新增权限 |
+| 回退层 | 无 Focus 或 Helper 时运行 | 明确确认后的降级会话 | 无 |
 
 五个模板的核心调整如下。
 
@@ -82,42 +85,51 @@ Covio 的能力分三档。
 
 **警告：** 首版默认隐藏干扰应用，不退出应用。用户开启退出动作后，Covio 只发送正常退出请求。Covio 不强制退出应用。未保存文档可能阻止退出。
 
-系统调整流程如下。
+推荐数据路径如下。
 
 ```mermaid
 flowchart LR
-  P[Covio 专注配置] --> F[Focus Shortcut]
-  P --> A[应用操作]
-  P --> W[限时睡眠断言]
-  F --> S[专注会话]
+  P[Covio 配置] --> H[Focus Router]
+  H --> F[macOS Focus]
+  F --> B[Focus Filter]
+  C[系统 Focus 变化] --> B
+  B --> S[专注会话]
+  P --> A[公开系统动作]
   A --> S
-  W --> S
   S --> R[逆序恢复]
 ```
 
 结论、决策表和限制见 [conclusion.md](conclusion.md)。
+仓库评分见 [github-references.md](github-references.md) 第 10 节。
 能力证据见 [evidence.md](evidence.md)。
 
 ## 预期
 
-用户能从菜单栏切换五个模板。
+用户能把系统 Focus 映射到 Covio 模板。
+用户能从 Covio 切换系统 Focus。
+用户能从 Control Center 或计划事件触发模板。
 用户能编辑每个模板的应用和电源动作。
-用户能绑定每个模板的进入和退出 Shortcut。
 用户进入模式后看到执行结果。
 用户退出模式后看到恢复结果。
+用户拒绝 Full Disk Access 时仍能使用 Focus Filter 和降级入口。
 
-每个模式的动作清单见 [solution.md](solution.md)。
+推荐架构、接口和计划见 [solution.md](solution.md)。
 测试矩阵和清理要求见 [validation/README.md](validation/README.md)。
 
 ## 实现预期的手段
 
-1. 在 `kmpDomain` 定义专注配置、动作和会话模型。
-2. 在 Swift 宿主实现应用、Shortcuts 和电源端口。
-3. 启动会话前保存恢复日志。
-4. 按固定顺序执行动作。
-5. 退出时按相反顺序恢复。
-6. 应用崩溃或启动中断后显示恢复入口。
-7. 首版不申请 Accessibility 或 Screen Recording 权限。
+1. 在 `kmpDomain` 定义专注配置、Focus 绑定和会话模型。
+2. 在 Swift 宿主提供 `SetFocusFilterIntent`。
+3. Focus Filter 只发布映射请求，不直接执行重动作。
+4. 主应用接收请求并启动专注会话。
+5. 主应用生成并签名单个 helper Shortcut。
+6. 应用只运行自己记录的 helper ID。
+7. Full Disk Access 只用于可选的 Focus 模式发现和回读。
+8. 启动会话前写入恢复日志。
+9. 按固定顺序执行动作。
+10. 退出时按相反顺序恢复。
+11. 应用崩溃或启动中断后显示恢复入口。
+12. 首版不申请 Accessibility 或 Screen Recording 权限。
 
 推荐架构、接口和计划见 [solution.md](solution.md)。
 系统验证计划见 [validation/README.md](validation/README.md)。
@@ -128,7 +140,8 @@ flowchart LR
 | 文件 | 内容 |
 | --- | --- |
 | [context.md](context.md) | 问题、边界、系统模型、状态矩阵和成功标准 |
-| [investigation.md](investigation.md) | 调研方法、能力边界、方案对比和源码分析 |
+| [investigation.md](investigation.md) | 调研方法、能力边界、候选方案和源码分析 |
+| [github-references.md](github-references.md) | GitHub 仓库比较、评分和全局选型 |
 | [conclusion.md](conclusion.md) | 结论、决策表、限制和未决项 |
 | [solution.md](solution.md) | 推荐架构、接口、模式矩阵、流程和实施计划 |
 | [evidence.md](evidence.md) | 来源、命令、观察、推论和缺口 |
@@ -143,10 +156,11 @@ flowchart LR
 ```text
 context.md 的问题与状态
   -> investigation.md 的能力矩阵
-  -> evidence.md 的 E-01 至 E-20
+  -> github-references.md 的仓库评分
+  -> evidence.md 的 E-01 至 E-30
   -> conclusion.md 的决策表
   -> solution.md 的模式矩阵与接口
-  -> validation/README.md 的 V01 至 V10
+  -> validation/README.md 的 V01 至 V14
 ```
 
 ## 更新规则
@@ -154,5 +168,6 @@ context.md 的问题与状态
 1. 执行系统调整验证后更新案例状态。
 2. 结论变化时更新 [conclusion.md](conclusion.md)。
 3. 能力变化时更新 [investigation.md](investigation.md)。
-4. 证据变化时更新 [evidence.md](evidence.md)。
-5. 实施落地后更新 [solution.md](solution.md) 和本索引。
+4. 参考仓库变化时更新 [github-references.md](github-references.md)。
+5. 证据变化时更新 [evidence.md](evidence.md)。
+6. 实施落地后更新 [solution.md](solution.md) 和本索引。

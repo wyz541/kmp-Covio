@@ -4,7 +4,7 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | `1.0` |
+| 文档版本 | `1.1` |
 | 状态 | 可评审 |
 | 日期 | `2026-10-24` |
 | 问题类别 | 系统策略的可恢复自动化 |
@@ -25,7 +25,7 @@
 | --- | --- | --- |
 | A | SDK 头文件、Apple 接口文档、本机工具帮助 | 权威接口边界 |
 | B | Covio 固定 commit 的源码 | 实现边界 |
-| C | Apple Mac Help | 产品能力说明 |
+| C | Apple Mac Help、GitHub 官方项目文档与固定源码 | 产品能力和参考架构 |
 | D | 本机只读探针 | 当前环境事实 |
 | E | 第三方资料 | 不用于关键决策 |
 
@@ -40,6 +40,8 @@
 | Covio | 0.5.0 | E-01、E-17 |
 | 部署目标 | macOS 26.0 | E-01 |
 | 目标 commit | `28d97d89ab192867df413e59115d19683062465a` | E-01 |
+| Focus 数据库文件 | 存在 | E-29 |
+| Focus 数据库可读 | 否，需要 Full Disk Access | E-29 |
 
 ### 3.1 复现命令
 
@@ -50,6 +52,7 @@ xcrun --sdk macosx --show-sdk-version
 shortcuts help
 shortcuts help run
 rg -n 'MACOSX_DEPLOYMENT_TARGET|MARKETING_VERSION' macosApp/Covio.xcodeproj/project.pbxproj
+head -c 1 "$HOME/Library/DoNotDisturb/DB/ModeConfigurations.json" >/dev/null; echo $?
 ```
 
 ## 4. 证据索引
@@ -76,6 +79,16 @@ rg -n 'MACOSX_DEPLOYMENT_TARGET|MARKETING_VERSION' macosApp/Covio.xcodeproj/proj
 | E-18 | 多来源唤醒租约 | B | 高 |
 | E-19 | 当前 Shortcut 环境 | D | 高，范围小 |
 | E-20 | Accessibility 权限边界 | A/B | 高 |
+| E-21 | Raycast Focus Modes 方案 | C | 高 |
+| E-22 | Raycast helper 与测试 | C | 高 |
+| E-23 | Thaw Focus Filter 档案 | C | 高 |
+| E-24 | Outer Spaces Focus Filter | C | 中高 |
+| E-25 | Home Assistant Focus Filter | C | 高 |
+| E-26 | Sapphire 私有库监视 | C | 中高 |
+| E-27 | Hammerspoon 模块边界 | C | 高 |
+| E-28 | 已归档 DND 工具 | C | 高 |
+| E-29 | 本机 Focus 数据库访问 | D | 高，范围小 |
+| E-30 | 公开 Focus Filter 接口 | A | 高 |
 
 ## 5. 证据详情
 
@@ -487,17 +500,240 @@ Accessibility 权限不能由后台进程绕过。
 置信度：高。
 关联：结论 5。
 
+### E-21：Raycast Focus Modes 方案
+
+来源等级：C。
+环境：`raycast/extensions`，固定提交 `1a0ef1d91a7d2b1ce55ee8cd2323d98bcfb1f5ac`。
+命令或来源：[Focus Modes](https://github.com/raycast/extensions/tree/1a0ef1d91a7d2b1ce55ee8cd2323d98bcfb1f5ac/extensions/focus-modes)。
+关键输出：
+
+```text
+Switch between your macOS Focus modes
+The extension creates a shortcut named Raycast Focus Modes plus a short code
+Full Disk Access is required to read the Focus database
+The helper shortcut only contains Set Focus actions
+```
+
+观察：仓库有 7,805 个星标，许可证为 MIT，最近更新于 2026-10-24。
+观察：Focus 扩展首次提交于 2026-10-09。
+观察：扩展从 Focus 数据库读取模式，并生成一个 helper Shortcut。
+推论：单个 helper 可以覆盖全部 Focus。
+推论：自动发现需要 Full Disk Access。
+限制：扩展项目很新，长期兼容性未验证。
+置信度：高。
+关联：调查 10.1、结论 3、解决方案 1。
+
+### E-22：Raycast helper 与测试
+
+来源等级：C。
+环境：同上固定提交。
+命令或来源：[helper-shortcut.ts](https://github.com/raycast/extensions/blob/1a0ef1d91a7d2b1ce55ee8cd2323d98bcfb1f5ac/extensions/focus-modes/src/helper-shortcut.ts)、[tests](https://github.com/raycast/extensions/tree/1a0ef1d91a7d2b1ce55ee8cd2323d98bcfb1f5ac/extensions/focus-modes/tests)。
+关键输出：
+
+```text
+Its input is a mode identifier or "off:" and an identifier.
+Only helper copies this extension added are ever run, and always by identifier.
+Wait until the Focus database shows the change.
+Tests cover helper generation, ID parsing and trusted helper selection.
+```
+
+观察：helper 为每个 Focus 生成开启和关闭分支。
+观察：实现只运行自己记录的 helper ID。
+观察：成功后等待 Focus 状态回读。
+推论：Covio 应采用单 helper、ID 白名单和状态回读。
+限制：helper 文件结构不是公开 API。
+置信度：高。
+关联：调查 10.1、解决方案 4.3、5.2。
+
+### E-23：Thaw Focus Filter 档案
+
+来源等级：C。
+环境：`thaw-app/Thaw`，固定提交 `3e4347939fed1bd847d5e4baab6220b6102228ee`。
+命令或来源：[FocusFilterIntent.swift](https://github.com/thaw-app/Thaw/blob/3e4347939fed1bd847d5e4baab6220b6102228ee/Thaw/Settings/Models/FocusFilterIntent.swift)、[ProfileManager.swift](https://github.com/thaw-app/Thaw/blob/3e4347939fed1bd847d5e4baab6220b6102228ee/Thaw/Settings/Models/ProfileManager.swift)。
+关键输出：
+
+```text
+struct ThawFocusFilter: SetFocusFilterIntent
+Apply a Thaw menu bar profile when this Focus activates.
+DistributedNotificationCenter focusFilterActivated
+```
+
+观察：仓库有 12,267 个星标，最新发布为 2.1.0。
+观察：Focus Filter 把系统 Focus 映射到应用配置档案。
+观察：Filter 通过分布式通知驱动主应用。
+观察：配置档案和 Filter 有测试。
+推论：Covio 应采用 Focus Filter 事件桥和配置映射。
+限制：GPL-3.0 代码不能复制进 MIT Covio。
+置信度：高。
+关联：调查 10.2、结论 2.1.2、解决方案 4.2。
+
+### E-24：Outer Spaces Focus Filter
+
+来源等级：C。
+环境：`Lospi/OuterSpaces`，固定提交 `7edb63d0d86233e861a62385d8e80a7bf2da2774`。
+命令或来源：[FocusFilter.swift](https://github.com/Lospi/OuterSpaces/blob/7edb63d0d86233e861a62385d8e80a7bf2da2774/Outer%20Spaces/System/Focus/FocusFilter.swift)。
+关键输出：
+
+```text
+struct SpacesFocusFilter: SetFocusFilterIntent
+@Parameter(title: "Focus Preset") var spaceFilterPreset: SpaceAppEntity?
+func perform() async throws -> some IntentResult
+```
+
+观察：仓库有 98 个星标，发布 2.1.0。
+观察：Filter 直接把用户预设应用到 Space 和 Stage Manager。
+观察：预设参数是可选值。
+推论：Filter 可以映射配置 ID，并处理 Focus 停用。
+限制：项目较小，需要 macOS 真机验证。
+置信度：中高。
+关联：调查 10.3、解决方案 4.1。
+
+### E-25：Home Assistant Focus Filter
+
+来源等级：C。
+环境：`home-assistant/iOS`，固定提交 `772973042cafcad921c57f5759d2ae171836c904`。
+命令或来源：[FocusNameFocusFilterAppIntent.swift](https://github.com/home-assistant/iOS/blob/772973042cafcad921c57f5759d2ae171836c904/Sources/App/Settings/Focus/FocusNameFocusFilterAppIntent.swift)、[FocusStatusWrapper.swift](https://github.com/home-assistant/iOS/blob/772973042cafcad921c57f5759d2ae171836c904/Sources/Shared/Environment/FocusStatusWrapper.swift)。
+关键输出：
+
+```text
+Runs when that Focus activates, which is the only moment it tells us anything about which Focus is running.
+INFocusStatus only exposes isFocused.
+LiveActivityIntent is used for background execution on iOS.
+```
+
+观察：仓库有 2,385 个星标，最新稳定版为 2026.10.1。
+观察：精确 Focus 名称来自用户配置的 Focus Filter。
+观察：布尔状态不能提供 Focus 名称。
+推论：Covio 不靠布尔状态识别模式。
+限制：iOS 的后台结论不能直接套用到 macOS。
+置信度：高。
+关联：调查 10.3、结论 7。
+
+### E-26：Sapphire 私有库监视
+
+来源等级：C。
+环境：`cshariq/Sapphire`，固定提交 `792f9b4ea3d556d7566fbc38592fe54e88d89dc0`。
+命令或来源：[FocusModeManager.swift](https://github.com/cshariq/Sapphire/blob/792f9b4ea3d556d7566fbc38592fe54e88d89dc0/Sapphire/Services/Miscellaneous/FocusModeManager.swift)、[PermissionsManager.swift](https://github.com/cshariq/Sapphire/blob/792f9b4ea3d556d7566fbc38592fe54e88d89dc0/Sapphire/App/PermissionsManager.swift)。
+关键输出：
+
+```text
+Library/DoNotDisturb/DB/Assertions.json
+Library/DoNotDisturb/DB/ModeConfigurations.json
+Full Disk Access
+DirectoryMonitor
+```
+
+观察：仓库有 368 个星标，最新发布为 3.5。
+观察：应用通过 Full Disk Access 读取数据库。
+观察：应用监听数据库目录变化。
+推论：私有数据库读取可行，但权限和格式风险高。
+限制：AGPL-3.0 代码不能复制进 MIT Covio。
+置信度：中高。
+关联：调查 10.4、结论 2.1.2。
+
+### E-27：Hammerspoon 模块边界
+
+来源等级：C。
+环境：`Hammerspoon/hammerspoon`，固定提交 `23e387e2805a9890066366e0ac96c71b27f0cfd5`。
+命令或来源：[hs.shortcuts](https://github.com/Hammerspoon/hammerspoon/tree/23e387e2805a9890066366e0ac96c71b27f0cfd5/extensions/shortcuts)、[hs.application](https://github.com/Hammerspoon/hammerspoon/tree/23e387e2805a9890066366e0ac96c71b27f0cfd5/extensions/application)。
+关键输出：
+
+```text
+List and run shortcuts from the Shortcuts app
+Manipulate running applications
+application.open(app, wait, waitForFirstWindow)
+```
+
+观察：仓库有 16,323 个星标，许可证为 MIT。
+观察：Shortcuts 和应用控制是独立模块。
+推论：Covio 应保持事件、Shortcuts 和应用动作分层。
+限制：Hammerspoon 不提供 Focus 产品模型。
+置信度：高。
+关联：调查 10.5、解决方案 1.3。
+
+### E-28：已归档 DND 工具
+
+来源等级：C。
+环境：`sindresorhus/do-not-disturb`。
+命令或来源：[do-not-disturb](https://github.com/sindresorhus/do-not-disturb)。
+关键输出：
+
+```text
+archived: true
+latest release: v2.1.0
+release date: 2022-01-10
+```
+
+观察：仓库有 223 个星标，当前已归档。
+观察：方案只覆盖旧版 DND 开关。
+推论：该方案不覆盖自定义 Focus、映射和恢复。
+限制：代码只能作历史参考。
+置信度：高。
+关联：调查 11.6、结论 6。
+
+### E-29：本机 Focus 数据库访问
+
+来源等级：D。
+环境：macOS 27.0.1，当前终端会话。
+命令或来源：
+
+```sh
+test -r "$HOME/Library/DoNotDisturb/DB/ModeConfigurations.json"
+head -c 1 "$HOME/Library/DoNotDisturb/DB/ModeConfigurations.json" >/dev/null
+```
+
+关键输出：
+
+```text
+ModeConfigurations.json exists=yes readable=no
+read_exit=1
+Assertions.json exists=no
+```
+
+观察：Focus 配置文件存在。
+观察：当前进程不能读取文件。
+观察：断言文件当前不存在。
+推论：Full Disk Access 是读取数据库的前置条件。
+限制：当前结果只代表当前用户和权限状态。
+置信度：高，范围小。
+关联：验证 V12、解决方案 4.1。
+
+### E-30：公开 Focus Filter 接口
+
+来源等级：A。
+环境：MacOSX27.0 `AppIntents.swiftinterface` 与 Apple Developer 文档。
+命令或来源：[SetFocusFilterIntent](https://developer.apple.com/documentation/appintents/setfocusfilterintent)。
+关键输出：
+
+```text
+@available(macOS 13.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
+public protocol SetFocusFilterIntent : AppIntent, InstanceDisplayRepresentable
+static func suggestedFocusFilters(for context:) async -> [Self]
+public static var current: Self { get async throws }
+```
+
+观察：macOS 13 及以上提供公开 Focus Filter 协议。
+观察：系统可向应用提供当前 Filter 配置。
+推论：Covio 可以用公开接口接收 Focus 映射。
+限制：协议不提供 Focus 切换能力。
+置信度：高。
+关联：调查 5.1、10、结论 2.1.2、解决方案 1.2。
+
 ## 6. 逻辑证据链
 
 ```text
 需求：五个专注配置可切换
   -> E-02、E-03：macOS Focus 支持场景和通知过滤
   -> E-04、E-05：Shortcuts 可运行 Set Focus 动作
-  -> E-06、E-07：SDK 只公开状态读取
+  -> E-06、E-07、E-25：SDK 只公开布尔状态，精确名称来自 Filter
+  -> E-21、E-22：单个 helper 可覆盖全部 Focus
+  -> E-23、E-24、E-30：Focus Filter 可公开映射到应用配置
+  -> E-26、E-29：私有数据库读取可行，但需要 FDA
   -> E-09、E-10：应用动作有公开接口
   -> E-11、E-18：电源动作可接入多来源租约
   -> E-12、E-13、E-15、E-16：高风险或低价值动作不进首版
-  -> 决策：Shortcuts 管 Focus，公开接口管应用和电源
+  -> E-28：已归档 DND 工具不满足完整模式
+  -> 决策：Focus Filter 管事件，helper 管切换，公开接口管动作
 ```
 
 ## 7. 反证和限制
@@ -509,16 +745,23 @@ Accessibility 权限不能由后台进程绕过。
 5. Focus 状态可读，但没有名称。
 6. 授权未决定时，`false` 不能证明当前没有 Focus。
 7. 当前用户没有 Shortcut。
-8. 没有真实 Shortcut 时不能验证 Focus 流程。
+8. 没有真实 helper 时不能验证 Focus 流程。
+9. Focus Filter 的 macOS 后台行为尚未验证。
+10. GitHub 参考项目多数不能直接复制代码。
 
 ## 8. 已知缺口
 
 | 缺口 | 影响 | 下一步 |
 | --- | --- | --- |
-| 没有真实 Focus Shortcut | V08 未执行 | 创建临时测试 Shortcut |
-| macOS 26 未运行 | 兼容性未定 | 增加真机 |
+| Focus Filter 未执行 | V07 未执行 | 配置临时 Filter |
+| helper 未导入和运行 | V08 未执行 | 生成临时 helper |
 | 应用恢复未执行 | V09 未执行 | 用可丢弃文档测试 |
-| 崩溃恢复未执行 | V10 未执行 | 注入进程退出 |
+| Focus 租约未执行 | V10 未执行 | 运行 pmset 回读 |
+| 崩溃恢复未执行 | V11 未执行 | 注入进程退出 |
+| FDA 读取未执行 | V12 未执行 | 授权后运行只读探针 |
+| helper 更新未执行 | V13 未执行 | 新增临时 Focus 后重建 |
+| 无 FDA 降级未执行 | V14 未执行 | 拒绝权限后运行 |
+| macOS 26 未运行 | 兼容性未定 | 增加真机 |
 | 系统设置恢复冲突未执行 | 规则未实测 | 增加用户手动修改场景 |
 
 ## 9. 复核方法
@@ -527,8 +770,10 @@ Accessibility 权限不能由后台进程绕过。
 2. 重跑 E-06 的头文件检索。
 3. 重跑 E-08 的 Focus 状态探针。
 4. 重跑 E-19 的 Shortcut 列表命令。
-5. 按 [验证计划](validation/README.md) 执行写入测试。
-6. 检查命令退出码和回读结果。
+5. 重跑 E-29 的数据库访问探针。
+6. 按固定 commit 复核 E-21 至 E-28。
+7. 按 [验证计划](validation/README.md) 执行写入测试。
+8. 检查命令退出码和回读结果。
 
 ## 参考来源
 
@@ -542,12 +787,21 @@ Accessibility 权限不能由后台进程绕过。
 8. [NSRunningApplication](https://developer.apple.com/documentation/appkit/nsrunningapplication)
 9. [IOPMAssertionCreateWithName](https://developer.apple.com/documentation/iokit/1557134-iopmassertioncreatewithname)
 10. [合盖黑屏研究](../lid-framebuffer-mechanism/REPORT.md)
+11. [Raycast Focus Modes](https://github.com/raycast/extensions/tree/1a0ef1d91a7d2b1ce55ee8cd2323d98bcfb1f5ac/extensions/focus-modes)
+12. [Thaw](https://github.com/thaw-app/Thaw/tree/3e4347939fed1bd847d5e4baab6220b6102228ee)
+13. [Home Assistant iOS](https://github.com/home-assistant/iOS/tree/772973042cafcad921c57f5759d2ae171836c904)
+14. [Outer Spaces](https://github.com/Lospi/OuterSpaces/tree/7edb63d0d86233e861a62385d8e80a7bf2da2774)
+15. [Sapphire](https://github.com/cshariq/Sapphire/tree/792f9b4ea3d556d7566fbc38592fe54e88d89dc0)
+16. [Hammerspoon](https://github.com/Hammerspoon/hammerspoon/tree/23e387e2805a9890066366e0ac96c71b27f0cfd5)
+17. [sindresorhus/do-not-disturb](https://github.com/sindresorhus/do-not-disturb)
+18. [SetFocusFilterIntent](https://developer.apple.com/documentation/appintents/setfocusfilterintent)
 
 ## 10. 关联文档
 
 - [主题索引](README.md)
 - [问题边界](context.md)
 - [调研分析](investigation.md)
+- [GitHub 参考实现](github-references.md)
 - [结论与限制](conclusion.md)
 - [推荐方案](solution.md)
 - [验证计划](validation/README.md)

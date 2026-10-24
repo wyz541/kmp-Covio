@@ -1,7 +1,6 @@
 package com.wyz.covio.preview
 
 import androidx.compose.runtime.Composable
-import com.wyz.covio.preview.previews.fan.FanControlPreview
 import com.wyz.covio.preview.previews.power.PowerManagementPreview
 import com.wyz.covio.preview.previews.workbench.GlassWorkbenchPreview
 import com.wyz.covio.preview.previews.files.UnifiedFilesPreview
@@ -32,12 +31,6 @@ data class Preview(
  * **注意：** 只加画得完的。首页上点进去是空壳，就是死路，违反设计闸门的 R7。
  */
 val previews: List<Preview> = listOf(
-    Preview(
-        title = "风扇控制能力",
-        covers = "多点曲线、插拔电双曲线、夜间模式、通知、全速、传感器与 helper 维护。",
-        issue = 331,
-        content = { FanControlPreview() },
-    ),
     Preview(
         title = "Monitor 电源管理",
         covers = "Monitor 内的概览 / 电源切换、状态、保持唤醒会话、安全规则和历史。",

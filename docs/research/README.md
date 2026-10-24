@@ -26,6 +26,7 @@
 | macOS 历史性能与硬件报告 | 已实现，验收完成（真实 10 天 soak 取消） | [README.md](macos-performance-history/README.md) |
 | 电池充电控制能力 | 初稿，可评审 | [README.md](battery-charge-control/README.md) |
 | 离线本地服务 Agent | 第一版已落地，验收通过 | [README.md](local-agent/README.md) |
+| Windows CMP 客户端宿主 | 初稿，可评审 | [README.md](windows-cmp-host/README.md) |
 | 研发工作流的调研依据 | 单文件，不建主题目录 | [workflow-research.md](workflow-research.md) |
 
 ## 归档规则

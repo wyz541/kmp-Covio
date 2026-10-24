@@ -590,34 +590,53 @@ struct MonitorFanPopover: View {
                         ))
                         .font(.system(size: 10, weight: .medium))
                         Spacer(minLength: 0)
-                        Text(MonitorFanFormat.rpm(model.configuration.manualRPM[String(fan.index)]))
+                        Text(MonitorFanFormat.rpm(
+                            model.manualMode(for: fan.index) == .manual
+                                ? model.configuration.manualRPM[String(fan.index)]
+                                : fan.rpm
+                        ))
                             .font(.system(size: 10, weight: .semibold, design: .rounded))
                             .monospacedDigit()
                     }
-                    if rendersForSnapshot {
-                        MonitorFanSnapshotSlider(
-                            value: model.configuration.manualRPM[String(fan.index)] ?? fan.minimumRPM,
-                            range: fan.minimumRPM...max(fan.minimumRPM + 1, fan.maximumRPM)
-                        )
-                    } else {
-                        Slider(
-                            value: Binding(
-                                get: {
-                                    model.configuration.manualRPM[String(fan.index)] ?? fan.minimumRPM
-                                },
-                                set: {
-                                    model.configuration.manualRPM[String(fan.index)] = $0.rounded()
-                                }
-                            ),
-                            in: fan.minimumRPM...max(fan.minimumRPM + 1, fan.maximumRPM),
-                            step: 50
-                        ) { editing in
-                            if !editing,
-                               let value = model.configuration.manualRPM[String(fan.index)] {
-                                model.setManualRPM(value, fanIndex: fan.index, reading: reading)
-                            }
+                    Picker("", selection: Binding(
+                        get: { model.manualMode(for: fan.index) },
+                        set: { model.setManualMode($0, fanIndex: fan.index, reading: reading) }
+                    )) {
+                        Text(ContractCopy.copyMonitorFanAutomatic.text(for: language))
+                            .tag(MonitorFanMode.automatic)
+                        Text(ContractCopy.copyMonitorFanManual.text(for: language))
+                            .tag(MonitorFanMode.manual)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .frame(maxWidth: 150)
+                    .disabled(model.busy)
+
+                    if model.manualMode(for: fan.index) == .manual {
+                        if rendersForSnapshot {
+                            MonitorFanSnapshotSlider(
+                                value: model.configuration.manualRPM[String(fan.index)] ?? fan.minimumRPM,
+                                range: fan.minimumRPM...max(fan.minimumRPM + 1, fan.maximumRPM)
+                            )
+                        } else {
+                            Slider(
+                                value: Binding(
+                                    get: {
+                                        model.configuration.manualRPM[String(fan.index)] ?? fan.minimumRPM
+                                    },
+                                    set: {
+                                        model.setManualRPM(
+                                            $0,
+                                            fanIndex: fan.index,
+                                            reading: reading
+                                        )
+                                    }
+                                ),
+                                in: fan.minimumRPM...max(fan.minimumRPM + 1, fan.maximumRPM),
+                                step: 50
+                            )
+                            .disabled(model.busy)
                         }
-                        .disabled(model.busy)
                     }
                 }
             }

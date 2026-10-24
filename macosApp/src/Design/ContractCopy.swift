@@ -585,6 +585,8 @@ enum ContractCopy {
     static let copyMonitorFanApplying = LocalizedCopy(key: "copy/monitor/fan/applying", en: "Applying", zhHans: "正在接管")
     /// `copy/monitor/fan/auto-curve`
     static let copyMonitorFanAutoCurve = LocalizedCopy(key: "copy/monitor/fan/auto-curve", en: "Auto curve", zhHans: "自动曲线")
+    /// `copy/monitor/fan/automatic`
+    static let copyMonitorFanAutomatic = LocalizedCopy(key: "copy/monitor/fan/automatic", en: "Automatic", zhHans: "自动")
     /// `copy/monitor/fan/balanced`
     static let copyMonitorFanBalanced = LocalizedCopy(key: "copy/monitor/fan/balanced", en: "Balanced", zhHans: "均衡")
     /// `copy/monitor/fan/control-point`
@@ -615,6 +617,8 @@ enum ContractCopy {
     static let copyMonitorFanInstallHelper = LocalizedCopy(key: "copy/monitor/fan/install-helper", en: "Install or repair helper", zhHans: "安装或修复 Helper")
     /// `copy/monitor/fan/legend-window`
     static let copyMonitorFanLegendWindow = LocalizedCopy(key: "copy/monitor/fan/legend-window", en: "Recent samples", zhHans: "近期采样")
+    /// `copy/monitor/fan/manual`
+    static let copyMonitorFanManual = LocalizedCopy(key: "copy/monitor/fan/manual", en: "Manual", zhHans: "手动")
     /// `copy/monitor/fan/manual-rpm`
     static let copyMonitorFanManualRpm = LocalizedCopy(key: "copy/monitor/fan/manual-rpm", en: "Manual RPM", zhHans: "手动转速")
     /// `copy/monitor/fan/owned`
@@ -1682,6 +1686,7 @@ enum ContractCopy {
         copyMonitorFanAllFans,
         copyMonitorFanApplying,
         copyMonitorFanAutoCurve,
+        copyMonitorFanAutomatic,
         copyMonitorFanBalanced,
         copyMonitorFanControlPoint,
         copyMonitorFanControlSensors,
@@ -1697,6 +1702,7 @@ enum ContractCopy {
         copyMonitorFanHelperUnavailable,
         copyMonitorFanInstallHelper,
         copyMonitorFanLegendWindow,
+        copyMonitorFanManual,
         copyMonitorFanManualRpm,
         copyMonitorFanOwned,
         copyMonitorFanQuiet,

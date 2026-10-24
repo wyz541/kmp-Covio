@@ -54,6 +54,8 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
     var fullCelsius: Double = 86
     var selectedSensorKeys: [String] = []
     var manualRPM: [String: Double] = [:]
+    /// 手动控制区的每风扇模式。只保存 automatic 和 manual。
+    var manualModes: [String: MonitorFanMode] = [:]
     var syncFans: Bool = false
     /// 风扇序号对应的多点曲线。缺少某台风扇时，使用起转/全速两点曲线。
     var curves: [String: [MonitorFanCurvePoint]] = [:]
@@ -67,6 +69,7 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         fullCelsius: Double = 86,
         selectedSensorKeys: [String] = [],
         manualRPM: [String: Double] = [:],
+        manualModes: [String: MonitorFanMode] = [:],
         syncFans: Bool = false,
         curves: [String: [MonitorFanCurvePoint]] = [:]
     ) {
@@ -76,6 +79,7 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         self.fullCelsius = fullCelsius
         self.selectedSensorKeys = selectedSensorKeys
         self.manualRPM = manualRPM
+        self.manualModes = manualModes
         self.syncFans = syncFans
         self.curves = curves
     }
@@ -87,6 +91,7 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         case fullCelsius
         case selectedSensorKeys
         case manualRPM
+        case manualModes
         case syncFans
         case curves
     }
@@ -101,6 +106,10 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         fullCelsius = try container.decodeIfPresent(Double.self, forKey: .fullCelsius) ?? 86
         selectedSensorKeys = try container.decodeIfPresent([String].self, forKey: .selectedSensorKeys) ?? []
         manualRPM = try container.decodeIfPresent([String: Double].self, forKey: .manualRPM) ?? [:]
+        manualModes = try container.decodeIfPresent(
+            [String: MonitorFanMode].self,
+            forKey: .manualModes
+        ) ?? [:]
         syncFans = try container.decodeIfPresent(Bool.self, forKey: .syncFans) ?? false
         curves = try container.decodeIfPresent(
             [String: [MonitorFanCurvePoint]].self,
@@ -116,6 +125,7 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         try container.encode(fullCelsius, forKey: .fullCelsius)
         try container.encode(selectedSensorKeys, forKey: .selectedSensorKeys)
         try container.encode(manualRPM, forKey: .manualRPM)
+        try container.encode(manualModes, forKey: .manualModes)
         try container.encode(syncFans, forKey: .syncFans)
         try container.encode(curves, forKey: .curves)
     }
@@ -144,6 +154,19 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
             normalizedRPM[key] = min(maximum, max(minimum, value.rounded()))
         }
         copy.manualRPM = normalizedRPM
+
+        var normalizedModes: [String: MonitorFanMode] = [:]
+        for (key, mode) in manualModes {
+            guard let fanIndex = Int(key), fanIndex >= 0,
+                  mode == .automatic || mode == .manual else { continue }
+            normalizedModes[key] = mode
+        }
+        if copy.mode == .manual {
+            for fanIndex in fanMinimums.keys where normalizedModes[String(fanIndex)] == nil {
+                normalizedModes[String(fanIndex)] = .manual
+            }
+        }
+        copy.manualModes = normalizedModes
 
         var normalizedCurves: [String: [MonitorFanCurvePoint]] = [:]
         for (key, points) in curves {
@@ -196,6 +219,12 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         )
     }
 
+    /// 手动模式下，未保存的 fan 默认使用手动控制。
+    func controlMode(for fanIndex: Int) -> MonitorFanMode {
+        guard mode == .manual else { return mode }
+        return manualModes[String(fanIndex)] == .automatic ? .automatic : .manual
+    }
+
     func helperPayload() -> [String: String] {
         let rpm = manualRPM.keys
             .compactMap { key -> (Int, Double)? in
@@ -210,6 +239,9 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         let curveText = curves.isEmpty
             ? ""
             : (try? encoder.encode(curves)).flatMap { String(data: $0, encoding: .utf8) } ?? ""
+        let manualModeText = manualModes.isEmpty
+            ? ""
+            : (try? encoder.encode(manualModes)).flatMap { String(data: $0, encoding: .utf8) } ?? ""
         return [
             "enabled": enabled ? "true" : "false",
             "mode": mode == .automatic ? "auto" : mode.rawValue,
@@ -217,6 +249,7 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
             "full": String(format: "%.0f", fullCelsius),
             "sensors": selectedSensorKeys.joined(separator: ","),
             "manualRPM": rpm,
+            "manualModes": manualModeText,
             "curves": curveText,
         ]
     }

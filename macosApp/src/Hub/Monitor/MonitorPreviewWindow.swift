@@ -358,6 +358,7 @@ struct MonitorFanPreviewRoot: View {
             fullCelsius: 86,
             selectedSensorKeys: ["TCMz", "TC0P"],
             manualRPM: ["0": 2_588, "1": 2_709],
+            manualModes: ["0": .manual, "1": .manual],
             syncFans: ProcessInfo.processInfo.environment["COVIO_MONITOR_FAN_RENDER_SCENARIO"] == "manual-sync",
             curves: [
                 "0": [

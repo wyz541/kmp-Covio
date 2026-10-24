@@ -359,6 +359,7 @@ struct FanControlHelperStatus: Equatable, Sendable {
 struct FanControlCommandResult: Equatable, Sendable {
     let ok: Bool
     let message: String?
+    let status: FanControlHelperStatus?
 }
 
 extension HelperClient {
@@ -367,14 +368,7 @@ extension HelperClient {
             command: HelperWire.shared.COMMAND_FAN_CONTROL_STATUS,
             timeoutMillis: 2_000
         ), reply.ok else { return nil }
-        let result = reply.result ?? [:]
-        return FanControlHelperStatus(
-            active: result["active"] == "true",
-            mode: result["mode"] ?? "system",
-            controlTemperature: result["controlTemperature"].flatMap(Double.init),
-            leaseRemainingSeconds: result["leaseRemainingSeconds"].flatMap(Int.init) ?? 0,
-            error: result["error"]
-        )
+        return Self.fanControlStatus(from: reply.result ?? [:])
     }
 
     func configureFanControl(_ configuration: MonitorFanConfiguration) -> FanControlCommandResult {
@@ -385,7 +379,8 @@ extension HelperClient {
         )
         return FanControlCommandResult(
             ok: reply?.ok == true,
-            message: reply?.error
+            message: reply?.error,
+            status: reply?.result.map(Self.fanControlStatus)
         )
     }
 
@@ -394,14 +389,7 @@ extension HelperClient {
             command: HelperWire.shared.COMMAND_FAN_CONTROL_KEEP_ALIVE,
             timeoutMillis: 2_000
         ), reply.ok else { return nil }
-        let result = reply.result ?? [:]
-        return FanControlHelperStatus(
-            active: result["active"] == "true",
-            mode: result["mode"] ?? "system",
-            controlTemperature: result["controlTemperature"].flatMap(Double.init),
-            leaseRemainingSeconds: result["leaseRemainingSeconds"].flatMap(Int.init) ?? 0,
-            error: result["error"]
-        )
+        return Self.fanControlStatus(from: reply.result ?? [:])
     }
 
     func restoreFanControl() -> FanControlCommandResult {
@@ -411,7 +399,18 @@ extension HelperClient {
         )
         return FanControlCommandResult(
             ok: reply?.ok == true,
-            message: reply?.error
+            message: reply?.error,
+            status: reply?.result.map(Self.fanControlStatus)
+        )
+    }
+
+    private static func fanControlStatus(from result: [String: String]) -> FanControlHelperStatus {
+        FanControlHelperStatus(
+            active: result["active"] == "true",
+            mode: result["mode"] ?? "system",
+            controlTemperature: result["controlTemperature"].flatMap(Double.init),
+            leaseRemainingSeconds: result["leaseRemainingSeconds"].flatMap(Int.init) ?? 0,
+            error: result["error"]
         )
     }
 }

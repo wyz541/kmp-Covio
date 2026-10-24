@@ -114,6 +114,32 @@ final class MonitorFanTests: XCTestCase {
         XCTAssertEqual(value.manualRPM["1"], 6_000)
     }
 
+    func testManualModesNormalizeAndDefaultToManual() {
+        let value = MonitorFanConfiguration(
+            mode: .manual,
+            manualModes: [
+                "0": .automatic,
+                "1": .curve,
+                "bad": .manual,
+            ]
+        ).normalized(fanMinimums: [0: 1_200, 1: 1_500])
+
+        XCTAssertEqual(value.manualModes, ["0": .automatic, "1": .manual])
+        XCTAssertEqual(value.controlMode(for: 0), .automatic)
+        XCTAssertEqual(value.controlMode(for: 1), .manual)
+        XCTAssertEqual(value.controlMode(for: 2), .manual)
+    }
+
+    func testCurveModeIgnoresPerFanManualModes() {
+        let value = MonitorFanConfiguration(
+            mode: .curve,
+            manualModes: ["0": .automatic, "1": .manual]
+        )
+
+        XCTAssertEqual(value.controlMode(for: 0), .curve)
+        XCTAssertEqual(value.controlMode(for: 1), .curve)
+    }
+
     func testEachFanUsesItsOwnCurve() {
         let configuration = MonitorFanConfiguration(
             curves: [
@@ -194,6 +220,7 @@ final class MonitorFanTests: XCTestCase {
         let original = MonitorFanConfiguration(
             enabled: true,
             mode: .curve,
+            manualModes: ["0": .automatic, "1": .manual],
             syncFans: true,
             curves: [
                 "0": [
@@ -219,6 +246,7 @@ final class MonitorFanTests: XCTestCase {
         let configuration = try JSONDecoder().decode(MonitorFanConfiguration.self, from: data)
 
         XCTAssertEqual(configuration.mode, .curve)
+        XCTAssertTrue(configuration.manualModes.isEmpty)
         XCTAssertFalse(configuration.syncFans)
         XCTAssertTrue(configuration.curves.isEmpty)
         XCTAssertEqual(
@@ -253,6 +281,21 @@ final class MonitorFanTests: XCTestCase {
 
         XCTAssertEqual(decoded["0"]?.first?.temperature, 45)
         XCTAssertEqual(decoded["1"]?.last?.rpm, 6_000)
+    }
+
+    func testHelperPayloadRoundTripsManualModes() throws {
+        let payload = MonitorFanConfiguration(
+            enabled: true,
+            mode: .manual,
+            manualModes: ["0": .automatic, "1": .manual]
+        ).helperPayload()
+        let modeText = try XCTUnwrap(payload["manualModes"])
+        let decoded = try JSONDecoder().decode(
+            [String: MonitorFanMode].self,
+            from: Data(modeText.utf8)
+        )
+
+        XCTAssertEqual(decoded, ["0": .automatic, "1": .manual])
     }
 
     func testSystemAutomaticAndCurveUseDifferentHelperModes() {
@@ -303,6 +346,73 @@ final class MonitorFanTests: XCTestCase {
         )
 
         XCTAssertEqual(targets, [0: 3_500, 1: 3_650])
+    }
+
+    @MainActor
+    func testManualModeSwitchSynchronizesWhenEnabled() {
+        let reading = MonitorFanReading(
+            temperatures: [.init(key: "TCMz", celsius: 65)],
+            units: [
+                .init(index: 0, rpm: 2_200, minimumRPM: 1_200, maximumRPM: 5_000, targetRPM: 2_200, mode: 1),
+                .init(index: 1, rpm: 2_300, minimumRPM: 1_300, maximumRPM: 6_000, targetRPM: 2_300, mode: 1),
+            ]
+        )
+        let configuration = MonitorFanConfiguration(
+            enabled: true,
+            mode: .manual,
+            manualModes: ["0": .manual, "1": .manual],
+            syncFans: true
+        )
+        let model = MonitorFanControlModel(
+            previewConfiguration: configuration,
+            availability: .ready
+        )
+
+        model.setManualMode(.automatic, fanIndex: 0, reading: reading)
+
+        XCTAssertEqual(model.manualMode(for: 0), .automatic)
+        XCTAssertEqual(model.manualMode(for: 1), .automatic)
+
+        var independentConfiguration = configuration
+        independentConfiguration.syncFans = false
+        let independent = MonitorFanControlModel(
+            previewConfiguration: independentConfiguration,
+            availability: .ready
+        )
+        independent.setManualMode(.automatic, fanIndex: 0, reading: reading)
+
+        XCTAssertEqual(independent.manualMode(for: 0), .automatic)
+        XCTAssertEqual(independent.manualMode(for: 1), .manual)
+    }
+
+    @MainActor
+    func testManualRPMWriteUsesThreeHundredMillisecondDebounce() async {
+        let reading = MonitorFanReading(
+            temperatures: [.init(key: "TCMz", celsius: 65)],
+            units: [
+                .init(index: 0, rpm: 2_200, minimumRPM: 1_200, maximumRPM: 5_000, targetRPM: 2_200, mode: 1),
+                .init(index: 1, rpm: 2_300, minimumRPM: 1_300, maximumRPM: 6_000, targetRPM: 2_300, mode: 1),
+            ]
+        )
+        let model = MonitorFanControlModel(
+            previewConfiguration: MonitorFanConfiguration(
+                enabled: true,
+                mode: .manual,
+                manualRPM: ["0": 2_200, "1": 2_300],
+                manualModes: ["0": .manual, "1": .manual]
+            ),
+            availability: .ready
+        )
+
+        model.setManualRPM(2_400, fanIndex: 0, reading: reading)
+        XCTAssertTrue(model.hasPendingManualWrite)
+        try? await Task.sleep(for: .milliseconds(150))
+        model.setManualRPM(2_600, fanIndex: 0, reading: reading)
+        try? await Task.sleep(for: .milliseconds(250))
+        XCTAssertTrue(model.hasPendingManualWrite)
+        try? await Task.sleep(for: .milliseconds(100))
+        XCTAssertFalse(model.hasPendingManualWrite)
+        XCTAssertEqual(model.configuration.manualRPM["0"], 2_600)
     }
 
     func testControlTemperatureUsesSelectedSensors() {

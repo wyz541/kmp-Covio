@@ -70,3 +70,41 @@
 观察：修复在同步接收端再次检查开关。
 推论：同步检查必须同时存在于发送端和接收端逻辑之外。
 置信度：高。
+
+## E-09：手动模式属于单台风扇
+
+来源：[`Modules/Sensors/values.swift`](https://github.com/exelban/stats/blob/7d3f70dcd6a07177d0a529a1b907021eef740158/Modules/Sensors/values.swift#L301-L331)
+
+观察：每台风扇分别保存 `customSpeed` 和 `customMode`。
+观察：自动、手动和转速状态属于风扇实例。
+推论：Covio 不能在全局手动模式下强制所有风扇都保持手动。
+置信度：高。
+
+## E-10：手动滑杆使用 300 ms 防抖
+
+来源：[`Modules/Sensors/popup.swift`](https://github.com/exelban/stats/blob/7d3f70dcd6a07177d0a529a1b907021eef740158/Modules/Sensors/popup.swift#L762-L780)
+
+观察：滑杆先更新内存中的自定义转速。
+观察：helper 写入延后 `0.3` 秒。
+观察：下一次变化取消上一项工作。
+推论：Covio 应合并连续滑杆变化，只提交最后转速。
+置信度：高。
+
+## E-11：手动滑杆限制在单风扇范围
+
+来源：[`Modules/Sensors/popup.swift`](https://github.com/exelban/stats/blob/7d3f70dcd6a07177d0a529a1b907021eef740158/Modules/Sensors/popup.swift#L782-L788)
+
+观察：滑杆上限为 `maxSpeed`。
+观察：滑杆下限为 `minSpeed`。
+推论：每台风扇使用自己的硬件范围。
+置信度：高。
+
+## E-12：睡眠前交还系统控制
+
+来源：[`Modules/Sensors/popup.swift`](https://github.com/exelban/stats/blob/7d3f70dcd6a07177d0a529a1b907021eef740158/Modules/Sensors/popup.swift#L824-L861)
+
+观察：睡眠前保存手动模式和转速。
+观察：睡眠前写入自动模式。
+观察：唤醒 3 秒后恢复手动模式和转速。
+推论：手动模式需要单独处理睡眠生命周期。
+置信度：高。

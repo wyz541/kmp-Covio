@@ -17,10 +17,13 @@ final class MonitorFanControlModel: ObservableObject {
     @Published private(set) var helperStatus: FanControlHelperStatus?
     @Published private(set) var message: String?
 
+    var hasPendingManualWrite: Bool { manualApplyTask != nil }
+
     private let client: HelperClient
     private let defaults: UserDefaults
     private var didAdoptSensors = false
     private var skipsAvailabilityRefresh = false
+    private var manualApplyTask: Task<Void, Never>?
 
     private static let preferencesKey = "monitor.fan.control.v1"
 
@@ -103,6 +106,12 @@ final class MonitorFanControlModel: ObservableObject {
         if enabled, configuration.mode.isAutomatic {
             configuration.mode = .curve
         }
+        if enabled, configuration.mode == .manual,
+           reading.units.allSatisfy({ manualMode(for: $0.index) == .automatic }) {
+            for fan in reading.units {
+                configuration.manualModes[String(fan.index)] = .manual
+            }
+        }
         persist()
         if enabled {
             apply(reading: reading)
@@ -112,8 +121,14 @@ final class MonitorFanControlModel: ObservableObject {
     }
 
     func setMode(_ mode: MonitorFanMode, reading: MonitorFanReading) {
+        manualApplyTask?.cancel()
         configuration.mode = mode
         configuration.enabled = !mode.isAutomatic
+        if mode == .manual {
+            for fan in reading.units {
+                configuration.manualModes[String(fan.index)] = .manual
+            }
+        }
         persist()
         if mode.isAutomatic {
             restore()
@@ -123,6 +138,7 @@ final class MonitorFanControlModel: ObservableObject {
     }
 
     func applyPreset(_ preset: MonitorFanConfiguration, reading: MonitorFanReading) {
+        manualApplyTask?.cancel()
         let sensorKeys = configuration.selectedSensorKeys
         configuration.startCelsius = preset.startCelsius
         configuration.fullCelsius = preset.fullCelsius
@@ -188,9 +204,32 @@ final class MonitorFanControlModel: ObservableObject {
                 units: reading.units
             ) {
                 configuration.manualRPM[String(index)] = target
+                configuration.manualModes[String(index)] = .manual
             }
         } else {
             configuration.manualRPM[String(fanIndex)] = rpm.rounded()
+            configuration.manualModes[String(fanIndex)] = .manual
+        }
+        persist()
+        if configuration.enabled, configuration.mode == .manual {
+            scheduleManualApply(reading: reading)
+        }
+    }
+
+    func manualMode(for fanIndex: Int) -> MonitorFanMode {
+        configuration.manualModes[String(fanIndex)] == .automatic ? .automatic : .manual
+    }
+
+    func setManualMode(
+        _ mode: MonitorFanMode,
+        fanIndex: Int,
+        reading: MonitorFanReading
+    ) {
+        guard mode == .automatic || mode == .manual else { return }
+        manualApplyTask?.cancel()
+        let indices = configuration.syncFans ? reading.units.map(\.index) : [fanIndex]
+        for index in indices {
+            configuration.manualModes[String(index)] = mode
         }
         persist()
         if configuration.enabled, configuration.mode == .manual {
@@ -219,6 +258,7 @@ final class MonitorFanControlModel: ObservableObject {
     }
 
     func restore() {
+        manualApplyTask?.cancel()
         guard !busy else { return }
         if skipsAvailabilityRefresh {
             configuration.enabled = false
@@ -234,14 +274,18 @@ final class MonitorFanControlModel: ObservableObject {
                 if result.ok {
                     self.configuration.enabled = false
                     self.configuration.mode = .automatic
-                    self.helperStatus = FanControlHelperStatus(
+                    self.helperStatus = result.status ?? FanControlHelperStatus(
                         active: false,
                         mode: "system",
                         controlTemperature: nil,
                         leaseRemainingSeconds: 0,
                         error: nil
                     )
-                    FanControlLeaseKeeper.shared.stop()
+                    if result.status?.active == true {
+                        FanControlLeaseKeeper.shared.start()
+                    } else {
+                        FanControlLeaseKeeper.shared.stop()
+                    }
                     self.persist()
                 } else {
                     self.message = result.message
@@ -302,15 +346,20 @@ final class MonitorFanControlModel: ObservableObject {
             await MainActor.run {
                 self.busy = false
                 if result.ok {
-                    self.configuration.enabled = true
-                    self.helperStatus = FanControlHelperStatus(
+                    let status = result.status ?? FanControlHelperStatus(
                         active: true,
                         mode: configuration.mode.rawValue,
                         controlTemperature: configuration.controlTemperature(in: reading),
                         leaseRemainingSeconds: Int(MonitorFanPolicy.leaseSeconds),
                         error: nil
                     )
-                    FanControlLeaseKeeper.shared.start()
+                    self.configuration.enabled = status.active
+                    self.helperStatus = status
+                    if status.active {
+                        FanControlLeaseKeeper.shared.start()
+                    } else {
+                        FanControlLeaseKeeper.shared.stop()
+                    }
                 } else {
                     self.configuration.enabled = false
                     self.message = result.message
@@ -324,5 +373,24 @@ final class MonitorFanControlModel: ObservableObject {
     private func persist() {
         guard let data = try? JSONEncoder().encode(configuration) else { return }
         defaults.set(data, forKey: Self.preferencesKey)
+    }
+
+    private func scheduleManualApply(reading: MonitorFanReading) {
+        manualApplyTask?.cancel()
+        manualApplyTask = Task { [weak self] in
+            do {
+                try await Task.sleep(for: .milliseconds(300))
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            guard let self else { return }
+            guard self.configuration.enabled, self.configuration.mode == .manual else {
+                self.manualApplyTask = nil
+                return
+            }
+            self.apply(reading: reading)
+            self.manualApplyTask = nil
+        }
     }
 }

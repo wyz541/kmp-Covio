@@ -124,6 +124,14 @@ class HelperWireTest {
             HelperWire.validate(
                 request(
                     HelperWire.COMMAND_FAN_CONTROL_CONFIGURE,
+                    valid + ("manualModes" to """{"0":"automatic","1":"manual"}"""),
+                ),
+            ),
+        )
+        assertNull(
+            HelperWire.validate(
+                request(
+                    HelperWire.COMMAND_FAN_CONTROL_CONFIGURE,
                     valid + ("curves" to """{"0":[{"temperature":45.0,"rpm":1200.0}]}"""),
                 ),
             ),
@@ -168,6 +176,24 @@ class HelperWireTest {
             "Invalid fan curve list",
             HelperWire.validate(
                 request(HelperWire.COMMAND_FAN_CONTROL_CONFIGURE, valid + ("curves" to "{\n}")),
+            ),
+        )
+        assertEquals(
+            "Fan mode list is too long",
+            HelperWire.validate(
+                request(
+                    HelperWire.COMMAND_FAN_CONTROL_CONFIGURE,
+                    valid + ("manualModes" to "x".repeat(1_025)),
+                ),
+            ),
+        )
+        assertEquals(
+            "Invalid fan mode list",
+            HelperWire.validate(
+                request(
+                    HelperWire.COMMAND_FAN_CONTROL_CONFIGURE,
+                    valid + ("manualModes" to "{\n}"),
+                ),
             ),
         )
     }

@@ -8,7 +8,7 @@ body:
         一个 issue 对应一条分支和一个 PR。
         大功能的子 issue 用 GitHub 原生 sub-issue 关系关联。
         标题写成「动词 对象」。
-        验收标准与截图规则见 [研发工作流](../../docs/process/workflow.md) 的 S5 与 UI 证据。
+        验收标准与截图格式见 [研发工作流](../../docs/process/workflow.md) 的 S5 与 Visual verification。
 
   - type: textarea
     id: goal
@@ -55,22 +55,27 @@ body:
   - type: textarea
     id: ui_evidence
     attributes:
-      label: UI 证据
+      label: Visual verification
       description: |
         创建时写计划，结题前补图。
-        UI 决策附当前界面或候选方案，以及选定方案。
-        UI 代码变更附同一页面、同一状态的真机前后截图。
+        UI issue 必须保留亮色和深色两组 Before/After 表。
+        每一格放 Markdown 图片，不写本机路径。
+        UI 决策对照当前界面和选定方案。UI 代码变更对照同一页面、同一状态的真机截图。
         截图归档到 docs/design/previews/。命名遵守该目录的 README。
         Issue 正文使用同一文件的固定 commit GitHub 图片地址。
         不涉及 UI 时填「不适用」。
         截图缺失或链接失效时，不得关闭 issue。
-      placeholder: |
-        变更前：
-        ![变更前](截图)
+      value: |
+        **亮色**
 
-        变更后：
-        ![变更后](截图)
+        | Before | After |
+        | --- | --- |
+        | Light before | Light after |
 
-        归档：docs/design/previews/
+        **深色**
+
+        | Before | After |
+        | --- | --- |
+        | Dark before | Dark after |
     validations:
       required: true

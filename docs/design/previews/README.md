@@ -1,6 +1,6 @@
 # UI 截图
 
-本目录存打样、UI 决策和 UI 代码变更的截图。图路径写进对应 issue 正文。
+本目录存打样、UI 决策和 UI 代码变更的截图。截图的固定 commit URL 填入对应 issue 的 `Visual verification` 表格。
 
 ## 命名
 

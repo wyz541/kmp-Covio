@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
     branches: [main, "feature/**"]
     # 构建与测试不读文档目录。全仓库只有注释提到 docs/。
@@ -20,6 +21,8 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+      - name: Provision Amper downloads
+        run: bash scripts/provision-amper-github-downloads.sh
       - name: Build
         run: /bin/sh ./kotlin build
       - name: Test

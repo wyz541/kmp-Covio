@@ -569,6 +569,68 @@ enum ContractCopy {
     static let copyMonitorDiskUsed = LocalizedCopy(key: "copy/monitor/disk/used", en: "Used", zhHans: "已用")
     /// `copy/monitor/disk/write`
     static let copyMonitorDiskWrite = LocalizedCopy(key: "copy/monitor/disk/write", en: "Write", zhHans: "写入")
+    /// `copy/monitor/fan/a11y-open`
+    static let copyMonitorFanA11yOpen = LocalizedCopy(key: "copy/monitor/fan/a11y-open", en: "Open fan controls", zhHans: "打开风扇控制")
+    /// `copy/monitor/fan/a11y-status`
+    static let copyMonitorFanA11yStatus = LocalizedCopy(key: "copy/monitor/fan/a11y-status", en: "Fan control status", zhHans: "风扇控制状态")
+    /// `copy/monitor/fan/actual`
+    static let copyMonitorFanActual = LocalizedCopy(key: "copy/monitor/fan/actual", en: "Actual", zhHans: "当前")
+    /// `copy/monitor/fan/applying`
+    static let copyMonitorFanApplying = LocalizedCopy(key: "copy/monitor/fan/applying", en: "Applying", zhHans: "正在接管")
+    /// `copy/monitor/fan/auto-curve`
+    static let copyMonitorFanAutoCurve = LocalizedCopy(key: "copy/monitor/fan/auto-curve", en: "Auto curve", zhHans: "自动曲线")
+    /// `copy/monitor/fan/balanced`
+    static let copyMonitorFanBalanced = LocalizedCopy(key: "copy/monitor/fan/balanced", en: "Balanced", zhHans: "均衡")
+    /// `copy/monitor/fan/control-sensors`
+    static let copyMonitorFanControlSensors = LocalizedCopy(key: "copy/monitor/fan/control-sensors", en: "Control sensors", zhHans: "控制传感器")
+    /// `copy/monitor/fan/control-summary`
+    static let copyMonitorFanControlSummary = LocalizedCopy(key: "copy/monitor/fan/control-summary", en: "Control temperature · %d sensors", zhHans: "控制温度 · %d 个传感器取最大")
+    /// `copy/monitor/fan/details`
+    static let copyMonitorFanDetails = LocalizedCopy(key: "copy/monitor/fan/details", en: "Fan control", zhHans: "风扇控制")
+    /// `copy/monitor/fan/enable`
+    static let copyMonitorFanEnable = LocalizedCopy(key: "copy/monitor/fan/enable", en: "Enable fan control", zhHans: "启用风扇控制")
+    /// `copy/monitor/fan/full-caption`
+    static let copyMonitorFanFullCaption = LocalizedCopy(key: "copy/monitor/fan/full-caption", en: "%d °C reaches full speed", zhHans: "%d °C 达到全速")
+    /// `copy/monitor/fan/full-temperature`
+    static let copyMonitorFanFullTemperature = LocalizedCopy(key: "copy/monitor/fan/full-temperature", en: "Full-speed temperature", zhHans: "全速温度")
+    /// `copy/monitor/fan/helper-required`
+    static let copyMonitorFanHelperRequired = LocalizedCopy(key: "copy/monitor/fan/helper-required", en: "Fan writes require the privileged helper.", zhHans: "写入风扇转速需要特权 Helper。")
+    /// `copy/monitor/fan/helper-unavailable`
+    static let copyMonitorFanHelperUnavailable = LocalizedCopy(key: "copy/monitor/fan/helper-unavailable", en: "The helper is not running. Fan readings remain available.", zhHans: "Helper 未运行。风扇读数仍可使用。")
+    /// `copy/monitor/fan/install-helper`
+    static let copyMonitorFanInstallHelper = LocalizedCopy(key: "copy/monitor/fan/install-helper", en: "Install or repair helper", zhHans: "安装或修复 Helper")
+    /// `copy/monitor/fan/legend-window`
+    static let copyMonitorFanLegendWindow = LocalizedCopy(key: "copy/monitor/fan/legend-window", en: "Recent samples", zhHans: "近期采样")
+    /// `copy/monitor/fan/manual-rpm`
+    static let copyMonitorFanManualRpm = LocalizedCopy(key: "copy/monitor/fan/manual-rpm", en: "Manual RPM", zhHans: "手动转速")
+    /// `copy/monitor/fan/owned`
+    static let copyMonitorFanOwned = LocalizedCopy(key: "copy/monitor/fan/owned", en: "Covio control", zhHans: "Covio 已接管")
+    /// `copy/monitor/fan/quiet`
+    static let copyMonitorFanQuiet = LocalizedCopy(key: "copy/monitor/fan/quiet", en: "Quiet", zhHans: "安静")
+    /// `copy/monitor/fan/read-failed`
+    static let copyMonitorFanReadFailed = LocalizedCopy(key: "copy/monitor/fan/read-failed", en: "Fan readings are unavailable.", zhHans: "风扇读数不可用。")
+    /// `copy/monitor/fan/restore-system`
+    static let copyMonitorFanRestoreSystem = LocalizedCopy(key: "copy/monitor/fan/restore-system", en: "Restore system control", zhHans: "恢复系统控制")
+    /// `copy/monitor/fan/start-caption`
+    static let copyMonitorFanStartCaption = LocalizedCopy(key: "copy/monitor/fan/start-caption", en: "%d °C starts ramping", zhHans: "%d °C 开始升温")
+    /// `copy/monitor/fan/start-temperature`
+    static let copyMonitorFanStartTemperature = LocalizedCopy(key: "copy/monitor/fan/start-temperature", en: "Start temperature", zhHans: "起转温度")
+    /// `copy/monitor/fan/system-control`
+    static let copyMonitorFanSystemControl = LocalizedCopy(key: "copy/monitor/fan/system-control", en: "System control", zhHans: "系统控制")
+    /// `copy/monitor/fan/target`
+    static let copyMonitorFanTarget = LocalizedCopy(key: "copy/monitor/fan/target", en: "Target", zhHans: "目标")
+    /// `copy/monitor/fan/temperature`
+    static let copyMonitorFanTemperature = LocalizedCopy(key: "copy/monitor/fan/temperature", en: "Temperature", zhHans: "温度")
+    /// `copy/monitor/fan/title`
+    static let copyMonitorFanTitle = LocalizedCopy(key: "copy/monitor/fan/title", en: "Fan", zhHans: "风扇")
+    /// `copy/monitor/fan/turbo`
+    static let copyMonitorFanTurbo = LocalizedCopy(key: "copy/monitor/fan/turbo", en: "Turbo", zhHans: "强力")
+    /// `copy/monitor/fan/unavailable`
+    static let copyMonitorFanUnavailable = LocalizedCopy(key: "copy/monitor/fan/unavailable", en: "Fan data unavailable", zhHans: "风扇数据不可用")
+    /// `copy/monitor/fan/unit`
+    static let copyMonitorFanUnit = LocalizedCopy(key: "copy/monitor/fan/unit", en: "Fan %d", zhHans: "风扇 %d")
+    /// `copy/monitor/fan/warning`
+    static let copyMonitorFanWarning = LocalizedCopy(key: "copy/monitor/fan/warning", en: "Writing fan speed changes hardware behavior. Covio restores system control when it exits.", zhHans: "写入风扇转速会改变硬件行为。Covio 退出时恢复系统控制。")
     /// `copy/monitor/gpu/device`
     static let copyMonitorGpuDevice = LocalizedCopy(key: "copy/monitor/gpu/device", en: "Device", zhHans: "设备")
     /// `copy/monitor/gpu/memory`
@@ -1582,6 +1644,37 @@ enum ContractCopy {
         copyMonitorDiskRead,
         copyMonitorDiskUsed,
         copyMonitorDiskWrite,
+        copyMonitorFanA11yOpen,
+        copyMonitorFanA11yStatus,
+        copyMonitorFanActual,
+        copyMonitorFanApplying,
+        copyMonitorFanAutoCurve,
+        copyMonitorFanBalanced,
+        copyMonitorFanControlSensors,
+        copyMonitorFanControlSummary,
+        copyMonitorFanDetails,
+        copyMonitorFanEnable,
+        copyMonitorFanFullCaption,
+        copyMonitorFanFullTemperature,
+        copyMonitorFanHelperRequired,
+        copyMonitorFanHelperUnavailable,
+        copyMonitorFanInstallHelper,
+        copyMonitorFanLegendWindow,
+        copyMonitorFanManualRpm,
+        copyMonitorFanOwned,
+        copyMonitorFanQuiet,
+        copyMonitorFanReadFailed,
+        copyMonitorFanRestoreSystem,
+        copyMonitorFanStartCaption,
+        copyMonitorFanStartTemperature,
+        copyMonitorFanSystemControl,
+        copyMonitorFanTarget,
+        copyMonitorFanTemperature,
+        copyMonitorFanTitle,
+        copyMonitorFanTurbo,
+        copyMonitorFanUnavailable,
+        copyMonitorFanUnit,
+        copyMonitorFanWarning,
         copyMonitorGpuDevice,
         copyMonitorGpuMemory,
         copyMonitorHistory,

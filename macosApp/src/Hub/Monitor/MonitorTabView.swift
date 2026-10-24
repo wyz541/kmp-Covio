@@ -18,6 +18,7 @@ struct MonitorTabView: View {
     @State private var powerHistory = MonitorPowerHistory()
     @State private var sampler = MonitorSampler()
     @State private var reportPresented = false
+    @StateObject private var fanControlModel = MonitorFanControlModel()
 
     init(
         language: AppLanguage,
@@ -55,6 +56,7 @@ struct MonitorTabView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .task {
+            fanControlModel.refreshAvailability()
             guard runsSampling else { return }
             await runSamples()
         }
@@ -99,13 +101,16 @@ struct MonitorTabView: View {
     }
 
     private var overview: some View {
-        LazyVGrid(columns: columns, spacing: MacTheme.space3) {
-            cpuCard
-            gpuCard
-            memoryCard
-            diskCard
-            networkCard
-            powerCard
+        ScrollView(.vertical, showsIndicators: false) {
+            LazyVGrid(columns: columns, spacing: MacTheme.space3) {
+                cpuCard
+                gpuCard
+                memoryCard
+                diskCard
+                networkCard
+                powerCard
+                fanCard
+            }
         }
     }
 
@@ -117,7 +122,12 @@ struct MonitorTabView: View {
             guard !Task.isCancelled else { break }
             await MainActor.run {
                 snapshot = next
-                history.append(next)
+                history.append(
+                    next,
+                    fanControlTemperature: next.fan.flatMap {
+                        fanControlModel.configuration.controlTemperature(in: $0)
+                    }
+                )
             }
             do {
                 try await Task.sleep(for: .seconds(MonitorCadence.interval(for: next)))
@@ -307,6 +317,21 @@ struct MonitorTabView: View {
     }
 
     @ViewBuilder
+    private var fanCard: some View {
+        if let fan = snapshot.fan, !fan.units.isEmpty {
+            MonitorFanCard(
+                reading: fan,
+                cpuHistory: history.cpu,
+                temperatureHistory: history.fanTemperature,
+                rpmHistory: history.fanRPM,
+                language: language,
+                runtime: runtime,
+                model: fanControlModel
+            )
+        }
+    }
+
+    @ViewBuilder
     private var networkCard: some View {
         if let network = snapshot.network {
             MonitorNetworkCard(
@@ -344,13 +369,14 @@ private enum MonitorSection {
 
 // MARK: - 卡片种类
 
-private enum MonitorCardKind {
+enum MonitorCardKind {
     case cpu
     case gpu
     case memory
     case disk
     case network
     case power
+    case fan
 
     var title: LocalizedCopy {
         switch self {
@@ -360,6 +386,7 @@ private enum MonitorCardKind {
         case .disk: ContractCopy.copyMonitorTitleDisk
         case .network: ContractCopy.copyMonitorTitleNetwork
         case .power: ContractCopy.copyMonitorTitleBattery
+        case .fan: ContractCopy.copyMonitorFanTitle
         }
     }
 
@@ -371,6 +398,7 @@ private enum MonitorCardKind {
         case .disk: "internaldrive"
         case .network: "network"
         case .power: "powerplug.fill"
+        case .fan: "fanblades.fill"
         }
     }
 
@@ -382,6 +410,7 @@ private enum MonitorCardKind {
         case .disk: MacTheme.color(ContractColors.tokenColorWarningFill)
         case .network: MacTheme.color(ContractColors.tokenColorErrorText)
         case .power: MacTheme.color(ContractColors.tokenColorSuccessFill)
+        case .fan: MacTheme.color(ContractColors.tokenColorBrand)
         }
     }
 }
@@ -1622,11 +1651,12 @@ private struct MonitorUnavailableCard: View {
     }
 }
 
-private struct MonitorCardShell<Content: View>: View {
+struct MonitorCardShell<Content: View>: View {
     let kind: MonitorCardKind
     let accent: Color
     let language: AppLanguage
     var combinesAccessibility = true
+    var statusText: String?
     @ViewBuilder var content: Content
 
     var body: some View {
@@ -1640,7 +1670,7 @@ private struct MonitorCardShell<Content: View>: View {
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(MacTheme.textPrimary)
                 Spacer(minLength: MacTheme.space1)
-                Text(ContractCopy.copyMonitorLive.text(for: language).uppercased())
+                Text(statusText ?? ContractCopy.copyMonitorLive.text(for: language).uppercased())
                     .font(.system(size: 8, weight: .bold))
                     .tracking(0.7)
                     .foregroundStyle(accent)

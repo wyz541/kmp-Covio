@@ -16,7 +16,7 @@ enum HelperInstaller {
     static func install(executablePath: String, logger: (String) -> Void = { _ in }) -> Bool {
         let requirement = HelperSignature.currentRequirement()
         if requirement == nil {
-            logger("Cannot determine the client signature requirement; charge control will stay unavailable.")
+            logger("Cannot determine the client signature requirement; privileged controls will stay unavailable.")
         }
         let script = installScript(
             executablePath: executablePath,
@@ -27,8 +27,16 @@ enum HelperInstaller {
     }
 
     static func uninstall(logger: (String) -> Void = { _ in }) -> Bool {
-        guard restoreChargeLimitIfNeeded(using: HelperClient(), logger: logger) else {
+        let client = HelperClient()
+        guard restoreChargeLimitIfNeeded(using: client, logger: logger) else {
             return false
+        }
+        if client.fanControlStatus()?.active == true {
+            logger("Restoring system fan control before uninstall")
+            guard client.restoreFanControl().ok else {
+                logger("Cannot uninstall the helper: fan control restore failed")
+                return false
+            }
         }
         let script = uninstallScript()
         logger("Uninstalling privileged helper")

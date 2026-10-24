@@ -4660,6 +4660,130 @@
       "en": "Covio is up to date.",
       "zh-Hans": "Covio 已是最新版本。"
     },
+    "copy/monitor/fan/title": {
+      "en": "Fan",
+      "zh-Hans": "风扇"
+    },
+    "copy/monitor/fan/control-summary": {
+      "en": "Control temperature · %d sensors",
+      "zh-Hans": "控制温度 · %d 个传感器取最大"
+    },
+    "copy/monitor/fan/system-control": {
+      "en": "System control",
+      "zh-Hans": "系统控制"
+    },
+    "copy/monitor/fan/owned": {
+      "en": "Covio control",
+      "zh-Hans": "Covio 已接管"
+    },
+    "copy/monitor/fan/applying": {
+      "en": "Applying",
+      "zh-Hans": "正在接管"
+    },
+    "copy/monitor/fan/unavailable": {
+      "en": "Fan data unavailable",
+      "zh-Hans": "风扇数据不可用"
+    },
+    "copy/monitor/fan/details": {
+      "en": "Fan control",
+      "zh-Hans": "风扇控制"
+    },
+    "copy/monitor/fan/enable": {
+      "en": "Enable fan control",
+      "zh-Hans": "启用风扇控制"
+    },
+    "copy/monitor/fan/auto-curve": {
+      "en": "Auto curve",
+      "zh-Hans": "自动曲线"
+    },
+    "copy/monitor/fan/manual-rpm": {
+      "en": "Manual RPM",
+      "zh-Hans": "手动转速"
+    },
+    "copy/monitor/fan/quiet": {
+      "en": "Quiet",
+      "zh-Hans": "安静"
+    },
+    "copy/monitor/fan/balanced": {
+      "en": "Balanced",
+      "zh-Hans": "均衡"
+    },
+    "copy/monitor/fan/turbo": {
+      "en": "Turbo",
+      "zh-Hans": "强力"
+    },
+    "copy/monitor/fan/start-temperature": {
+      "en": "Start temperature",
+      "zh-Hans": "起转温度"
+    },
+    "copy/monitor/fan/full-temperature": {
+      "en": "Full-speed temperature",
+      "zh-Hans": "全速温度"
+    },
+    "copy/monitor/fan/start-caption": {
+      "en": "%d °C starts ramping",
+      "zh-Hans": "%d °C 开始升温"
+    },
+    "copy/monitor/fan/full-caption": {
+      "en": "%d °C reaches full speed",
+      "zh-Hans": "%d °C 达到全速"
+    },
+    "copy/monitor/fan/control-sensors": {
+      "en": "Control sensors",
+      "zh-Hans": "控制传感器"
+    },
+    "copy/monitor/fan/restore-system": {
+      "en": "Restore system control",
+      "zh-Hans": "恢复系统控制"
+    },
+    "copy/monitor/fan/install-helper": {
+      "en": "Install or repair helper",
+      "zh-Hans": "安装或修复 Helper"
+    },
+    "copy/monitor/fan/helper-required": {
+      "en": "Fan writes require the privileged helper.",
+      "zh-Hans": "写入风扇转速需要特权 Helper。"
+    },
+    "copy/monitor/fan/helper-unavailable": {
+      "en": "The helper is not running. Fan readings remain available.",
+      "zh-Hans": "Helper 未运行。风扇读数仍可使用。"
+    },
+    "copy/monitor/fan/actual": {
+      "en": "Actual",
+      "zh-Hans": "当前"
+    },
+    "copy/monitor/fan/target": {
+      "en": "Target",
+      "zh-Hans": "目标"
+    },
+    "copy/monitor/fan/warning": {
+      "en": "Writing fan speed changes hardware behavior. Covio restores system control when it exits.",
+      "zh-Hans": "写入风扇转速会改变硬件行为。Covio 退出时恢复系统控制。"
+    },
+    "copy/monitor/fan/unit": {
+      "en": "Fan %d",
+      "zh-Hans": "风扇 %d"
+    },
+    "copy/monitor/fan/temperature": {
+      "en": "Temperature",
+      "zh-Hans": "温度"
+    },
+    "copy/monitor/fan/legend-window": {
+      "en": "Recent samples",
+      "zh-Hans": "近期采样"
+    },
+    "copy/monitor/fan/read-failed": {
+      "en": "Fan readings are unavailable.",
+      "zh-Hans": "风扇读数不可用。"
+    },
+    "copy/monitor/fan/a11y-open": {
+      "en": "Open fan controls",
+      "zh-Hans": "打开风扇控制"
+    },
+    "copy/monitor/fan/a11y-status": {
+      "en": "Fan control status",
+      "zh-Hans": "风扇控制状态"
+    },
     "copy/monitor/title/cpu": {
       "en": "CPU",
       "zh-Hans": "CPU"

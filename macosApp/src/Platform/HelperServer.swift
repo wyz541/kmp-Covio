@@ -31,6 +31,7 @@ enum HelperServer {
         // 客户端超时后会关闭 socket。写入关闭的连接不能终止整个 root helper。
         signal(SIGPIPE, SIG_IGN)
         let log = HelperLog()
+        let fanControlRuntime = FanControlRuntime(log: log)
         if case .failure(let failure) = chargeLimitRuntime.resumeOnStartup() {
             log.error("Charge limit runtime failed to resume: \(failure)")
         }
@@ -42,6 +43,8 @@ enum HelperServer {
                 // 充电状态跨越 helper 重启。卸载路径会先显式恢复原策略，
                 // 通用 SIGTERM 不能清除状态，否则下一次启动无法恢复用户上限。
                 chargeLimitRuntime.prepareForExit()
+                // 风扇控制是进程内状态，helper 退出前必须恢复系统控制。
+                fanControlRuntime.shutdown()
                 exit(0)
             }
             source.resume()
@@ -49,7 +52,7 @@ enum HelperServer {
         }
         defer { terminationSources.forEach { $0.cancel() } }
         do {
-            try serve(log: log)
+            try serve(log: log, fanControlRuntime: fanControlRuntime)
             return 0
         } catch {
             log.error("Helper failed", error)
@@ -57,7 +60,7 @@ enum HelperServer {
         }
     }
 
-    private static func serve(log: HelperLog) throws {
+    private static func serve(log: HelperLog, fanControlRuntime: FanControlRuntime) throws {
         let leaseCoordinator = HelperLeaseCoordinator(log: log)
         leaseCoordinator.restoreStaleState()
         try prepareSocketFile()
@@ -84,7 +87,12 @@ enum HelperServer {
             // 被信号打断时 accept 返回负数，继续等下一个连接。
             guard client >= 0 else { continue }
             DispatchQueue.global().async {
-                handleClient(client, log: log, leaseCoordinator: leaseCoordinator)
+                handleClient(
+                    client,
+                    log: log,
+                    leaseCoordinator: leaseCoordinator,
+                    fanControlRuntime: fanControlRuntime
+                )
             }
         }
     }
@@ -106,7 +114,8 @@ enum HelperServer {
     static func handleClient(
         _ client: Int32,
         log: HelperLog,
-        leaseCoordinator: HelperLeaseCoordinator
+        leaseCoordinator: HelperLeaseCoordinator,
+        fanControlRuntime: FanControlRuntime
     ) {
         defer { close(client) }
         var noSigPipe: Int32 = 1
@@ -150,9 +159,9 @@ enum HelperServer {
                 return
             }
 
-            if HelperWire.shared.isChargeLimitCommand(command: request.command) {
+            if HelperWire.shared.requiresClientSignature(command: request.command) {
                 guard peerAuthorizer.isAuthorized(descriptor: client) else {
-                    log.info("Rejected charge command from an unsigned client")
+                    log.info("Rejected privileged command from an unsigned client")
                     write(
                         reply: HelperWire.shared.failure(
                             requestId: request.requestId,
@@ -162,7 +171,12 @@ enum HelperServer {
                     )
                     return
                 }
-                if let reply = chargeLimitHandler.handle(request) {
+                if HelperWire.shared.isChargeLimitCommand(command: request.command),
+                   let reply = chargeLimitHandler.handle(request) {
+                    write(reply: reply, to: client)
+                    return
+                }
+                if let reply = fanControlRuntime.handle(request) {
                     write(reply: reply, to: client)
                     return
                 }

@@ -1,5 +1,7 @@
 #if DEBUG
 import AppKit
+import CoreGraphics
+import ScreenCaptureKit
 import SwiftUI
 import kmpDomain
 
@@ -324,6 +326,214 @@ enum MonitorPowerDetailRenderer {
         } catch {
             return false
         }
+    }
+}
+
+enum MonitorFanPreviewFixtures {
+    static var reading: MonitorFanReading {
+        MonitorFanReading(
+            temperatures: [
+                .init(key: "TCMz", celsius: 65.9),
+                .init(key: "TC0P", celsius: 61.2),
+                .init(key: "TG0D", celsius: 55.4),
+                .init(key: "TB0T", celsius: 35.1),
+            ],
+            units: [
+                .init(index: 0, rpm: 2_789, minimumRPM: 1_200, maximumRPM: 5_800, targetRPM: 2_588, mode: 1),
+                .init(index: 1, rpm: 2_954, minimumRPM: 1_300, maximumRPM: 6_000, targetRPM: 2_709, mode: 1),
+            ]
+        )
+    }
+}
+
+@MainActor
+struct MonitorFanPreviewRoot: View {
+    @StateObject private var model = MonitorFanControlModel(
+        previewConfiguration: MonitorFanConfiguration(
+            enabled: true,
+            mode: .automatic,
+            startCelsius: 58,
+            fullCelsius: 86,
+            selectedSensorKeys: ["TCMz", "TC0P"],
+            manualRPM: ["0": 2_588, "1": 2_709]
+        ),
+        availability: .ready,
+        helperStatus: FanControlHelperStatus(
+            active: true,
+            mode: "automatic",
+            controlTemperature: 65.9,
+            leaseRemainingSeconds: 20,
+            error: nil
+        )
+    )
+
+    var body: some View {
+        MonitorFanPopover(
+            reading: MonitorFanPreviewFixtures.reading,
+            language: .simplifiedChinese,
+            runtime: nil,
+            model: model,
+            scrollsContent: false,
+            rendersForSnapshot: true
+        )
+        .frame(width: 420, height: 620, alignment: .topLeading)
+        .background(MacTheme.surface)
+    }
+}
+
+@MainActor
+struct MonitorFanCardPreviewRoot: View {
+    @StateObject private var model = MonitorFanControlModel(
+        previewConfiguration: MonitorFanConfiguration(
+            enabled: true,
+            mode: .automatic,
+            startCelsius: 58,
+            fullCelsius: 86,
+            selectedSensorKeys: ["TCMz", "TC0P"],
+            manualRPM: ["0": 2_588, "1": 2_709]
+        ),
+        availability: .ready,
+        helperStatus: FanControlHelperStatus(
+            active: true,
+            mode: "automatic",
+            controlTemperature: 65.9,
+            leaseRemainingSeconds: 20,
+            error: nil
+        )
+    )
+
+    var body: some View {
+        MonitorFanCard(
+            reading: MonitorFanPreviewFixtures.reading,
+            cpuHistory: [0.12, 0.18, 0.34, 0.42, 0.26, 0.31, 0.39, 0.44],
+            temperatureHistory: [61.2, 62.8, 64.1, 63.6, 64.8, 65.9],
+            rpmHistory: [1_920, 2_040, 2_260, 2_380, 2_560, 2_789],
+            language: .simplifiedChinese,
+            runtime: nil,
+            model: model
+        )
+        .frame(width: 296, height: HubMetrics.monitorCardHeight)
+        .padding(24)
+        .background(MacTheme.canvas)
+    }
+}
+
+@MainActor
+private enum MonitorFanPreviewSnapshot {
+    static func write<Content: View>(
+        _ content: Content,
+        size: CGSize,
+        path: String,
+        dark: Bool
+    ) async -> Bool {
+        let previousMode = GlassSurfaceMode.current
+        GlassSurfaceMode.current = .material
+        defer { GlassSurfaceMode.current = previousMode }
+
+        let host = NSHostingView(rootView: content)
+        host.frame = NSRect(origin: .zero, size: size)
+        host.wantsLayer = true
+        host.layer?.contentsScale = 2
+
+        let window = NSWindow(
+            contentRect: NSRect(origin: .zero, size: size),
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        window.isReleasedWhenClosed = false
+        window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+        window.contentView = host
+        window.center()
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+        try? await Task.sleep(for: .milliseconds(200))
+        host.needsLayout = true
+        host.layoutSubtreeIfNeeded()
+        host.displayIfNeeded()
+
+        let bitmap: NSBitmapImageRep
+        if let image = await screenCapture(window: window, size: size) {
+            bitmap = NSBitmapImageRep(cgImage: image)
+        } else if let cached = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
+            host.cacheDisplay(in: host.bounds, to: cached)
+            bitmap = cached
+        } else {
+            window.orderOut(nil)
+            return false
+        }
+        window.orderOut(nil)
+
+        guard let png = bitmap.representation(using: .png, properties: [:]) else {
+            return false
+        }
+        do {
+            try png.write(to: URL(fileURLWithPath: path), options: .atomic)
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    private static func screenCapture(window: NSWindow, size: CGSize) async -> CGImage? {
+        for _ in 0..<4 {
+            if let content = try? await SCShareableContent.excludingDesktopWindows(
+                false,
+                onScreenWindowsOnly: true
+            ), let capturedWindow = content.windows.first(where: {
+                $0.windowID == CGWindowID(window.windowNumber)
+            }) {
+                let configuration = SCStreamConfiguration()
+                configuration.width = Int(size.width * 2)
+                configuration.height = Int(size.height * 2)
+                configuration.showsCursor = false
+                let filter = SCContentFilter(desktopIndependentWindow: capturedWindow)
+                return try? await SCScreenshotManager.captureImage(
+                    contentFilter: filter,
+                    configuration: configuration
+                )
+            }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        return nil
+    }
+}
+
+@MainActor
+enum MonitorFanDetailRenderer {
+    static func render(to path: String) async -> Bool {
+        let dark = Self.dark
+        return await MonitorFanPreviewSnapshot.write(
+            MonitorFanPreviewRoot()
+                .environment(\.colorScheme, dark ? .dark : .light),
+            size: CGSize(width: 420, height: 620),
+            path: path,
+            dark: dark
+        )
+    }
+
+    private static var dark: Bool {
+        ProcessInfo.processInfo.environment["AppleInterfaceStyle"]?
+            .lowercased() == "dark"
+    }
+}
+
+@MainActor
+enum MonitorFanCardRenderer {
+    static func render(to path: String) async -> Bool {
+        let dark = Self.dark
+        return await MonitorFanPreviewSnapshot.write(
+            MonitorFanCardPreviewRoot()
+                .environment(\.colorScheme, dark ? .dark : .light),
+            size: CGSize(width: 344, height: 284),
+            path: path,
+            dark: dark
+        )
+    }
+
+    private static var dark: Bool {
+        ProcessInfo.processInfo.environment["AppleInterfaceStyle"]?
+            .lowercased() == "dark"
     }
 }
 

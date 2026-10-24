@@ -64,6 +64,9 @@ final class MacMonitorReader {
     private var mainApplications: [AppIdentity] = []
     private var lastIdentityRefreshAt = Date.distantPast
     private let powerEventStore = MonitorPowerEventStore()
+    private lazy var fanReader: SMCFanReader? = try? SMCFanReader()
+    private var lastFanReading: MonitorFanReading?
+    private var lastFanReadAt = Date.distantPast
 
     func read() -> MonitorSnapshot {
         let memory = readMemory()
@@ -76,6 +79,7 @@ final class MacMonitorReader {
             network: readNetwork(),
             battery: reading.battery,
             power: reading.power,
+            fan: readFan(),
             thermal: readThermal(),
             sampledAt: Date()
         )
@@ -84,6 +88,36 @@ final class MacMonitorReader {
     /// 电源卡片每秒只读 IOPS、IOKit 与能耗窗口，不重复扫描无关指标。
     func readPowerOnly() -> MonitorSnapshot.Power {
         readPower(includeTopApps: true).power
+    }
+
+    /// SMC 温度键较多，翻页和帮助浮层都不需要每秒重读全部传感器。
+    private func readFan() -> MonitorFanReading? {
+        guard let fanReader else { return nil }
+        let now = Date()
+        if now.timeIntervalSince(lastFanReadAt) < 2, let lastFanReading {
+            return lastFanReading
+        }
+
+        let snapshot = fanReader.read()
+        guard !snapshot.temperatures.isEmpty else { return nil }
+        let reading = MonitorFanReading(
+            temperatures: snapshot.temperatures.map {
+                MonitorFanReading.Temperature(key: $0.key, celsius: $0.celsius)
+            },
+            units: snapshot.fans.map {
+                MonitorFanReading.Unit(
+                    index: $0.index,
+                    rpm: $0.rpm,
+                    minimumRPM: $0.minimumRPM,
+                    maximumRPM: $0.maximumRPM,
+                    targetRPM: $0.targetRPM,
+                    mode: $0.mode
+                )
+            }
+        )
+        lastFanReadAt = now
+        lastFanReading = reading
+        return reading
     }
 
     /// 读取一条历史样本。

@@ -1,6 +1,6 @@
-# Covio 0.5.1 (internal test)
+# Covio 0.5.2 (internal test)
 
-Covio 0.5.1 is an internal test build.
+Covio 0.5.2 is an internal test build.
 It is not a public release.
 
 ## Requirements
@@ -10,13 +10,13 @@ It is not a public release.
 
 ## What is new
 
-- The workbench ignores navigation hover for 0.5 seconds after it opens.
-  Clicking a navigation item still works during the protection period.
-- The power and fan card popovers keep the workbench open while the user operates them.
-  Closing the last popover restores the normal pointer-exit collapse behavior.
-- Workbench navigation buttons use Liquid Glass.
-- The Files area indexes native macOS screenshots without taking over screenshot capture.
-- All 0.5.0 features remain available.
+- Charge-limit target repair continues while the battery is charging.
+- Target repair retries are rate-limited and no longer remain blocked in `applying`.
+- The current-target field reports the target that macOS actually registered.
+- Active discharge keeps the configured limit instead of falling back to the old target.
+- A developer-only fan capability preview uses Swift Charts.
+  Production fan control is unchanged.
+- All 0.5.1 features remain available.
 - `config.json` remains compatible with 0.4.2.
 
 ## Privileged helper
@@ -26,9 +26,16 @@ It handles sleep, lid leases, charge limits, active discharge, and fan control.
 The app and helper must use the same app version.
 An outdated helper shows an update-required state.
 
+## Verification
+
+- The Kotlin shared tests passed.
+- The macOS SwiftUI suite passed with 798 tests and 2 skipped tests.
+- The offline file-naming bundle verification passed with no non-loopback network rows.
+- The release app is arm64, requires macOS 26, and has a valid ad-hoc signature.
+
 ## Install
 
-1. Open `Covio-0.5.1.dmg`.
+1. Open `Covio-0.5.2.dmg`.
 2. Drag `Covio.app` to `Applications`.
 3. Open `Covio.app`.
 
@@ -43,7 +50,7 @@ xattr -dr com.apple.quarantine /Applications/Covio.app
 ## Checksum
 
 ```text
-d3202027f9a39ae3591a5607015922bd6a5fa9d30c45da6ae1a98e3eebdb4bc7  Covio-0.5.1.dmg
+8fba01f6eacba17921fbd1bd337bac68bcc59f6aae9571faeeab3dc11da2d6d4  Covio-0.5.2.dmg
 ```
 
 ## Internal test notes
@@ -51,6 +58,7 @@ d3202027f9a39ae3591a5607015922bd6a5fa9d30c45da6ae1a98e3eebdb4bc7  Covio-0.5.1.dm
 - Use a test Mac.
 - Fan control writes SMC values and requires the privileged helper.
 - The battery lid-hold option increases battery drain.
+- The battery target-repair path still needs real-Mac acceptance with the 0.5.2 helper.
 - The exact 8 GB hardware path still needs separate validation.
 - The update checker reads the GitHub Releases page and ignores pre-release tags.
 

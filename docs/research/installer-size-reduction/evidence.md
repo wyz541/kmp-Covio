@@ -6,7 +6,7 @@
 | --- | --- |
 | 状态 | 可评审 |
 | 日期 | `2026-10-24` |
-| 目标产品 commit | `356ba9e` |
+| 目标产品 commit | `cf663d5` |
 | 目标发布版本 | `0.5.2` |
 
 ## 问题类别和案例映射
@@ -268,7 +268,7 @@ hdiutil verify        VALID
 
 来源等级：B
 
-环境：Covio commit `356ba9e`。
+环境：Covio commit `cf663d5`。
 
 命令或来源：`macosApp/src/AutoNaming/FileNamingModelManifest*.json`。
 
@@ -297,7 +297,7 @@ hdiutil verify        VALID
 
 来源等级：B
 
-环境：Covio commit `356ba9e`。
+环境：Covio commit `cf663d5`。
 
 命令或来源：`scripts/package-macos-swift.sh`。
 
@@ -325,7 +325,7 @@ ditto "$FILE_NAMING_MODEL_DIR" "$MODEL_RESOURCE"
 
 来源等级：B
 
-环境：Covio commit `356ba9e`。
+环境：Covio commit `cf663d5`。
 
 命令或来源：`macosApp/src/Model/LocalModelPackage.swift`、`macosApp/src/App/AppRuntime.swift`。
 
@@ -551,7 +551,7 @@ Stats.dmg  7,724,844 bytes
 
 来源等级：B
 
-环境：Covio commit `356ba9e`。
+环境：Covio commit `cf663d5`。
 
 命令或来源：`docs/adr/adr-0007-offline-file-naming-model-package.md`。
 
@@ -579,7 +579,7 @@ Stats.dmg  7,724,844 bytes
 
 来源等级：B
 
-环境：Covio commit `356ba9e`。
+环境：Covio commit `cf663d5`。
 
 命令或来源：`docs/adr/adr-0013-local-model-tiers.md`。
 

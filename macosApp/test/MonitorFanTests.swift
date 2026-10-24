@@ -39,6 +39,43 @@ final class MonitorFanTests: XCTestCase {
         )
     }
 
+    func testMultiPointCurveInterpolatesBetweenNearestPoints() {
+        let points = [
+            MonitorFanCurvePoint(temperature: 40, rpm: 1_200),
+            MonitorFanCurvePoint(temperature: 65, rpm: 2_400),
+            MonitorFanCurvePoint(temperature: 85, rpm: 4_800),
+        ]
+
+        XCTAssertEqual(
+            MonitorFanCurve.target(
+                points: points,
+                temperature: 75,
+                minimumRPM: 1_200,
+                maximumRPM: 5_800
+            ),
+            3_600,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            MonitorFanCurve.target(
+                points: points,
+                temperature: 30,
+                minimumRPM: 1_200,
+                maximumRPM: 5_800
+            ),
+            1_200
+        )
+        XCTAssertEqual(
+            MonitorFanCurve.target(
+                points: points,
+                temperature: 100,
+                minimumRPM: 1_200,
+                maximumRPM: 5_800
+            ),
+            4_800
+        )
+    }
+
     func testHysteresisPreventsSmallTemperatureDrops() {
         XCTAssertEqual(
             MonitorFanCurve.heldTemperature(current: 68.7, previous: 70),
@@ -75,6 +112,142 @@ final class MonitorFanTests: XCTestCase {
         XCTAssertEqual(value.selectedSensorKeys, ["TCMz"])
         XCTAssertEqual(value.manualRPM["0"], 1_200)
         XCTAssertEqual(value.manualRPM["1"], 6_000)
+    }
+
+    func testEachFanUsesItsOwnCurve() {
+        let configuration = MonitorFanConfiguration(
+            curves: [
+                "0": [
+                    MonitorFanCurvePoint(temperature: 40, rpm: 1_200),
+                    MonitorFanCurvePoint(temperature: 90, rpm: 5_000),
+                ],
+                "1": [
+                    MonitorFanCurvePoint(temperature: 40, rpm: 1_500),
+                    MonitorFanCurvePoint(temperature: 90, rpm: 6_000),
+                ],
+            ]
+        )
+
+        XCTAssertEqual(
+            configuration.target(
+                fanIndex: 0,
+                temperature: 65,
+                minimumRPM: 1_200,
+                maximumRPM: 5_000
+            ),
+            3_100,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            configuration.target(
+                fanIndex: 1,
+                temperature: 65,
+                minimumRPM: 1_500,
+                maximumRPM: 6_000
+            ),
+            3_750,
+            accuracy: 0.001
+        )
+    }
+
+    func testCurveNormalizationSortsDeduplicatesAndClamps() {
+        let configuration = MonitorFanConfiguration(
+            startCelsius: 58,
+            fullCelsius: 86,
+            curves: [
+                "0": [
+                    MonitorFanCurvePoint(temperature: 90, rpm: 9_000),
+                    MonitorFanCurvePoint(temperature: 20, rpm: 200),
+                    MonitorFanCurvePoint(temperature: 70, rpm: 2_505),
+                    MonitorFanCurvePoint(temperature: 70, rpm: 2_600),
+                ],
+            ]
+        ).normalized(
+            fanMinimums: [0: 1_200],
+            fanMaximums: [0: 5_000]
+        )
+
+        XCTAssertEqual(configuration.curves["0"]?.map(\.temperature), [40, 70, 90])
+        XCTAssertEqual(configuration.curves["0"]?.map(\.rpm), [1_200, 2_600, 5_000])
+    }
+
+    func testCurveNormalizationKeepsBothEndpointsWhenReducingPointCount() {
+        let points = (0..<12).map { index in
+            MonitorFanCurvePoint(
+                temperature: 40 + Double(index * 5),
+                rpm: 1_200 + Double(index * 300)
+            )
+        }
+
+        let normalized = MonitorFanCurve.normalized(
+            points,
+            minimumRPM: 1_200,
+            maximumRPM: 5_800
+        )
+
+        XCTAssertEqual(normalized.count, MonitorFanPolicy.maximumCurvePointCount)
+        XCTAssertEqual(normalized.first?.temperature, 40)
+        XCTAssertEqual(normalized.last?.temperature, 95)
+    }
+
+    func testConfigurationRoundTripsPerFanCurves() throws {
+        let original = MonitorFanConfiguration(
+            enabled: true,
+            curves: [
+                "0": [
+                    MonitorFanCurvePoint(temperature: 45, rpm: 1_200),
+                    MonitorFanCurvePoint(temperature: 78, rpm: 3_900),
+                    MonitorFanCurvePoint(temperature: 92, rpm: 5_800),
+                ],
+            ]
+        )
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(MonitorFanConfiguration.self, from: data)
+
+        XCTAssertEqual(decoded, original)
+    }
+
+    func testLegacyConfigurationWithoutCurvesUsesTwoPointFallback() throws {
+        let data = Data(
+            """
+            {"enabled":true,"mode":"automatic","startCelsius":58,"fullCelsius":86,
+             "selectedSensorKeys":["TCMz"],"manualRPM":{}}
+            """.utf8
+        )
+        let configuration = try JSONDecoder().decode(MonitorFanConfiguration.self, from: data)
+
+        XCTAssertTrue(configuration.curves.isEmpty)
+        XCTAssertEqual(
+            configuration.curvePoints(for: 0, minimumRPM: 1_200, maximumRPM: 5_800),
+            [
+                MonitorFanCurvePoint(temperature: 58, rpm: 1_200),
+                MonitorFanCurvePoint(temperature: 86, rpm: 5_800),
+            ]
+        )
+    }
+
+    func testHelperPayloadRoundTripsPerFanCurves() throws {
+        let payload = MonitorFanConfiguration(
+            enabled: true,
+            curves: [
+                "0": [
+                    MonitorFanCurvePoint(temperature: 45, rpm: 1_200),
+                    MonitorFanCurvePoint(temperature: 92, rpm: 5_800),
+                ],
+                "1": [
+                    MonitorFanCurvePoint(temperature: 50, rpm: 1_300),
+                    MonitorFanCurvePoint(temperature: 96, rpm: 6_000),
+                ],
+            ]
+        ).helperPayload()
+        let curveText = try XCTUnwrap(payload["curves"])
+        let decoded = try JSONDecoder().decode(
+            [String: [MonitorFanCurvePoint]].self,
+            from: Data(curveText.utf8)
+        )
+
+        XCTAssertEqual(decoded["0"]?.first?.temperature, 45)
+        XCTAssertEqual(decoded["1"]?.last?.rpm, 6_000)
     }
 
     func testControlTemperatureUsesSelectedSensors() {

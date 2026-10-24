@@ -4664,6 +4664,42 @@
       "en": "Fan",
       "zh-Hans": "风扇"
     },
+    "copy/monitor/fan/all-fans": {
+      "en": "All fans",
+      "zh-Hans": "全部风扇"
+    },
+    "copy/monitor/fan/curve": {
+      "en": "Temperature curve",
+      "zh-Hans": "温控曲线"
+    },
+    "copy/monitor/fan/curve-hint": {
+      "en": "Drag points or use the sliders.",
+      "zh-Hans": "拖动控制点，或使用滑杆编辑。"
+    },
+    "copy/monitor/fan/control-point": {
+      "en": "Control point %d",
+      "zh-Hans": "控制点 %d"
+    },
+    "copy/monitor/fan/add-point": {
+      "en": "Add point",
+      "zh-Hans": "添加控制点"
+    },
+    "copy/monitor/fan/delete-point": {
+      "en": "Delete point",
+      "zh-Hans": "删除控制点"
+    },
+    "copy/monitor/fan/reset-curve": {
+      "en": "Reset to line",
+      "zh-Hans": "恢复直线"
+    },
+    "copy/monitor/fan/rpm": {
+      "en": "RPM",
+      "zh-Hans": "转速"
+    },
+    "copy/monitor/fan/a11y-curve": {
+      "en": "Fan temperature curve",
+      "zh-Hans": "风扇温控曲线"
+    },
     "copy/monitor/fan/control-summary": {
       "en": "Control temperature · %d sensors",
       "zh-Hans": "控制温度 · %d 个传感器取最大"

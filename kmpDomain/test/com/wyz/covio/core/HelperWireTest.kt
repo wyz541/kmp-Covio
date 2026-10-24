@@ -115,6 +115,14 @@ class HelperWireTest {
             "manualRPM" to "0:2200,1:2400",
         )
         assertNull(HelperWire.validate(request(HelperWire.COMMAND_FAN_CONTROL_CONFIGURE, valid)))
+        assertNull(
+            HelperWire.validate(
+                request(
+                    HelperWire.COMMAND_FAN_CONTROL_CONFIGURE,
+                    valid + ("curves" to """{"0":[{"temperature":45.0,"rpm":1200.0}]}"""),
+                ),
+            ),
+        )
         assertEquals(
             "Fan control must be enabled",
             HelperWire.validate(
@@ -143,6 +151,18 @@ class HelperWireTest {
             "Invalid fan RPM",
             HelperWire.validate(
                 request(HelperWire.COMMAND_FAN_CONTROL_CONFIGURE, valid + ("manualRPM" to "0:fast")),
+            ),
+        )
+        assertEquals(
+            "Fan curve list is too long",
+            HelperWire.validate(
+                request(HelperWire.COMMAND_FAN_CONTROL_CONFIGURE, valid + ("curves" to "x".repeat(8_193))),
+            ),
+        )
+        assertEquals(
+            "Invalid fan curve list",
+            HelperWire.validate(
+                request(HelperWire.COMMAND_FAN_CONTROL_CONFIGURE, valid + ("curves" to "{\n}")),
             ),
         )
     }

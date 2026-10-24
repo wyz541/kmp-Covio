@@ -569,22 +569,36 @@ enum ContractCopy {
     static let copyMonitorDiskUsed = LocalizedCopy(key: "copy/monitor/disk/used", en: "Used", zhHans: "已用")
     /// `copy/monitor/disk/write`
     static let copyMonitorDiskWrite = LocalizedCopy(key: "copy/monitor/disk/write", en: "Write", zhHans: "写入")
+    /// `copy/monitor/fan/a11y-curve`
+    static let copyMonitorFanA11yCurve = LocalizedCopy(key: "copy/monitor/fan/a11y-curve", en: "Fan temperature curve", zhHans: "风扇温控曲线")
     /// `copy/monitor/fan/a11y-open`
     static let copyMonitorFanA11yOpen = LocalizedCopy(key: "copy/monitor/fan/a11y-open", en: "Open fan controls", zhHans: "打开风扇控制")
     /// `copy/monitor/fan/a11y-status`
     static let copyMonitorFanA11yStatus = LocalizedCopy(key: "copy/monitor/fan/a11y-status", en: "Fan control status", zhHans: "风扇控制状态")
     /// `copy/monitor/fan/actual`
     static let copyMonitorFanActual = LocalizedCopy(key: "copy/monitor/fan/actual", en: "Actual", zhHans: "当前")
+    /// `copy/monitor/fan/add-point`
+    static let copyMonitorFanAddPoint = LocalizedCopy(key: "copy/monitor/fan/add-point", en: "Add point", zhHans: "添加控制点")
+    /// `copy/monitor/fan/all-fans`
+    static let copyMonitorFanAllFans = LocalizedCopy(key: "copy/monitor/fan/all-fans", en: "All fans", zhHans: "全部风扇")
     /// `copy/monitor/fan/applying`
     static let copyMonitorFanApplying = LocalizedCopy(key: "copy/monitor/fan/applying", en: "Applying", zhHans: "正在接管")
     /// `copy/monitor/fan/auto-curve`
     static let copyMonitorFanAutoCurve = LocalizedCopy(key: "copy/monitor/fan/auto-curve", en: "Auto curve", zhHans: "自动曲线")
     /// `copy/monitor/fan/balanced`
     static let copyMonitorFanBalanced = LocalizedCopy(key: "copy/monitor/fan/balanced", en: "Balanced", zhHans: "均衡")
+    /// `copy/monitor/fan/control-point`
+    static let copyMonitorFanControlPoint = LocalizedCopy(key: "copy/monitor/fan/control-point", en: "Control point %d", zhHans: "控制点 %d")
     /// `copy/monitor/fan/control-sensors`
     static let copyMonitorFanControlSensors = LocalizedCopy(key: "copy/monitor/fan/control-sensors", en: "Control sensors", zhHans: "控制传感器")
     /// `copy/monitor/fan/control-summary`
     static let copyMonitorFanControlSummary = LocalizedCopy(key: "copy/monitor/fan/control-summary", en: "Control temperature · %d sensors", zhHans: "控制温度 · %d 个传感器取最大")
+    /// `copy/monitor/fan/curve`
+    static let copyMonitorFanCurve = LocalizedCopy(key: "copy/monitor/fan/curve", en: "Temperature curve", zhHans: "温控曲线")
+    /// `copy/monitor/fan/curve-hint`
+    static let copyMonitorFanCurveHint = LocalizedCopy(key: "copy/monitor/fan/curve-hint", en: "Drag points or use the sliders.", zhHans: "拖动控制点，或使用滑杆编辑。")
+    /// `copy/monitor/fan/delete-point`
+    static let copyMonitorFanDeletePoint = LocalizedCopy(key: "copy/monitor/fan/delete-point", en: "Delete point", zhHans: "删除控制点")
     /// `copy/monitor/fan/details`
     static let copyMonitorFanDetails = LocalizedCopy(key: "copy/monitor/fan/details", en: "Fan control", zhHans: "风扇控制")
     /// `copy/monitor/fan/enable`
@@ -609,8 +623,12 @@ enum ContractCopy {
     static let copyMonitorFanQuiet = LocalizedCopy(key: "copy/monitor/fan/quiet", en: "Quiet", zhHans: "安静")
     /// `copy/monitor/fan/read-failed`
     static let copyMonitorFanReadFailed = LocalizedCopy(key: "copy/monitor/fan/read-failed", en: "Fan readings are unavailable.", zhHans: "风扇读数不可用。")
+    /// `copy/monitor/fan/reset-curve`
+    static let copyMonitorFanResetCurve = LocalizedCopy(key: "copy/monitor/fan/reset-curve", en: "Reset to line", zhHans: "恢复直线")
     /// `copy/monitor/fan/restore-system`
     static let copyMonitorFanRestoreSystem = LocalizedCopy(key: "copy/monitor/fan/restore-system", en: "Restore system control", zhHans: "恢复系统控制")
+    /// `copy/monitor/fan/rpm`
+    static let copyMonitorFanRpm = LocalizedCopy(key: "copy/monitor/fan/rpm", en: "RPM", zhHans: "转速")
     /// `copy/monitor/fan/start-caption`
     static let copyMonitorFanStartCaption = LocalizedCopy(key: "copy/monitor/fan/start-caption", en: "%d °C starts ramping", zhHans: "%d °C 开始升温")
     /// `copy/monitor/fan/start-temperature`
@@ -1650,14 +1668,21 @@ enum ContractCopy {
         copyMonitorDiskRead,
         copyMonitorDiskUsed,
         copyMonitorDiskWrite,
+        copyMonitorFanA11yCurve,
         copyMonitorFanA11yOpen,
         copyMonitorFanA11yStatus,
         copyMonitorFanActual,
+        copyMonitorFanAddPoint,
+        copyMonitorFanAllFans,
         copyMonitorFanApplying,
         copyMonitorFanAutoCurve,
         copyMonitorFanBalanced,
+        copyMonitorFanControlPoint,
         copyMonitorFanControlSensors,
         copyMonitorFanControlSummary,
+        copyMonitorFanCurve,
+        copyMonitorFanCurveHint,
+        copyMonitorFanDeletePoint,
         copyMonitorFanDetails,
         copyMonitorFanEnable,
         copyMonitorFanFullCaption,
@@ -1670,7 +1695,9 @@ enum ContractCopy {
         copyMonitorFanOwned,
         copyMonitorFanQuiet,
         copyMonitorFanReadFailed,
+        copyMonitorFanResetCurve,
         copyMonitorFanRestoreSystem,
+        copyMonitorFanRpm,
         copyMonitorFanStartCaption,
         copyMonitorFanStartTemperature,
         copyMonitorFanSystemControl,

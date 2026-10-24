@@ -123,6 +123,7 @@ final class MonitorFanControlModel: ObservableObject {
         configuration.mode = .automatic
         configuration.enabled = true
         configuration.selectedSensorKeys = sensorKeys
+        configuration.curves.removeAll()
         persist()
         apply(reading: reading)
     }
@@ -133,6 +134,44 @@ final class MonitorFanControlModel: ObservableObject {
             return
         }
         apply(reading: reading)
+    }
+
+    /// fanIndex 为 nil 时把同一条曲线写入全部风扇。
+    func setCurve(
+        fanIndex: Int?,
+        points: [MonitorFanCurvePoint],
+        reading: MonitorFanReading
+    ) {
+        let indices = fanIndex.map { [$0] } ?? reading.units.map(\.index)
+        for index in indices {
+            configuration.curves[String(index)] = points
+        }
+        let minimums = Dictionary(uniqueKeysWithValues: reading.units.map {
+            ($0.index, $0.minimumRPM)
+        })
+        let maximums = Dictionary(uniqueKeysWithValues: reading.units.map {
+            ($0.index, $0.maximumRPM)
+        })
+        configuration = configuration.normalized(
+            fanMinimums: minimums,
+            fanMaximums: maximums
+        )
+        persist()
+        if configuration.enabled, configuration.mode == .automatic {
+            apply(reading: reading)
+        }
+    }
+
+    /// 清除自定义曲线，恢复当前起转/全速两点曲线。
+    func clearCurve(fanIndex: Int?, reading: MonitorFanReading) {
+        let indices = fanIndex.map { [$0] } ?? reading.units.map(\.index)
+        for index in indices {
+            configuration.curves.removeValue(forKey: String(index))
+        }
+        persist()
+        if configuration.enabled, configuration.mode == .automatic {
+            apply(reading: reading)
+        }
     }
 
     func setManualRPM(_ rpm: Double, fanIndex: Int, reading: MonitorFanReading) {

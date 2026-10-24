@@ -1,6 +1,7 @@
 import CoreGraphics
 import Foundation
 import kmpDomain
+import os
 
 enum ClosedLidZeroBrightnessPhase: Equatable, Sendable {
     case disabled
@@ -30,6 +31,7 @@ final class ClosedLidZeroBrightnessController {
     private let backend: ClosedLidBrightnessBackend
     private let store: ClosedLidBrightnessRecoveryStoring
     private let nowEpochSeconds: () -> Int64
+    private let logger = Logger(subsystem: ModelsKt.APP_ID, category: "ClosedLidDisplay")
 
     private(set) var phase: ClosedLidZeroBrightnessPhase = .disabled
     private(set) var lastError: String?
@@ -138,6 +140,18 @@ final class ClosedLidZeroBrightnessController {
         if privateBrightnessApplied,
            let record = recoveryRecord,
            (record.displayID == cachedDisplayID || cachedDisplayID == nil) {
+            let state = backend.displayState(displayID: record.displayID)
+            guard state.allowsCapture else {
+                let restored = restorePending(force: true)
+                privateAttemptFailed = true
+                logger.error("Closed-lid display lost capture capability: \(state.diagnosticDescription, privacy: .public)")
+                return fail(
+                    restored
+                        ? "Built-in display is not drawable: \(state.diagnosticDescription)"
+                        : "Built-in display is not drawable and brightness restore failed: \(state.diagnosticDescription)",
+                    fallback: true
+                )
+            }
             activeDisplayID = record.displayID
             phase = .active
             lastError = nil
@@ -159,6 +173,15 @@ final class ClosedLidZeroBrightnessController {
         }
 
         do {
+            let before = backend.displayState(displayID: displayID)
+            guard before.allowsCapture else {
+                privateAttemptFailed = true
+                logger.error("Closed-lid display is not drawable: \(before.diagnosticDescription, privacy: .public)")
+                return fail(
+                    "Built-in display is not drawable: \(before.diagnosticDescription)",
+                    fallback: true
+                )
+            }
             let original = try backend.readBrightness(displayID: displayID)
             let record = ClosedLidBrightnessRecoveryRecord(
                 displayID: displayID,
@@ -186,10 +209,24 @@ final class ClosedLidZeroBrightnessController {
                 )
             }
 
+            let after = backend.displayState(displayID: displayID)
+            guard after.allowsCapture else {
+                let restored = restorePending(force: true)
+                privateAttemptFailed = true
+                logger.error("Closed-lid display became unavailable after brightness zero: \(after.diagnosticDescription, privacy: .public)")
+                return fail(
+                    restored
+                        ? "Built-in display became unavailable after brightness zero: \(after.diagnosticDescription)"
+                        : "Built-in display became unavailable and brightness restore failed: \(after.diagnosticDescription)",
+                    fallback: true
+                )
+            }
+
             phase = .active
             privateBrightnessApplied = true
             privateAttemptFailed = false
             lastError = nil
+            logger.info("Closed-lid display is drawable at zero brightness: \(after.diagnosticDescription, privacy: .public)")
             return evaluation(active: true, fallback: false)
         } catch {
             let message = error.localizedDescription

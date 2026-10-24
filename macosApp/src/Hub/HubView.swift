@@ -125,6 +125,7 @@ struct HubView: View {
             searchText: $chrome.searchText,
             language: language,
             pageAction: workbench.pageAction,
+            reduceMotion: reduceMotion,
             onHome: { workbench.destination = .home },
             onSelect: { workbench.select(paneID: $0) },
             onReorder: { workbench.movePane(from: $0, to: $1) },

@@ -1,6 +1,6 @@
-# Covio 0.5.0 (internal test)
+# Covio 0.5.1 (internal test)
 
-Covio 0.5.0 is an internal test build.
+Covio 0.5.1 is an internal test build.
 It is not a public release.
 
 ## Requirements
@@ -10,18 +10,13 @@ It is not a public release.
 
 ## What is new
 
-- The macOS host is SwiftUI. Shared domain logic is Kotlin Multiplatform in `kmpDomain`.
-- The Hub uses a Liquid Glass base plate and an adaptive glass navigation layer.
-- Settings search opens the matching Settings row and highlights it.
-- Clipboard history keeps recent text, images, and files.
-- Files supports local offline auto naming for text, PDF, images, code, and mixed files.
-  It includes preview, safe rename, and undo.
-- Monitor shows CPU, GPU, memory, disk, network, battery, and power telemetry.
-- The power card shows supply state, temperature, power draw, charging data, and energy users.
-- The fan card shows control temperature and RPM trends.
-  Its popover provides automatic curves, manual RPM, presets, sensor selection,
-  and automatic return to system control.
-- Sleep, lid, DarkWake, helper, screenshot toolbar, and LaunchAgent functions remain available.
+- The workbench ignores navigation hover for 0.5 seconds after it opens.
+  Clicking a navigation item still works during the protection period.
+- The power and fan card popovers keep the workbench open while the user operates them.
+  Closing the last popover restores the normal pointer-exit collapse behavior.
+- Workbench navigation buttons use Liquid Glass.
+- The Files area indexes native macOS screenshots without taking over screenshot capture.
+- All 0.5.0 features remain available.
 - `config.json` remains compatible with 0.4.2.
 
 ## Privileged helper
@@ -33,7 +28,7 @@ An outdated helper shows an update-required state.
 
 ## Install
 
-1. Open `Covio-0.5.0.dmg`.
+1. Open `Covio-0.5.1.dmg`.
 2. Drag `Covio.app` to `Applications`.
 3. Open `Covio.app`.
 
@@ -48,7 +43,7 @@ xattr -dr com.apple.quarantine /Applications/Covio.app
 ## Checksum
 
 ```text
-844f2e88db4aee821532d47e3a99edc7375a59dd8bfb86e6e99914be5b1a7c61  Covio-0.5.0.dmg
+d3202027f9a39ae3591a5607015922bd6a5fa9d30c45da6ae1a98e3eebdb4bc7  Covio-0.5.1.dmg
 ```
 
 ## Internal test notes

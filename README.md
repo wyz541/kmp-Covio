@@ -41,17 +41,18 @@ Progress is read from GitHub. The repository does not hold issue definitions.
 ## Download (internal test)
 
 Covio is under internal test.
-Covio 0.5.0 is the current build.
+Covio 0.5.1 is the current build.
 It requires macOS 26 or later on Apple Silicon.
 
-- [Covio-0.5.0.dmg](https://github.com/wyz541/kmp-Covio/releases/download/v0.5.0/Covio-0.5.0.dmg)
-- [Release page](https://github.com/wyz541/kmp-Covio/releases/tag/v0.5.0)
-- [SHA-256](https://github.com/wyz541/kmp-Covio/releases/download/v0.5.0/Covio-0.5.0.dmg.sha256)
-- [Covio 0.4.2](https://github.com/wyz541/kmp-Covio/releases/tag/v0.4.2) is the previous internal test.
+- [Covio-0.5.1.dmg](https://github.com/wyz541/kmp-Covio/releases/download/v0.5.1/Covio-0.5.1.dmg)
+- [Release page](https://github.com/wyz541/kmp-Covio/releases/tag/v0.5.1)
+- [SHA-256](https://github.com/wyz541/kmp-Covio/releases/download/v0.5.1/Covio-0.5.1.dmg.sha256)
+- [Covio 0.5.0](https://github.com/wyz541/kmp-Covio/releases/tag/v0.5.0) is the previous internal test.
+- [Covio 0.4.2](https://github.com/wyz541/kmp-Covio/releases/tag/v0.4.2) is an older internal test.
 
 Install steps:
 
-1. Open `Covio-0.5.0.dmg`.
+1. Open `Covio-0.5.1.dmg`.
 2. Drag `Covio.app` to `Applications`.
 3. Open `Covio.app`.
 
@@ -69,8 +70,17 @@ xattr -dr com.apple.quarantine /Applications/Covio.app
 The DMG SHA-256 value is:
 
 ```text
-844f2e88db4aee821532d47e3a99edc7375a59dd8bfb86e6e99914be5b1a7c61  Covio-0.5.0.dmg
+d3202027f9a39ae3591a5607015922bd6a5fa9d30c45da6ae1a98e3eebdb4bc7  Covio-0.5.1.dmg
 ```
+
+## What is new in 0.5.1
+
+- The workbench ignores navigation hover for 0.5 seconds after it opens. Clicking still works.
+- Power and fan card popovers keep the workbench open while the user operates them.
+- Closing the last popover restores the normal pointer-exit collapse behavior.
+- Workbench navigation buttons use Liquid Glass.
+- The Files area indexes native macOS screenshots without taking over screenshot capture.
+- `config.json` remains compatible with 0.4.2.
 
 ## What is new in 0.5.0
 
@@ -327,13 +337,13 @@ The model weights are not in Git.
 3. Verify the signed DMG in a network-denied sandbox:
 
    ```sh
-   bash scripts/verify-file-naming-bundle.sh dist/Covio-0.5.0.dmg
+   bash scripts/verify-file-naming-bundle.sh dist/Covio-0.5.1.dmg
    ```
 
 The package script writes these files:
 
 - `dist/Covio.app`
-- `dist/Covio-0.5.0.dmg`
+- `dist/Covio-0.5.1.dmg`
 
 The script verifies the model manifest, file sizes, SHA-256 values, license, and NOTICE.
 The script embeds the model under `Contents/Resources/Models/Qwen3VL-2B-Instruct-4bit/`.

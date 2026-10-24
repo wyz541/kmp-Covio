@@ -355,7 +355,21 @@ struct MonitorFanPreviewRoot: View {
             startCelsius: 58,
             fullCelsius: 86,
             selectedSensorKeys: ["TCMz", "TC0P"],
-            manualRPM: ["0": 2_588, "1": 2_709]
+            manualRPM: ["0": 2_588, "1": 2_709],
+            curves: [
+                "0": [
+                    .init(temperature: 45, rpm: 1_200),
+                    .init(temperature: 62, rpm: 2_200),
+                    .init(temperature: 78, rpm: 3_900),
+                    .init(temperature: 92, rpm: 5_800),
+                ],
+                "1": [
+                    .init(temperature: 45, rpm: 1_300),
+                    .init(temperature: 62, rpm: 2_400),
+                    .init(temperature: 78, rpm: 4_300),
+                    .init(temperature: 92, rpm: 6_000),
+                ],
+            ]
         ),
         availability: .ready,
         helperStatus: FanControlHelperStatus(
@@ -376,7 +390,7 @@ struct MonitorFanPreviewRoot: View {
             scrollsContent: false,
             rendersForSnapshot: true
         )
-        .frame(width: 420, height: 620, alignment: .topLeading)
+        .frame(width: 420, height: 760, alignment: .topLeading)
         .background(MacTheme.surface)
     }
 }
@@ -506,7 +520,7 @@ enum MonitorFanDetailRenderer {
         return await MonitorFanPreviewSnapshot.write(
             MonitorFanPreviewRoot()
                 .environment(\.colorScheme, dark ? .dark : .light),
-            size: CGSize(width: 420, height: 620),
+            size: CGSize(width: 420, height: 760),
             path: path,
             dark: dark
         )

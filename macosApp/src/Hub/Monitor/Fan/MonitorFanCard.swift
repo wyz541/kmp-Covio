@@ -84,7 +84,7 @@ struct MonitorFanCard: View {
                 runtime: runtime,
                 model: model
             )
-            .frame(width: 420, height: 620, alignment: .topLeading)
+            .frame(width: 420, height: 760, alignment: .topLeading)
             .onAppear {
                 popoverCoordinator?.setPresented(true, id: popoverID)
             }
@@ -399,7 +399,7 @@ struct MonitorFanPopover: View {
 
                 if model.configuration.mode == .automatic {
                     presetRow
-                    curveSliders
+                    curveEditor
                 } else {
                     manualControls
                 }
@@ -530,65 +530,20 @@ struct MonitorFanPopover: View {
         .disabled(model.busy)
     }
 
-    private var curveSliders: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            curveSlider(
-                title: ContractCopy.copyMonitorFanStartTemperature.text(for: language),
-                value: Binding(
-                    get: { model.configuration.startCelsius },
-                    set: { model.configuration.startCelsius = $0 }
-                ),
-                range: MonitorFanPolicy.minimumStartCelsius...min(80, model.configuration.fullCelsius - 5),
-                caption: String(
-                    format: ContractCopy.copyMonitorFanStartCaption.text(for: language),
-                    Int(model.configuration.startCelsius)
-                )
-            )
-            curveSlider(
-                title: ContractCopy.copyMonitorFanFullTemperature.text(for: language),
-                value: Binding(
-                    get: { model.configuration.fullCelsius },
-                    set: { model.configuration.fullCelsius = $0 }
-                ),
-                range: (model.configuration.startCelsius + 5)...MonitorFanPolicy.maximumFullCelsius,
-                caption: String(
-                    format: ContractCopy.copyMonitorFanFullCaption.text(for: language),
-                    Int(model.configuration.fullCelsius)
-                )
-            )
-        }
-    }
-
-    private func curveSlider(
-        title: String,
-        value: Binding<Double>,
-        range: ClosedRange<Double>,
-        caption: String
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack {
-                Text(title)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(MacTheme.textPrimary)
-                Spacer(minLength: 0)
-                Text(caption)
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(MacTheme.textSecondary)
+    private var curveEditor: some View {
+        MonitorFanCurveEditor(
+            reading: reading,
+            configuration: model.configuration,
+            language: language,
+            interactive: !rendersForSnapshot,
+            busy: model.busy,
+            onCommit: { fanIndex, points in
+                model.setCurve(fanIndex: fanIndex, points: points, reading: reading)
+            },
+            onClear: { fanIndex in
+                model.clearCurve(fanIndex: fanIndex, reading: reading)
             }
-            if rendersForSnapshot {
-                MonitorFanSnapshotSlider(
-                    value: value.wrappedValue,
-                    range: range
-                )
-            } else {
-                Slider(value: value, in: range, step: 1) { editing in
-                    if !editing {
-                        model.applyCurve(reading: reading)
-                    }
-                }
-                .disabled(model.busy)
-            }
-        }
+        )
     }
 
     private var manualControls: some View {

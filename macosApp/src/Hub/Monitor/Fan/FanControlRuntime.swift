@@ -213,10 +213,9 @@ final class FanControlRuntime: @unchecked Sendable {
                 if configuration.mode == .manual {
                     target = configuration.manualRPM[String(fan.index)] ?? fan.minimumRPM
                 } else {
-                    target = MonitorFanCurve.target(
+                    target = configuration.target(
+                        fanIndex: fan.index,
                         temperature: stableTemperature ?? 0,
-                        startCelsius: configuration.startCelsius,
-                        fullCelsius: configuration.fullCelsius,
                         minimumRPM: fan.minimumRPM,
                         maximumRPM: fan.maximumRPM
                     )
@@ -287,13 +286,27 @@ final class FanControlRuntime: @unchecked Sendable {
             manualRPM[String(fanIndex)] = rpm
         }
 
+        var curves: [String: [MonitorFanCurvePoint]] = [:]
+        if let curveText = payload["curves"], !curveText.isEmpty {
+            guard let data = curveText.data(using: .utf8),
+                  let decoded = try? JSONDecoder().decode(
+                      [String: [MonitorFanCurvePoint]].self,
+                      from: data
+                  )
+            else {
+                return nil
+            }
+            curves = decoded
+        }
+
         return MonitorFanConfiguration(
             enabled: true,
             mode: mode,
             startCelsius: start,
             fullCelsius: full,
             selectedSensorKeys: sensors,
-            manualRPM: manualRPM
+            manualRPM: manualRPM,
+            curves: curves
         )
     }
 

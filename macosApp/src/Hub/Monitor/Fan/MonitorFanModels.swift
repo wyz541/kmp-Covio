@@ -37,6 +37,13 @@ enum MonitorFanMode: String, Codable, CaseIterable, Sendable {
     case manual
 }
 
+struct MonitorFanCurvePoint: Codable, Equatable, Sendable, Identifiable {
+    var temperature: Double
+    var rpm: Double
+
+    var id: String { "\(temperature)-\(rpm)" }
+}
+
 struct MonitorFanConfiguration: Codable, Equatable, Sendable {
     var enabled: Bool = false
     var mode: MonitorFanMode = .automatic
@@ -44,8 +51,63 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
     var fullCelsius: Double = 86
     var selectedSensorKeys: [String] = []
     var manualRPM: [String: Double] = [:]
+    /// 风扇序号对应的多点曲线。缺少某台风扇时，使用起转/全速两点曲线。
+    var curves: [String: [MonitorFanCurvePoint]] = [:]
 
     static let defaultValue = MonitorFanConfiguration()
+
+    init(
+        enabled: Bool = false,
+        mode: MonitorFanMode = .automatic,
+        startCelsius: Double = 58,
+        fullCelsius: Double = 86,
+        selectedSensorKeys: [String] = [],
+        manualRPM: [String: Double] = [:],
+        curves: [String: [MonitorFanCurvePoint]] = [:]
+    ) {
+        self.enabled = enabled
+        self.mode = mode
+        self.startCelsius = startCelsius
+        self.fullCelsius = fullCelsius
+        self.selectedSensorKeys = selectedSensorKeys
+        self.manualRPM = manualRPM
+        self.curves = curves
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case enabled
+        case mode
+        case startCelsius
+        case fullCelsius
+        case selectedSensorKeys
+        case manualRPM
+        case curves
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? false
+        mode = try container.decodeIfPresent(MonitorFanMode.self, forKey: .mode) ?? .automatic
+        startCelsius = try container.decodeIfPresent(Double.self, forKey: .startCelsius) ?? 58
+        fullCelsius = try container.decodeIfPresent(Double.self, forKey: .fullCelsius) ?? 86
+        selectedSensorKeys = try container.decodeIfPresent([String].self, forKey: .selectedSensorKeys) ?? []
+        manualRPM = try container.decodeIfPresent([String: Double].self, forKey: .manualRPM) ?? [:]
+        curves = try container.decodeIfPresent(
+            [String: [MonitorFanCurvePoint]].self,
+            forKey: .curves
+        ) ?? [:]
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(enabled, forKey: .enabled)
+        try container.encode(mode, forKey: .mode)
+        try container.encode(startCelsius, forKey: .startCelsius)
+        try container.encode(fullCelsius, forKey: .fullCelsius)
+        try container.encode(selectedSensorKeys, forKey: .selectedSensorKeys)
+        try container.encode(manualRPM, forKey: .manualRPM)
+        try container.encode(curves, forKey: .curves)
+    }
 
     func normalized(fanMinimums: [Int: Double] = [:], fanMaximums: [Int: Double] = [:]) -> Self {
         var copy = self
@@ -71,11 +133,56 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
             normalizedRPM[key] = min(maximum, max(minimum, value.rounded()))
         }
         copy.manualRPM = normalizedRPM
+
+        var normalizedCurves: [String: [MonitorFanCurvePoint]] = [:]
+        for (key, points) in curves {
+            guard let fanIndex = Int(key), fanIndex >= 0 else { continue }
+            let minimum = max(0, fanMinimums[fanIndex] ?? 0)
+            let maximum = max(minimum, fanMaximums[fanIndex] ?? MonitorFanPolicy.maximumRPM)
+            let normalizedPoints = MonitorFanCurve.normalized(points, minimumRPM: minimum, maximumRPM: maximum)
+            if normalizedPoints.count >= 2 {
+                normalizedCurves[key] = normalizedPoints
+            }
+        }
+        copy.curves = normalizedCurves
         return copy
     }
 
     func controlTemperature(in reading: MonitorFanReading) -> Double? {
         reading.controlTemperature(selectedKeys: Set(selectedSensorKeys))
+    }
+
+    /// 返回指定风扇的曲线。没有自定义曲线时，沿用起转/全速两点曲线。
+    func curvePoints(
+        for fanIndex: Int,
+        minimumRPM: Double,
+        maximumRPM: Double
+    ) -> [MonitorFanCurvePoint] {
+        if let points = curves[String(fanIndex)], points.count >= 2 {
+            return points
+        }
+        return [
+            MonitorFanCurvePoint(temperature: startCelsius, rpm: minimumRPM),
+            MonitorFanCurvePoint(temperature: fullCelsius, rpm: maximumRPM),
+        ]
+    }
+
+    func target(
+        fanIndex: Int,
+        temperature: Double,
+        minimumRPM: Double,
+        maximumRPM: Double
+    ) -> Double {
+        MonitorFanCurve.target(
+            points: curvePoints(
+                for: fanIndex,
+                minimumRPM: minimumRPM,
+                maximumRPM: maximumRPM
+            ),
+            temperature: temperature,
+            minimumRPM: minimumRPM,
+            maximumRPM: maximumRPM
+        )
     }
 
     func helperPayload() -> [String: String] {
@@ -87,6 +194,11 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
             .sorted { $0.0 < $1.0 }
             .map { "\($0.0):\(Int($0.1.rounded()))" }
             .joined(separator: ",")
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let curveText = curves.isEmpty
+            ? ""
+            : (try? encoder.encode(curves)).flatMap { String(data: $0, encoding: .utf8) } ?? ""
         return [
             "enabled": enabled ? "true" : "false",
             "mode": mode == .manual ? "manual" : "auto",
@@ -94,6 +206,7 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
             "full": String(format: "%.0f", fullCelsius),
             "sensors": selectedSensorKeys.joined(separator: ","),
             "manualRPM": rpm,
+            "curves": curveText,
         ]
     }
 
@@ -105,7 +218,9 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
 enum MonitorFanPolicy {
     static let minimumStartCelsius = 35.0
     static let maximumStartCelsius = 80.0
+    static let minimumCurveCelsius = 40.0
     static let maximumFullCelsius = 105.0
+    static let maximumCurvePointCount = 8
     static let minimumTemperatureSpan = 5.0
     static let hysteresisCelsius = 1.5
     static let maximumSensorCount = 32
@@ -145,9 +260,71 @@ enum MonitorFanCurve {
         minimumRPM: Double,
         maximumRPM: Double
     ) -> Double {
-        let safeFull = max(startCelsius + 0.001, fullCelsius)
-        let progress = min(max((temperature - startCelsius) / (safeFull - startCelsius), 0), 1)
-        return min(maximumRPM, max(minimumRPM, minimumRPM + (maximumRPM - minimumRPM) * progress))
+        target(
+            points: [
+                MonitorFanCurvePoint(temperature: startCelsius, rpm: minimumRPM),
+                MonitorFanCurvePoint(temperature: fullCelsius, rpm: maximumRPM),
+            ],
+            temperature: temperature,
+            minimumRPM: minimumRPM,
+            maximumRPM: maximumRPM
+        )
+    }
+
+    static func target(
+        points: [MonitorFanCurvePoint],
+        temperature: Double,
+        minimumRPM: Double,
+        maximumRPM: Double
+    ) -> Double {
+        let sorted = normalized(points, minimumRPM: minimumRPM, maximumRPM: maximumRPM)
+        guard let first = sorted.first, let last = sorted.last else {
+            return minimumRPM
+        }
+        let value: Double
+        if temperature <= first.temperature {
+            value = first.rpm
+        } else if temperature >= last.temperature {
+            value = last.rpm
+        } else {
+            value = zip(sorted, sorted.dropFirst()).first { left, right in
+                temperature <= right.temperature
+            }.map { left, right in
+                let fraction = (temperature - left.temperature) / max(0.001, right.temperature - left.temperature)
+                return left.rpm + (right.rpm - left.rpm) * fraction
+            } ?? last.rpm
+        }
+        return min(maximumRPM, max(minimumRPM, value))
+    }
+
+    static func normalized(
+        _ points: [MonitorFanCurvePoint],
+        minimumRPM: Double,
+        maximumRPM: Double
+    ) -> [MonitorFanCurvePoint] {
+        let safeMinimum = max(0, minimumRPM)
+        let safeMaximum = max(safeMinimum, maximumRPM)
+        var byTemperature: [Double: MonitorFanCurvePoint] = [:]
+        for point in points where point.temperature.isFinite && point.rpm.isFinite {
+            let temperature = min(
+                MonitorFanPolicy.maximumFullCelsius,
+                max(MonitorFanPolicy.minimumCurveCelsius, point.temperature.rounded())
+            )
+            let rpm = min(
+                safeMaximum,
+                max(safeMinimum, ((point.rpm / 50).rounded() * 50))
+            )
+            byTemperature[temperature] = MonitorFanCurvePoint(temperature: temperature, rpm: rpm)
+        }
+        let sorted = byTemperature.values.sorted { $0.temperature < $1.temperature }
+        guard sorted.count > MonitorFanPolicy.maximumCurvePointCount else {
+            return sorted
+        }
+        let lastIndex = sorted.count - 1
+        let interval = Double(lastIndex) / Double(MonitorFanPolicy.maximumCurvePointCount - 1)
+        return (0..<MonitorFanPolicy.maximumCurvePointCount).map { slot in
+            sorted[Int((Double(slot) * interval).rounded())]
+        }
     }
 
     static func heldTemperature(

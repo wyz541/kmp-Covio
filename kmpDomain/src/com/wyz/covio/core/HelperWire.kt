@@ -177,7 +177,7 @@ object HelperWire {
         if (request.command == COMMAND_FAN_CONTROL_CONFIGURE) {
             if (request.payload["enabled"] != "true") return "Fan control must be enabled"
             val mode = request.payload["mode"]
-            if (mode != "auto" && mode != "manual") return "Invalid fan control mode"
+            if (mode != "auto" && mode != "curve" && mode != "manual") return "Invalid fan control mode"
             val start = request.payload["start"]?.toDoubleOrNull()
                 ?: return "Missing fan start temperature"
             val full = request.payload["full"]?.toDoubleOrNull()

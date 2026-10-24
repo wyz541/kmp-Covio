@@ -100,6 +100,9 @@ final class MonitorFanControlModel: ObservableObject {
 
     func setEnabled(_ enabled: Bool, reading: MonitorFanReading) {
         configuration.enabled = enabled
+        if enabled, configuration.mode.isAutomatic {
+            configuration.mode = .curve
+        }
         persist()
         if enabled {
             apply(reading: reading)
@@ -110,8 +113,11 @@ final class MonitorFanControlModel: ObservableObject {
 
     func setMode(_ mode: MonitorFanMode, reading: MonitorFanReading) {
         configuration.mode = mode
+        configuration.enabled = !mode.isAutomatic
         persist()
-        if configuration.enabled {
+        if mode.isAutomatic {
+            restore()
+        } else {
             apply(reading: reading)
         }
     }
@@ -120,7 +126,7 @@ final class MonitorFanControlModel: ObservableObject {
         let sensorKeys = configuration.selectedSensorKeys
         configuration.startCelsius = preset.startCelsius
         configuration.fullCelsius = preset.fullCelsius
-        configuration.mode = .automatic
+        configuration.mode = .curve
         configuration.enabled = true
         configuration.selectedSensorKeys = sensorKeys
         configuration.curves.removeAll()
@@ -157,7 +163,7 @@ final class MonitorFanControlModel: ObservableObject {
             fanMaximums: maximums
         )
         persist()
-        if configuration.enabled, configuration.mode == .automatic {
+        if configuration.enabled, configuration.mode == .curve {
             apply(reading: reading)
         }
     }
@@ -169,17 +175,32 @@ final class MonitorFanControlModel: ObservableObject {
             configuration.curves.removeValue(forKey: String(index))
         }
         persist()
-        if configuration.enabled, configuration.mode == .automatic {
+        if configuration.enabled, configuration.mode == .curve {
             apply(reading: reading)
         }
     }
 
     func setManualRPM(_ rpm: Double, fanIndex: Int, reading: MonitorFanReading) {
-        configuration.manualRPM[String(fanIndex)] = rpm.rounded()
+        if configuration.syncFans {
+            for (index, target) in MonitorFanSpeedSync.targets(
+                sourceFanIndex: fanIndex,
+                rpm: rpm,
+                units: reading.units
+            ) {
+                configuration.manualRPM[String(index)] = target
+            }
+        } else {
+            configuration.manualRPM[String(fanIndex)] = rpm.rounded()
+        }
         persist()
         if configuration.enabled, configuration.mode == .manual {
             apply(reading: reading)
         }
+    }
+
+    func setSyncFans(_ enabled: Bool) {
+        configuration.syncFans = enabled
+        persist()
     }
 
     func setSensor(_ key: String, enabled: Bool, reading: MonitorFanReading) {
@@ -192,7 +213,7 @@ final class MonitorFanControlModel: ObservableObject {
         if selected.isEmpty { return }
         configuration.selectedSensorKeys = selected.sorted()
         persist()
-        if configuration.enabled, configuration.mode == .automatic {
+        if configuration.enabled, configuration.mode == .curve {
             apply(reading: reading)
         }
     }
@@ -201,6 +222,7 @@ final class MonitorFanControlModel: ObservableObject {
         guard !busy else { return }
         if skipsAvailabilityRefresh {
             configuration.enabled = false
+            configuration.mode = .automatic
             return
         }
         busy = true
@@ -211,6 +233,7 @@ final class MonitorFanControlModel: ObservableObject {
                 self.busy = false
                 if result.ok {
                     self.configuration.enabled = false
+                    self.configuration.mode = .automatic
                     self.helperStatus = FanControlHelperStatus(
                         active: false,
                         mode: "system",
@@ -240,6 +263,10 @@ final class MonitorFanControlModel: ObservableObject {
     private func apply(reading: MonitorFanReading) {
         guard !busy else { return }
         if skipsAvailabilityRefresh { return }
+        guard !configuration.mode.isAutomatic else {
+            restore()
+            return
+        }
         let minimums = Dictionary(uniqueKeysWithValues: reading.units.map {
             ($0.index, $0.minimumRPM)
         })

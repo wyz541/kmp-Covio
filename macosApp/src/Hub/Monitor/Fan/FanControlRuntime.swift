@@ -66,6 +66,9 @@ final class FanControlRuntime: @unchecked Sendable {
                 message: "Invalid fan configuration"
             )
         }
+        if parsed.mode.isAutomatic {
+            return restore(requestId: request.requestId, error: nil)
+        }
 
         let hardware: (SMCFanReader, SMCFanWriter)
         do {
@@ -194,7 +197,7 @@ final class FanControlRuntime: @unchecked Sendable {
         }
 
         var stableTemperature: Double?
-        if configuration.mode == .automatic {
+        if configuration.mode == .curve {
             guard let currentTemperature = snapshot.temperatures.map(\.celsius).max() else {
                 registerFailure("Control temperature is unavailable")
                 return
@@ -263,8 +266,12 @@ final class FanControlRuntime: @unchecked Sendable {
     private func parseConfiguration(_ payload: [String: String]) -> MonitorFanConfiguration? {
         guard payload["enabled"] == "true",
               let modeText = payload["mode"],
-              let mode = modeText == "manual" ? MonitorFanMode.manual :
-                (modeText == "auto" ? MonitorFanMode.automatic : nil),
+              let mode = switch modeText {
+              case "auto": MonitorFanMode.automatic
+              case "curve": MonitorFanMode.curve
+              case "manual": MonitorFanMode.manual
+              default: nil
+              },
               let start = Double(payload["start"] ?? ""),
               let full = Double(payload["full"] ?? ""),
               start.isFinite,

@@ -117,6 +117,11 @@ class HelperWireTest {
         assertNull(HelperWire.validate(request(HelperWire.COMMAND_FAN_CONTROL_CONFIGURE, valid)))
         assertNull(
             HelperWire.validate(
+                request(HelperWire.COMMAND_FAN_CONTROL_CONFIGURE, valid + ("mode" to "curve")),
+            ),
+        )
+        assertNull(
+            HelperWire.validate(
                 request(
                     HelperWire.COMMAND_FAN_CONTROL_CONFIGURE,
                     valid + ("curves" to """{"0":[{"temperature":45.0,"rpm":1200.0}]}"""),

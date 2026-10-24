@@ -1,14 +1,15 @@
 # Monitor 风扇卡片
 
 本文定义 Monitor 页风扇卡片的结构、控制行为和故障边界。
-实现口径参考 [MacFanControl](https://github.com/skydeadpeng/MacFanControl)。
+多点曲线参考 [MacFanControl](https://github.com/skydeadpeng/MacFanControl)。
+自动、手动和同步控制参考 [Stats](https://github.com/exelban/stats)。
 
 ## 1. 目标
 
 风扇卡片有四个目标。
 
 1. 用户不用打开其他应用就能看到控制温度和风扇转速。
-2. 用户能切换自动曲线和手动转速。
+2. 用户能使用系统自动、曲线和手动转速。
 3. 用户能选择参与控制温度的 SMC 传感器。
 4. Covio 退出、崩溃或丢失 helper 租约后，系统风扇控制自动恢复。
 
@@ -19,6 +20,7 @@
 | ![风扇卡片亮色](previews/313-monitor-fan-card-light-1.png) | ![风扇卡片深色](previews/313-monitor-fan-card-dark-1.png) |
 | ![风扇 popover 亮色](previews/313-monitor-fan-popover-light-1.png) | ![风扇 popover 深色](previews/313-monitor-fan-popover-dark-1.png) |
 | ![多点曲线亮色](previews/333-fan-multipoint-curve-light-after-2.png) | ![多点曲线深色](previews/333-fan-multipoint-curve-dark-after-2.png) |
+| ![手动同步亮色](previews/362-fan-manual-sync-light-after-1.png) | ![手动同步深色](previews/362-fan-manual-sync-dark-after-1.png) |
 
 ## 3. 三段式结构
 
@@ -55,11 +57,13 @@ popover 固定宽度 420 点、固定高度 760 点。
 2. Helper 状态和修复入口。
 3. 安全说明和恢复系统控制。
 4. 启用风扇控制开关。
-5. 自动曲线或手动转速。
+5. 曲线或手动转速。
 6. 风扇实际转速和目标转速。
 7. 控制传感器。
 
-自动曲线使用 SwiftUI 和 Apple Swift Charts。
+系统自动模式只释放风扇控制，不运行温度曲线。
+曲线模式才持有风扇并写入目标转速。
+曲线模式使用 SwiftUI 和 Apple Swift Charts。
 
 | 项目 | 规范 |
 | --- | --- |
@@ -89,6 +93,11 @@ popover 固定宽度 420 点、固定高度 760 点。
 手动模式为每个风扇显示转速滑杆。
 目标转速限制在该风扇的 `Mn` 和 `Mx` 之间。
 
+手动模式在多风扇设备上提供同步开关。
+同步开关默认关闭。
+开启后，一次滑杆修改按转速百分比映射到每台风扇自己的硬件范围。
+同步规则来自 Stats 的 `Synchronize fan's control`。
+
 控制温度下降不超过 1.5 °C 时保留前一控制温度。
 温度上升立即生效。此规则减少阈值附近的转速抖动。
 
@@ -108,7 +117,8 @@ Covio UI --每 5 秒续租--> FanControlRuntime
 FanControlRuntime --20 秒无续租--> 恢复系统控制
 ```
 
-helper 每秒执行一次控制循环。
+曲线和手动模式每秒执行一次控制循环。
+系统自动模式不启动控制循环。
 连续 3 次写入失败时，helper 停止控制并恢复系统风扇模式。
 
 以下操作会恢复系统控制。
@@ -159,6 +169,7 @@ Intel 使用 `F%dMn`。
 
 - 需求来源：[#313](https://github.com/wyz541/kmp-Covio/issues/313)
 - SMC 与风扇实现：MacFanControl `d26184f`，MIT 许可
+- 自动模式与同步控制：Stats `7d3f70d`，MIT 许可
 - 现有监控页：`macosApp/src/Hub/Monitor/MonitorTabView.swift`
 - 现有快照：`macosApp/src/Hub/Monitor/MonitorSnapshot.swift`
 - 功耗卡片三段式规范：[monitor-power-card.md](monitor-power-card.md)

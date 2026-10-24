@@ -397,7 +397,7 @@ struct MonitorFanPopover: View {
             if model.configuration.enabled {
                 modeControl
 
-                if model.configuration.mode == .automatic {
+                if model.configuration.mode == .curve {
                     presetRow
                     curveEditor
                 } else {
@@ -450,7 +450,7 @@ struct MonitorFanPopover: View {
     private var modeControl: some View {
         if rendersForSnapshot {
             HStack(spacing: 0) {
-                ForEach([MonitorFanMode.automatic, .manual], id: \.rawValue) { mode in
+                ForEach([MonitorFanMode.curve, .manual], id: \.rawValue) { mode in
                     Button {
                         model.setMode(mode, reading: reading)
                     } label: {
@@ -481,8 +481,8 @@ struct MonitorFanPopover: View {
                 get: { model.configuration.mode },
                 set: { model.setMode($0, reading: reading) }
             )) {
-                Text(modeTitle(.automatic))
-                    .tag(MonitorFanMode.automatic)
+                Text(modeTitle(.curve))
+                    .tag(MonitorFanMode.curve)
                 Text(modeTitle(.manual))
                     .tag(MonitorFanMode.manual)
             }
@@ -493,9 +493,14 @@ struct MonitorFanPopover: View {
     }
 
     private func modeTitle(_ mode: MonitorFanMode) -> String {
-        mode == .automatic
-            ? ContractCopy.copyMonitorFanAutoCurve.text(for: language)
-            : ContractCopy.copyMonitorFanManualRpm.text(for: language)
+        switch mode {
+        case .automatic:
+            ContractCopy.copyMonitorFanSystemAuto.text(for: language)
+        case .curve:
+            ContractCopy.copyMonitorFanAutoCurve.text(for: language)
+        case .manual:
+            ContractCopy.copyMonitorFanManualRpm.text(for: language)
+        }
     }
 
     private var presetRow: some View {
@@ -548,6 +553,34 @@ struct MonitorFanPopover: View {
 
     private var manualControls: some View {
         VStack(alignment: .leading, spacing: 10) {
+            if reading.units.count > 1 {
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(ContractCopy.copyMonitorFanSyncFans.text(for: language))
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(MacTheme.textPrimary)
+                        Text(ContractCopy.copyMonitorFanSyncHint.text(for: language))
+                            .font(.system(size: 8))
+                            .foregroundStyle(MacTheme.textSecondary)
+                    }
+                    Spacer(minLength: 0)
+                    if rendersForSnapshot {
+                        MonitorFanSnapshotSwitch(
+                            isOn: model.configuration.syncFans,
+                            label: ContractCopy.copyMonitorFanSyncFans.text(for: language)
+                        )
+                    } else {
+                        Toggle("", isOn: Binding(
+                            get: { model.configuration.syncFans },
+                            set: { model.setSyncFans($0) }
+                        ))
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .controlSize(.small)
+                        .disabled(model.busy)
+                    }
+                }
+            }
             ForEach(reading.units) { fan in
                 VStack(alignment: .leading, spacing: 3) {
                     HStack {
@@ -669,7 +702,7 @@ struct MonitorFanPopover: View {
                         .foregroundStyle(MacTheme.errorText)
                         .textSelection(.enabled)
                 }
-                if model.configuration.enabled {
+                if model.configuration.enabled || model.helperStatus?.active == true {
                     Button(ContractCopy.copyMonitorFanRestoreSystem.text(for: language)) {
                         model.restore()
                     }
@@ -711,5 +744,26 @@ private struct MonitorFanSnapshotSlider: View {
         }
         .frame(height: 22)
         .accessibilityHidden(true)
+    }
+}
+
+private struct MonitorFanSnapshotSwitch: View {
+    let isOn: Bool
+    let label: String
+
+    var body: some View {
+        ZStack(alignment: isOn ? .trailing : .leading) {
+            Capsule()
+                .fill(isOn ? MacTheme.accent : MacTheme.textSecondary.opacity(0.18))
+                .frame(width: 42, height: 24)
+            Circle()
+                .fill(.white)
+                .frame(width: 20, height: 20)
+                .padding(2)
+                .shadow(color: .black.opacity(0.12), radius: 1, y: 1)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityValue(isOn ? "on" : "off")
     }
 }

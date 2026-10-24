@@ -351,11 +351,14 @@ struct MonitorFanPreviewRoot: View {
     @StateObject private var model = MonitorFanControlModel(
         previewConfiguration: MonitorFanConfiguration(
             enabled: true,
-            mode: .automatic,
+            mode: ProcessInfo.processInfo.environment["COVIO_MONITOR_FAN_RENDER_SCENARIO"] == "manual-sync"
+                ? .manual
+                : .curve,
             startCelsius: 58,
             fullCelsius: 86,
             selectedSensorKeys: ["TCMz", "TC0P"],
             manualRPM: ["0": 2_588, "1": 2_709],
+            syncFans: ProcessInfo.processInfo.environment["COVIO_MONITOR_FAN_RENDER_SCENARIO"] == "manual-sync",
             curves: [
                 "0": [
                     .init(temperature: 45, rpm: 1_200),
@@ -374,7 +377,9 @@ struct MonitorFanPreviewRoot: View {
         availability: .ready,
         helperStatus: FanControlHelperStatus(
             active: true,
-            mode: "automatic",
+            mode: ProcessInfo.processInfo.environment["COVIO_MONITOR_FAN_RENDER_SCENARIO"] == "manual-sync"
+                ? "manual"
+                : "curve",
             controlTemperature: 65.9,
             leaseRemainingSeconds: 20,
             error: nil
@@ -400,7 +405,7 @@ struct MonitorFanCardPreviewRoot: View {
     @StateObject private var model = MonitorFanControlModel(
         previewConfiguration: MonitorFanConfiguration(
             enabled: true,
-            mode: .automatic,
+            mode: .curve,
             startCelsius: 58,
             fullCelsius: 86,
             selectedSensorKeys: ["TCMz", "TC0P"],

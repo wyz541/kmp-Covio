@@ -34,7 +34,10 @@ struct MonitorFanReading: Equatable, Sendable {
 
 enum MonitorFanMode: String, Codable, CaseIterable, Sendable {
     case automatic
+    case curve
     case manual
+
+    var isAutomatic: Bool { self == .automatic }
 }
 
 struct MonitorFanCurvePoint: Codable, Equatable, Sendable, Identifiable {
@@ -51,6 +54,7 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
     var fullCelsius: Double = 86
     var selectedSensorKeys: [String] = []
     var manualRPM: [String: Double] = [:]
+    var syncFans: Bool = false
     /// 风扇序号对应的多点曲线。缺少某台风扇时，使用起转/全速两点曲线。
     var curves: [String: [MonitorFanCurvePoint]] = [:]
 
@@ -63,6 +67,7 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         fullCelsius: Double = 86,
         selectedSensorKeys: [String] = [],
         manualRPM: [String: Double] = [:],
+        syncFans: Bool = false,
         curves: [String: [MonitorFanCurvePoint]] = [:]
     ) {
         self.enabled = enabled
@@ -71,6 +76,7 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         self.fullCelsius = fullCelsius
         self.selectedSensorKeys = selectedSensorKeys
         self.manualRPM = manualRPM
+        self.syncFans = syncFans
         self.curves = curves
     }
 
@@ -81,17 +87,21 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         case fullCelsius
         case selectedSensorKeys
         case manualRPM
+        case syncFans
         case curves
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? false
-        mode = try container.decodeIfPresent(MonitorFanMode.self, forKey: .mode) ?? .automatic
+        let storedMode = try container.decodeIfPresent(MonitorFanMode.self, forKey: .mode) ?? .automatic
+        // 旧版 enabled + automatic 表示自动曲线。新版 automatic 表示系统自动。
+        mode = enabled && storedMode == .automatic ? .curve : storedMode
         startCelsius = try container.decodeIfPresent(Double.self, forKey: .startCelsius) ?? 58
         fullCelsius = try container.decodeIfPresent(Double.self, forKey: .fullCelsius) ?? 86
         selectedSensorKeys = try container.decodeIfPresent([String].self, forKey: .selectedSensorKeys) ?? []
         manualRPM = try container.decodeIfPresent([String: Double].self, forKey: .manualRPM) ?? [:]
+        syncFans = try container.decodeIfPresent(Bool.self, forKey: .syncFans) ?? false
         curves = try container.decodeIfPresent(
             [String: [MonitorFanCurvePoint]].self,
             forKey: .curves
@@ -106,6 +116,7 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         try container.encode(fullCelsius, forKey: .fullCelsius)
         try container.encode(selectedSensorKeys, forKey: .selectedSensorKeys)
         try container.encode(manualRPM, forKey: .manualRPM)
+        try container.encode(syncFans, forKey: .syncFans)
         try container.encode(curves, forKey: .curves)
     }
 
@@ -201,7 +212,7 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
             : (try? encoder.encode(curves)).flatMap { String(data: $0, encoding: .utf8) } ?? ""
         return [
             "enabled": enabled ? "true" : "false",
-            "mode": mode == .manual ? "manual" : "auto",
+            "mode": mode == .automatic ? "auto" : mode.rawValue,
             "start": String(format: "%.0f", startCelsius),
             "full": String(format: "%.0f", fullCelsius),
             "sensors": selectedSensorKeys.joined(separator: ","),
@@ -232,24 +243,45 @@ enum MonitorFanPolicy {
 
     static let quiet = MonitorFanConfiguration(
         enabled: true,
-        mode: .automatic,
+        mode: .curve,
         startCelsius: 80,
         fullCelsius: 100
     )
 
     static let balanced = MonitorFanConfiguration(
         enabled: true,
-        mode: .automatic,
+        mode: .curve,
         startCelsius: 70,
         fullCelsius: 95
     )
 
     static let turbo = MonitorFanConfiguration(
         enabled: true,
-        mode: .automatic,
+        mode: .curve,
         startCelsius: 55,
         fullCelsius: 85
     )
+}
+
+enum MonitorFanSpeedSync {
+    /// 把源风扇的转速位置映射到每台风扇自己的硬件范围。
+    static func targets(
+        sourceFanIndex: Int,
+        rpm: Double,
+        units: [MonitorFanReading.Unit]
+    ) -> [Int: Double] {
+        guard let source = units.first(where: { $0.index == sourceFanIndex }) else {
+            return [:]
+        }
+        let sourceSpan = max(1, source.maximumRPM - source.minimumRPM)
+        let fraction = min(1, max(0, (rpm - source.minimumRPM) / sourceSpan))
+        var targets: [Int: Double] = [:]
+        for fan in units {
+            let target = fan.minimumRPM + (fan.maximumRPM - fan.minimumRPM) * fraction
+            targets[fan.index] = target.rounded()
+        }
+        return targets
+    }
 }
 
 enum MonitorFanCurve {

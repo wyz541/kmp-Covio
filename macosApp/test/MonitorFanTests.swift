@@ -193,6 +193,8 @@ final class MonitorFanTests: XCTestCase {
     func testConfigurationRoundTripsPerFanCurves() throws {
         let original = MonitorFanConfiguration(
             enabled: true,
+            mode: .curve,
+            syncFans: true,
             curves: [
                 "0": [
                     MonitorFanCurvePoint(temperature: 45, rpm: 1_200),
@@ -216,6 +218,8 @@ final class MonitorFanTests: XCTestCase {
         )
         let configuration = try JSONDecoder().decode(MonitorFanConfiguration.self, from: data)
 
+        XCTAssertEqual(configuration.mode, .curve)
+        XCTAssertFalse(configuration.syncFans)
         XCTAssertTrue(configuration.curves.isEmpty)
         XCTAssertEqual(
             configuration.curvePoints(for: 0, minimumRPM: 1_200, maximumRPM: 5_800),
@@ -229,6 +233,7 @@ final class MonitorFanTests: XCTestCase {
     func testHelperPayloadRoundTripsPerFanCurves() throws {
         let payload = MonitorFanConfiguration(
             enabled: true,
+            mode: .curve,
             curves: [
                 "0": [
                     MonitorFanCurvePoint(temperature: 45, rpm: 1_200),
@@ -248,6 +253,56 @@ final class MonitorFanTests: XCTestCase {
 
         XCTAssertEqual(decoded["0"]?.first?.temperature, 45)
         XCTAssertEqual(decoded["1"]?.last?.rpm, 6_000)
+    }
+
+    func testSystemAutomaticAndCurveUseDifferentHelperModes() {
+        let automatic = MonitorFanConfiguration(
+            enabled: true,
+            mode: .automatic
+        ).helperPayload()
+        let curve = MonitorFanConfiguration(
+            enabled: true,
+            mode: .curve
+        ).helperPayload()
+
+        XCTAssertEqual(automatic["mode"], "auto")
+        XCTAssertEqual(curve["mode"], "curve")
+    }
+
+    func testDisabledLegacyAutomaticConfigurationStaysSystemControlled() throws {
+        let data = Data(#"{"enabled":false,"mode":"automatic"}"#.utf8)
+        let configuration = try JSONDecoder().decode(MonitorFanConfiguration.self, from: data)
+
+        XCTAssertEqual(configuration.mode, .automatic)
+    }
+
+    func testSynchronizedManualRPMUsesEachFanRange() {
+        let units = [
+            MonitorFanReading.Unit(
+                index: 0,
+                rpm: 3_500,
+                minimumRPM: 1_200,
+                maximumRPM: 5_800,
+                targetRPM: 3_500,
+                mode: 1
+            ),
+            MonitorFanReading.Unit(
+                index: 1,
+                rpm: 3_650,
+                minimumRPM: 1_300,
+                maximumRPM: 6_000,
+                targetRPM: 3_650,
+                mode: 1
+            ),
+        ]
+
+        let targets = MonitorFanSpeedSync.targets(
+            sourceFanIndex: 0,
+            rpm: 3_500,
+            units: units
+        )
+
+        XCTAssertEqual(targets, [0: 3_500, 1: 3_650])
     }
 
     func testControlTemperatureUsesSelectedSensors() {

@@ -17,8 +17,8 @@ jobs:
       - name: Build and test
         shell: pwsh
         run: |
-          .\kotlin.bat build
-          .\kotlin.bat test
+          .\kotlin.bat build -m windowsProbe
+          .\kotlin.bat test -m windowsProbe
       - name: Package executable JAR
         shell: pwsh
         run: .\kotlin.bat package -m windowsProbe -f executable-jar

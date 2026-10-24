@@ -16,6 +16,7 @@
 4. 已启用实验性合盖黑屏。
 5. 捕获工具已获得 Screen Recording 权限。
 6. 不处理敏感窗口。
+7. 合盖会话必须在开盖状态启动，再合上上盖。
 
 ## 步骤
 
@@ -29,11 +30,12 @@
 8. 用 ScreenCaptureKit 捕获主显示器。
 9. 用 `screencapture` 捕获主显示器。
 10. 用 Computer Use 执行截图。
-11. 比较三张图。
-12. 打开上盖。
-13. 恢复亮度。
-14. 结束会话。
-15. 检查电源状态。
+11. 用 Moonlight/Sunshine 做远程捕获对照。
+12. 比较四份结果。
+13. 打开上盖。
+14. 恢复亮度。
+15. 结束会话。
+16. 检查电源状态。
 
 ## 必须观察
 
@@ -48,6 +50,7 @@
 | ScreenCaptureKit | 非空图像或明确错误 |
 | screencapture | 非空图像或明确错误 |
 | Computer Use | 非空图像或明确错误 |
+| Moonlight/Sunshine | 非空画面，或明确拒绝合盖捕获 |
 | 开盖恢复 | 原亮度 |
 | SleepDisabled | 0 |
 

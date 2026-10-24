@@ -14,6 +14,21 @@ enum ClosedLidBrightnessAvailability: Equatable, Sendable {
     }
 }
 
+struct ClosedLidDisplayState: Equatable, Sendable {
+    let displayID: CGDirectDisplayID
+    let isOnline: Bool
+    let isActive: Bool
+    let isAsleep: Bool
+
+    var allowsCapture: Bool {
+        isOnline && isActive && !isAsleep
+    }
+
+    var diagnosticDescription: String {
+        "display=\(displayID) online=\(isOnline.intValue) active=\(isActive.intValue) asleep=\(isAsleep.intValue)"
+    }
+}
+
 enum ClosedLidBrightnessBackendError: Error, Equatable, LocalizedError {
     case unsupportedOperatingSystem(Int)
     case unsupportedArchitecture
@@ -49,6 +64,7 @@ enum ClosedLidBrightnessBackendError: Error, Equatable, LocalizedError {
 protocol ClosedLidBrightnessBackend: AnyObject {
     var availability: ClosedLidBrightnessAvailability { get }
     func builtInDisplayID() -> CGDirectDisplayID?
+    func displayState(displayID: CGDirectDisplayID) -> ClosedLidDisplayState
     func readBrightness(displayID: CGDirectDisplayID) throws -> Float
     func setBrightness(_ brightness: Float, displayID: CGDirectDisplayID) throws
 }
@@ -101,6 +117,15 @@ final class DisplayServicesBrightnessBackend: ClosedLidBrightnessBackend {
         } ?? firstBuiltInDisplay { capacity, ids, count in
             CGGetActiveDisplayList(capacity, ids, count)
         }
+    }
+
+    func displayState(displayID: CGDirectDisplayID) -> ClosedLidDisplayState {
+        ClosedLidDisplayState(
+            displayID: displayID,
+            isOnline: CGDisplayIsOnline(displayID) != 0,
+            isActive: CGDisplayIsActive(displayID) != 0,
+            isAsleep: CGDisplayIsAsleep(displayID) != 0
+        )
     }
 
     func readBrightness(displayID: CGDirectDisplayID) throws -> Float {
@@ -167,5 +192,11 @@ final class DisplayServicesBrightnessBackend: ClosedLidBrightnessBackend {
 #else
         return (.failure(.unsupportedArchitecture), nil)
 #endif
+    }
+}
+
+private extension Bool {
+    var intValue: Int {
+        self ? 1 : 0
     }
 }

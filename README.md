@@ -249,6 +249,8 @@ The model license and attribution are in `THIRD_PARTY_NOTICES.md`.
 - Prevent idle sleep on AC power.
 - Prevent lid sleep on AC power.
 - Prevent lid sleep on battery power. This option drains the battery.
+- Experimental closed-lid zero brightness keeps the panel dark only while the built-in display remains online and active.
+- You must start a closed-lid session before closing the lid. A display that is already asleep cannot be revived by writing brightness.
 - Detect DarkWake and full wake events from the `pmset` wake log.
 - Sleep immediately when the lid closes.
 - Cancel a prevention rule after a selected delay.

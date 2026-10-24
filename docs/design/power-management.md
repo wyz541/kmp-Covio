@@ -131,10 +131,12 @@ stateDiagram-v2
    公开 API 路径证据见 `docs/research/lid-display-minimum-brightness.md`。
    GitHub 私有 API 方案审计见 `docs/research/github-lid-brightness.md`。
 10. #203 增加默认关闭的实验性合盖黑屏路径。面板亮度写为 0.0；framebuffer 和显示链路保持在线。Computer Use 或远程截图可能可用，但不保证。私有符号动态加载，失败时回退公开关屏。
+    显示器必须 online、active 且未 asleep 才进入零亮度模式。显示器已经 asleep 时不能靠亮度写入恢复；应先开盖准备合盖会话，再合上上盖。
 底层机制见 [合盖黑屏与 framebuffer 显示链路](../research/lid-framebuffer-mechanism/README.md)。
 11. Apple M1 Max 真机完成合盖零亮度、6 次稳定采样、开盖恢复、结束恢复和 `SIGKILL` 后启动恢复。
 12. 最近活动显示最近 24 小时的真实事件。
 13. 历史文件最多保留 200 条事件和 7 天。
+14. 合盖黑屏在写入零亮度前后都会验证显示状态。验证失败时恢复原亮度并回退公开关屏。
 
 ## 预览
 

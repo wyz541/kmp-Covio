@@ -57,6 +57,51 @@ final class ClosedLidBrightnessTests: XCTestCase {
         XCTAssertEqual(store.record?.displayID, backend.fixedDisplayID)
     }
 
+    func testInactiveDisplayWritesNothingAndFallsBack() {
+        let backend = FakeClosedLidBrightnessBackend(brightness: 0.5)
+        backend.displayIsActive = false
+        let store = FakeClosedLidBrightnessRecoveryStore()
+        let controller = ClosedLidZeroBrightnessController(backend: backend, store: store)
+        controller.start()
+
+        let result = controller.evaluate(
+            enabled: true,
+            sessionActive: true,
+            lidState: .closed,
+            externalDisplayCount: 0
+        )
+
+        XCTAssertFalse(result.privateBrightnessActive)
+        XCTAssertTrue(result.fallbackToPublicDisplayOff)
+        XCTAssertTrue(backend.setValues.isEmpty)
+        XCTAssertNil(store.record)
+        XCTAssertEqual(controller.phase, .failed)
+        XCTAssertTrue(controller.lastError?.contains("active=0") == true)
+    }
+
+    func testDisplayBecomingAsleepAfterZeroRestoresAndFallsBack() {
+        let backend = FakeClosedLidBrightnessBackend(brightness: 0.5)
+        backend.asleepAfterZero = true
+        let store = FakeClosedLidBrightnessRecoveryStore()
+        let controller = ClosedLidZeroBrightnessController(backend: backend, store: store)
+        controller.start()
+
+        let result = controller.evaluate(
+            enabled: true,
+            sessionActive: true,
+            lidState: .closed,
+            externalDisplayCount: 0
+        )
+
+        XCTAssertFalse(result.privateBrightnessActive)
+        XCTAssertTrue(result.fallbackToPublicDisplayOff)
+        XCTAssertEqual(backend.setValues, [0, 0.5])
+        XCTAssertEqual(backend.brightness, 0.5, accuracy: 0.001)
+        XCTAssertNil(store.record)
+        XCTAssertEqual(controller.phase, .failed)
+        XCTAssertTrue(controller.lastError?.contains("asleep=1") == true)
+    }
+
     func testUnknownLidWritesNothing() {
         let backend = FakeClosedLidBrightnessBackend(brightness: 0.5)
         let store = FakeClosedLidBrightnessRecoveryStore()
@@ -417,6 +462,10 @@ final class FakeClosedLidBrightnessBackend: ClosedLidBrightnessBackend {
     var failingSetValues: Set<Float> = []
     var failAllSets = false
     var readbackAfterZero: Float?
+    var displayIsOnline = true
+    var displayIsActive = true
+    var displayIsAsleep = false
+    var asleepAfterZero = false
     private(set) var setValues: [Float] = []
     private let events: EventLog?
 
@@ -426,6 +475,15 @@ final class FakeClosedLidBrightnessBackend: ClosedLidBrightnessBackend {
     }
 
     func builtInDisplayID() -> CGDirectDisplayID? { lookupDisplayID }
+
+    func displayState(displayID: CGDirectDisplayID) -> ClosedLidDisplayState {
+        ClosedLidDisplayState(
+            displayID: displayID,
+            isOnline: displayIsOnline,
+            isActive: displayIsActive,
+            isAsleep: displayIsAsleep
+        )
+    }
 
     func readBrightness(displayID: CGDirectDisplayID) throws -> Float {
         brightness
@@ -441,6 +499,9 @@ final class FakeClosedLidBrightnessBackend: ClosedLidBrightnessBackend {
             self.brightness = readbackAfterZero
         } else {
             self.brightness = brightness
+        }
+        if brightness == 0, asleepAfterZero {
+            displayIsAsleep = true
         }
     }
 }

@@ -45,7 +45,8 @@ struct TabReorderState {
 /// 挂帘顶部的横向页签栏。合同 `component/tab-bar`，`nativeSize` 是 960 × 46。
 ///
 /// 左端固定是首页入口，紧挨着搜索框，中间是工作区页签，右端是当前页的动作。
-/// 选中态由一块胶囊滑块画，160 毫秒横向滑动。
+/// 导航按钮使用原生 Liquid Glass 按钮样式。选中态用强调色着色玻璃。
+/// 指针反馈与键盘焦点反馈由 SwiftUI 原生玻璃按钮提供。
 /// 编辑模式里页签前面加拖动把手，横向拖过 84 点换一次位置。
 struct WorkbenchTabBar: View {
     let panes: [PaneItem]
@@ -54,6 +55,7 @@ struct WorkbenchTabBar: View {
     @Binding var searchText: String
     let language: AppLanguage
     let pageAction: LocalizedCopy
+    let reduceMotion: Bool
     let onHome: () -> Void
     let onSelect: (String) -> Void
     let onReorder: (Int, Int) -> Void
@@ -63,8 +65,6 @@ struct WorkbenchTabBar: View {
     /// 顶栏上表示「去哪里」的两处 —— 首页入口与工作区页签 —— 都报。
     /// 搜索框与右端的动作按钮不报：它们表示「做什么」，滑过不该换页。
     let onHover: (HubDestination, Bool) -> Void
-
-    @Namespace private var selectionNamespace
 
     /// 正在拖的页签 id，与这一次拖动已经挪过的条数。
     @State private var reorderID: String?
@@ -79,6 +79,7 @@ struct WorkbenchTabBar: View {
         }
         .padding(.horizontal, HubMetrics.tabBarHPadding)
         .frame(width: HubMetrics.tabBarWidth, height: HubMetrics.tabBarHeight)
+        .controlSize(.small)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(ContractCopy.copyNavRailLabel.text(for: language))
     }
@@ -91,15 +92,13 @@ struct WorkbenchTabBar: View {
         return Button(action: onHome) {
             Text("▦")
                 .font(.system(size: 14))
-                .foregroundStyle(isSelected ? MacTheme.color(ContractColors.tokenColorTextOnAccent) : MacTheme.textPrimary)
+                .foregroundStyle(isSelected ? onAccent : MacTheme.textPrimary)
                 .frame(width: HubMetrics.homeEntryWidth, height: HubMetrics.homeEntryHeight)
-                .background(
-                    isSelected ? MacTheme.accent : Color.primary.opacity(0.08),
-                    in: RoundedRectangle(cornerRadius: MacTheme.controlRadius, style: .continuous)
-                )
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.glass)
+        .tint(isSelected ? MacTheme.accent : nil)
+        .animation(selectionAnimation, value: isSelected)
         .accessibilityLabel(ContractCopy.copyHubActionHome.text(for: language))
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
         .onHover { onHover(.home, $0) }
@@ -174,10 +173,11 @@ struct WorkbenchTabBar: View {
             }
             .padding(.horizontal, HubMetrics.tabHPadding)
             .frame(height: HubMetrics.tabHeight)
-            .background(selectionPill(isSelected: isSelected))
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.glass)
+        .tint(isSelected ? MacTheme.accent : nil)
+        .animation(selectionAnimation, value: isSelected)
         .accessibilityLabel(pane.title)
         .accessibilityHint(pane.tab.summary.text(for: language))
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
@@ -185,20 +185,12 @@ struct WorkbenchTabBar: View {
         .gesture(isEditing ? reorderGesture(pane: pane) : nil)
     }
 
-    /// 选中态是一块胶囊滑块。页签切换时滑块滑到新位置。
-    @ViewBuilder
-    private func selectionPill(isSelected: Bool) -> some View {
-        if isSelected {
-            Capsule(style: .continuous)
-                .fill(MacTheme.accent)
-                .matchedGeometryEffect(id: Self.selectionID, in: selectionNamespace)
-        } else {
-            Color.clear
-        }
-    }
-
     private var onAccent: Color {
         MacTheme.color(ContractColors.tokenColorTextOnAccent)
+    }
+
+    private var selectionAnimation: Animation? {
+        reduceMotion ? nil : .easeOut(duration: HubMotion.tabSwitch)
     }
 
     /// 编辑模式里的拖动排序。跨过一条页签的宽度就换一次位置。
@@ -237,16 +229,9 @@ struct WorkbenchTabBar: View {
                 .lineLimit(1)
                 .padding(.horizontal, HubMetrics.actionHPadding)
                 .frame(minWidth: HubMetrics.actionButtonMinWidth, minHeight: HubMetrics.tabHeight)
-                .background(
-                    Color.primary.opacity(0.08),
-                    in: RoundedRectangle(cornerRadius: MacTheme.controlRadius, style: .continuous)
-                )
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.glass)
         .accessibilityLabel(pageAction.text(for: language))
     }
-
-    /// 选中滑块的身份。同一个命名空间里只能有一块。
-    private static let selectionID = "workbench-tab-selection"
 }

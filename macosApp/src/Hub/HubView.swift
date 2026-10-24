@@ -25,6 +25,8 @@ struct HubView: View {
     /// 外壳的共享状态。搜索文字与设置分节住在这里。
     @Bindable var chrome: HubChromeModel
     let runtime: AppRuntime?
+    /// Popover 打开时用它通知控制器暂停自动收起。
+    var popoverCoordinator: HubPopoverCoordinator? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -205,7 +207,8 @@ struct HubView: View {
                 hubState: hubState,
                 outputState: outputState,
                 language: language,
-                runtime: runtime
+                runtime: runtime,
+                popoverCoordinator: popoverCoordinator
             )
         }
     }
@@ -275,6 +278,7 @@ struct HubTabContent: View {
     let outputState: HubOutputState
     let language: AppLanguage
     let runtime: AppRuntime?
+    let popoverCoordinator: HubPopoverCoordinator?
 
     var body: some View {
         VStack(alignment: .leading, spacing: HubMetrics.pageGap) {
@@ -311,7 +315,11 @@ struct HubTabContent: View {
     @ViewBuilder
     private func body(width: CGFloat) -> some View {
         if tab == .devices {
-            MonitorTabView(language: language, runtime: runtime)
+            MonitorTabView(
+                language: language,
+                runtime: runtime,
+                popoverCoordinator: popoverCoordinator
+            )
         } else if let runtime, tab == .settings {
             SettingsTabView(runtime: runtime, section: chrome.settingsSection, chrome: chrome)
         } else if let runtime, tab == .clipboard {

@@ -8,8 +8,10 @@ struct MonitorFanCard: View {
     let language: AppLanguage
     let runtime: AppRuntime?
     @ObservedObject var model: MonitorFanControlModel
+    var popoverCoordinator: HubPopoverCoordinator? = nil
 
     @State private var popoverPresented = false
+    @State private var popoverID = UUID().uuidString
 
     private var controlTemperature: Double? {
         model.configuration.controlTemperature(in: reading)
@@ -52,7 +54,7 @@ struct MonitorFanCard: View {
                 fanRows
                 Spacer(minLength: 0)
                 Button {
-                    popoverPresented.toggle()
+                    setPopoverPresented(!popoverPresented)
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "slider.horizontal.3")
@@ -83,6 +85,20 @@ struct MonitorFanCard: View {
                 model: model
             )
             .frame(width: 420, height: 620, alignment: .topLeading)
+            .onAppear {
+                popoverCoordinator?.setPresented(true, id: popoverID)
+            }
+            .onDisappear {
+                popoverCoordinator?.setPresented(false, id: popoverID)
+            }
+        }
+        .onChange(of: popoverPresented) { _, presented in
+            if !presented {
+                popoverCoordinator?.setPresented(false, id: popoverID)
+            }
+        }
+        .onChange(of: popoverCoordinator?.dismissalRequest) { _, _ in
+            setPopoverPresented(false)
         }
         .onAppear {
             model.adoptDefaultSensors(from: reading)
@@ -91,6 +107,15 @@ struct MonitorFanCard: View {
         .onChange(of: reading) { _, value in
             model.adoptDefaultSensors(from: value)
         }
+        .onDisappear {
+            popoverCoordinator?.setPresented(false, id: popoverID)
+        }
+    }
+
+    /// 同时更新 Popover 与协调器。先登记再等窗口出现，避免指针事件抢先启动收起。
+    private func setPopoverPresented(_ presented: Bool) {
+        popoverPresented = presented
+        popoverCoordinator?.setPresented(presented, id: popoverID)
     }
 
     private var primaryRow: some View {

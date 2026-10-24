@@ -27,6 +27,9 @@ final class NotchShellController {
     /// 由控制器持有，所以面板收起再展开时搜索文字与分节不丢。
     let chrome = HubChromeModel()
 
+    /// 页内 Popover 的生命周期。Popover 打开时暂停自动收起。
+    let popoverCoordinator = HubPopoverCoordinator()
+
     /// 当前页需要的内容高度。编辑模式多一条提示条，也要算进去。
     private var contentHeight: CGFloat {
         HubMetrics.contentHeight(for: HubPage.current(workbench), editing: workbench.isEditing)
@@ -45,6 +48,7 @@ final class NotchShellController {
     private var collapseTimer: Timer?
     private var observers: [NSObjectProtocol] = []
     private let pointerLocation: @MainActor () -> CGPoint
+    private var collapseAfterPopoversDismiss = false
 
     /// 运行时。Hub 的设置页读它。测试与预览里可以是 nil，那时设置页显示占位。
     var runtime: AppRuntime?
@@ -76,6 +80,9 @@ final class NotchShellController {
 
     func start() {
         reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        popoverCoordinator.onActivityChanged = { [weak self] active in
+            self?.popoverActivityChanged(active)
+        }
         makeHubPanel()
         makeCapsulePanel()
         rebuildHotZones()
@@ -86,6 +93,9 @@ final class NotchShellController {
 
     func stop() {
         cancelTimers()
+        popoverCoordinator.onActivityChanged = nil
+        popoverCoordinator.reset()
+        workbench.endInitialHoverProtection()
         let center = NSWorkspace.shared.notificationCenter
         observers.forEach { center.removeObserver($0) }
         observers.removeAll()
@@ -114,6 +124,7 @@ final class NotchShellController {
             if state != .exit { relocateIfNeeded() }
             return
         }
+        collapseAfterPopoversDismiss = false
         send(.pointerEnteredHotZone)
     }
 
@@ -124,6 +135,11 @@ final class NotchShellController {
     func requestCollapse() {
         if workbench.isEditing {
             workbench.isEditing = false
+            return
+        }
+        if popoverCoordinator.hasActivePopover {
+            collapseAfterPopoversDismiss = true
+            popoverCoordinator.requestDismissal()
             return
         }
         send(.collapseRequested)
@@ -156,6 +172,8 @@ final class NotchShellController {
             // 面板被 orderOut 时 AppKit 不发 mouseExited，指针停在某个页签上的
             // 等待会继续跑。不取消的话，收起后还会切一次。
             workbench.cancelHoverSwitch()
+            workbench.endInitialHoverProtection()
+            collapseAfterPopoversDismiss = false
             beginCollapse()
         }
 
@@ -175,14 +193,18 @@ final class NotchShellController {
 
         case .pointerExitedHub:
             guard state != .exit else { break }
-            outputState = .collapsed
+            if !popoverCoordinator.hasActivePopover {
+                outputState = .collapsed
+            }
             // 编辑模式里不排收起计时。拖一块卡时指针会短暂划出面板，
             // 那不算「用户想走」。收起的入口只剩 Escape 与点胶囊。
-            if !workbench.isEditing {
+            // Popover 打开时也保留面板，否则 Popover 会失去可操作的父视图。
+            if !workbench.isEditing, !popoverCoordinator.hasActivePopover {
                 startCollapseTimer()
             }
 
         case .expandFinished:
+            workbench.scheduleInitialHoverProtectionEnd(after: HubMotion.initialHoverProtection)
             // 展开结束时指针可能已经在面板里。
             if state == .open, pointerIsInsideHubPanel {
                 send(.pointerEnteredHub)
@@ -216,6 +238,8 @@ final class NotchShellController {
         self.geometry = geometry
 
         hubPanel.setFrame(geometry.expandedRect(contentHeight: contentHeight), display: true)
+        // 先进入保护，再显示视图。视图出现时触发的 hover 也会被拦住。
+        workbench.beginInitialHoverProtection()
         hubPanel.orderFrontRegardless()
         hubPanel.makeKey()
         if let host = hubPanel.contentView {
@@ -232,6 +256,26 @@ final class NotchShellController {
         // 所以在建立面板后主动查一次真实指针位置，避免 Hub 卡在展开态。
         if !pointerIsInsideHubPanel {
             send(.pointerExitedHub)
+        }
+    }
+
+    /// Popover 活动状态变化。
+    ///
+    /// 首个 Popover 打开时取消待收起计时。最后一个关闭后，等显式收起，或按
+    /// 指针当前位置重新走普通自动收起规则。
+    private func popoverActivityChanged(_ active: Bool) {
+        if active {
+            cancelCollapseTimer()
+            return
+        }
+        if collapseAfterPopoversDismiss {
+            collapseAfterPopoversDismiss = false
+            send(.collapseRequested)
+            return
+        }
+        guard state == .open || state == .active else { return }
+        if !workbench.isEditing, !pointerIsInsideHubPanel {
+            startCollapseTimer()
         }
     }
 

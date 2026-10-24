@@ -257,6 +257,45 @@ final class WorkbenchModelTests: XCTestCase {
 
     // MARK: - 指针切换页签
 
+    /// 刚展开时的 hover 保护不切页，也不把这次 hover 排到保护结束。
+    func testInitialHoverProtectionIgnoresHoverWithoutQueueing() {
+        let model = model()
+        let target = HubDestination.pane(id: PaneKind.clipboard.defaultId)
+
+        model.beginInitialHoverProtection()
+        model.pointerEntered(target)
+
+        XCTAssertTrue(model.isInitialHoverProtected)
+        XCTAssertEqual(model.destination, .home)
+        XCTAssertNil(model.pendingDestination)
+
+        model.endInitialHoverProtection()
+        model.pointerEntered(target)
+        XCTAssertEqual(model.destination, target, "保护结束后重新进入应正常切页")
+    }
+
+    /// hover 保护只拦截指针，不拦截点选。
+    func testClickingStillWorksDuringInitialHoverProtection() {
+        let model = model()
+        let target = PaneKind.clipboard.defaultId
+
+        model.beginInitialHoverProtection()
+        model.select(paneID: target)
+
+        XCTAssertEqual(model.destination, .pane(id: target))
+    }
+
+    /// 展开动画结束后，保护在指定时长后自动解除。
+    func testInitialHoverProtectionEndsAfterTheDelay() async {
+        let model = model()
+        model.beginInitialHoverProtection()
+        model.scheduleInitialHoverProtectionEnd(after: 0.02)
+
+        try? await Task.sleep(for: .milliseconds(60))
+
+        XCTAssertFalse(model.isInitialHoverProtected)
+    }
+
     /// 冷却早就走完了，进入就换，没有等待。
     func testHoveringAnotherPaneSwitchesImmediately() {
         let model = model()

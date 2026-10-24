@@ -48,6 +48,10 @@ enum HubMotion {
     /// 合同没有这枚令牌，取值按「指针扫过顶栏只切一次」的手感定。
     static let hoverCooldown: TimeInterval = 0.25
 
+    /// 工作台展开完成后，导航 hover 继续停用的时间。
+    /// 用于拦住从顶部热区进入页签的误触。
+    static let initialHoverProtection: TimeInterval = 0.5
+
     /// 呼吸灯一次亮灭的时长。合同没有这枚令牌，取值按肉眼可见的缓慢呼吸定。
     static let pulse: TimeInterval = 1.2
 

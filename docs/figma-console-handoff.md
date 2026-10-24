@@ -102,6 +102,9 @@ node .git/covio-figma/ops.mjs '[{"op":"getFileInfo"}]'
 | `Covio 08 · Prototype Map` | `8303:68468` | `8303:68476` | `34 · End-to-End Prototype Map` |
 
 - 每个画板是内容驱动的 Auto Layout Frame。
+
+截图接管画板 17 至 22 是历史设计记录。
+当前运行时使用 macOS 原生截图，并只在「文件」区显示截图索引。
 - 每个画板展示一个真实产品场景。
 - 画板宽度和高度以合同 `figmaNodeMap.boards` 为准。
 - `Covio 08 · Prototype Map` 的离屏品牌组件不是画板。
@@ -142,7 +145,7 @@ node .git/covio-figma/ops.mjs '[{"op":"getFileInfo"}]'
 - 配对错误由 `07` 返回 `05` 或 `06`。
 - 传输错误由 `12` 返回 `09`。
 - 剪切板错误由 `16` 返回 `13`。
-- Tray Menu 连接 Top Shelf、Settings 和 About。
+- Tray Menu 连接「文件 → 截图」、Settings 和 About。
 - Settings 页面通过来源 Tab 控件互联。
 - Hub 按 `25 → 26 → 27` 展开。
 - Hub 错误由 `28` 返回 `25` 或 `27`。

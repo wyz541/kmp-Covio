@@ -1,16 +1,16 @@
 import Foundation
 
-/// 晾衣线用到的路径。
+/// 截图库用到的路径。
 ///
 /// 与 `kmpDomain/src/com/wyz/covio/core/AppDirectories.kt` 一致。
 ///
-/// 注意晾衣线目录用的是应用名 `Covio`，配置目录用的是 bundle id `com.wyz.covio`。
-/// 两者不同，这是 0.4.2 的既有布局，不能改，否则老用户的截图和晾衣线会找不到。
+/// 注意应用数据目录用的是应用名 `Covio`，配置目录用的是 bundle id `com.wyz.covio`。
+/// 两者不同，这是 0.4.2 的既有布局，不能改，否则老用户的截图索引会找不到。
 enum ShelfPaths {
-    /// 晾衣线目录名。用应用名，不用 bundle id。
+    /// 应用数据目录名。用应用名，不用 bundle id。
     static let directoryName = "Covio"
     static let screenshotsDirectoryName = "Screenshots"
-    /// 晾衣线状态文件名。
+    /// 截图索引文件名。
     static let storeFileName = "shelf.json"
 
     static var home: URL {
@@ -19,9 +19,17 @@ enum ShelfPaths {
 
     /// `~/Library/Application Support/Covio/Screenshots`。
     ///
-    /// 截图接管打开时，系统截图也存到这里。
+    /// 旧版截图接管曾把截图存到这里。现在只保存截图索引。
+    /// 调试构建可用 `COVIO_SCREENSHOT_INDEX_DIR` 指向隔离目录。
     static var screenshotsDirectory: URL {
-        home
+        screenshotsDirectory(environment: ProcessInfo.processInfo.environment)
+    }
+
+    static func screenshotsDirectory(environment: [String: String]) -> URL {
+        if let override = environment["COVIO_SCREENSHOT_INDEX_DIR"], !override.isEmpty {
+            return URL(fileURLWithPath: override, isDirectory: true)
+        }
+        return home
             .appendingPathComponent("Library/Application Support", isDirectory: true)
             .appendingPathComponent(directoryName, isDirectory: true)
             .appendingPathComponent(screenshotsDirectoryName, isDirectory: true)

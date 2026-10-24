@@ -1,7 +1,7 @@
 import Foundation
 import kmpDomain
 
-/// 晾衣线状态的持久化。
+/// 截图索引状态的持久化。
 ///
 /// 对应 Compose 版的 `kmpDomain/src/com/wyz/covio/core/ShelfStore.kt`。
 /// 实现只有一份，在 `kmpDomain` 里，这里只是把它包成 Swift 用起来顺手的样子。
@@ -45,14 +45,14 @@ final class ShelfStoreClient: @unchecked Sendable {
         return store.clear()
     }
 
-    /// 卡片数量上限。
+    /// 截图索引条目上限。
     static var maxItems: Int {
         Int(ShelfStore.companion.MAX_ITEMS)
     }
 
     /// 底下那份共享层实现。
     ///
-    /// 给需要直接拿 `ShelfStore` 的调用方用（截图接管就是这么接的）。
+    /// 给需要直接拿 `ShelfStore` 的调用方用。
     /// **不要另建实例**：两个实例写同一个 `shelf.json` 会互相覆盖。
     var sharedStore: ShelfStore { store }
 

@@ -1,30 +1,19 @@
 import SwiftUI
 
-/// 菜单栏上的品牌胶囊。合同 `component/tray-icon` 的收起态。
+/// 菜单栏上的品牌入口。合同 `component/tray-icon` 的收起态。
 ///
-/// 高 20 点，胶囊圆角，底色 `token/color/brand`，横向内边距 8 点。
-/// 内容是一个菱形加 `Covio` 五个字母，间距 5 点。
-///
-/// 指针悬停时底色变淡一点，给一个「能点」的反馈。
+/// 使用与次级状态项相同的玻璃吊卡图标。悬停时轻微降透明度。
 struct MenuBarCapsule: View {
     let isHovered: Bool
 
     var body: some View {
-        HStack(spacing: 5) {
-            Text("◈")
-                .font(.system(size: 9))
-                .accessibilityHidden(true)
-            Text(Self.brandName)
-                .font(.system(size: 10, weight: .medium))
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 8)
-        .frame(height: HubMetrics.menuBarCapsuleHeight)
-        .background(
-            MacTheme.brand.opacity(isHovered ? 0.82 : 1),
-            in: Capsule(style: .continuous)
-        )
-        .accessibilityElement(children: .combine)
+        Image(nsImage: CovioStatusIcon.makeImage())
+            .resizable()
+            .interpolation(.high)
+            .frame(width: CovioStatusIcon.pointSize, height: CovioStatusIcon.pointSize)
+            .opacity(isHovered ? 0.82 : 1)
+            .frame(height: HubMetrics.menuBarCapsuleHeight)
+            .contentShape(Rectangle())
         .accessibilityLabel(Self.brandName)
     }
 

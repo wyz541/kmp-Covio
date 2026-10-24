@@ -73,7 +73,7 @@ class ClipboardStore(
         /**
          * 剪贴板里那些条目的落盘目录。
          *
-         * 沿用晾衣线目录的写法，用 `APP_NAME` 而不是 `APP_ID`。
+         * 沿用应用数据目录的写法，用 `APP_NAME` 而不是 `APP_ID`。
          */
         fun defaultDirectory(): String =
             "${AppDirectories.userApplicationSupport}/${APP_NAME}/Clipboard"

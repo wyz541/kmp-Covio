@@ -42,7 +42,7 @@ struct SettingsTabView: View {
         case .battery: BatteryPage(runtime: runtime)
         case .lid: LidPage(runtime: runtime)
         case .idle: IdlePage(runtime: runtime)
-        case .topShelf: TopShelfPage(runtime: runtime)
+        case .clipboard: ClipboardPage(runtime: runtime)
         case .general: GeneralPage(runtime: runtime)
         }
     }

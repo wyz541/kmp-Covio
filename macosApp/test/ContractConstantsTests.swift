@@ -349,7 +349,7 @@ final class SettingsSectionTests: XCTestCase {
     func testSectionsMatchTheContractNavOrder() {
         XCTAssertEqual(
             SettingsSection.allCases.map(\.rawValue),
-            ["overview", "battery", "lid", "idle", "topShelf", "general"]
+            ["overview", "battery", "lid", "idle", "clipboard", "general"]
         )
     }
 

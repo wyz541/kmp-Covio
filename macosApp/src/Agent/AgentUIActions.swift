@@ -26,8 +26,6 @@ enum AgentSettingKey: String, CaseIterable, Sendable {
     case appEnabled = "app.enabled"
     case notificationsEnabled = "notifications.enabled"
     case updateChecksEnabled = "updateChecks.enabled"
-    case shelfEnabled = "shelf.enabled"
-    case screenshotInboxEnabled = "screenshotInbox.enabled"
     case clipboardEnabled = "clipboard.enabled"
     case powerEnabled = "power.enabled"
     case batteryFloorPercent = "power.batteryFloorPercent"

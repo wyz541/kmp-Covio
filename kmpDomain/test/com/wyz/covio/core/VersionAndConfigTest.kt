@@ -53,7 +53,7 @@ class VersionAndConfigTest {
         }
 
     @Test
-    fun `version two config gains shelf defaults and migrates to version three`() =
+    fun `version two config gains disabled screenshot compatibility keys`() =
         withTemporaryDirectory("config") { directory ->
             val path = directory.resolve("config.json")
             val store = ConfigStore(path.toString())
@@ -62,9 +62,9 @@ class VersionAndConfigTest {
             assertEquals(3, loaded.schemaVersion)
             assertTrue(loaded.disableLidSleepOnBattery)
             assertFalse(loaded.darkWakeAwarenessEnabled)
-            assertTrue(loaded.shelfEnabled)
-            assertTrue(loaded.screenshotInboxEnabled)
-            assertTrue(loaded.shelfSoundsEnabled)
+            assertFalse(loaded.shelfEnabled)
+            assertFalse(loaded.screenshotInboxEnabled)
+            assertFalse(loaded.shelfSoundsEnabled)
         }
 
     @Test

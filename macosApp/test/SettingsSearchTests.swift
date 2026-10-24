@@ -60,11 +60,8 @@ final class SettingsCatalogTests: XCTestCase {
             SettingsRowID.idlePrevent,
             SettingsRowID.idleCharging,
             SettingsRowID.idleCancel,
-            SettingsRowID.topShelfEnabled,
-            SettingsRowID.topShelfTakeOver,
-            SettingsRowID.topShelfSounds,
-            SettingsRowID.topShelfClipboard,
-            SettingsRowID.topShelfHotKeys,
+            SettingsRowID.clipboardEnabled,
+            SettingsRowID.clipboardHotKeys,
             SettingsRowID.generalDarkWake,
             SettingsRowID.generalSleepMode,
             SettingsRowID.generalLanguage,
@@ -125,7 +122,7 @@ final class SettingsSearchIndexTests: XCTestCase {
     /// 用英文查中文界面也能查到。
     func testMatchesTheOtherLanguage() {
         let hits = SettingsSearchIndex.search("clipboard", language: .simplifiedChinese)
-        XCTAssertTrue(hits.contains { $0.rowID == SettingsRowID.topShelfClipboard })
+        XCTAssertTrue(hits.contains { $0.rowID == SettingsRowID.clipboardEnabled })
     }
 
     /// 没有命中时返回空列表。

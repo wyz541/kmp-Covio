@@ -35,9 +35,10 @@ data class AppConfig(
     @SerialName("lastUpdateCheckEpochSeconds") val lastUpdateCheckEpochSeconds: Long = 0L,
     @SerialName("hibernateMode") val hibernateMode: Int? = null,
     @SerialName("firstRun") val firstRun: Boolean = true,
-    @SerialName("shelfEnabled") val shelfEnabled: Boolean = true,
-    @SerialName("screenshotInboxEnabled") val screenshotInboxEnabled: Boolean = true,
-    @SerialName("shelfSoundsEnabled") val shelfSoundsEnabled: Boolean = true,
+    // 旧版截图接管的兼容键。新版固定写回 false，避免回退旧版时重新开启接管。
+    @SerialName("shelfEnabled") val shelfEnabled: Boolean = false,
+    @SerialName("screenshotInboxEnabled") val screenshotInboxEnabled: Boolean = false,
+    @SerialName("shelfSoundsEnabled") val shelfSoundsEnabled: Boolean = false,
     @SerialName("clipboardEnabled") val clipboardEnabled: Boolean = true,
     @SerialName("clipboardPasteStackHotKey") val clipboardPasteStackHotKey: String = DEFAULT_PASTE_STACK_HOT_KEY,
     @SerialName("clipboardCaptureHotKey") val clipboardCaptureHotKey: String = DEFAULT_CAPTURE_HOT_KEY,
@@ -56,6 +57,9 @@ data class AppConfig(
         hibernateMode = hibernateMode?.takeIf { it in SUPPORTED_HIBERNATE_MODES },
         clipboardPasteStackHotKey = normalizeHotKeyBinding(clipboardPasteStackHotKey, DEFAULT_PASTE_STACK_HOT_KEY),
         clipboardCaptureHotKey = normalizeHotKeyBinding(clipboardCaptureHotKey, DEFAULT_CAPTURE_HOT_KEY),
+        shelfEnabled = false,
+        screenshotInboxEnabled = false,
+        shelfSoundsEnabled = false,
         power = power.normalized(),
         chargeLimitPercent = ChargeLimitPolicy.normalizeUpperLimit(chargeLimitPercent),
         fileNaming = fileNaming.normalized(),
@@ -280,7 +284,7 @@ enum class WorkspaceAvailability {
  * 工作区的一条条目。
  *
  * [entryId] 是内容摘要的十六进制写法。内容寻址让相同内容天然合并，也让同名不同内容分开。
- * 这是与 [ShelfItem] 的根本差别：晾衣线记录用户原文件的路径，工作区保存自己的副本。
+ * 这是与 [ShelfItem] 的根本差别：截图索引记录用户原文件的路径，工作区保存自己的副本。
  *
  * [expiresAtEpochSeconds] 为 0 表示不过期。[pinned] 是本机属性，不参与复制。
  * 字段名沿用 [ShelfItem] 与 [ClipItem] 的 `...EpochSeconds` 写法。
@@ -366,7 +370,7 @@ data class WorkspacePolicy(
 /**
  * 工作区的持久化状态。
  *
- * 与 [ShelfStoreState] 分开存放：晾衣线是用户文件的视图，工作区是自己的副本，
+ * 与 [ShelfStoreState] 分开存放：截图索引是用户文件的视图，工作区是自己的副本，
  * 两者的生命周期与清空时机都不同。
  */
 @Serializable
@@ -405,19 +409,6 @@ data class WorkspaceTombstone(
     val isUsable: Boolean get() = WorkspaceLogic.isValidEntryId(entryId)
 }
 
-data class ShelfState(
-    val items: List<ShelfItem> = emptyList(),
-    val visible: Boolean = false,
-    val revealed: Boolean = true,
-    val takeoverActive: Boolean = false,
-)
-
-data class ShelfSettings(
-    val shelfEnabled: Boolean = true,
-    val screenshotInboxEnabled: Boolean = true,
-    val shelfSoundsEnabled: Boolean = true,
-)
-
 data class UpdateInfo(
     val version: String,
     val title: String,
@@ -435,7 +426,6 @@ data class AppState(
     val idleCancelRemainingSeconds: Long? = null,
     val lidCancelRemainingSeconds: Long? = null,
     val darkWake: DarkWakeStatus = DarkWakeStatus(),
-    val shelf: ShelfState = ShelfState(),
     val helperStatus: HelperStatus = HelperStatus.NOT_INSTALLED,
     val lidLeaseStatus: LidLeaseStatus = LidLeaseStatus(),
     val lastError: String? = null,

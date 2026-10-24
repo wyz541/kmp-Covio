@@ -11,7 +11,7 @@ enum SettingsSection: String, CaseIterable, Identifiable, Sendable {
     case battery
     case lid
     case idle
-    case topShelf
+    case clipboard
     case general
 
     var id: String { rawValue }
@@ -23,7 +23,7 @@ enum SettingsSection: String, CaseIterable, Identifiable, Sendable {
         case .battery: ContractCopy.copyNavBattery
         case .lid: ContractCopy.copyNavLid
         case .idle: ContractCopy.copyNavIdle
-        case .topShelf: ContractCopy.copyNavTopShelf
+        case .clipboard: ContractCopy.copyNavClipboard
         case .general: ContractCopy.copyNavGeneral
         }
     }
@@ -35,7 +35,7 @@ enum SettingsSection: String, CaseIterable, Identifiable, Sendable {
         case .battery: ContractCopy.copyPageBatteryTitle
         case .lid: ContractCopy.copyPageLidTitle
         case .idle: ContractCopy.copyPageIdleTitle
-        case .topShelf: ContractCopy.copyPageTopShelfSettingsTitle
+        case .clipboard: ContractCopy.copyPageClipboardTitle
         case .general: ContractCopy.copyPageGeneralTitle
         }
     }
@@ -47,7 +47,7 @@ enum SettingsSection: String, CaseIterable, Identifiable, Sendable {
         case .battery: ContractCopy.copyPageBatterySummary
         case .lid: ContractCopy.copyPageLidSummary
         case .idle: ContractCopy.copyPageIdleSummary
-        case .topShelf: ContractCopy.copyPageTopShelfSettingsSummary
+        case .clipboard: ContractCopy.copyPageClipboardSummary
         case .general: ContractCopy.copyPageGeneralSummary
         }
     }

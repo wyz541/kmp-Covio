@@ -11,8 +11,7 @@ import kmpDomain
 ///
 /// 只跑在主线程。`Engine` 自己加锁，所以后台的端口回调进来也安全。
 ///
-/// 截图挂帘的行为在 `ShelfRuntime` 里，剪贴板属于 M4。
-/// `AppRuntime` 负责把配置变化转达给挂帘运行时。
+/// 截图目录监听在 `ShelfRuntime` 里，剪贴板属于 M4。
 @MainActor
 @Observable
 final class AppRuntime {
@@ -36,7 +35,7 @@ final class AppRuntime {
 
     let logger: AppLogger
 
-    /// 截图挂帘。设置页的开关与截图页签都读它。
+    /// 截图库。文件区读它。
     let shelf: ShelfRuntime
 
     /// 剪切板。Hub 的剪切板页签读它。
@@ -81,8 +80,6 @@ final class AppRuntime {
     private let agentExternalPreferences: AgentExternalServicePreferences
 
     private let configStore: ConfigStore
-    /// 挂帘读配置的中间人。理由见 `ShelfBridge`。
-    private let shelfBridge: ShelfBridge
     /// 剪切板回报错误的中间人。理由见 `ClipboardBridge`。
     private let clipboardBridge: ClipboardBridge
     private let engine: Engine
@@ -191,42 +188,32 @@ final class AppRuntime {
         let forwarder = StateForwarder()
         self.stateForwarder = forwarder
 
-        // 挂帘的闭包同样要在 `self` 建好之前交出去，所以配置读值走这个中间人。
-        let bridge = ShelfBridge(config: loaded)
-        self.shelfBridge = bridge
         let shelfStore = ShelfStoreClient()
+        let screenshotPreferences = MacScreenshotPreferenceStore()
         let resolvedShelf = shelf ?? ShelfRuntime(
             store: shelfStore,
-            takeover: ScreenshotTakeoverController(
-                store: MacScreenshotPreferenceStore(),
-                directory: ShelfPaths.screenshotsDirectory,
-                shelfStore: shelfStore
-            ),
-            environment: ShelfEnvironment(
-                isShelfEnabled: { bridge.config.shelfEnabled },
-                isTakeoverEnabled: { bridge.config.screenshotInboxEnabled },
-                isSoundsEnabled: { bridge.config.shelfSoundsEnabled },
-                language: { AppLanguage.fromCode(bridge.config.language) }
-            ),
-            report: { entry in bridge.report?(entry) }
+            preferences: screenshotPreferences,
+            environment: ScreenshotLibraryEnvironment(
+                screenshotDirectory: { screenshotPreferences.screenshotDirectory() }
+            )
         )
         self.shelf = resolvedShelf
 
         // 剪切板同样要先建好中间人。开关与快捷键都读配置。
-        let clipboardBridge = ClipboardBridge()
+        let clipboardBridge = ClipboardBridge(config: loaded)
         self.clipboardBridge = clipboardBridge
         let resolvedClipboard = clipboard ?? ClipboardRuntime(
             store: ClipboardStore.companion.create(path: AppPaths.clipboardFile.path),
             imageDirectory: AppPaths.clipboardDirectory,
             environment: ClipboardEnvironment(
-                isEnabled: { bridge.config.clipboardEnabled },
+                isEnabled: { clipboardBridge.config.clipboardEnabled },
                 hotKeyBinding: { action in
                     switch action {
-                    case .pasteStack: bridge.config.clipboardPasteStackHotKey
-                    case .captureSelection: bridge.config.clipboardCaptureHotKey
+                    case .pasteStack: clipboardBridge.config.clipboardPasteStackHotKey
+                    case .captureSelection: clipboardBridge.config.clipboardCaptureHotKey
                     }
                 },
-                language: { AppLanguage.fromCode(bridge.config.language) }
+                language: { AppLanguage.fromCode(clipboardBridge.config.language) }
             ),
             bridge: clipboardBridge
         )
@@ -526,21 +513,11 @@ final class AppRuntime {
             agentExternalService?.start()
         }
 
-        // 挂帘的错误要显示在 Hub 上，出口在这里接。
-        shelfBridge.report = { [weak self] entry in
+        // 截图库的错误要显示在 Hub 上，出口在这里接。
+        shelf.onError = { [weak self] entry in
             guard let self else { return }
             self.statusMessage = entry.text(for: self.language)
         }
-        // 面板反向持有运行时，所以那边用 unowned。
-        shelf.panel = ShelfPanelController(
-            runtime: shelf,
-            language: { [weak self] in
-                self?.language ?? AppLanguage.fromCode(nil)
-            },
-            onSaveToWorkspace: { [weak self] item in
-                _ = self?.workspace.save(filesAt: [item.path])
-            }
-        )
         shelf.start()
 
         clipboardBridge.report = { [weak self] entry in
@@ -602,8 +579,6 @@ final class AppRuntime {
         case .appEnabled: .boolean(config.enabled)
         case .notificationsEnabled: .boolean(config.notificationsEnabled)
         case .updateChecksEnabled: .boolean(config.updateCheckEnabled)
-        case .shelfEnabled: .boolean(config.shelfEnabled)
-        case .screenshotInboxEnabled: .boolean(config.screenshotInboxEnabled)
         case .clipboardEnabled: .boolean(config.clipboardEnabled)
         case .powerEnabled: .boolean(config.power.enabled)
         case .batteryFloorPercent: .integer(Int(config.power.batteryFloorPercent))
@@ -626,12 +601,6 @@ final class AppRuntime {
         case (.updateChecksEnabled, .boolean(let enabled)):
             setUpdateChecks(enabled)
             return config.updateCheckEnabled == enabled
-        case (.shelfEnabled, .boolean(let enabled)):
-            setShelfEnabled(enabled)
-            return config.shelfEnabled == enabled
-        case (.screenshotInboxEnabled, .boolean(let enabled)):
-            setScreenshotInbox(enabled)
-            return config.screenshotInboxEnabled == enabled
         case (.clipboardEnabled, .boolean(let enabled)):
             setClipboardEnabled(enabled)
             return config.clipboardEnabled == enabled
@@ -735,20 +704,6 @@ final class AppRuntime {
     func setImmediateLidSleep(_ enabled: Bool) { write { $0.lidSleepImmediateOnClose = enabled } }
     func setNotifications(_ enabled: Bool) { write { $0.notificationsEnabled = enabled } }
     func setUpdateChecks(_ enabled: Bool) { write { $0.updateCheckEnabled = enabled } }
-    func setShelfSounds(_ enabled: Bool) { write { $0.shelfSoundsEnabled = enabled } }
-
-    // 下面三个除了写配置，还要让挂帘运行时重新读开关。
-
-    func setShelfEnabled(_ enabled: Bool) {
-        write { $0.shelfEnabled = enabled }
-        shelf.applyConfiguration()
-    }
-
-    func setScreenshotInbox(_ enabled: Bool) {
-        write { $0.screenshotInboxEnabled = enabled }
-        shelf.applyConfiguration()
-    }
-
     func setSleepMode(_ mode: Int32) { write { $0.hibernateMode = KotlinInt(int: mode) } }
 
     func changeLanguage(_ language: AppLanguage) { write { $0.language = language.rawValue } }
@@ -813,11 +768,10 @@ final class AppRuntime {
         let defaults = ConfigStore.companion.defaults()
         configStore.save(config: defaults)
         config = defaults
-        shelfBridge.config = defaults
+        clipboardBridge.config = defaults
         _ = engine.updateConfig(newConfig: defaults)
         powerRuntime.updateConfig(defaults.power)
         syncState()
-        shelf.applyConfiguration()
         statusMessage = ContractCopy.copyDialogResetTitle.text(for: language)
     }
 
@@ -1091,13 +1045,12 @@ final class AppRuntime {
         let previous = config
         let normalized = newConfig.normalized()
         config = normalized
-        // 挂帘下次读开关时读到的是这一份。
-        shelfBridge.config = normalized
+        clipboardBridge.config = normalized
         configStore.save(config: normalized)
         let success = engine.updateConfig(newConfig: normalized)
         if !success {
             config = previous
-            shelfBridge.config = previous
+            clipboardBridge.config = previous
             configStore.save(config: previous)
             _ = engine.updateConfig(newConfig: previous)
         }
@@ -1153,7 +1106,6 @@ final class AppRuntime {
             idleCancelRemainingSeconds: engine.currentState.idleCancelRemainingSeconds,
             lidCancelRemainingSeconds: engine.currentState.lidCancelRemainingSeconds,
             darkWake: engine.currentState.darkWake,
-            shelf: engine.currentState.shelf,
             helperStatus: helperStatus,
             lidLeaseStatus: engine.currentState.lidLeaseStatus,
             lastError: engine.currentState.lastError
@@ -1205,7 +1157,6 @@ final class AppRuntime {
                 lastReason: nil,
                 count24h: 0
             ),
-            shelf: ShelfState(items: [], visible: false, revealed: true, takeoverActive: false),
             helperStatus: .notInstalled,
             lidLeaseStatus: LidLeaseStatus(
                 available: false,
@@ -1267,9 +1218,6 @@ final class ConfigDraft {
     var lastUpdateCheckEpochSeconds: Int64
     var hibernateMode: KotlinInt?
     var firstRun: Bool
-    var shelfEnabled: Bool
-    var screenshotInboxEnabled: Bool
-    var shelfSoundsEnabled: Bool
     var clipboardEnabled: Bool
     var clipboardPasteStackHotKey: String
     var clipboardCaptureHotKey: String
@@ -1298,9 +1246,6 @@ final class ConfigDraft {
         lastUpdateCheckEpochSeconds = config.lastUpdateCheckEpochSeconds
         hibernateMode = config.hibernateMode
         firstRun = config.firstRun
-        shelfEnabled = config.shelfEnabled
-        screenshotInboxEnabled = config.screenshotInboxEnabled
-        shelfSoundsEnabled = config.shelfSoundsEnabled
         clipboardEnabled = config.clipboardEnabled
         clipboardPasteStackHotKey = config.clipboardPasteStackHotKey
         clipboardCaptureHotKey = config.clipboardCaptureHotKey
@@ -1331,9 +1276,9 @@ final class ConfigDraft {
             lastUpdateCheckEpochSeconds: lastUpdateCheckEpochSeconds,
             hibernateMode: hibernateMode,
             firstRun: firstRun,
-            shelfEnabled: shelfEnabled,
-            screenshotInboxEnabled: screenshotInboxEnabled,
-            shelfSoundsEnabled: shelfSoundsEnabled,
+            shelfEnabled: false,
+            screenshotInboxEnabled: false,
+            shelfSoundsEnabled: false,
             clipboardEnabled: clipboardEnabled,
             clipboardPasteStackHotKey: clipboardPasteStackHotKey,
             clipboardCaptureHotKey: clipboardCaptureHotKey,
@@ -1391,23 +1336,5 @@ final class NotificationGate: @unchecked Sendable {
     var isEnabled: Bool {
         get { lock.withLock { enabled } }
         set { lock.withLock { enabled = newValue } }
-    }
-}
-
-/// 晾衣线读配置与回报错误的中间人。
-///
-/// `ShelfRuntime` 的环境闭包要在 `self` 全部属性赋值完之前交出去，
-/// 那时还不能捕获 `self`。所以配置副本与错误出口先放在这个独立对象上，
-/// 与 `NotificationGate` 同一个理由。
-@MainActor
-final class ShelfBridge {
-    var config: AppConfig
-    /// 错误出口。`AppRuntime` 在 `start()` 里接上。
-    ///
-    /// 挂帘自己不改 `statusMessage`：状态提示由运行时统一管。
-    var report: ((LocalizedCopy) -> Void)?
-
-    init(config: AppConfig) {
-        self.config = config
     }
 }

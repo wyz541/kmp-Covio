@@ -511,7 +511,7 @@ final class ClipboardTests: XCTestCase {
         environment.hotKeyBinding = { action in
             action == .pasteStack ? "control+option+K" : action.candidates[0]
         }
-        let bridge = ClipboardBridge()
+        let bridge = ClipboardBridge(config: AppConfigs.defaults)
         var reported: [LocalizedCopy] = []
         bridge.report = { reported.append($0) }
         let runtime = makeRuntime(environment: environment, registry: registry, bridge: bridge)
@@ -626,7 +626,7 @@ final class ClipboardTests: XCTestCase {
         registry: FakeHotKeyRegistrar? = nil,
         bridge: ClipboardBridge? = nil
     ) -> ClipboardRuntime {
-        let resolvedBridge = bridge ?? ClipboardBridge()
+        let resolvedBridge = bridge ?? ClipboardBridge(config: AppConfigs.defaults)
         if resolvedBridge.report == nil { resolvedBridge.report = { _ in } }
         return ClipboardRuntime(
             store: makeStore(),

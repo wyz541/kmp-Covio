@@ -116,13 +116,13 @@ struct ClipboardCard: View {
                     )
                 )
             }
-            .settingsRowAnchor(SettingsRowID.topShelfClipboard)
+            .settingsRowAnchor(SettingsRowID.clipboardEnabled)
 
             MacSectionTitle(text: ContractCopy.copyClipboardSettingsHotKeys.text(for: runtime.language))
             ForEach(ClipboardHotKeyAction.allCases, id: \.rawValue) { action in
                 HotKeyRow(action: action, runtime: runtime)
             }
-            .settingsRowAnchor(SettingsRowID.topShelfHotKeys)
+            .settingsRowAnchor(SettingsRowID.clipboardHotKeys)
 
             MacSectionTitle(text: ContractCopy.copyClipboardSettingsAccessibility.text(for: runtime.language))
             MacStatusLine(

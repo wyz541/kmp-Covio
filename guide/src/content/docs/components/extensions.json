@@ -53,9 +53,9 @@
       ]
     },
     {
-      "id": "screenshots",
-      "title": "截图晾衣线",
-      "summary": "截图以卡片和夹子挂在同一根晾衣线上。",
+      "id": "screenshot-archive",
+      "title": "历史设计记录",
+      "summary": "旧截图接管组件只保留设计追溯，不进入当前运行时。",
       "componentIds": [
         "screenshot-card",
         "clothespin"

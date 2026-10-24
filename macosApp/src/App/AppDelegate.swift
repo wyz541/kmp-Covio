@@ -299,7 +299,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             store: WorkbenchStore.companion.create(path: AppPaths.workbenchFile.path)
         )
         // 测试进程里不启动运行时。`start()` 会连真实的存储与系统设置：
-        // 它打开真实的截图接管并改写 `com.apple.screencapture`，还会写真实 `shelf.json`。
+        // 它监视真实截图目录，还会写真实 `shelf.json`。
         // 界面装配照旧，所以 `testHostApplicationRunsTheShell` 仍然有效。
         // 测试要的运行时由测试自己用假实现构造。
         if !LaunchEnvironment.isRunningTests() {

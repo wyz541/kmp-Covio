@@ -43,7 +43,6 @@ export default defineConfig({
             { label: '开关', slug: 'components/switch' },
             { label: '数字输入', slug: 'components/number-field' },
             { label: '分段控件', slug: 'components/segmented' },
-            { label: '截图卡片', slug: 'components/screenshot-card' },
             { label: '菜单栏图标', slug: 'components/tray-icon' },
             { label: '电源管理工作区', slug: 'components/power-management' },
           ],

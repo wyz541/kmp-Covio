@@ -4,7 +4,7 @@ package com.wyz.covio.core
  * 系统截图偏好的解析与取值规则。
  *
  * 系统截图偏好放在 `com.apple.screencapture` 这个 defaults 域里。
- * 接管打开时改三个键，关闭时按保存的快照还原。
+ * 新版只读取截图目录。旧版接管留下的快照仍用同一套解析规则恢复。
  *
  * 跑 `defaults` 命令是 OS 调用，留在各宿主。这里只有文本进来、值出去。
  */

@@ -26,12 +26,9 @@ enum SettingsRowID {
     static let idleCharging = "idle.charging"
     static let idleCancel = "idle.cancel"
 
-    // 顶部挂帘
-    static let topShelfEnabled = "top-shelf.enabled"
-    static let topShelfTakeOver = "top-shelf.take-over"
-    static let topShelfSounds = "top-shelf.sounds"
-    static let topShelfClipboard = "top-shelf.clipboard"
-    static let topShelfHotKeys = "top-shelf.hot-keys"
+    // 剪贴板
+    static let clipboardEnabled = "clipboard.enabled"
+    static let clipboardHotKeys = "clipboard.hot-keys"
 
     // 通用
     static let generalDarkWake = "general.darkwake"
@@ -68,7 +65,7 @@ struct SettingsCatalogEntry: Sendable, Equatable {
 /// 每加一行设置，这里要加一条，并在页面上加 `.settingsRowAnchor(_:)`。
 /// `SettingsCatalogTests` 会检查锚点不重复、每节都有行。
 enum SettingsCatalog {
-    static let entries: [SettingsCatalogEntry] = overview + battery + lid + idle + topShelf + general
+    static let entries: [SettingsCatalogEntry] = overview + battery + lid + idle + clipboard + general
 
     private static let overview: [SettingsCatalogEntry] = [
         SettingsCatalogEntry(
@@ -166,38 +163,17 @@ enum SettingsCatalog {
         ),
     ]
 
-    private static let topShelf: [SettingsCatalogEntry] = [
+    private static let clipboard: [SettingsCatalogEntry] = [
         SettingsCatalogEntry(
-            rowID: SettingsRowID.topShelfEnabled,
-            section: .topShelf,
-            title: ContractCopy.copyTopShelfEnabled,
-            summary: ContractCopy.copyPageTopShelfSettingsSummary,
-            keywords: ["shelf", "screenshot", "panel", "挂帘", "截图", "面板"]
-        ),
-        SettingsCatalogEntry(
-            rowID: SettingsRowID.topShelfTakeOver,
-            section: .topShelf,
-            title: ContractCopy.copyTopShelfTakeOver,
-            summary: nil,
-            keywords: ["shelf", "screenshot", "inbox", "take over", "挂帘", "截图", "接管"]
-        ),
-        SettingsCatalogEntry(
-            rowID: SettingsRowID.topShelfSounds,
-            section: .topShelf,
-            title: ContractCopy.copyTopShelfSounds,
-            summary: nil,
-            keywords: ["shelf", "sound", "audio", "挂帘", "音效", "声音"]
-        ),
-        SettingsCatalogEntry(
-            rowID: SettingsRowID.topShelfClipboard,
-            section: .topShelf,
+            rowID: SettingsRowID.clipboardEnabled,
+            section: .clipboard,
             title: ContractCopy.copyClipboardSettingsEnabled,
             summary: ContractCopy.copyClipboardSettingsAccessibilityFallback,
             keywords: ["clipboard", "history", "paste", "剪贴板", "剪切板", "历史", "粘贴"]
         ),
         SettingsCatalogEntry(
-            rowID: SettingsRowID.topShelfHotKeys,
-            section: .topShelf,
+            rowID: SettingsRowID.clipboardHotKeys,
+            section: .clipboard,
             title: ContractCopy.copyClipboardSettingsHotKeys,
             summary: nil,
             keywords: ["clipboard", "hotkey", "shortcut", "剪贴板", "剪切板", "快捷键"]

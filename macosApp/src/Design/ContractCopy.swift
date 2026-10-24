@@ -935,6 +935,8 @@ enum ContractCopy {
     static let copyMonitorUsage = LocalizedCopy(key: "copy/monitor/usage", en: "Usage", zhHans: "使用率")
     /// `copy/nav/battery`
     static let copyNavBattery = LocalizedCopy(key: "copy/nav/battery", en: "Battery", zhHans: "电池")
+    /// `copy/nav/clipboard`
+    static let copyNavClipboard = LocalizedCopy(key: "copy/nav/clipboard", en: "Clipboard", zhHans: "剪贴板")
     /// `copy/nav/general`
     static let copyNavGeneral = LocalizedCopy(key: "copy/nav/general", en: "General", zhHans: "通用")
     /// `copy/nav/idle`
@@ -1019,6 +1021,10 @@ enum ContractCopy {
     static let copyPageBatterySummary = LocalizedCopy(key: "copy/page/battery/summary", en: "Sleep when battery power reaches a threshold.", zhHans: "电池电量达到阈值时睡眠。")
     /// `copy/page/battery/title`
     static let copyPageBatteryTitle = LocalizedCopy(key: "copy/page/battery/title", en: "Battery", zhHans: "电池")
+    /// `copy/page/clipboard/summary`
+    static let copyPageClipboardSummary = LocalizedCopy(key: "copy/page/clipboard/summary", en: "Manage clipboard history, the paste stack, and shortcuts.", zhHans: "管理剪贴板历史、粘贴栈和快捷键。")
+    /// `copy/page/clipboard/title`
+    static let copyPageClipboardTitle = LocalizedCopy(key: "copy/page/clipboard/title", en: "Clipboard", zhHans: "剪贴板")
     /// `copy/page/general/state/disabled`
     static let copyPageGeneralStateDisabled = LocalizedCopy(key: "copy/page/general/state/disabled", en: "08 · General - Disabled", zhHans: "08 · General - 不可用")
     /// `copy/page/general/state/empty`
@@ -1827,6 +1833,7 @@ enum ContractCopy {
         copyMonitorUptime,
         copyMonitorUsage,
         copyNavBattery,
+        copyNavClipboard,
         copyNavGeneral,
         copyNavIdle,
         copyNavLid,
@@ -1869,6 +1876,8 @@ enum ContractCopy {
         copyPageBatteryStateWarning,
         copyPageBatterySummary,
         copyPageBatteryTitle,
+        copyPageClipboardSummary,
+        copyPageClipboardTitle,
         copyPageGeneralStateDisabled,
         copyPageGeneralStateEmpty,
         copyPageGeneralStateError,

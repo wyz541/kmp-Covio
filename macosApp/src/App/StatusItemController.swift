@@ -44,8 +44,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.autoenablesItems = false
 
         let showItem = NSMenuItem(
-            title: ContractCopy.copyTopShelfShow.text,
-            action: #selector(showShelf),
+            title: ContractCopy.copyHubFilesFilterScreenshots.text,
+            action: #selector(showScreenshots),
             keyEquivalent: ""
         )
         showItem.target = self
@@ -103,8 +103,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     // MARK: - 菜单动作
 
-    /// 打开文件工作区。旧截图入口使用文件区的截图筛选。
-    @objc private func showShelf() {
+    /// 打开文件工作区，并选中截图筛选。
+    @objc private func showScreenshots() {
         shell.workbench.showFileArea(filter: .screenshots)
         shell.show()
     }

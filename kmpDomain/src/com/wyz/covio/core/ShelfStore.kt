@@ -7,13 +7,13 @@ import okio.Path
 import okio.Path.Companion.toPath
 
 /**
- * 晾衣线状态的持久化。
+ * 截图索引状态的持久化。
  *
  * 用 okio 而不是 `java.nio.file`，因为同一份代码要跑在 jvm 与 macosArm64 上。
  * 写入沿用「先写 `.tmp` 再原子改名」的做法，避免掉电留下半个文件。
  *
  * 三个方法都取同一把可重入锁。实例会被多个线程用到：
- * 截图接管在后台线程上开关，晾衣线在主线程上落盘。
+ * 多处读取和写入共用同一把锁。
  */
 class ShelfStore(
     val path: String = defaultShelfPath(),
@@ -63,7 +63,7 @@ class ShelfStore(
         const val MAX_ITEMS = 12
 
         /**
-         * 按路径构造一个晾衣线存储。
+         * 按路径构造一个截图索引存储。
          *
          * Swift 侧不能走主构造函数：`json` 与 `fileSystem` 的默认值在 Kotlin 里，
          * 默认参数不导出到 Swift，从 Swift 就得自己拼一个 `Json`。

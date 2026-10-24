@@ -3,7 +3,7 @@ import XCTest
 import kmpDomain
 @testable import Covio
 
-/// 截图模块的四个平台叶子：目录监视、系统偏好、文件操作、剪贴板。
+/// 截图模块的平台叶子：目录监视、系统偏好和剪贴板。
 ///
 /// 这四个各自都能单独跑，所以分开测。系统偏好那组不跑真的 `defaults`，
 /// 命令走注入的假执行器，断言只看命令拼得对不对。
@@ -106,6 +106,60 @@ final class ShelfPlatformTests: XCTestCase {
         XCTAssertEqual(appeared, ["a.png", "b.png"])
     }
 
+    func testScanRetriesUntilTheScreenshotAttributeExists() throws {
+        let dedicated = directory.appendingPathComponent("Screenshots", isDirectory: true)
+        try FileManager.default.createDirectory(at: dedicated, withIntermediateDirectories: true)
+        var hasAttribute = false
+        var appeared: [String] = []
+        let watcher = ScreenshotWatcher(
+            directory: dedicated,
+            dedicatedDirectory: directory.appendingPathComponent("Other", isDirectory: true),
+            requireScreenCaptureAttribute: true,
+            debounceSeconds: 0,
+            attributeReader: { _ in hasAttribute },
+            onNew: { url in appeared.append(url.lastPathComponent) }
+        )
+        defer { watcher.close() }
+
+        try makeFile("pending.png", in: dedicated)
+        watcher.scan()
+        hasAttribute = true
+        watcher.scan()
+        let callback = expectation(description: "等属性写入后的回调")
+        DispatchQueue.main.async { callback.fulfill() }
+        wait(for: [callback], timeout: 1)
+
+        XCTAssertEqual(appeared, ["pending.png"])
+    }
+
+    func testScanReportsARecreatedFile() throws {
+        let dedicated = directory.appendingPathComponent("Screenshots", isDirectory: true)
+        try FileManager.default.createDirectory(at: dedicated, withIntermediateDirectories: true)
+        var appeared: [String] = []
+        let watcher = ScreenshotWatcher(
+            directory: dedicated,
+            dedicatedDirectory: dedicated,
+            requireScreenCaptureAttribute: false,
+            debounceSeconds: 0,
+            attributeReader: { _ in false },
+            onNew: { url in appeared.append(url.lastPathComponent) }
+        )
+        defer { watcher.close() }
+
+        let file = try makeFile("reused.png", in: dedicated)
+        watcher.scan()
+        try FileManager.default.removeItem(at: file)
+        watcher.scan()
+        try Data("x".utf8).write(to: file)
+        watcher.scan()
+        let callback = expectation(description: "等重建文件的回调")
+        DispatchQueue.main.async { callback.fulfill() }
+        wait(for: [callback], timeout: 1)
+
+        XCTAssertEqual(appeared, ["reused.png", "reused.png"])
+    }
+
+    /// 目录不存在时自己建一个。
     /// 目录不存在时自己建一个。
     ///
     /// 建目录在监视器自己的队列上跑（见 `start()`），所以要等它落地。
@@ -195,103 +249,6 @@ final class ShelfPlatformTests: XCTestCase {
         wait(for: [changed], timeout: 30)
     }
 
-    // MARK: - 文件操作
-
-    func testCopyKeepsTheSource() throws {
-        let source = try makeFile("a.png")
-        let destination = directory.appendingPathComponent("copy", isDirectory: true)
-        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
-
-        XCTAssertTrue(ShelfFileOperations.copyTo(destination: destination, source: source))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: source.path))
-        XCTAssertTrue(
-            FileManager.default.fileExists(
-                atPath: destination.appendingPathComponent("a.png").path
-            )
-        )
-    }
-
-    func testMoveRemovesTheSource() throws {
-        let source = try makeFile("a.png")
-        let destination = directory.appendingPathComponent("move", isDirectory: true)
-        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
-
-        XCTAssertTrue(ShelfFileOperations.moveTo(destination: destination, source: source))
-        XCTAssertFalse(FileManager.default.fileExists(atPath: source.path))
-        XCTAssertTrue(
-            FileManager.default.fileExists(
-                atPath: destination.appendingPathComponent("a.png").path
-            )
-        )
-    }
-
-    /// 源文件不存在时返回假，调用方据此报错。
-    func testCopyingAMissingFileFails() throws {
-        let destination = directory.appendingPathComponent("copy", isDirectory: true)
-        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
-        let ghost = directory.appendingPathComponent("ghost.png")
-        XCTAssertFalse(ShelfFileOperations.copyTo(destination: destination, source: ghost))
-    }
-
-    /// 落点名重复时顺延，不覆盖已有文件。
-    func testUniqueTargetCountsUp() throws {
-        let destination = directory.appendingPathComponent("target", isDirectory: true)
-        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
-        try makeFile("photo.png", in: destination)
-        try makeFile("photo 2.png", in: destination)
-
-        XCTAssertEqual(
-            ShelfFileOperations.uniqueTarget(in: destination, name: "photo.png").lastPathComponent,
-            "photo 3.png"
-        )
-    }
-
-    /// 没有扩展名的文件名整体当基名，不要把点当分隔。
-    func testUniqueTargetHandlesNamesWithoutAnExtension() throws {
-        let destination = directory.appendingPathComponent("target", isDirectory: true)
-        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
-        try makeFile("README", in: destination)
-
-        XCTAssertEqual(
-            ShelfFileOperations.uniqueTarget(in: destination, name: "README").lastPathComponent,
-            "README 2"
-        )
-    }
-
-    /// 落点类型到文件操作的映射来自 `kmpDomain`，两版共用。
-    func testDropTargetsMapToActions() {
-        XCTAssertEqual(ShelfDropResolver.action(forTarget: .application), .theCopyAndKeep)
-        XCTAssertEqual(ShelfDropResolver.action(forTarget: .folder), .moveAndRemove)
-        XCTAssertEqual(ShelfDropResolver.action(forTarget: .desktop), .moveAndRemove)
-        XCTAssertEqual(ShelfDropResolver.action(forTarget: .trash), .trashAndRemove)
-        XCTAssertEqual(ShelfDropResolver.action(forTarget: .invalid), .cancel)
-    }
-
-    /// 拖拽操作掩码到结果的映射。删除优先于移动，移动优先于复制。
-    func testDragOperationMasksMapToResults() {
-        XCTAssertEqual(ShelfDropResolver.result(forOperationMask: 0), .cancel)
-        XCTAssertEqual(ShelfDropResolver.result(forOperationMask: 1), .theCopy)
-        XCTAssertEqual(ShelfDropResolver.result(forOperationMask: 2), .move)
-        XCTAssertEqual(ShelfDropResolver.result(forOperationMask: 32), .delete_)
-        // 掩码里同时有复制和删除时，删除赢。
-        XCTAssertEqual(ShelfDropResolver.result(forOperationMask: 33), .delete_)
-    }
-
-    /// 删除走系统废纸篓。测完把自己扔的东西捡回来，不留垃圾。
-    func testTrashMovesTheFileOutOfTheSourceDirectory() throws {
-        let name = "covio-trash-test-\(UUID().uuidString).png"
-        let source = try makeFile(name)
-        XCTAssertTrue(ShelfFileOperations.trash(source))
-        XCTAssertFalse(FileManager.default.fileExists(atPath: source.path))
-
-        // 系统废纸篓里找回来删掉。找不到也不算失败：可能落到了退路目录。
-        let trash = ShelfPaths.trashDirectory
-        let landed = trash.appendingPathComponent(name)
-        if FileManager.default.fileExists(atPath: landed.path) {
-            try? FileManager.default.removeItem(at: landed)
-        }
-    }
-
     // MARK: - 剪贴板
 
     /// 存下剪贴板原文。存成「类型 → 数据」，恢复时重建条目。
@@ -373,29 +330,6 @@ final class ShelfPlatformTests: XCTestCase {
 
     // MARK: - 系统截图偏好
 
-    /// 接管打开时写三个键，路径用绝对路径。
-    func testTakeoverWritesThreeKeys() {
-        let recorder = CommandRecorder()
-        let store = MacScreenshotPreferenceStore(runner: recorder.run)
-        let target = directory.appendingPathComponent("Shots", isDirectory: true)
-
-        XCTAssertTrue(store.apply(directory: target))
-        XCTAssertEqual(recorder.commands, [
-            ["/usr/bin/defaults", "write", "com.apple.screencapture", "location", "-string", target.path],
-            ["/usr/bin/defaults", "write", "com.apple.screencapture", "location-screenshot", "-string", target.path],
-            ["/usr/bin/defaults", "write", "com.apple.screencapture", "show-thumbnail", "-bool", "false"],
-        ])
-    }
-
-    /// 三个键里有一个写失败就算失败，调用方据此报「接管失败」。
-    func testTakeoverFailsWhenAnyKeyFails() {
-        let recorder = CommandRecorder()
-        recorder.failWhen = { $0.contains("show-thumbnail") }
-        let store = MacScreenshotPreferenceStore(runner: recorder.run)
-
-        XCTAssertFalse(store.apply(directory: directory))
-    }
-
     /// 读的时候要保留「键不存在」与「值是假」的区别。
     func testReadingKeepsTheMissingKeyDistinct() {
         let recorder = CommandRecorder()
@@ -466,6 +400,49 @@ final class ShelfPlatformTests: XCTestCase {
             location: "/tmp", locationScreenshot: "/tmp", showThumbnail: KotlinBoolean(bool: false)
         )
         XCTAssertFalse(store.restore(snapshot: snapshot))
+    }
+
+    func testScreenshotDirectoryCanUseAnIsolatedCaptureDirectory() {
+        let override = directory.appendingPathComponent("native-screenshots", isDirectory: true)
+        let store = MacScreenshotPreferenceStore(
+            runner: { _ in
+                PreferenceCommandResult(exitCode: 1, output: "")
+            },
+            captureDirectoryOverride: override
+        )
+
+        XCTAssertEqual(store.screenshotDirectory(), override.standardizedFileURL)
+    }
+
+    func testScreenshotIndexDirectoryCanBeOverridden() {
+        let override = directory.appendingPathComponent("screenshot-index", isDirectory: true)
+
+        XCTAssertEqual(
+            ShelfPaths.screenshotsDirectory(environment: [
+                "COVIO_SCREENSHOT_INDEX_DIR": override.path,
+            ]),
+            override
+        )
+    }
+
+    func testScreenshotDirectoryPrefersTheScreenshotKey() {
+        let recorder = CommandRecorder()
+        recorder.outputs = [
+            "location": "/tmp/general",
+            "location-screenshot": "/tmp/screenshots",
+        ]
+        let store = MacScreenshotPreferenceStore(runner: recorder.run)
+        XCTAssertEqual(store.screenshotDirectory().path, "/tmp/screenshots")
+    }
+
+    func testScreenshotDirectoryFallsBackToLocationThenDesktop() {
+        let recorder = CommandRecorder()
+        recorder.outputs = ["location": "/tmp/general"]
+        let store = MacScreenshotPreferenceStore(runner: recorder.run)
+        XCTAssertEqual(store.screenshotDirectory().path, "/tmp/general")
+
+        recorder.outputs = [:]
+        XCTAssertEqual(store.screenshotDirectory(), ShelfPaths.desktopDirectory)
     }
 
     // MARK: - 子进程的上限

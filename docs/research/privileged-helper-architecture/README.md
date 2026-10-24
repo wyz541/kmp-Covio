@@ -87,6 +87,7 @@ root 进程不需要这些依赖，扩大攻击面没有收益。
 
 实现顺序、回滚条件和产品化条件见 [solution.md](solution.md)。
 证据和未决项见 [evidence.md](evidence.md)。
+架构决策见 [ADR-0018](../../adr/adr-0018-privileged-helper-release-identity.md)。
 
 ## 子文档
 

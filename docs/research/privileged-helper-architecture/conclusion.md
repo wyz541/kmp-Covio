@@ -164,4 +164,6 @@ ADR-0006 的结论建立在当前没有 Developer ID 的前提上。
 
 选择完成后，再创建 ADR 和实施 Feature。
 
+后续架构记录见 [ADR-0018](../../adr/adr-0018-privileged-helper-release-identity.md)。
+
 decision: pending

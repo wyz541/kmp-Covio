@@ -114,11 +114,30 @@ class PowerPolicyTest {
         val decision = decide(
             config = config(keepAwakeOnAdapter = false),
             lease = lease(HoldLeaseLevel.CLOSED_LID),
-            snapshot = safeClosedLidSnapshot().copy(helperStatus = HelperStatus.NOT_INSTALLED),
+            snapshot = safeClosedLidSnapshot().copy(helperStatus = HelperStatus.MISSING),
         )
 
         assertTrue(decision.sleepAllowed)
         assertEquals(listOf(SafetyVeto.HELPER_UNAVAILABLE), decision.safetyVetoes)
+    }
+
+    @Test
+    fun `every helper safe mode blocks closed lid writes`() {
+        listOf(
+            HelperStatus.MISSING,
+            HelperStatus.OUTDATED,
+            HelperStatus.IDENTITY_MISMATCH,
+            HelperStatus.UNTRUSTED,
+        ).forEach { status ->
+            val decision = decide(
+                config = config(keepAwakeOnAdapter = false),
+                lease = lease(HoldLeaseLevel.CLOSED_LID),
+                snapshot = safeClosedLidSnapshot().copy(helperStatus = status),
+            )
+
+            assertTrue(decision.sleepAllowed, status.name)
+            assertEquals(listOf(SafetyVeto.HELPER_UNAVAILABLE), decision.safetyVetoes, status.name)
+        }
     }
 
     @Test
@@ -485,7 +504,7 @@ class PowerPolicyTest {
             thermalState = ThermalState.NOMINAL,
             lowPowerModeEnabled = false,
         ),
-        helperStatus = HelperStatus.INSTALLED,
+        helperStatus = HelperStatus.MATCH,
         sleepDisabled = false,
         covioOwnsSleepDisabled = null,
     )

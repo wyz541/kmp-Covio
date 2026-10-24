@@ -137,22 +137,24 @@ enum CovioMain {
     private static func printHelperStatus() -> Int32 {
         let exists = FileManager.default.fileExists(atPath: HelperProtocol.socketPath)
         let client = HelperClient()
-        let info = client.versionInfo()
+        let probe = client.versionProbe()
+        let identity = probe.flatMap { HelperReleaseHandshake.shared.parse(result: $0.result) }
         let ops = MacPrivilegedOps(
             logger: FileAppLogger(),
             executablePath: executablePath,
             client: client
         )
-        let sameVersion = info?.version == GeneratedReleaseIdentityKt.APP_VERSION
-        let sameProtocol = info?.protocolVersion == HelperProtocol.protocolVersion
+        let status = ops.status()
         print("socket=\(HelperProtocol.socketPath)")
         print("exists=\(exists)")
-        print("version=\(info?.version ?? "nil")")
-        print("protocol=\(info?.protocolVersion ?? "nil")")
-        print("expectedVersion=\(GeneratedReleaseIdentityKt.APP_VERSION)")
-        print("expectedProtocol=\(HelperProtocol.protocolVersion)")
-        print("opsStatus=\(ops.status())")
-        return exists && sameVersion && sameProtocol ? 0 : 1
+        print("version=\(identity?.productVersion ?? probe?.result["version"] ?? "nil")")
+        print("buildNumber=\(identity?.buildNumber ?? "nil")")
+        print("gitCommit=\(identity?.gitCommit ?? "nil")")
+        print("releaseId=\(identity?.releaseId ?? "nil")")
+        print("protocol=\(identity?.protocolVersion ?? probe?.result["protocolVersion"] ?? "nil")")
+        print("helperSHA256=\(identity?.helperSHA256 ?? "nil")")
+        print("opsStatus=\(status)")
+        return status == .match ? 0 : 1
     }
 #endif
 }

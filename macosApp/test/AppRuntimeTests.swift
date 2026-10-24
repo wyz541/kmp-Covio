@@ -43,10 +43,11 @@ final class AppRuntimeTests: XCTestCase {
     private func makeRuntime(
         engineStarted: Bool = false,
         helperInstalled: Bool = false,
+        helperStatus: HelperStatus? = nil,
         brightnessBackend: FakeClosedLidBrightnessBackend = FakeClosedLidBrightnessBackend(brightness: 0.6)
     ) -> AppRuntime {
         privileged = FakePrivilegedOps()
-        privileged.installed = helperInstalled
+        privileged.statusValue = helperStatus ?? (helperInstalled ? .match : .missing)
         powerObservation = FakePowerObservationSource()
         powerObservation = FakePowerObservationSource()
         chargeLimitClient = FakeChargeLimitClient()
@@ -296,7 +297,7 @@ final class AppRuntimeTests: XCTestCase {
     /// 打开它要改 `pmset`，而只有 helper 有 root。让开关亮着会骗用户。
     func testLidSwitchIsRefusedWithoutTheHelper() throws {
         let created = makeRuntime(engineStarted: true)
-        XCTAssertEqual(created.helperStatus, .notInstalled)
+        XCTAssertEqual(created.helperStatus, .missing)
 
         created.setDisableLidWhileCharging(true)
         created.setDisableLidOnBattery(true)
@@ -309,7 +310,7 @@ final class AppRuntimeTests: XCTestCase {
     /// helper 在时开关正常。
     func testLidSwitchIsAcceptedWithTheHelper() throws {
         let created = makeRuntime(engineStarted: true, helperInstalled: true)
-        XCTAssertEqual(created.helperStatus, .installed)
+        XCTAssertEqual(created.helperStatus, .match)
 
         created.setDisableLidWhileCharging(true)
 
@@ -358,7 +359,7 @@ final class AppRuntimeTests: XCTestCase {
         created.installHelper()
         await waitUntil { !created.busy }
 
-        XCTAssertEqual(created.helperStatus, .installed)
+        XCTAssertEqual(created.helperStatus, .match)
         XCTAssertEqual(created.statusMessage, ContractCopy.copyOverviewHelperInstalled.text(for: created.language))
         XCTAssertFalse(created.welcomeVisible, "装好之后欢迎页要让位")
     }
@@ -372,7 +373,7 @@ final class AppRuntimeTests: XCTestCase {
         created.uninstallHelper()
         await waitUntil { !created.busy }
 
-        XCTAssertEqual(created.helperStatus, .notInstalled)
+        XCTAssertEqual(created.helperStatus, .missing)
         XCTAssertTrue(created.appState.lidSleepAvailable, "helper 走了就限制不住了，状态要如实反映")
     }
 
@@ -406,6 +407,15 @@ final class AppRuntimeTests: XCTestCase {
         XCTAssertEqual(created.config.chargeLimitPercent, 85)
         XCTAssertEqual(try savedJSON()["chargeLimitEnabled"] as? Bool, true)
         XCTAssertEqual(try savedJSON()["chargeLimitPercent"] as? Int, 85)
+    }
+
+    func testChargeLimitWriteIsBlockedInHelperSafeMode() throws {
+        let created = makeRuntime(engineStarted: true, helperStatus: .identityMismatch)
+
+        XCTAssertEqual(created.helperStatus, .identityMismatch)
+        XCTAssertFalse(created.applyChargeLimit(85))
+        XCTAssertTrue(chargeLimitClient.setValues.isEmpty)
+        XCTAssertFalse(created.config.chargeLimitEnabled)
     }
 
     func testApplyChargeLimitPersistsActiveDischarge() throws {

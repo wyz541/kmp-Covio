@@ -88,13 +88,16 @@ struct PowerManagementView: View {
                 )
             }
 
-            if helperNeedsAttention {
+            if let reason = HelperStatusPresentation.readOnlyReason(
+                model.helperStatus,
+                language: language
+            ) {
                 statusAlert(
-                    message: ContractCopy.copyPowerAlertHelperMissing.text(for: language),
+                    message: reason,
                     kind: .warning
                 ) {
                     MacButton(
-                        title: ContractCopy.copyOverviewHelperInstall.text(for: language),
+                        title: HelperStatusPresentation.repairTitle.text(for: language),
                         kind: .primary,
                         isEnabled: !model.busy
                     ) {
@@ -252,7 +255,7 @@ struct PowerManagementView: View {
     private var canStartSession: Bool {
         model.powerConfig.enabled &&
             (!model.hasManualSession || model.sessionMode != sessionMode) &&
-            (sessionMode != .lid || model.helperStatus == .installed)
+            (sessionMode != .lid || model.helperStatus == .match)
     }
 
     private var reasons: [PowerReason] {
@@ -341,7 +344,7 @@ struct PowerManagementView: View {
                     get: { model.powerConfig.allowClosedLid },
                     set: { model.setPowerAllowClosedLid($0) }
                 ),
-                isEnabled: model.helperStatus == .installed || !model.powerConfig.allowClosedLid
+                isEnabled: model.helperStatus == .match || !model.powerConfig.allowClosedLid
             )
             ruleRow(
                 title: ContractCopy.copyPowerRulesClosedLidZeroBrightness.text(for: language),
@@ -350,7 +353,7 @@ struct PowerManagementView: View {
                     set: { model.setPowerClosedLidZeroBrightness($0) }
                 ),
                 isEnabled: model.powerConfig.closedLidZeroBrightness ||
-                    (model.helperStatus == .installed &&
+                    (model.helperStatus == .match &&
                         model.closedLidZeroBrightnessAvailability.isAvailable)
             )
             Text(
@@ -640,16 +643,7 @@ struct PowerManagementView: View {
     }
 
     private var helperValue: String {
-        switch model.helperStatus {
-        case .installed: ContractCopy.copyPowerStatusGuardReady.text(for: language)
-        case .notInstalled: ContractCopy.copyPowerStatusGuardMissing.text(for: language)
-        case .outdated, .error: ContractCopy.copyStatusItemHelperError.text(for: language)
-        default: ContractCopy.copyStatusItemHelperError.text(for: language)
-        }
-    }
-
-    private var helperNeedsAttention: Bool {
-        model.helperStatus != .installed
+        HelperStatusPresentation.value(model.helperStatus, language: language)
     }
 
     private var thermalNeedsAttention: Bool {

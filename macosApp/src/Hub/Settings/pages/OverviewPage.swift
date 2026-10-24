@@ -46,11 +46,6 @@ struct OverviewPage: View {
     }
 
     private var helperText: String {
-        switch runtime.helperStatus {
-        case .installed: ContractCopy.copyOverviewHelperInstalled.text(for: runtime.language)
-        case .notInstalled: ContractCopy.copyOverviewHelperMissing.text(for: runtime.language)
-        // Kotlin 枚举导出成类，Swift 看不出它有几种取值，所以要有 default。
-        default: ContractCopy.copyStatusItemHelperError.text(for: runtime.language)
-        }
+        HelperStatusPresentation.value(runtime.helperStatus, language: runtime.language)
     }
 }

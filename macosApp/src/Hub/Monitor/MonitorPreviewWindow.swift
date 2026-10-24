@@ -66,7 +66,7 @@ final class PowerPreviewModel: PowerManagementModel {
     var observation: PowerObservation
     var snapshot: PowerSnapshot
     var decision: PowerDecision
-    var helperStatus: HelperStatus = .installed
+    var helperStatus: HelperStatus = .match
     var executionError: String?
     var closedLidZeroBrightnessPhase: ClosedLidZeroBrightnessPhase = .ready
     var closedLidZeroBrightnessAvailability: ClosedLidBrightnessAvailability = .available
@@ -105,7 +105,7 @@ final class PowerPreviewModel: PowerManagementModel {
         observation = sampleObservation
         snapshot = PowerSnapshot(
             observation: sampleObservation,
-            helperStatus: .installed,
+            helperStatus: .match,
             sleepDisabled: KotlinBoolean(bool: false),
             covioOwnsSleepDisabled: KotlinBoolean(bool: false)
         )
@@ -195,7 +195,7 @@ final class PowerPreviewModel: PowerManagementModel {
     }
 
     func installHelper() {
-        helperStatus = .installed
+        helperStatus = .match
         statusMessage = ContractCopy.copyOverviewHelperInstalled.text(for: language)
     }
 

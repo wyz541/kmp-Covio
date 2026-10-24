@@ -39,19 +39,39 @@ final class HelperClient: @unchecked Sendable {
         return transact(
             HelperWire.shared.encodeRequest(request: request) + "\n",
             timeout: requestTimeout
+        )?.reply
+    }
+
+    /// 使用 v1 `version` 探测 helper，并保留 socket 对端 PID 供签名校验。
+    func versionProbe() -> HelperVersionProbe? {
+        guard FileManager.default.fileExists(atPath: socketPath) else { return nil }
+        let request = HelperRequest(
+            version: "1",
+            requestId: UUID().uuidString,
+            command: HelperWire.shared.COMMAND_VERSION,
+            payload: [:]
+        )
+        guard let transaction = transact(
+            HelperWire.shared.encodeRequest(request: request) + "\n",
+            timeout: timeout
+        ), transaction.reply.ok
+        else {
+            return nil
+        }
+        return HelperVersionProbe(
+            result: transaction.reply.result ?? [:],
+            peerPID: transaction.peerPID
         )
     }
 
     /// 使用 v1 `version` 探测旧 helper。新 helper 保留这一条只读兼容路径。
     func versionInfo() -> HelperVersionInfo? {
-        guard let reply = request(command: HelperWire.shared.COMMAND_VERSION, protocolVersion: "1"),
-              reply.ok,
-              let version = reply.result?["version"] else {
+        guard let probe = versionProbe(), let version = probe.result["version"] else {
             return nil
         }
         return HelperVersionInfo(
             version: version,
-            protocolVersion: reply.result?["protocolVersion"]
+            protocolVersion: probe.result["protocolVersion"]
         )
     }
 
@@ -193,17 +213,19 @@ final class HelperClient: @unchecked Sendable {
 
     // MARK: - 私有
 
-    private func transact(_ line: String, timeout: TimeInterval) -> HelperReply? {
+    private func transact(_ line: String, timeout: TimeInterval) -> HelperTransaction? {
         let descriptor = connect(timeout: timeout)
         guard descriptor >= 0 else { return nil }
         defer { close(descriptor) }
+        let peerPID = HelperSignature.peerPID(of: descriptor)
 
         guard UnixSocketIO.writeAll(descriptor, line) else { return nil }
         guard let response = UnixSocketIO.readLine(
             descriptor,
             limit: Int(HelperWire.shared.MAX_REPLY_BYTES)
         ) else { return nil }
-        return HelperWire.shared.decodeReply(line: response)
+        guard let reply = HelperWire.shared.decodeReply(line: response) else { return nil }
+        return HelperTransaction(reply: reply, peerPID: peerPID)
     }
 
     private func connect(timeout: TimeInterval) -> Int32 {
@@ -243,9 +265,19 @@ final class HelperClient: @unchecked Sendable {
     }
 }
 
+private struct HelperTransaction {
+    let reply: HelperReply
+    let peerPID: pid_t?
+}
+
 struct HelperVersionInfo {
     let version: String
     let protocolVersion: String?
+}
+
+struct HelperVersionProbe {
+    let result: [String: String]
+    let peerPID: pid_t?
 }
 
 /// 充电上限 helper 客户端端口。测试替换这个端口，避免连接真实 helper。
@@ -438,7 +470,10 @@ final class FanControlLeaseKeeper: @unchecked Sendable {
             )
             source.setEventHandler { [weak self] in
                 guard let self else { return }
-                _ = client.keepAliveFanControl()
+                guard HelperReleaseInspector.inspect(client: self.client).allowsPrivilegedWrites else {
+                    return
+                }
+                _ = self.client.keepAliveFanControl()
             }
             source.resume()
             timer = source

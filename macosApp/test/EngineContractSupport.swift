@@ -301,15 +301,19 @@ final class FakeSleepWatcher: NSObject, SleepWatcher {
 }
 
 final class FakePrivilegedOps: NSObject, PrivilegedOps {
-    var installed = false
+    var statusValue: HelperStatus = .missing
+    var match: Bool {
+        get { statusValue == .match }
+        set { statusValue = newValue ? .match : .missing }
+    }
     var disableSleepResult = true
     var sleepDisabled = false
     var covioOwned: Bool?
     var disableSleepValues: [Bool] = []
 
-    func isInstalled() -> Bool { installed }
+    func isInstalled() -> Bool { statusValue != .missing }
 
-    func status() -> HelperStatus { installed ? .installed : .notInstalled }
+    func status() -> HelperStatus { statusValue }
 
     func helperVersion() -> String? { GeneratedReleaseIdentityKt.APP_VERSION }
 
@@ -329,8 +333,8 @@ final class FakePrivilegedOps: NSObject, PrivilegedOps {
 
     func lidLeaseStatus() -> LidLeaseStatus {
         LidLeaseStatus(
-            available: installed,
-            protocolVersion: installed ? HelperProtocol.protocolVersion : nil,
+            available: match,
+            protocolVersion: match ? HelperProtocol.protocolVersion : nil,
             sleepDisabled: KotlinBoolean(bool: sleepDisabled),
             covioOwned: KotlinBoolean(bool: covioOwned ?? sleepDisabled),
             activeLeaseCount: sleepDisabled ? 1 : 0,

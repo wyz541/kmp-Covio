@@ -96,7 +96,21 @@ data class BatteryStatus(
 
 enum class LidState { UNKNOWN, OPEN, CLOSED }
 
-enum class HelperStatus { NOT_INSTALLED, INSTALLED, OUTDATED, ERROR }
+/**
+ * app 与 helper 的发布身份握手结果。
+ *
+ * 只有 [MATCH] 允许特权写入。其余状态都必须保持只读，并只开放 helper 修复入口。
+ */
+enum class HelperStatus {
+    MATCH,
+    MISSING,
+    OUTDATED,
+    IDENTITY_MISMATCH,
+    UNTRUSTED;
+
+    val allowsPrivilegedWrites: Boolean
+        get() = this == MATCH
+}
 
 enum class SleepEvent { WillSleep, WakeSignal }
 
@@ -418,7 +432,7 @@ data class AppState(
     val idleCancelRemainingSeconds: Long? = null,
     val lidCancelRemainingSeconds: Long? = null,
     val darkWake: DarkWakeStatus = DarkWakeStatus(),
-    val helperStatus: HelperStatus = HelperStatus.NOT_INSTALLED,
+    val helperStatus: HelperStatus = HelperStatus.MISSING,
     val lidLeaseStatus: LidLeaseStatus = LidLeaseStatus(),
     val lastError: String? = null,
 )

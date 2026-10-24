@@ -50,7 +50,7 @@ final class PowerRuntime {
     private(set) var observation: PowerObservation
     private(set) var snapshot: PowerSnapshot
     private(set) var decision: PowerDecision
-    private(set) var helperStatus: HelperStatus = .notInstalled
+    private(set) var helperStatus: HelperStatus = .missing
     private(set) var executionError: String?
     private(set) var leases: [HoldLease] = []
     private(set) var history: [PowerHistoryEvent] = []
@@ -122,7 +122,7 @@ final class PowerRuntime {
         observation = emptyObservation
         snapshot = PowerSnapshot(
             observation: emptyObservation,
-            helperStatus: .error,
+            helperStatus: .untrusted,
             sleepDisabled: nil,
             covioOwnsSleepDisabled: nil
         )
@@ -233,7 +233,7 @@ final class PowerRuntime {
 
     @discardableResult
     func startSession(mode: SessionMode, duration: SessionDuration) -> Bool {
-        if mode == .lid, helperStatus != .installed {
+        if mode == .lid, helperStatus != .match {
             executionError = "helper-unavailable"
             return false
         }

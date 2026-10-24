@@ -171,7 +171,7 @@ internal fun resolveTrayIconState(
     state: AppState,
     helperStatus: HelperStatus,
 ): TrayIconState {
-    if (helperStatus != HelperStatus.INSTALLED) return TrayIconState.HELPER_ERROR
+    if (helperStatus != HelperStatus.MATCH) return TrayIconState.HELPER_ERROR
     if (!config.enabled) return TrayIconState.DISABLED
     if (isLowBattery(config, state)) return TrayIconState.LOW_BATTERY
     if (state.battery?.state?.isCharging == true) return TrayIconState.CHARGING
@@ -201,15 +201,16 @@ internal fun resolveTrayPresentation(
     val batteryText = state.battery?.let { formatBattery(it, strings) } ?: strings.unknown
     val idleText = if (state.idleSleepAvailable) labels.off else labels.on
     val lidText = when {
-        helperStatus != HelperStatus.INSTALLED -> labels.unavailable
+        helperStatus != HelperStatus.MATCH -> labels.unavailable
         state.lidSleepAvailable -> labels.off
         else -> labels.on
     }
     val helperText = when (helperStatus) {
-        HelperStatus.INSTALLED -> strings.helperInstalled
+        HelperStatus.MATCH -> strings.helperInstalled
         HelperStatus.OUTDATED -> strings.helperOutdated
-        HelperStatus.ERROR -> strings.helperOutdated
-        HelperStatus.NOT_INSTALLED -> strings.helperNotInstalled
+        HelperStatus.IDENTITY_MISMATCH -> strings.helperOutdated
+        HelperStatus.UNTRUSTED -> strings.helperOutdated
+        HelperStatus.MISSING -> strings.helperNotInstalled
     }
     val separator = if (language == AppLanguage.SIMPLIFIED_CHINESE) "：" else ": "
     val tooltip = listOf(

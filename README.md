@@ -393,7 +393,7 @@ Exact 8 GB hardware validation is tracked by [#185](https://github.com/wyz541/km
 1. Install the build under test.
 2. Confirm the app version and build number match `release/release-manifest.json`.
 3. Install the privileged helper.
-4. Confirm the helper version matches the app version.
+4. Confirm the helper release identity and executable SHA-256 match the app.
 5. Record `defaults read com.apple.screencapture`. Take a screenshot. Confirm the values do not change.
 6. Confirm the native macOS thumbnail remains visible.
 7. Confirm the screenshot appears in **Files** → **Screenshots**.

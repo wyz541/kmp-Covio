@@ -1291,6 +1291,14 @@ enum ContractCopy {
     static let copyStatusItemDisabled = LocalizedCopy(key: "copy/status-item/disabled", en: "Covio is paused.", zhHans: "Covio 已暂停。")
     /// `copy/status-item/helper-error`
     static let copyStatusItemHelperError = LocalizedCopy(key: "copy/status-item/helper-error", en: "The helper needs attention.", zhHans: "Helper 需要处理。")
+    /// `copy/status-item/helper-identity-mismatch`
+    static let copyStatusItemHelperIdentityMismatch = LocalizedCopy(key: "copy/status-item/helper-identity-mismatch", en: "The app and helper releases do not match.", zhHans: "app 与 helper 的发布身份不一致。")
+    /// `copy/status-item/helper-outdated`
+    static let copyStatusItemHelperOutdated = LocalizedCopy(key: "copy/status-item/helper-outdated", en: "The helper needs an update.", zhHans: "Helper 需要更新。")
+    /// `copy/status-item/helper-safe-mode`
+    static let copyStatusItemHelperSafeMode = LocalizedCopy(key: "copy/status-item/helper-safe-mode", en: "Privileged writes are disabled until the helper is repaired.", zhHans: "修复 Helper 前，特权写入保持禁用。")
+    /// `copy/status-item/helper-untrusted`
+    static let copyStatusItemHelperUntrusted = LocalizedCopy(key: "copy/status-item/helper-untrusted", en: "Covio cannot verify the helper.", zhHans: "Covio 无法验证 Helper。")
     /// `copy/status-item/idle-prevented`
     static let copyStatusItemIdlePrevented = LocalizedCopy(key: "copy/status-item/idle-prevented", en: "Idle sleep is prevented.", zhHans: "已阻止空闲休眠。")
     /// `copy/status-item/lid-prevented`
@@ -2039,6 +2047,10 @@ enum ContractCopy {
         copyStatusItemDefault,
         copyStatusItemDisabled,
         copyStatusItemHelperError,
+        copyStatusItemHelperIdentityMismatch,
+        copyStatusItemHelperOutdated,
+        copyStatusItemHelperSafeMode,
+        copyStatusItemHelperUntrusted,
         copyStatusItemIdlePrevented,
         copyStatusItemLidPrevented,
         copyStatusItemLowBattery,

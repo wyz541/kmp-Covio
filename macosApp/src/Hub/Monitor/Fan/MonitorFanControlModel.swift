@@ -56,19 +56,16 @@ final class MonitorFanControlModel: ObservableObject {
     func refreshAvailability() {
         guard !busy, !skipsAvailabilityRefresh else { return }
         Task.detached(priority: .userInitiated) { [client] in
-            let socketExists = FileManager.default.fileExists(atPath: client.socketPath)
-            let info = socketExists ? client.versionInfo() : nil
+            let helperStatus = HelperReleaseInspector.inspect(client: client)
             let availability: HelperAvailability
-            if !socketExists {
+            switch helperStatus {
+            case .match:
+                availability = .ready
+            case .missing:
                 availability = .missing
-            } else if let info {
-                if info.version == GeneratedReleaseIdentityKt.APP_VERSION,
-                   info.protocolVersion == HelperProtocol.protocolVersion {
-                    availability = .ready
-                } else {
-                    availability = .outdated
-                }
-            } else {
+            case .outdated, .identityMismatch:
+                availability = .outdated
+            default:
                 availability = .unavailable
             }
             let status = availability == .ready ? client.fanControlStatus() : nil
@@ -342,6 +339,14 @@ final class MonitorFanControlModel: ObservableObject {
         busy = true
         message = nil
         Task.detached(priority: .userInitiated) { [client] in
+            guard HelperReleaseInspector.inspect(client: client).allowsPrivilegedWrites else {
+                await MainActor.run {
+                    self.busy = false
+                    self.configuration.enabled = false
+                    self.persist()
+                }
+                return
+            }
             let result = client.configureFanControl(configuration)
             await MainActor.run {
                 self.busy = false

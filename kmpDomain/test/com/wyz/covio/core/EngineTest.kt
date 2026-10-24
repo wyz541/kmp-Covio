@@ -377,6 +377,17 @@ class EngineTest {
     }
 
     @Test
+    fun `helper safe mode blocks every disablesleep write`() {
+        val fixture = Fixture()
+        fixture.privileged.installed = true
+        fixture.privileged.helperStatus = HelperStatus.IDENTITY_MISMATCH
+
+        assertFalse(fixture.engine.setLidSleepAvailable(false))
+        assertFalse(fixture.engine.setLidSleepAvailable(true))
+        assertTrue(fixture.privileged.disableSleepValues.isEmpty())
+    }
+
+    @Test
     fun `lid close sleeps immediately when available`() {
         val fixture = Fixture(AppConfig(lidSleepImmediateOnClose = true))
         fixture.power.value = BatteryStatus(80, PowerState.DISCHARGING, null)
@@ -390,6 +401,7 @@ class EngineTest {
     fun `lid close only turns display off while sleep is prevented`() {
         val fixture = Fixture(AppConfig(lidSleepImmediateOnClose = false))
         fixture.power.value = BatteryStatus(80, PowerState.CHARGING, null)
+        fixture.privileged.installed = true
         fixture.engine.start()
         fixture.engine.setLidSleepAvailable(false)
         fixture.lid.emit(LidState.CLOSED)
@@ -401,6 +413,7 @@ class EngineTest {
     fun `idle compensation sleeps after system timeout`() {
         val fixture = Fixture(AppConfig(lidSleepImmediateOnClose = false))
         fixture.power.value = BatteryStatus(80, PowerState.CHARGING, null)
+        fixture.privileged.installed = true
         fixture.engine.start()
         fixture.engine.setLidSleepAvailable(false)
         fixture.sleep.timeoutSeconds = 60
@@ -675,11 +688,12 @@ private class FakeSleepWatcher : SleepWatcher {
 
 private class FakePrivilegedOps : PrivilegedOps {
     var installed = false
+    var helperStatus: HelperStatus? = null
     var disableSleepResult = true
     var sleepDisabled = false
     val disableSleepValues = mutableListOf<Boolean>()
     override fun isInstalled() = installed
-    override fun status() = if (installed) HelperStatus.INSTALLED else HelperStatus.NOT_INSTALLED
+    override fun status() = helperStatus ?: if (installed) HelperStatus.MATCH else HelperStatus.MISSING
     override fun helperVersion() = APP_VERSION
     override fun install() = true
     override fun uninstall() = true

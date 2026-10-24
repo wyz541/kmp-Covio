@@ -19,15 +19,15 @@ class TrayPresentationTest {
         )
         assertEquals(
             TrayIconState.HELPER_ERROR,
-            resolveTrayIconState(AppConfig(enabled = false), unavailable, HelperStatus.NOT_INSTALLED),
+            resolveTrayIconState(AppConfig(enabled = false), unavailable, HelperStatus.MISSING),
         )
         assertEquals(
             TrayIconState.DISABLED,
-            resolveTrayIconState(AppConfig(enabled = false), unavailable, HelperStatus.INSTALLED),
+            resolveTrayIconState(AppConfig(enabled = false), unavailable, HelperStatus.MATCH),
         )
         assertEquals(
             TrayIconState.LOW_BATTERY,
-            resolveTrayIconState(AppConfig(lowBatteryCapacity = 20), unavailable, HelperStatus.INSTALLED),
+            resolveTrayIconState(AppConfig(lowBatteryCapacity = 20), unavailable, HelperStatus.MATCH),
         )
         assertEquals(
             TrayIconState.CHARGING,
@@ -38,7 +38,7 @@ class TrayPresentationTest {
                     idleSleepAvailable = false,
                     lidSleepAvailable = false,
                 ),
-                HelperStatus.INSTALLED,
+                HelperStatus.MATCH,
             ),
         )
         assertEquals(
@@ -46,7 +46,7 @@ class TrayPresentationTest {
             resolveTrayIconState(
                 AppConfig(),
                 AppState(idleSleepAvailable = false, lidSleepAvailable = false),
-                HelperStatus.INSTALLED,
+                HelperStatus.MATCH,
             ),
         )
         assertEquals(
@@ -54,12 +54,12 @@ class TrayPresentationTest {
             resolveTrayIconState(
                 AppConfig(),
                 AppState(idleSleepAvailable = false, lidSleepAvailable = true),
-                HelperStatus.INSTALLED,
+                HelperStatus.MATCH,
             ),
         )
         assertEquals(
             TrayIconState.DEFAULT,
-            resolveTrayIconState(AppConfig(), AppState(), HelperStatus.INSTALLED),
+            resolveTrayIconState(AppConfig(), AppState(), HelperStatus.MATCH),
         )
     }
 
@@ -77,19 +77,19 @@ class TrayPresentationTest {
 
         assertEquals(
             TrayIconState.LOW_BATTERY,
-            resolveTrayIconState(AppConfig(lowBatteryCapacity = 6), capacityBoundary, HelperStatus.INSTALLED),
+            resolveTrayIconState(AppConfig(lowBatteryCapacity = 6), capacityBoundary, HelperStatus.MATCH),
         )
         assertEquals(
             TrayIconState.LOW_BATTERY,
-            resolveTrayIconState(AppConfig(lowTimeRemainingMinutes = 10), timeBoundary, HelperStatus.INSTALLED),
+            resolveTrayIconState(AppConfig(lowTimeRemainingMinutes = 10), timeBoundary, HelperStatus.MATCH),
         )
         assertEquals(
             TrayIconState.DEFAULT,
-            resolveTrayIconState(AppConfig(lowBatteryCapacity = 0), capacityBoundary, HelperStatus.INSTALLED),
+            resolveTrayIconState(AppConfig(lowBatteryCapacity = 0), capacityBoundary, HelperStatus.MATCH),
         )
         assertEquals(
             TrayIconState.CHARGING,
-            resolveTrayIconState(AppConfig(lowBatteryCapacity = 50), charging, HelperStatus.INSTALLED),
+            resolveTrayIconState(AppConfig(lowBatteryCapacity = 50), charging, HelperStatus.MATCH),
         )
     }
 
@@ -104,14 +104,14 @@ class TrayPresentationTest {
         val english = resolveTrayPresentation(
             config,
             state,
-            HelperStatus.INSTALLED,
+            HelperStatus.MATCH,
             stringsFor(AppLanguage.ENGLISH),
             AppLanguage.ENGLISH,
         )
         val chinese = resolveTrayPresentation(
             config,
             state,
-            HelperStatus.INSTALLED,
+            HelperStatus.MATCH,
             stringsFor(AppLanguage.SIMPLIFIED_CHINESE),
             AppLanguage.SIMPLIFIED_CHINESE,
         )

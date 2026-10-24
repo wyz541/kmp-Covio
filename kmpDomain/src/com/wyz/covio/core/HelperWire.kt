@@ -105,6 +105,25 @@ object HelperWire {
         ),
     )
 
+    /**
+     * 新 helper 的完整发布身份应答。
+     *
+     * `version` 和 `protocolVersion` 保留给旧客户端。新 app 再读取其余字段做精确比较。
+     */
+    fun versionReply(requestId: String, identity: HelperReleaseIdentity): HelperReply = success(
+        requestId,
+        mapOf(
+            "version" to identity.productVersion,
+            "productVersion" to identity.productVersion,
+            "buildNumber" to identity.buildNumber,
+            "gitCommit" to identity.gitCommit,
+            "releaseId" to identity.releaseId,
+            "protocolVersion" to identity.protocolVersion,
+            "helperSHA256" to identity.helperSHA256,
+            "channel" to identity.channel,
+        ),
+    )
+
     fun leaseStatusReply(
         requestId: String,
         sleepDisabled: Boolean?,

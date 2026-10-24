@@ -4,12 +4,12 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | `1.0` |
+| 文档版本 | `1.1` |
 | 状态 | 待评审 |
-| 日期 | `2026-10-20` |
-| Issue | #153 |
-| Feature | #148 |
-| 上游决策 | ADR-0006、ADR-0007 |
+| 日期 | `2026-10-24` |
+| Issue | #153、#354 |
+| Feature | #148、#350 |
+| 上游决策 | ADR-0006、ADR-0007、ADR-0018 |
 
 ## 目标
 
@@ -38,7 +38,7 @@ stateDiagram-v2
 
 | 项目 | 值 |
 | --- | --- |
-| 协议版本 | `2` |
+| 协议版本 | `8` |
 | 租约有效期 | `60` 秒 |
 | 续租间隔 | `15` 秒 |
 | 所有权文件 | `sleep_owner` |
@@ -46,7 +46,40 @@ stateDiagram-v2
 
 旧版只允许用协议 `1` 调用 `version`。
 旧版不能调用任何写命令。
-新版 `version` 应答同时返回应用版本和协议版本。
+新版 `version` 应答同时返回兼容字段和完整发布身份。
+
+## 发布身份握手
+
+新 app 用协议 `1` 调用只读 `version`。
+新 helper 在应答中返回以下字段：
+
+| 字段 | 含义 |
+| --- | --- |
+| `version`、`productVersion` | 产品版本 |
+| `buildNumber` | 单调递增的 build number |
+| `gitCommit` | 完整 Git commit |
+| `releaseId` | app 与 helper 共用的发布 ID |
+| `protocolVersion` | helper 协议版本 |
+| `helperSHA256` | helper 可执行文件摘要 |
+| `channel` | 发布渠道 |
+
+helper 在启动时冻结身份和自身摘要。
+app 覆盖磁盘文件后，旧 helper 不会读取新文件来伪装成新版本。
+
+app 同时验证 socket 对端进程签名和可执行文件路径。
+app 逐项比较完整发布身份，不只比较产品版本。
+
+| 状态 | 判定 | 特权写入 |
+| --- | --- | --- |
+| `MATCH` | 身份、摘要和签名全部匹配 | 允许 |
+| `MISSING` | socket 不存在 | 禁止 |
+| `OUTDATED` | 旧 helper、旧协议或旧 build | 禁止 |
+| `IDENTITY_MISMATCH` | 同版本但 commit、摘要或 `releaseId` 不同 | 禁止 |
+| `UNTRUSTED` | 握手失败、字段损坏或签名不可信 | 禁止 |
+
+非 `MATCH` 状态进入只读安全模式。
+界面显示原因和一个修复入口。
+修复 helper 后，同一 app 进程重新握手即可恢复，不要求重启 Mac。
 
 ## 命令
 
@@ -90,6 +123,8 @@ stateDiagram-v2
 5. Engine 每 5 秒读取 `lidLeaseStatus`。
 6. `AppState.lidSleepAvailable` 使用真实 `SleepDisabled`。
 7. helper 协议不兼容时，客户端用只读 `pmset -g` 显示真实 `SleepDisabled`。
+8. 只有 `MATCH` 状态开放睡眠、充电和风扇写入。
+9. helper 修复完成后，状态轮询重新检查完整发布身份。
 
 ## 验证
 
@@ -99,4 +134,5 @@ stateDiagram-v2
 4. 外接屏拒绝有单元测试。
 5. helper 启动恢复有单元测试。
 6. 协议 v1 只读兼容有向量测试。
-7. `bash scripts/test-all.sh` 通过。
+7. 五种握手状态和写入门禁有单元测试。
+8. `bash scripts/test-all.sh` 通过。

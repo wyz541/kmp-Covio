@@ -37,7 +37,7 @@ final class EngineContractTests: XCTestCase {
             WakeLogSnapshot(events: [WakeEvent(kind: .dark, atEpochSeconds: 1_000, reason: "Initial")], darkWakeCount24h: 1)
         )
         let fixture = Fixture(wakeLogReader: store)
-        fixture.privileged.installed = true
+        fixture.privileged.match = true
         fixture.power.value = BatteryStatus(percent: 80, state: .discharging, remainingSeconds: nil)
         fixture.engine.start()
         fixture.engine.setIdleSleepAvailable(available: false)
@@ -63,7 +63,7 @@ final class EngineContractTests: XCTestCase {
             WakeLogSnapshot(events: [WakeEvent(kind: .dark, atEpochSeconds: 1_000, reason: "Initial")], darkWakeCount24h: 1)
         )
         let fixture = Fixture(wakeLogReader: store)
-        fixture.privileged.installed = true
+        fixture.privileged.match = true
         fixture.power.value = BatteryStatus(percent: 80, state: .discharging, remainingSeconds: nil)
         fixture.engine.start()
         fixture.engine.setIdleSleepAvailable(available: false)
@@ -135,7 +135,7 @@ final class EngineContractTests: XCTestCase {
             WakeLogSnapshot(events: [WakeEvent(kind: .dark, atEpochSeconds: 1_000, reason: "Initial")], darkWakeCount24h: 1)
         )
         let fixture = Fixture(wakeLogReader: store)
-        fixture.privileged.installed = true
+        fixture.privileged.match = true
         fixture.power.value = BatteryStatus(percent: 80, state: .discharging, remainingSeconds: nil)
         fixture.engine.start()
         fixture.engine.setIdleSleepAvailable(available: false)
@@ -222,7 +222,7 @@ final class EngineContractTests: XCTestCase {
         let fixture = Fixture(
             config: AppConfigs.make(disableLidSleepOnBattery: true, lidSleepImmediateOnClose: false)
         )
-        fixture.privileged.installed = true
+        fixture.privileged.match = true
         fixture.power.value = BatteryStatus(percent: 80, state: .discharging, remainingSeconds: KotlinLong(longLong: 3_600))
         fixture.engine.start()
 
@@ -233,7 +233,7 @@ final class EngineContractTests: XCTestCase {
     /// 对应 `manual lid hold is released on request`。
     func testManualLidHoldIsReleasedOnRequest() {
         let fixture = Fixture(config: AppConfigs.make(lidSleepImmediateOnClose: false))
-        fixture.privileged.installed = true
+        fixture.privileged.match = true
         fixture.power.value = BatteryStatus(percent: 80, state: .discharging, remainingSeconds: KotlinLong(longLong: 3_600))
         fixture.engine.start()
 
@@ -253,7 +253,7 @@ final class EngineContractTests: XCTestCase {
                 lidSleepImmediateOnClose: false
             )
         )
-        fixture.privileged.installed = true
+        fixture.privileged.match = true
         fixture.power.value = BatteryStatus(percent: 5, state: .discharging, remainingSeconds: KotlinLong(longLong: 3_600))
         fixture.engine.start()
 
@@ -265,7 +265,7 @@ final class EngineContractTests: XCTestCase {
     /// 对应 `helper failure rolls back lid policy config`。
     func testHelperFailureRollsBackLidPolicyConfig() {
         let fixture = Fixture(config: AppConfigs.make(lidSleepImmediateOnClose: false))
-        fixture.privileged.installed = true
+        fixture.privileged.match = true
         fixture.privileged.disableSleepResult = false
         fixture.power.value = BatteryStatus(percent: 80, state: .discharging, remainingSeconds: KotlinLong(longLong: 3_600))
         fixture.engine.start()
@@ -310,7 +310,7 @@ final class EngineContractTests: XCTestCase {
                 lidSleepImmediateOnClose: false
             )
         )
-        fixture.privileged.installed = true
+        fixture.privileged.match = true
         fixture.power.value = BatteryStatus(percent: 80, state: .charging, remainingSeconds: nil)
         fixture.engine.start()
         XCTAssertFalse(fixture.engine.currentState.idleSleepAvailable)
@@ -331,7 +331,7 @@ final class EngineContractTests: XCTestCase {
                 lidSleepImmediateOnClose: false
             )
         )
-        fixture.privileged.installed = false
+        fixture.privileged.match = false
         fixture.power.value = BatteryStatus(percent: 80, state: .charging, remainingSeconds: nil)
         fixture.engine.start()
         XCTAssertFalse(fixture.engine.currentState.idleSleepAvailable)
@@ -343,7 +343,7 @@ final class EngineContractTests: XCTestCase {
     func testStartDoesNotTouchDisableSleepWhenHelperIsNotInstalled() {
         let fixture = Fixture()
         fixture.power.value = BatteryStatus(percent: 90, state: .discharging, remainingSeconds: nil)
-        fixture.privileged.installed = false
+        fixture.privileged.match = false
         fixture.engine.start()
         XCTAssertTrue(fixture.privileged.disableSleepValues.isEmpty)
     }
@@ -363,6 +363,7 @@ final class EngineContractTests: XCTestCase {
     /// 对应 `lid close only turns display off while sleep is prevented`。
     func testLidCloseOnlyTurnsDisplayOffWhileSleepIsPrevented() {
         let fixture = Fixture(config: AppConfigs.make(lidSleepImmediateOnClose: false))
+        fixture.privileged.match = true
         fixture.power.value = BatteryStatus(percent: 80, state: .charging, remainingSeconds: nil)
         fixture.engine.start()
         _ = fixture.engine.setLidSleepAvailable(available: false)
@@ -373,6 +374,7 @@ final class EngineContractTests: XCTestCase {
 
     func testExperimentalDisplayPathCanSuppressThePublicLidDisplayOff() {
         let fixture = Fixture(config: AppConfigs.make(lidSleepImmediateOnClose: false))
+        fixture.privileged.match = true
         fixture.power.value = BatteryStatus(percent: 80, state: .charging, remainingSeconds: nil)
         fixture.engine.start()
         _ = fixture.engine.setLidSleepAvailable(available: false)
@@ -384,9 +386,19 @@ final class EngineContractTests: XCTestCase {
         XCTAssertEqual(fixture.sleep.sleepCalls, 0)
     }
 
+    func testHelperSafeModeBlocksEveryDisableSleepWrite() {
+        let fixture = Fixture()
+        fixture.privileged.statusValue = .identityMismatch
+
+        XCTAssertFalse(fixture.engine.setLidSleepAvailable(available: false))
+        XCTAssertFalse(fixture.engine.setLidSleepAvailable(available: true))
+        XCTAssertTrue(fixture.privileged.disableSleepValues.isEmpty)
+    }
+
     /// 对应 `idle compensation sleeps after system timeout`。
     func testIdleCompensationSleepsAfterSystemTimeout() {
         let fixture = Fixture(config: AppConfigs.make(lidSleepImmediateOnClose: false))
+        fixture.privileged.match = true
         fixture.power.value = BatteryStatus(percent: 80, state: .charging, remainingSeconds: nil)
         fixture.engine.start()
         _ = fixture.engine.setLidSleepAvailable(available: false)
@@ -466,7 +478,7 @@ final class EngineContractTests: XCTestCase {
     /// 对应 `sleep now temporarily restores restrictions and wake restores them`。
     func testSleepNowTemporarilyRestoresRestrictionsAndWakeRestoresThem() {
         let fixture = Fixture()
-        fixture.privileged.installed = true
+        fixture.privileged.match = true
         fixture.power.value = BatteryStatus(percent: 90, state: .charging, remainingSeconds: nil)
         fixture.engine.start()
         fixture.engine.setIdleSleepAvailable(available: false)
@@ -487,7 +499,7 @@ final class EngineContractTests: XCTestCase {
     func testHelperLeaseExpiryUpdatesLidAvailability() {
         var now: Int64 = 1_000
         let fixture = Fixture(clock: { now })
-        fixture.privileged.installed = true
+        fixture.privileged.match = true
         fixture.engine.start()
         _ = fixture.engine.setLidSleepAvailable(available: false)
         XCTAssertFalse(fixture.engine.currentState.lidSleepAvailable)
@@ -504,7 +516,7 @@ final class EngineContractTests: XCTestCase {
     func testCancelTimerRestoresLidAvailability() {
         var now: Int64 = 5_000
         let fixture = Fixture(clock: { now })
-        fixture.privileged.installed = true
+        fixture.privileged.match = true
         fixture.engine.scheduleCancelLid(afterSeconds: 600)
         XCTAssertFalse(fixture.engine.currentState.lidSleepAvailable)
         now += 601_000
@@ -517,7 +529,7 @@ final class EngineContractTests: XCTestCase {
     /// 对应 `stop restores sleep availability and clears disablesleep`。
     func testStopRestoresSleepAvailabilityAndClearsDisableSleep() {
         let fixture = Fixture(config: AppConfigs.make(lidSleepImmediateOnClose: false))
-        fixture.privileged.installed = true
+        fixture.privileged.match = true
         fixture.power.value = BatteryStatus(percent: 90, state: .charging, remainingSeconds: nil)
         fixture.engine.start()
         fixture.engine.setIdleSleepAvailable(available: false)
@@ -535,7 +547,7 @@ final class EngineContractTests: XCTestCase {
     func testStartRemovesStaleDisableSleepFlagWhenNoChargingPolicyNeedsIt() {
         let fixture = Fixture()
         fixture.power.value = BatteryStatus(percent: 90, state: .discharging, remainingSeconds: nil)
-        fixture.privileged.installed = true
+        fixture.privileged.match = true
         fixture.engine.start()
         XCTAssertTrue(fixture.privileged.disableSleepValues.contains(false))
     }

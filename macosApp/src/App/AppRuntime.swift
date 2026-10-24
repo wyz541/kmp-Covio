@@ -20,7 +20,7 @@ final class AppRuntime {
     /// 当前配置。写它一律走 `updateConfig`。
     private(set) var config: AppConfig
     /// 特权 helper 的状态。
-    private(set) var helperStatus: HelperStatus = .notInstalled
+    private(set) var helperStatus: HelperStatus = .missing
     /// helper 当前执行的充电上限状态。
     private(set) var chargeLimitStatus: ChargeLimitHelperStatus?
     /// 一次性提示。界面读完应调用 `clearStatus`。
@@ -649,7 +649,7 @@ final class AppRuntime {
     }
 
     func setPowerAllowClosedLid(_ enabled: Bool) {
-        guard enabled ? powerRuntime.helperStatus == .installed : true else { return }
+        guard enabled ? powerRuntime.helperStatus == .match : true else { return }
         updatePower { copyPower($0, allowClosedLid: enabled) }
     }
 
@@ -682,7 +682,7 @@ final class AppRuntime {
 
     func setPowerClosedLidZeroBrightness(_ enabled: Bool) {
         if enabled {
-            guard powerRuntime.helperStatus == .installed,
+            guard powerRuntime.helperStatus == .match,
                   powerRuntime.closedLidZeroBrightnessAvailability.isAvailable
             else { return }
         }
@@ -782,9 +782,9 @@ final class AppRuntime {
         busy = true
         Task { @MainActor in
             let installed = privileged.install()
-            await refreshHelperStatus(waitForInstalled: installed)
+            await refreshHelperStatus(waitForMatch: installed)
             busy = false
-            let success = helperStatus == .installed
+            let success = helperStatus == .match
             let entry = success ? ContractCopy.copyOverviewHelperInstalled : ContractCopy.copyDialogHelperUnavailableBody
             statusMessage = entry.text(for: language)
             if success { dismissWelcome() }
@@ -796,7 +796,7 @@ final class AppRuntime {
         busy = true
         Task { @MainActor in
             let removed = privileged.uninstall()
-            helperStatus = .notInstalled
+            helperStatus = .missing
             chargeLimitStatus = nil
             _ = engine.setLidSleepAvailable(available: true)
             powerRuntime.refreshHelperStatusNow()
@@ -810,11 +810,11 @@ final class AppRuntime {
     /// 等 helper 起来。刚装完 launchd 还没把 socket 建好，立刻查会读到未安装。
     ///
     /// 与 Compose 版 `awaitHelperStatus` 一致：最多等 5 秒，每 200 毫秒查一次。
-    private func refreshHelperStatus(waitForInstalled: Bool = false) async {
+    private func refreshHelperStatus(waitForMatch: Bool = false) async {
         var status = privileged.status()
-        if waitForInstalled && status != .installed {
+        if waitForMatch && status != .match {
             let deadline = Date().addingTimeInterval(5)
-            while status != .installed && Date() < deadline {
+            while status != .match && Date() < deadline {
                 try? await Task.sleep(nanoseconds: 200_000_000)
                 status = privileged.status()
             }
@@ -824,8 +824,11 @@ final class AppRuntime {
             return
         }
         helperStatus = status
+        if status != .match {
+            chargeLimitStatus = nil
+        }
         syncState()
-        if status == .installed {
+        if status == .match {
             _ = engine.updateConfig(newConfig: config)
             reconcileChargeLimit()
         }
@@ -834,7 +837,7 @@ final class AppRuntime {
     // MARK: - 充电上限
 
     func refreshChargeLimitStatus() {
-        guard helperStatus == .installed else {
+        guard helperStatus == .match else {
             chargeLimitStatus = nil
             return
         }
@@ -843,7 +846,7 @@ final class AppRuntime {
 
     /// 详情浮层使用。把同步 socket 请求移出主线程。
     func refreshChargeLimitStatusInBackground() {
-        guard helperStatus == .installed else {
+        guard helperStatus == .match else {
             chargeLimitStatus = nil
             return
         }
@@ -858,7 +861,7 @@ final class AppRuntime {
     /// 设置上限并保存本机配置。helper 失败时不写配置。
     @discardableResult
     func applyChargeLimit(_ percent: Int, activeDischarge: Bool) -> Bool {
-        guard helperStatus == .installed else {
+        guard helperStatus == .match else {
             statusMessage = ContractCopy.copyStatusItemHelperError.text(for: language)
             return false
         }
@@ -896,7 +899,7 @@ final class AppRuntime {
     /// 恢复 macOS 系统策略。helper 恢复失败时保留配置。
     @discardableResult
     func restoreChargeLimit() -> Bool {
-        guard helperStatus == .installed else {
+        guard helperStatus == .match else {
             statusMessage = ContractCopy.copyStatusItemHelperError.text(for: language)
             return false
         }
@@ -915,7 +918,7 @@ final class AppRuntime {
 
     /// 启动后让配置与 helper 状态对齐。
     private func reconcileChargeLimit() {
-        guard helperStatus == .installed else {
+        guard helperStatus == .match else {
             chargeLimitStatus = nil
             return
         }
@@ -947,7 +950,7 @@ final class AppRuntime {
     }
 
     private func lidPolicyAvailable() -> Bool {
-        guard helperStatus == .installed else {
+        guard helperStatus == .match else {
             statusMessage = ContractCopy.copyStatusItemHelperError.text(for: language)
             return false
         }
@@ -1157,7 +1160,7 @@ final class AppRuntime {
                 lastReason: nil,
                 count24h: 0
             ),
-            helperStatus: .notInstalled,
+            helperStatus: .missing,
             lidLeaseStatus: LidLeaseStatus(
                 available: false,
                 protocolVersion: nil,

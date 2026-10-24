@@ -1188,11 +1188,11 @@ private struct MonitorPowerChargeLimitControls: View {
     private var status: ChargeLimitHelperStatus? { runtime?.chargeLimitStatus }
 
     private var controlsDisabled: Bool {
-        busy || runtime?.helperStatus != .installed || status?.phase == "unsupported"
+        busy || runtime?.helperStatus != .match || status?.phase == "unsupported"
     }
 
     private var statusSymbol: String {
-        guard runtime != nil, runtime?.helperStatus == .installed else {
+        guard runtime != nil, runtime?.helperStatus == .match else {
             return "exclamationmark.triangle.fill"
         }
         if localError != nil { return "exclamationmark.triangle.fill" }
@@ -1212,7 +1212,7 @@ private struct MonitorPowerChargeLimitControls: View {
     }
 
     private var statusColor: Color {
-        guard runtime?.helperStatus == .installed else { return MacTheme.warningText }
+        guard runtime?.helperStatus == .match else { return MacTheme.warningText }
         if localError != nil { return MacTheme.errorText }
         guard runtime?.config.chargeLimitEnabled == true else { return MacTheme.textSecondary }
         guard let status else { return MacTheme.warningText }
@@ -1233,7 +1233,7 @@ private struct MonitorPowerChargeLimitControls: View {
         guard let runtime else {
             return ContractCopy.copyMonitorPowerChargeLimitHelperRequired.text(for: language)
         }
-        guard runtime.helperStatus == .installed else {
+        guard runtime.helperStatus == .match else {
             return ContractCopy.copyMonitorPowerChargeLimitHelperRequired.text(for: language)
         }
         if let localError { return localError }
@@ -1378,7 +1378,7 @@ private struct MonitorPowerChargeLimitControls: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
-                    .disabled(busy || runtime?.helperStatus != .installed)
+                    .disabled(busy || runtime?.helperStatus != .match)
                 }
                 Spacer(minLength: 0)
             }

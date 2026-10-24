@@ -8,7 +8,7 @@ struct LidPage: View {
     let runtime: AppRuntime
 
     /// 合盖策略要改 `pmset`，所以没装 helper 时这几项不可用。
-    private var controlsEnabled: Bool { runtime.helperStatus == .installed }
+    private var controlsEnabled: Bool { runtime.helperStatus == .match }
 
     var body: some View {
         VStack(alignment: .leading, spacing: MacTheme.space6) {

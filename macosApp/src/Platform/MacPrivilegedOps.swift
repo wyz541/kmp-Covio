@@ -6,7 +6,8 @@ import kmpDomain
 /// 对应 Compose 版的 `app/src/com/wyz/covio/app/platform/MacPrivilegedOps.kt`。
 /// 与 Kotlin 版的行为一致：
 /// - 「已安装」的判据是 socket 文件存在，不是 LaunchDaemon 在跑。
-/// - 版本不一致返回 `OUTDATED`，让界面提示用户重装。
+/// - 完整发布身份和签名都匹配才返回 `MATCH`。
+/// - 其他状态进入只读安全模式，并只允许 helper 修复入口。
 /// - 只有 `pmset` 读操作在本地做，写操作一律走 helper。
 ///
 /// Kotlin interface 导出为 Objective-C protocol，实现类必须继承 `NSObject`。
@@ -15,6 +16,9 @@ final class MacPrivilegedOps: NSObject, PrivilegedOps {
     private let executablePath: String
     private let client: HelperClient
     private let externalDisplayCount: () -> Int?
+    private let expectedReleaseIdentity: HelperReleaseIdentity?
+    private let expectedHelperExecutablePath: String
+    private let isHelperTrusted: (pid_t?, String) -> Bool
     private let leaseId = UUID().uuidString
     private let stateLock = NSLock()
     private let leaseOperationLock = NSLock()
@@ -28,6 +32,11 @@ final class MacPrivilegedOps: NSObject, PrivilegedOps {
         logger: AppLogger,
         executablePath: String = Bundle.main.executablePath ?? "",
         client: HelperClient = HelperClient(),
+        expectedReleaseIdentity: HelperReleaseIdentity? = HelperReleaseIdentitySource.expectedAppIdentity,
+        expectedHelperExecutablePath: String? = HelperReleaseIdentitySource.bundledHelperExecutablePath,
+        isHelperTrusted: @escaping (pid_t?, String) -> Bool = {
+            HelperCodeTrust.isTrusted(peerPID: $0, expectedExecutablePath: $1)
+        },
         externalDisplayCount: @escaping () -> Int? = {
             MacPowerObservationSource.readExternalDisplayCount()
         }
@@ -35,6 +44,9 @@ final class MacPrivilegedOps: NSObject, PrivilegedOps {
         self.logger = logger
         self.executablePath = executablePath
         self.client = client
+        self.expectedReleaseIdentity = expectedReleaseIdentity
+        self.expectedHelperExecutablePath = expectedHelperExecutablePath ?? executablePath
+        self.isHelperTrusted = isHelperTrusted
         self.externalDisplayCount = externalDisplayCount
         super.init()
     }
@@ -46,11 +58,19 @@ final class MacPrivilegedOps: NSObject, PrivilegedOps {
     }
 
     func status() -> HelperStatus {
-        guard isInstalled() else { return .notInstalled }
-        guard let info = client.versionInfo() else { return .error }
-        let sameVersion = info.version == GeneratedReleaseIdentityKt.APP_VERSION
-        let sameProtocol = info.protocolVersion == HelperProtocol.protocolVersion
-        return sameVersion && sameProtocol ? .installed : .outdated
+        let status = HelperReleaseInspector.inspect(
+            client: client,
+            expectedIdentity: expectedReleaseIdentity,
+            expectedExecutablePath: expectedHelperExecutablePath,
+            isTrusted: isHelperTrusted
+        )
+        if status != .match && status != .missing {
+            logger.warn(
+                message: "Helper release handshake rejected: status=\(status)",
+                error: nil
+            )
+        }
+        return status
     }
 
     func helperVersion() -> String? {
@@ -74,6 +94,7 @@ final class MacPrivilegedOps: NSObject, PrivilegedOps {
     }
 
     func setDisableSleep(disabled: Bool) -> Bool {
+        guard requireMatchedHelper("setDisableSleep") else { return false }
         if disabled {
             guard let externalDisplays = externalDisplayCount() else {
                 logger.warn(message: "Cannot read external display count", error: nil)
@@ -173,6 +194,7 @@ final class MacPrivilegedOps: NSObject, PrivilegedOps {
         leaseOperationLock.lock()
         defer { leaseOperationLock.unlock() }
         guard stateLock.withLock({ leaseActive }) else { return }
+        guard requireMatchedHelper("renewLidLease") else { return }
         guard let externalDisplays = externalDisplayCount() else {
             logger.warn(message: "Cannot renew lid lease: external display count is unknown", error: nil)
             return
@@ -192,7 +214,7 @@ final class MacPrivilegedOps: NSObject, PrivilegedOps {
 
     deinit {
         stopRenewTimer()
-        if stateLock.withLock({ leaseActive }) {
+        if status().allowsPrivilegedWrites, stateLock.withLock({ leaseActive }) {
             _ = client.releaseLidLease(leaseId: leaseId)
         }
     }
@@ -205,8 +227,21 @@ final class MacPrivilegedOps: NSObject, PrivilegedOps {
 
     func setHibernateMode(mode: Int32) -> Bool {
         guard HelperProtocol.supportedHibernateModes.contains(Int(mode)) else { return false }
+        guard requireMatchedHelper("setHibernateMode") else { return false }
         guard client.setHibernateMode(mode: Int(mode)) else {
             logger.warn(message: "Privileged helper did not accept setHibernateMode(\(mode))", error: nil)
+            return false
+        }
+        return true
+    }
+
+    private func requireMatchedHelper(_ operation: String) -> Bool {
+        let current = status()
+        guard current.allowsPrivilegedWrites else {
+            logger.warn(
+                message: "Privileged write blocked by safe mode: operation=\(operation) status=\(current)",
+                error: nil
+            )
             return false
         }
         return true

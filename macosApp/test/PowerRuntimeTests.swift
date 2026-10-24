@@ -23,7 +23,7 @@ final class PowerRuntimeTests: XCTestCase {
         brightnessBackend = FakeClosedLidBrightnessBackend(brightness: 0.6)
         brightnessStore = FakeClosedLidBrightnessRecoveryStore()
         fixture = Fixture()
-        fixture.privileged.installed = false
+        fixture.privileged.match = false
         fixture.engine.start()
         observation = FakePowerObservationSource()
     }
@@ -88,7 +88,7 @@ final class PowerRuntimeTests: XCTestCase {
     }
 
     func testExternalSleepDisabledConflictIsRecorded() {
-        fixture.privileged.installed = true
+        fixture.privileged.match = true
         fixture.privileged.sleepDisabled = true
         fixture.privileged.covioOwned = false
         observation.value = makeObservation(powerState: .acPower, batteryPercent: 80, hasBattery: true)
@@ -163,7 +163,7 @@ final class PowerRuntimeTests: XCTestCase {
 
     func testClosedLidCapReleasesTheSessionAndRecordsTheGuard() {
         var now: Int64 = 1_000
-        fixture.privileged.installed = true
+        fixture.privileged.match = true
         fixture.privileged.sleepDisabled = false
         observation.value = makeObservation(powerState: .acPower, batteryPercent: 80, hasBattery: true)
         runtime = makeRuntime(
@@ -199,7 +199,7 @@ final class PowerRuntimeTests: XCTestCase {
     }
 
     func testClosedLidPowerSessionTurnsDisplayOffAfterTheLidCloses() {
-        fixture.privileged.installed = true
+        fixture.privileged.match = true
         observation.value = makeObservation(powerState: .acPower, batteryPercent: 80, hasBattery: true)
         runtime = makeRuntime(config: makeConfig())
         runtime.start()
@@ -224,7 +224,7 @@ final class PowerRuntimeTests: XCTestCase {
     }
 
     func testExperimentalClosedLidPathOwnsBrightnessAndSuppressesPublicDisplayOff() {
-        fixture.privileged.installed = true
+        fixture.privileged.match = true
         observation.value = makeObservation(powerState: .acPower, batteryPercent: 80, hasBattery: true)
         runtime = makeRuntime(config: makeConfig(closedLidZeroBrightness: true))
         runtime.start()
@@ -252,7 +252,7 @@ final class PowerRuntimeTests: XCTestCase {
     }
 
     func testExperimentalBrightnessFailureFallsBackToPublicDisplayOff() {
-        fixture.privileged.installed = true
+        fixture.privileged.match = true
         brightnessBackend.failingSetValues = [0]
         observation.value = makeObservation(powerState: .acPower, batteryPercent: 80, hasBattery: true)
         runtime = makeRuntime(config: makeConfig(closedLidZeroBrightness: true))

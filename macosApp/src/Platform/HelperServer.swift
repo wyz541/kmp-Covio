@@ -28,6 +28,8 @@ enum HelperServer {
 
     /// 阻塞运行，直到进程被信号终止。返回进程退出码。
     static func run() -> Int32 {
+        // 启动时立即冻结身份。若 app 随后被覆盖，旧 helper 不能从磁盘读到新身份。
+        _ = HelperReleaseIdentitySource.daemonIdentity
         // 客户端超时后会关闭 socket。写入关闭的连接不能终止整个 root helper。
         signal(SIGPIPE, SIG_IGN)
         let log = HelperLog()
@@ -186,7 +188,18 @@ enum HelperServer {
             if let arguments = HelperWire.shared.pmsetArguments(request: request) {
                 reply = runPmset(requestId: request.requestId, arguments: arguments)
             } else if request.command == HelperWire.shared.COMMAND_VERSION {
-                reply = HelperWire.shared.versionReply(requestId: request.requestId)
+                if let identity = HelperReleaseIdentitySource.daemonIdentity {
+                    reply = HelperWire.shared.versionReply(
+                        requestId: request.requestId,
+                        identity: identity
+                    )
+                } else {
+                    log.error("Cannot report helper release identity")
+                    reply = HelperWire.shared.failure(
+                        requestId: request.requestId,
+                        message: "Helper release identity is unavailable"
+                    )
+                }
             } else if let leaseReply = leaseCoordinator.handle(request) {
                 reply = leaseReply
             } else {

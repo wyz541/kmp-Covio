@@ -61,7 +61,7 @@ extension Array {
 
 /// helper 的安装与卸载。
 ///
-/// 未安装、版本不符、出错三种情况都提示安装：这三种下 helper 都不能用。
+/// 只有完整发布身份匹配时显示卸载。其余状态只显示一个修复入口。
 struct HelperCard: View {
     let runtime: AppRuntime
 
@@ -69,26 +69,32 @@ struct HelperCard: View {
         MacCard {
             MacSectionTitle(text: ContractCopy.copyAppName.text(for: runtime.language))
             MacStatusLine(text: ContractCopy.copyDialogHelperInstallBody.text(for: runtime.language))
+            MacStatusLine(
+                text: HelperStatusPresentation.value(runtime.helperStatus, language: runtime.language)
+            )
 
             switch runtime.helperStatus {
-            case .installed:
+            case .match:
                 MacButton(
                     title: ContractCopy.copyDialogHelperUnavailableTitle.text(for: runtime.language),
                     isEnabled: !runtime.busy
                 ) { runtime.uninstallHelper() }
             // 未安装、版本不符、出错三种情况都给安装按钮：
-            // 这三种下 helper 都不能用，用户的动作都是重装。
+            // 这四种下 helper 都不能用于写入，用户的动作都是修复。
             default:
                 MacButton(
-                    title: ContractCopy.copyOverviewHelperInstall.text(for: runtime.language),
+                    title: HelperStatusPresentation.repairTitle.text(for: runtime.language),
                     kind: .primary,
                     isEnabled: !runtime.busy
                 ) { runtime.installHelper() }
             }
 
-            if runtime.helperStatus == .outdated || runtime.helperStatus == .error {
+            if let reason = HelperStatusPresentation.readOnlyReason(
+                runtime.helperStatus,
+                language: runtime.language
+            ) {
                 MacAlert(
-                    message: ContractCopy.copyDialogHelperUnavailableBody.text(for: runtime.language),
+                    message: reason,
                     kind: .warning
                 )
             }

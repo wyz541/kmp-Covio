@@ -66,7 +66,7 @@ class Engine(
 
         val initialLid = runCatching { lid.read() }.getOrDefault(LidState.UNKNOWN)
         val initialBattery = runCatching { power.read() }.getOrNull()
-        val helperStatus = runCatching { privileged.status() }.getOrDefault(HelperStatus.ERROR)
+        val helperStatus = runCatching { privileged.status() }.getOrDefault(HelperStatus.UNTRUSTED)
         lock.withLock {
             state = state.copy(
                 lid = initialLid,
@@ -269,8 +269,12 @@ class Engine(
     fun setLidSleepAvailable(available: Boolean): Boolean {
         logger.info("Set lid sleep available=$available")
         val helperInstalled = runCatching { privileged.isInstalled() }.getOrDefault(false)
+        val helperStatus = runCatching { privileged.status() }.getOrDefault(HelperStatus.UNTRUSTED)
         val success = if (available && !helperInstalled) {
             true
+        } else if (!helperStatus.allowsPrivilegedWrites) {
+            logger.warn("Privileged helper safe mode blocks lid sleep writes: $helperStatus")
+            false
         } else {
             runCatching { privileged.setDisableSleep(!available) }
                 .onFailure { logger.warn("Cannot update disablesleep", it) }
@@ -491,7 +495,7 @@ class Engine(
     }
 
     private fun helperReady(): Boolean = runCatching {
-        privileged.isInstalled() && privileged.status() == HelperStatus.INSTALLED
+        privileged.isInstalled() && privileged.status() == HelperStatus.MATCH
     }.getOrDefault(false)
 
     private fun readBattery(): BatteryStatus? = runCatching { power.read() }

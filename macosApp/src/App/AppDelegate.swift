@@ -237,7 +237,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 Task { @MainActor in
                     for _ in 0 ..< 25 {
                         try? await Task.sleep(for: .milliseconds(200))
-                        guard runtime.powerRuntime.helperStatus == .installed else { continue }
+                        guard runtime.powerRuntime.helperStatus == .match else { continue }
                         _ = runtime.startSession(mode: .lid, duration: .oneHour)
                         return
                     }

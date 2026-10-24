@@ -2,16 +2,38 @@ import XCTest
 import kmpDomain
 @testable import Covio
 
-/// `PrivilegedOps.status()` 的判定。
+/// `PrivilegedOps.status()` 的完整发布身份握手。
 ///
-/// 四种状态里 `OUTDATED` 最容易出错：它要在 helper 能应答但版本不对时给出，
-/// 而且不能把「连不上」也算成 `OUTDATED`，否则界面会提示用户重装一个没坏的东西。
+/// 每个状态都要稳定，不能把「连不上」算成 `OUTDATED`。
+/// 只有 `MATCH` 可以发送特权写入。
 ///
 /// 这里不碰系统上真正装的 helper：在一个临时路径上起一个假 helper，
 /// 让 `HelperClient` 连过去。被测代码走的是真实的 socket 收发路径。
 final class HelperStatusTests: XCTestCase {
     private var directory: URL!
     private var socketPath: String!
+
+    private let commit = String(repeating: "a", count: 40)
+    private let helperHash = String(repeating: "b", count: 64)
+
+    private var expectedIdentity: HelperReleaseIdentity {
+        identity()
+    }
+
+    private func identity(
+        protocolVersion: String = HelperProtocol.protocolVersion,
+        helperHash: String? = nil
+    ) -> HelperReleaseIdentity {
+        HelperReleaseIdentity(
+            releaseId: "0.5.2+1+\(commit)",
+            productVersion: "0.5.2",
+            buildNumber: "1",
+            gitCommit: commit,
+            protocolVersion: protocolVersion,
+            helperSHA256: helperHash ?? self.helperHash,
+            channel: "internal"
+        )
+    }
 
     override func setUpWithError() throws {
         directory = URL(fileURLWithPath: NSTemporaryDirectory())
@@ -29,22 +51,60 @@ final class HelperStatusTests: XCTestCase {
         try? FileManager.default.removeItem(atPath: socketPath)
     }
 
-    private func ops() -> MacPrivilegedOps {
+    private func ops(
+        expectedIdentity: HelperReleaseIdentity? = nil,
+        hasExpectedIdentity: Bool = true,
+        trusted: Bool = true
+    ) -> MacPrivilegedOps {
         MacPrivilegedOps(
             logger: SilentLogger(),
             executablePath: "/tmp/Covio",
             client: HelperClient(socketPath: socketPath, timeoutMillis: 1_000),
+            expectedReleaseIdentity: hasExpectedIdentity ? (expectedIdentity ?? self.expectedIdentity) : nil,
+            expectedHelperExecutablePath: "/tmp/Covio",
+            isHelperTrusted: { _, _ in trusted },
             externalDisplayCount: { 0 }
         )
     }
 
-    func testNoSocketMeansNotInstalled() {
-        XCTAssertEqual(ops().status(), .notInstalled)
+    func testNoSocketMeansMissing() {
+        XCTAssertEqual(ops().status(), .missing)
         XCTAssertFalse(ops().isInstalled())
     }
 
-    /// helper 应答的版本与协议都匹配 → 已安装。
-    func testMatchingVersionAndProtocolMeansInstalled() throws {
+    /// helper 应答完整身份，签名可信且所有字段一致 → MATCH。
+    func testExactIdentityMeansMatch() throws {
+        let helper = try FakeHelper(
+            socketPath: socketPath,
+            version: expectedIdentity.productVersion,
+            protocolVersion: expectedIdentity.protocolVersion,
+            identity: expectedIdentity
+        )
+        defer { helper.stop() }
+
+        XCTAssertEqual(ops().status(), .match)
+        XCTAssertTrue(ops().isInstalled())
+        XCTAssertEqual(ops().helperVersion(), expectedIdentity.productVersion)
+    }
+
+    /// helper 能应答但协议不同 → OUTDATED。
+    func testDifferentProtocolMeansOutdated() throws {
+        let helperIdentity = identity(protocolVersion: "7")
+        let helper = try FakeHelper(
+            socketPath: socketPath,
+            version: helperIdentity.productVersion,
+            protocolVersion: helperIdentity.protocolVersion,
+            identity: helperIdentity
+        )
+        defer { helper.stop() }
+
+        XCTAssertEqual(ops().status(), .outdated)
+        XCTAssertTrue(ops().isInstalled(), "socket 在，所以 helper 存在")
+        XCTAssertEqual(ops().helperVersion(), helperIdentity.productVersion)
+    }
+
+    /// 旧 helper 即使版本和协议相同，只要缺少完整身份就是 OUTDATED。
+    func testLegacyReplyMeansOutdated() throws {
         let helper = try FakeHelper(
             socketPath: socketPath,
             version: GeneratedReleaseIdentityKt.APP_VERSION,
@@ -52,54 +112,127 @@ final class HelperStatusTests: XCTestCase {
         )
         defer { helper.stop() }
 
-        XCTAssertEqual(ops().status(), .installed)
-        XCTAssertTrue(ops().isInstalled())
-        XCTAssertEqual(ops().helperVersion(), GeneratedReleaseIdentityKt.APP_VERSION)
-    }
-
-    /// helper 能应答但协议不同 → OUTDATED。界面据此提示重装。
-    func testDifferentProtocolMeansOutdated() throws {
-        let helper = try FakeHelper(
-            socketPath: socketPath,
-            version: GeneratedReleaseIdentityKt.APP_VERSION,
-            protocolVersion: "1"
-        )
-        defer { helper.stop() }
-
-        XCTAssertEqual(ops().status(), .outdated)
-        XCTAssertTrue(ops().isInstalled(), "socket 在，所以算已安装")
-        XCTAssertEqual(ops().helperVersion(), GeneratedReleaseIdentityKt.APP_VERSION)
-    }
-
-    /// 旧 helper 缺少协议字段 → OUTDATED，即使应用版本相同。
-    func testMissingProtocolMeansOutdated() throws {
-        let helper = try FakeHelper(
-            socketPath: socketPath,
-            version: GeneratedReleaseIdentityKt.APP_VERSION,
-            protocolVersion: nil
-        )
-        defer { helper.stop() }
-
         XCTAssertEqual(ops().status(), .outdated)
     }
 
-    /// socket 文件在但没有进程监听 → ERROR，不是 OUTDATED。
-    /// 报 OUTDATED 会让用户去重装一个其实只是没起来的 helper。
-    func testSocketWithoutAListenerMeansErrorNotOutdated() throws {
+    /// socket 文件在但没有进程监听 → UNTRUSTED，不是 OUTDATED。
+    func testSocketWithoutAListenerMeansUntrusted() throws {
         // 造一个残留的 socket 文件：绑一次再关掉，文件会留下。
         let helper = try FakeHelper(socketPath: socketPath, version: "0.0.1")
         helper.stop()
 
         XCTAssertTrue(FileManager.default.fileExists(atPath: socketPath), "测试前提：socket 文件还在")
-        XCTAssertEqual(ops().status(), .error)
+        XCTAssertEqual(ops().status(), .untrusted)
+    }
+
+    /// 相同版本但 helper 摘要不同 → IDENTITY_MISMATCH。
+    func testSameVersionWithDifferentHelperHashMeansIdentityMismatch() throws {
+        let helperIdentity = identity(helperHash: String(repeating: "c", count: 64))
+        let helper = try FakeHelper(
+            socketPath: socketPath,
+            version: helperIdentity.productVersion,
+            protocolVersion: helperIdentity.protocolVersion,
+            identity: helperIdentity
+        )
+        defer { helper.stop() }
+
+        XCTAssertEqual(ops().status(), .identityMismatch)
+    }
+
+    /// 完整身份一致但签名校验失败 → UNTRUSTED。
+    func testUntrustedSignatureMeansUntrusted() throws {
+        let helper = try FakeHelper(
+            socketPath: socketPath,
+            version: expectedIdentity.productVersion,
+            protocolVersion: expectedIdentity.protocolVersion,
+            identity: expectedIdentity
+        )
+        defer { helper.stop() }
+
+        XCTAssertEqual(ops(trusted: false).status(), .untrusted)
+    }
+
+    /// app 自身缺少可验证的发布身份时不能开放写入。
+    func testMissingExpectedIdentityMeansUntrusted() throws {
+        let helper = try FakeHelper(
+            socketPath: socketPath,
+            version: expectedIdentity.productVersion,
+            protocolVersion: expectedIdentity.protocolVersion,
+            identity: expectedIdentity
+        )
+        defer { helper.stop() }
+
+        XCTAssertEqual(ops(hasExpectedIdentity: false).status(), .untrusted)
+    }
+
+    /// 应答带部分身份字段但格式不完整 → UNTRUSTED，不降级成旧 helper。
+    func testPartialIdentityMeansUntrusted() throws {
+        let helper = try FakeHelper(
+            socketPath: socketPath,
+            version: expectedIdentity.productVersion,
+            protocolVersion: expectedIdentity.protocolVersion,
+            identityResult: [
+                "version": expectedIdentity.productVersion,
+                "productVersion": expectedIdentity.productVersion,
+                "protocolVersion": expectedIdentity.protocolVersion,
+                "releaseId": expectedIdentity.releaseId,
+            ]
+        )
+        defer { helper.stop() }
+
+        XCTAssertEqual(ops().status(), .untrusted)
+    }
+
+    /// 身份不一致时连睡眠写入都不能发送。
+    func testIdentityMismatchBlocksSleepWrites() throws {
+        let helperIdentity = identity(helperHash: String(repeating: "c", count: 64))
+        let helper = try FakeHelper(
+            socketPath: socketPath,
+            version: helperIdentity.productVersion,
+            protocolVersion: helperIdentity.protocolVersion,
+            identity: helperIdentity
+        )
+        defer { helper.stop() }
+
+        XCTAssertFalse(ops().setDisableSleep(disabled: true))
+        XCTAssertFalse(ops().setDisableSleep(disabled: false))
+        XCTAssertFalse(ops().setHibernateMode(mode: 0))
+        XCTAssertFalse(helper.commands.contains(HelperWire.shared.COMMAND_LID_LEASE_ACQUIRE))
+        XCTAssertFalse(helper.commands.contains(HelperWire.shared.COMMAND_LID_LEASE_RELEASE))
+        XCTAssertFalse(helper.commands.contains(HelperWire.shared.COMMAND_SET_HIBERNATE_MODE))
+    }
+
+    /// 修复 helper 后，同一个 app 进程重新握手即可恢复，不要求重启。
+    func testRepairRestoresMatchWithoutRestartingTheApp() throws {
+        let mismatched = identity(helperHash: String(repeating: "c", count: 64))
+        let first = try FakeHelper(
+            socketPath: socketPath,
+            version: mismatched.productVersion,
+            protocolVersion: mismatched.protocolVersion,
+            identity: mismatched
+        )
+        XCTAssertEqual(ops().status(), .identityMismatch)
+        first.stop()
+        try FileManager.default.removeItem(atPath: socketPath)
+
+        let repaired = try FakeHelper(
+            socketPath: socketPath,
+            version: expectedIdentity.productVersion,
+            protocolVersion: expectedIdentity.protocolVersion,
+            identity: expectedIdentity
+        )
+        defer { repaired.stop() }
+
+        XCTAssertEqual(ops().status(), .match)
     }
 
     /// 合盖保持只在 helper 确认租约与真实状态时返回 true。
     func testLidLeaseRequiresAnActiveOkReply() throws {
         let helper = try FakeHelper(
             socketPath: socketPath,
-            version: GeneratedReleaseIdentityKt.APP_VERSION,
-            protocolVersion: HelperProtocol.protocolVersion
+            version: expectedIdentity.productVersion,
+            protocolVersion: expectedIdentity.protocolVersion,
+            identity: expectedIdentity
         )
         defer { helper.stop() }
 
@@ -177,6 +310,8 @@ private final class FakeHelper {
         socketPath: String,
         version: String,
         protocolVersion: String? = HelperProtocol.protocolVersion,
+        identity: HelperReleaseIdentity? = nil,
+        identityResult: [String: String]? = nil,
         responseDelayMilliseconds: Int = 0
     ) throws {
         // 全程用局部变量。在 `thread` 赋值前读 `descriptor` 或 `port`
@@ -204,6 +339,7 @@ private final class FakeHelper {
         let state = FakeHelperState()
         state.version = version
         state.protocolVersion = protocolVersion
+        state.identityResult = identityResult ?? identity.map(Self.identityResult)
         state.responseDelayMilliseconds = responseDelayMilliseconds
 
         descriptor = fd
@@ -239,14 +375,21 @@ private final class FakeHelper {
             // `result` 必须显式传：Kotlin 的默认参数值不导出到 Swift。
             let reply: HelperReply
             if request.command == HelperWire.shared.COMMAND_VERSION {
-                var result = ["version": port.version]
-                if let protocolVersion = port.protocolVersion {
-                    result["protocolVersion"] = protocolVersion
+                if let identityResult = port.identityResult {
+                    reply = HelperWire.shared.success(
+                        requestId: request.requestId,
+                        result: identityResult
+                    )
+                } else {
+                    var result = ["version": port.version]
+                    if let protocolVersion = port.protocolVersion {
+                        result["protocolVersion"] = protocolVersion
+                    }
+                    reply = HelperWire.shared.success(
+                        requestId: request.requestId,
+                        result: result
+                    )
                 }
-                reply = HelperWire.shared.success(
-                    requestId: request.requestId,
-                    result: result
-                )
             } else if request.command == HelperWire.shared.COMMAND_LID_LEASE_ACQUIRE
                 || request.command == HelperWire.shared.COMMAND_LID_LEASE_RENEW {
                 reply = HelperWire.shared.leaseStatusReply(
@@ -291,6 +434,19 @@ private final class FakeHelper {
             UnixSocketIO.writeAll(client, HelperWire.shared.encodeReply(reply: reply) + "\n")
         }
     }
+
+    private static func identityResult(_ identity: HelperReleaseIdentity) -> [String: String] {
+        [
+            "version": identity.productVersion,
+            "releaseId": identity.releaseId,
+            "productVersion": identity.productVersion,
+            "buildNumber": identity.buildNumber,
+            "gitCommit": identity.gitCommit,
+            "protocolVersion": identity.protocolVersion,
+            "helperSHA256": identity.helperSHA256,
+            "channel": identity.channel,
+        ]
+    }
 }
 
 /// 跨线程传一次状态。假 helper 的 accept 循环在后台线程上跑。
@@ -298,6 +454,7 @@ private final class FakeHelperState: @unchecked Sendable {
     private let lock = NSLock()
     private var versionStorage = ""
     private var protocolVersionStorage: String?
+    private var identityResultStorage: [String: String]?
     private var responseDelayMillisecondsStorage = 0
     private var commandsStorage: [String] = []
     private var stoppedStorage = false
@@ -310,6 +467,11 @@ private final class FakeHelperState: @unchecked Sendable {
     var protocolVersion: String? {
         get { lock.withLock { protocolVersionStorage } }
         set { lock.withLock { protocolVersionStorage = newValue } }
+    }
+
+    var identityResult: [String: String]? {
+        get { lock.withLock { identityResultStorage } }
+        set { lock.withLock { identityResultStorage = newValue } }
     }
 
     var commands: [String] { lock.withLock { commandsStorage } }

@@ -74,7 +74,7 @@ data class PowerObservation(
  */
 data class PowerSnapshot(
     val observation: PowerObservation = PowerObservation(),
-    val helperStatus: HelperStatus = HelperStatus.ERROR,
+    val helperStatus: HelperStatus = HelperStatus.UNTRUSTED,
     val sleepDisabled: Boolean? = null,
     val covioOwnsSleepDisabled: Boolean? = null,
 ) {
@@ -325,7 +325,7 @@ object PowerPolicy {
     private fun closedLidVeto(config: PowerConfig, snapshot: PowerSnapshot): SafetyVeto? {
         val observation = snapshot.observation
         if (!config.allowClosedLid) return SafetyVeto.CLOSED_LID_DISABLED
-        if (snapshot.helperStatus != HelperStatus.INSTALLED) return SafetyVeto.HELPER_UNAVAILABLE
+        if (snapshot.helperStatus != HelperStatus.MATCH) return SafetyVeto.HELPER_UNAVAILABLE
         if (observation.hasBattery != false && observation.batteryPercent == null) {
             return SafetyVeto.BATTERY_STATE_UNKNOWN
         }

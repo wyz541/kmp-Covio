@@ -235,8 +235,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             runtime.start()
             if ProcessInfo.processInfo.environment["COVIO_POWER_LIVE_AUTOSTART_LID"] == "1" {
                 Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(500))
-                    _ = runtime.startSession(mode: .lid, duration: .oneHour)
+                    for _ in 0 ..< 25 {
+                        try? await Task.sleep(for: .milliseconds(200))
+                        guard runtime.powerRuntime.helperStatus == .installed else { continue }
+                        _ = runtime.startSession(mode: .lid, duration: .oneHour)
+                        return
+                    }
                 }
             }
             let preview = MonitorPreviewWindowController(

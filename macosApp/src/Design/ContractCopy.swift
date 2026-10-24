@@ -633,6 +633,12 @@ enum ContractCopy {
     static let copyMonitorFanStartCaption = LocalizedCopy(key: "copy/monitor/fan/start-caption", en: "%d °C starts ramping", zhHans: "%d °C 开始升温")
     /// `copy/monitor/fan/start-temperature`
     static let copyMonitorFanStartTemperature = LocalizedCopy(key: "copy/monitor/fan/start-temperature", en: "Start temperature", zhHans: "起转温度")
+    /// `copy/monitor/fan/sync-fans`
+    static let copyMonitorFanSyncFans = LocalizedCopy(key: "copy/monitor/fan/sync-fans", en: "Synchronize fans", zhHans: "同步风扇控制")
+    /// `copy/monitor/fan/sync-hint`
+    static let copyMonitorFanSyncHint = LocalizedCopy(key: "copy/monitor/fan/sync-hint", en: "Apply changes by RPM percentage.", zhHans: "按转速百分比同步到全部风扇。")
+    /// `copy/monitor/fan/system-auto`
+    static let copyMonitorFanSystemAuto = LocalizedCopy(key: "copy/monitor/fan/system-auto", en: "System automatic", zhHans: "系统自动")
     /// `copy/monitor/fan/system-control`
     static let copyMonitorFanSystemControl = LocalizedCopy(key: "copy/monitor/fan/system-control", en: "System control", zhHans: "系统控制")
     /// `copy/monitor/fan/target`
@@ -1700,6 +1706,9 @@ enum ContractCopy {
         copyMonitorFanRpm,
         copyMonitorFanStartCaption,
         copyMonitorFanStartTemperature,
+        copyMonitorFanSyncFans,
+        copyMonitorFanSyncHint,
+        copyMonitorFanSystemAuto,
         copyMonitorFanSystemControl,
         copyMonitorFanTarget,
         copyMonitorFanTemperature,

@@ -4732,9 +4732,21 @@
       "en": "Auto curve",
       "zh-Hans": "自动曲线"
     },
+    "copy/monitor/fan/system-auto": {
+      "en": "System automatic",
+      "zh-Hans": "系统自动"
+    },
     "copy/monitor/fan/manual-rpm": {
       "en": "Manual RPM",
       "zh-Hans": "手动转速"
+    },
+    "copy/monitor/fan/sync-fans": {
+      "en": "Synchronize fans",
+      "zh-Hans": "同步风扇控制"
+    },
+    "copy/monitor/fan/sync-hint": {
+      "en": "Apply changes by RPM percentage.",
+      "zh-Hans": "按转速百分比同步到全部风扇。"
     },
     "copy/monitor/fan/quiet": {
       "en": "Quiet",

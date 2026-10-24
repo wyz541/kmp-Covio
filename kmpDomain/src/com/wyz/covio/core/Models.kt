@@ -8,9 +8,9 @@ import kotlinx.serialization.Serializable
  *
  * **这是唯一的版本来源。** Xcode 工程的 `MARKETING_VERSION`、
  * `scripts/create-release.sh` 的标签、helper 的版本比对、更新检查
- * 全部以它为准。0.5.0 是 SwiftUI 宿主成为发布物的那一版。
+ * 全部以它为准。0.5.1 是工作台交互保护修正版。
  */
-const val APP_VERSION = "0.5.0"
+const val APP_VERSION = "0.5.1"
 const val APP_ID = "com.wyz.covio"
 const val APP_NAME = "Covio"
 val SUPPORTED_HIBERNATE_MODES = setOf(0, 3, 25)

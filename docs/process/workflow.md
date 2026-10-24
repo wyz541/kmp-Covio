@@ -304,22 +304,42 @@ GitHub 默认只有 task、bug、feature 三种 issue type，且只在组织账�
 
 **依据：** Amper 0.12.1 能建 `wasm-js/app` 模块并在浏览器里渲染 Compose 内容。实测见 #103。
 
-### UI 证据
+### UI 证据与 Visual verification
 
 **何时用：** issue 涉及 UI 决策或 UI 代码变更。
 **谁做：** 负责人补齐证据。评审人核对截图。
 
 | 类型 | issue 正文必须包含 |
 |---|---|
-| UI 决策 | 当前界面或候选方案截图，以及选定方案截图 |
-| UI 代码变更 | 同一页面、同一状态的真机变更前后截图 |
+| UI 决策 | 亮色和深色两组 Before/After 表。Before 放当前界面，After 放选定方案。 |
+| UI 代码变更 | 亮色和深色两组 Before/After 表。两组都放同一页面、同一状态的真机截图。 |
+
+UI issue 的正文使用以下固定格式：
+
+```markdown
+## Visual verification
+
+**亮色**
+
+| Before | After |
+| --- | --- |
+| Light before | Light after |
+
+**深色**
+
+| Before | After |
+| --- | --- |
+| Dark before | Dark after |
+```
+
+把 `Light before`、`Light after`、`Dark before` 和 `Dark after` 换成 Markdown 图片。
 
 1. 截图归档到仓库内的 `docs/design/previews/`。此目录保存 UI 证据。
 2. 文件名遵守该目录的 `README.md`。UI 决策使用 `candidate`、`selected` 或 `current` 角色。UI 代码变更使用 `before` 或 `after` 角色。
 3. Issue 正文嵌入同一文件的固定 commit GitHub 图片地址。不写本机路径，不上传第二份权威副本。
 4. Issue 正文记录截图来源、日期、设备型号、系统版本、页面、状态和 commit。
 5. 旧图不删除。同一场景重截后，序号加一。
-6. 不涉及 UI 的 issue 在 UI 证据栏写「不适用」。
+6. 不涉及 UI 的 issue 在 `Visual verification` 栏写「不适用」。
 7. UI issue 缺少截图或证据链接失效时，不得关闭。
 8. 仓库是公开仓库。截图必须使用测试数据，并遮挡用户名、文件名、通知和其他个人信息。
 

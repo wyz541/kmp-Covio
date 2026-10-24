@@ -7,7 +7,7 @@
 Covio 是 macOS 菜单栏应用。界面是 SwiftUI 宿主，放在 `macosApp/`。
 共享领域逻辑是 KMP 模块，放在 `kmpDomain/`。
 构建系统是 Amper 0.12.1，不是 Gradle。
-改完跑 `bash scripts/test-all.sh`。改了 UI 的还要在真机验收，并按 `docs/process/workflow.md` 的「UI 证据」补截图。截图缺失时，不得关闭 issue。
+改完跑 `bash scripts/test-all.sh`。改了 UI 的还要在真机验收，并按 `docs/process/workflow.md` 的「Visual verification」补截图。截图缺失时，不得关闭 issue。
 主干是 `main`。
 
 ## 2. 流程
@@ -41,6 +41,7 @@ Covio 是 macOS 菜单栏应用。界面是 SwiftUI 宿主，放在 `macosApp/`�
 5. 长期决策进 S4。写新 ADR 走 PR，合并前 Status 改成 `accepted`。
 6. 大功能走 S5 建 Feature。每个 sub-issue 写一行验收标准，工期 1 到 3 天。
 7. 涉及 UI 变化时先出 web 预览。预览通过评审再动工。见 `docs/process/workflow.md` 的设计闸门。
+   UI issue 的正文必须使用 `Visual verification`。亮色和深色各放一组 `Before`/`After` 表。
 8. 引用另一个对象时走 S6。值未定时写 `pending`，5 个工作日内回填。
 9. 对象用标签区分。建 issue 时带对应的标签：调研 `research`，大功能 `feature`，小功能与 sub-issue `task`。
 10. 个人账号没有 issue types 与 issue fields。不要用 `--type`，也不要找 issue fields。

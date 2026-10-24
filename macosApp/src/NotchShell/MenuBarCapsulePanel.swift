@@ -18,6 +18,8 @@ final class MenuBarCapsulePanel: ShellPanel {
     var onPointerExit: (() -> Void)?
     /// 点击胶囊。挂帘打开时收起，否则打开。
     var onClick: (() -> Void)?
+    /// 右键或 Control 点击胶囊。打开与状态项相同的菜单。
+    var onSecondaryClick: (() -> Void)?
 
     private let host: NSHostingView<MenuBarCapsule>
     private let container = CapsuleContainerView()
@@ -41,6 +43,7 @@ final class MenuBarCapsulePanel: ShellPanel {
         container.onPointerEnter = { [weak self] in self?.onPointerEnter?() }
         container.onPointerExit = { [weak self] in self?.onPointerExit?() }
         container.onClick = { [weak self] in self?.onClick?() }
+        container.onSecondaryClick = { [weak self] in self?.onSecondaryClick?() }
     }
 
     /// 量胶囊的自然尺寸。宿主视图还没上屏时量出来是 0，回落到兜底值。
@@ -104,6 +107,7 @@ private final class CapsuleContainerView: NSView {
     var onPointerEnter: (() -> Void)?
     var onPointerExit: (() -> Void)?
     var onClick: (() -> Void)?
+    var onSecondaryClick: (() -> Void)?
 
     /// 内容四周留出的悬停余量。
     var inset: CGFloat = 0
@@ -150,6 +154,15 @@ private final class CapsuleContainerView: NSView {
 
     override func mouseUp(with event: NSEvent) {
         guard bounds.contains(convert(event.locationInWindow, from: nil)) else { return }
-        onClick?()
+        if event.modifierFlags.contains(.control) {
+            onSecondaryClick?()
+        } else {
+            onClick?()
+        }
+    }
+
+    override func rightMouseUp(with event: NSEvent) {
+        guard bounds.contains(convert(event.locationInWindow, from: nil)) else { return }
+        onSecondaryClick?()
     }
 }

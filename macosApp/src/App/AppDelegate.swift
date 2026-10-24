@@ -7,12 +7,15 @@ import kmpDomain
 /// `Info.plist` 的 `LSUIElement` 是 true，所以这是一个没有 Dock 图标与主菜单的代理应用。
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    /// 当前应用代理。宿主测试用它检查启动后的菜单栏入口装配。
+    static private(set) weak var current: AppDelegate?
+
     /// 运行时。引擎与端口都由它持有。
     ///
     /// 单实例检查通过之后才创建，避免第二个进程去动 shared 的配置文件。
     private var runtime: AppRuntime?
     private let shell = NotchShellController()
-    private var statusItemController: StatusItemController?
+    private(set) var statusItemController: StatusItemController?
     private var hotKey: GlobalHotKey?
     private var instanceLock: SingleInstanceLock?
     #if DEBUG
@@ -26,6 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     #endif
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        Self.current = self
         // LSUIElement 已经让进程成为代理应用。这里显式再设一次，防止从 Xcode 直接运行时不一致。
         NSApp.setActivationPolicy(.accessory)
 
@@ -341,7 +345,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         shell.start()
-        statusItemController = StatusItemController(shell: shell, runtime: runtime)
+        let statusItemController = StatusItemController(
+            shell: shell,
+            runtime: runtime,
+            capsuleVisible: shell.isMenuBarCapsuleVisible
+        )
+        self.statusItemController = statusItemController
+        shell.onMenuBarCapsuleVisibilityChanged = { [weak self] capsuleVisible in
+            self?.statusItemController?.sync(capsuleVisible: capsuleVisible)
+        }
+        shell.onMenuBarCapsuleSecondaryClick = { [weak self] in
+            self?.statusItemController?.showContextMenu()
+        }
 
         #if DEBUG
         // Visual QA uses an isolated support directory and skips the global hotkey.
@@ -364,7 +379,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        Self.current = nil
         hotKey?.unregister()
+        shell.onMenuBarCapsuleVisibilityChanged = nil
+        shell.onMenuBarCapsuleSecondaryClick = nil
         statusItemController?.tearDown()
         // Stop the lease before the helper expires it. The helper also restores
         // after a crash, but normal quit should not leave fan control running.

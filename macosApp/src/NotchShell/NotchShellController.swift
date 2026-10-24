@@ -44,6 +44,8 @@ final class NotchShellController {
     private var hubPanel: HubPanel?
     /// 菜单栏上的品牌胶囊窗口。收起态由它显示。
     private var capsulePanel: MenuBarCapsulePanel?
+    /// 品牌胶囊当前是否显示。它与备用状态项互斥。
+    private(set) var isMenuBarCapsuleVisible = false
     private var expandTimer: Timer?
     private var collapseTimer: Timer?
     private var observers: [NSObjectProtocol] = []
@@ -52,6 +54,10 @@ final class NotchShellController {
 
     /// 运行时。Hub 的设置页读它。测试与预览里可以是 nil，那时设置页显示占位。
     var runtime: AppRuntime?
+    /// 胶囊可见性变化。应用代理用它切换备用状态项。
+    var onMenuBarCapsuleVisibilityChanged: (@MainActor (Bool) -> Void)?
+    /// 胶囊收到右键或 Control 点击。应用代理用它弹出状态项菜单。
+    var onMenuBarCapsuleSecondaryClick: (@MainActor () -> Void)?
 
     /// `pointerLocation` 是唯一为了测试留的接缝。默认读真实指针位置。
     /// 测试注入固定坐标，就不必真的移动用户的鼠标。
@@ -105,6 +111,7 @@ final class NotchShellController {
         hubPanel = nil
         capsulePanel?.orderOut(nil)
         capsulePanel = nil
+        setMenuBarCapsuleVisible(false)
     }
 
     // MARK: - 外部入口
@@ -317,10 +324,19 @@ final class NotchShellController {
               screenGeometry.isMenuBarVisible
         else {
             capsulePanel.orderOut(nil)
+            setMenuBarCapsuleVisible(false)
             return
         }
         capsulePanel.place(on: screenGeometry)
         capsulePanel.orderFrontRegardless()
+        setMenuBarCapsuleVisible(true)
+    }
+
+    /// 同步胶囊可见性，只在值变化时通知备用状态项。
+    private func setMenuBarCapsuleVisible(_ visible: Bool) {
+        guard isMenuBarCapsuleVisible != visible else { return }
+        isMenuBarCapsuleVisible = visible
+        onMenuBarCapsuleVisibilityChanged?(visible)
     }
 
     private func relocateIfNeeded() {
@@ -425,6 +441,9 @@ final class NotchShellController {
         }
         panel.onClick = { [weak self] in
             self?.toggle()
+        }
+        panel.onSecondaryClick = { [weak self] in
+            self?.onMenuBarCapsuleSecondaryClick?()
         }
         capsulePanel = panel
     }

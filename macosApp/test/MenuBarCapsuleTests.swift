@@ -202,4 +202,74 @@ final class MenuBarCapsuleTests: XCTestCase {
         XCTAssertEqual(capsule.height, panel.frame.height - inset * 2, accuracy: 0.5)
         XCTAssertEqual(capsule.width, panel.capsuleSize.width, accuracy: 0.5)
     }
+
+    // MARK: - 点击
+
+    func testAPrimaryClickOpensTheHub() throws {
+        let panel = makePanel()
+        defer { panel.close() }
+        var primaryClicks = 0
+        var secondaryClicks = 0
+        panel.onClick = { primaryClicks += 1 }
+        panel.onSecondaryClick = { secondaryClicks += 1 }
+
+        try sendMouseUp(to: panel, type: .leftMouseUp)
+
+        XCTAssertEqual(primaryClicks, 1)
+        XCTAssertEqual(secondaryClicks, 0)
+    }
+
+    func testARightClickOpensTheMenu() throws {
+        let panel = makePanel()
+        defer { panel.close() }
+        var primaryClicks = 0
+        var secondaryClicks = 0
+        panel.onClick = { primaryClicks += 1 }
+        panel.onSecondaryClick = { secondaryClicks += 1 }
+
+        try sendMouseUp(to: panel, type: .rightMouseUp)
+
+        XCTAssertEqual(primaryClicks, 0)
+        XCTAssertEqual(secondaryClicks, 1)
+    }
+
+    func testAControlClickOpensTheMenu() throws {
+        let panel = makePanel()
+        defer { panel.close() }
+        var primaryClicks = 0
+        var secondaryClicks = 0
+        panel.onClick = { primaryClicks += 1 }
+        panel.onSecondaryClick = { secondaryClicks += 1 }
+
+        try sendMouseUp(to: panel, type: .leftMouseUp, modifiers: [.control])
+
+        XCTAssertEqual(primaryClicks, 0)
+        XCTAssertEqual(secondaryClicks, 1)
+    }
+
+    private func sendMouseUp(
+        to panel: MenuBarCapsulePanel,
+        type: NSEvent.EventType,
+        modifiers: NSEvent.ModifierFlags = []
+    ) throws {
+        panel.place(on: notched)
+        let point = NSPoint(x: panel.frame.width / 2, y: panel.frame.height / 2)
+        let event = try XCTUnwrap(NSEvent.mouseEvent(
+            with: type,
+            location: point,
+            modifierFlags: modifiers,
+            timestamp: ProcessInfo.processInfo.systemUptime,
+            windowNumber: panel.windowNumber,
+            context: nil,
+            eventNumber: 1,
+            clickCount: 1,
+            pressure: 1
+        ))
+        let view = try XCTUnwrap(panel.contentView?.hitTest(point))
+        if type == .rightMouseUp {
+            view.rightMouseUp(with: event)
+        } else {
+            view.mouseUp(with: event)
+        }
+    }
 }

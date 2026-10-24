@@ -1,0 +1,44 @@
+name: Windows CMP probe
+
+on:
+  push:
+    branches:
+      - spike/windows-cmp-318
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+      - name: Build and test
+        shell: pwsh
+        run: |
+          .\kotlin.bat build
+          .\kotlin.bat test
+      - name: Package executable JAR
+        shell: pwsh
+        run: .\kotlin.bat package -m windowsProbe -f executable-jar
+      - name: Build portable application image
+        shell: pwsh
+        run: |
+          $jar = Get-ChildItem build\tasks -Recurse -Filter 'windowsProbe-jvm-executable.jar' | Select-Object -First 1
+          if ($null -eq $jar) { throw 'Executable JAR not found' }
+          New-Item -ItemType Directory -Force -Path build\jpackage-input | Out-Null
+          Copy-Item $jar.FullName build\jpackage-input\windowsProbe.jar
+          jpackage --type app-image --input build\jpackage-input --main-jar windowsProbe.jar --main-class com.wyz.covio.windows.MainKt --name Covio --dest build\jpackage
+          Get-ChildItem build\jpackage\Covio | Select-Object Name, Length
+      - name: Build MSI installer
+        shell: pwsh
+        run: |
+          if (-not (Get-Command candle.exe -ErrorAction SilentlyContinue)) {
+            choco install wixtoolset --yes --no-progress
+            $wixBin = Get-ChildItem 'C:\Program Files (x86)\WiX Toolset*' -Directory | Select-Object -First 1
+            if ($null -eq $wixBin) { throw 'WiX installation not found' }
+            $env:PATH = "$($wixBin.FullName)\bin;$env:PATH"
+          }
+          jpackage --type msi --input build\jpackage-input --main-jar windowsProbe.jar --main-class com.wyz.covio.windows.MainKt --name Covio --dest build\jpackage-msi --win-menu --win-shortcut
+          Get-ChildItem build\jpackage-msi | Select-Object Name, Length

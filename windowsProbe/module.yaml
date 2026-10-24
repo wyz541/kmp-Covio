@@ -1,0 +1,10 @@
+product:
+  type: jvm/app
+
+dependencies:
+  - ../kmpDomain
+  - $compose.desktop.currentOs
+
+settings:
+  compose:
+    enabled: true

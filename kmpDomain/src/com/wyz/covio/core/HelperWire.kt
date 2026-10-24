@@ -194,6 +194,11 @@ object HelperWire {
             if (sensorKeys.any { it.length != 4 }) return "Invalid fan sensor key"
             val manual = request.payload["manualRPM"].orEmpty()
             if (manual.length > 1024) return "Fan RPM list is too long"
+            val manualModes = request.payload["manualModes"].orEmpty()
+            if (manualModes.length > 1_024) return "Fan mode list is too long"
+            if (manualModes.any { it == '\u0000' || it == '\n' || it == '\r' }) {
+                return "Invalid fan mode list"
+            }
             val curves = request.payload["curves"].orEmpty()
             if (curves.length > 8_192) return "Fan curve list is too long"
             if (curves.any { it == '\u0000' || it == '\n' || it == '\r' }) {

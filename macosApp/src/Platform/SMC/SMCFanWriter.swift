@@ -26,6 +26,10 @@ final class SMCFanWriter {
 
     var holdingCount: Int { heldFans.count }
 
+    func isHolding(_ index: Int) -> Bool {
+        heldFans.contains(index)
+    }
+
     func hold(_ index: Int) throws {
         guard !heldFans.contains(index) else { return }
         if Self.isAppleSilicon {

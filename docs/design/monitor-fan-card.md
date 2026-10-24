@@ -21,6 +21,7 @@
 | ![风扇 popover 亮色](previews/313-monitor-fan-popover-light-1.png) | ![风扇 popover 深色](previews/313-monitor-fan-popover-dark-1.png) |
 | ![多点曲线亮色](previews/333-fan-multipoint-curve-light-after-2.png) | ![多点曲线深色](previews/333-fan-multipoint-curve-dark-after-2.png) |
 | ![手动同步亮色](previews/362-fan-manual-sync-light-after-1.png) | ![手动同步深色](previews/362-fan-manual-sync-dark-after-1.png) |
+| ![手动风扇模式亮色](previews/366-fan-manual-stats-light-after-1.png) | ![手动风扇模式深色](previews/366-fan-manual-stats-dark-after-1.png) |
 
 ## 3. 三段式结构
 
@@ -90,12 +91,16 @@ popover 固定宽度 420 点、固定高度 760 点。
 起转温度和全速温度继续作为旧配置的兼容回退。
 旧配置没有 `curves` 时使用这两点生成直线。
 
-手动模式为每个风扇显示转速滑杆。
+手动模式为每个风扇提供独立自动或手动模式。
+自动模式的风扇交还 macOS。
+手动模式的风扇显示转速滑杆。
 目标转速限制在该风扇的 `Mn` 和 `Mx` 之间。
+滑杆变化等待 `300 ms` 后提交，连续变化只写最后一个值。
 
 手动模式在多风扇设备上提供同步开关。
 同步开关默认关闭。
 开启后，一次滑杆修改按转速百分比映射到每台风扇自己的硬件范围。
+开启后，自动和手动模式变化也同步到全部风扇。
 同步规则来自 Stats 的 `Synchronize fan's control`。
 
 控制温度下降不超过 1.5 °C 时保留前一控制温度。

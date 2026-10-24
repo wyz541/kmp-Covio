@@ -103,6 +103,9 @@ final class FanControlRuntime: @unchecked Sendable {
                 allKeys: fanSnapshot.temperatures.map(\.key)
             )
         }
+        let controlledFans = fanSnapshot.fans.filter {
+            normalized.controlMode(for: $0.index) != .automatic
+        }
 
         if writer?.holdingCount ?? 0 > 0 {
             writer?.releaseAll()
@@ -118,7 +121,7 @@ final class FanControlRuntime: @unchecked Sendable {
         lastError = nil
 
         do {
-            for fan in fanSnapshot.fans {
+            for fan in controlledFans {
                 try hardware.1.hold(fan.index)
             }
         } catch {
@@ -134,6 +137,11 @@ final class FanControlRuntime: @unchecked Sendable {
         }
 
         writer = hardware.1
+        guard !controlledFans.isEmpty else {
+            state = .system
+            leaseDeadline = .distantPast
+            return statusReply(requestId: request.requestId)
+        }
         state = .controlled
         startTimer()
         applyControl()
@@ -212,6 +220,16 @@ final class FanControlRuntime: @unchecked Sendable {
 
         do {
             for fan in snapshot.fans {
+                if configuration.controlMode(for: fan.index) == .automatic {
+                    if writer.isHolding(fan.index) {
+                        writer.release(fan.index)
+                    }
+                    lastTargets.removeValue(forKey: fan.index)
+                    continue
+                }
+                if !writer.isHolding(fan.index) {
+                    try writer.hold(fan.index)
+                }
                 let target: Double
                 if configuration.mode == .manual {
                     target = configuration.manualRPM[String(fan.index)] ?? fan.minimumRPM
@@ -232,6 +250,13 @@ final class FanControlRuntime: @unchecked Sendable {
                     try writer.writeTarget(fan.index, rpm: safeTarget)
                     lastTargets[fan.index] = safeTarget
                 }
+            }
+            if writer.holdingCount == 0 {
+                stopTimer()
+                state = .system
+                leaseDeadline = .distantPast
+                heldTemperature = nil
+                controlTemperature = nil
             }
             consecutiveFailures = 0
             lastError = nil
@@ -306,6 +331,19 @@ final class FanControlRuntime: @unchecked Sendable {
             curves = decoded
         }
 
+        var manualModes: [String: MonitorFanMode] = [:]
+        if let modeText = payload["manualModes"], !modeText.isEmpty {
+            guard let data = modeText.data(using: .utf8),
+                  let decoded = try? JSONDecoder().decode(
+                      [String: MonitorFanMode].self,
+                      from: data
+                  )
+            else {
+                return nil
+            }
+            manualModes = decoded
+        }
+
         return MonitorFanConfiguration(
             enabled: true,
             mode: mode,
@@ -313,6 +351,7 @@ final class FanControlRuntime: @unchecked Sendable {
             fullCelsius: full,
             selectedSensorKeys: sensors,
             manualRPM: manualRPM,
+            manualModes: manualModes,
             curves: curves
         )
     }

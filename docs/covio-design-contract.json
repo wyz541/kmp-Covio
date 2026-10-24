@@ -4736,6 +4736,14 @@
       "en": "System automatic",
       "zh-Hans": "系统自动"
     },
+    "copy/monitor/fan/automatic": {
+      "en": "Automatic",
+      "zh-Hans": "自动"
+    },
+    "copy/monitor/fan/manual": {
+      "en": "Manual",
+      "zh-Hans": "手动"
+    },
     "copy/monitor/fan/manual-rpm": {
       "en": "Manual RPM",
       "zh-Hans": "手动转速"

@@ -115,23 +115,14 @@ final class AppRuntimeTests: XCTestCase {
         )
         return ShelfRuntime(
             store: store,
-            takeover: ScreenshotTakeoverController(
-                store: FakeShelfPreferences(),
-                directory: directory.appendingPathComponent("Screenshots", isDirectory: true),
-                shelfStore: store
-            ),
-            environment: ShelfEnvironment(
-                isShelfEnabled: { false },
-                isTakeoverEnabled: { false },
-                isSoundsEnabled: { false },
-                isFullScreenSpaceActive: { false },
-                reduceMotion: { false },
-                language: { CopyLocale.language },
-                pointerLocation: { .zero },
+            preferences: FakeLegacyScreenshotPreferences(),
+            environment: ScreenshotLibraryEnvironment(
+                screenshotDirectory: {
+                    self.directory.appendingPathComponent("Screenshots", isDirectory: true)
+                },
                 now: { 0 }
             ),
-            sound: FakeShelfSound(),
-            watcherFactory: FakeWatcherFactory().factory
+            watcherFactory: FakeScreenshotWatcherFactory().factory
         )
     }
 
@@ -547,22 +538,6 @@ final class AppRuntimeTests: XCTestCase {
     }
 
     // MARK: - 开关分组
-
-    /// 挂帘相关的开关现在只写配置。行为属于 M3。
-    ///
-    /// 这条用例是给 M3 的锚点：接上行为时它会失败，提醒把注释一起改掉。
-    func testShelfSwitchesOnlyWriteConfig() throws {
-        let created = makeRuntime()
-
-        created.setShelfEnabled(false)
-        created.setScreenshotInbox(false)
-        created.setShelfSounds(false)
-
-        XCTAssertFalse(created.config.shelfEnabled)
-        XCTAssertFalse(created.config.screenshotInboxEnabled)
-        XCTAssertFalse(created.config.shelfSoundsEnabled)
-        XCTAssertEqual(try savedJSON()["shelfEnabled"] as? Bool, false)
-    }
 
     /// 剩下的开关逐条写进对应的键。
     func testRemainingSwitchesWriteTheirOwnKeys() throws {

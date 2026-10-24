@@ -587,7 +587,7 @@ class WorkspaceStore(
         fun digestOf(bytes: ByteArray): String = bytes.toByteString().sha256().hex()
 
         /**
-         * 工作区目录。用 `APP_NAME` 而不是 `APP_ID`，与晾衣线和剪切板一致。
+         * 工作区目录。用 `APP_NAME` 而不是 `APP_ID`，与截图索引和剪切板一致。
          */
         fun defaultDirectory(): String =
             "${AppDirectories.userApplicationSupport}/${APP_NAME}/Workspace"

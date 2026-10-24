@@ -100,7 +100,7 @@ enum AppPaths {
 
     /// 剪切板条目的落盘目录。
     ///
-    /// 与晾衣线同一个写法：用 `Covio` 而不是 `com.wyz.covio`，
+    /// 与截图索引同一个写法：用 `Covio` 而不是 `com.wyz.covio`，
     /// 二进制文件都放在 `~/Library/Application Support/Covio/` 下。
     /// 权威在 `kmpDomain` 的 `ClipboardStore.defaultDirectory()`，这里跟着它走。
     static var clipboardDirectory: URL {

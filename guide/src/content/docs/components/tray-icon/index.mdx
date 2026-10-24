@@ -1,6 +1,6 @@
 ---
 title: 菜单栏图标
-description: 解释 Covio 菜单栏品牌胶囊、右键菜单和状态入口。
+description: 解释 Covio 菜单栏玻璃吊卡图标、右键菜单和状态入口。
 component:
   id: tray-icon
   kind: indicator
@@ -9,13 +9,13 @@ component:
   capabilities:
     - id: status
       title: 显示当前状态
-      description: 胶囊用品牌图形、名称和状态变化标记当前运行情况。
+      description: 玻璃吊卡图标用图形和状态变化标记当前运行情况。
     - id: open
       title: 打开或收起 Hub
-      description: 左键或指针进入胶囊可以打开 Hub，再次操作可以收起。
+      description: 左键或指针进入图标可以打开 Hub，再次操作可以收起。
     - id: menu
       title: 打开系统菜单
-      description: 右键显示截图工具条、设置和退出命令。
+      description: 右键显示文件截图入口、设置和退出命令。
     - id: accessibility
       title: 提供辅助技术入口
       description: 状态项提供可访问名称和当前状态摘要。
@@ -39,22 +39,22 @@ component:
       - MenuBarCapsule
       - MenuBarCapsulePanel
       - StatusItemController
-    notes: 品牌胶囊高 20 点，窗口四边各留 6 点悬停余量。左键开合 Hub，右键显示菜单。
+    notes: 一级入口与次级状态项使用同一个玻璃吊卡图标。图标高 18 点，窗口四边留悬停余量。左键开合 Hub，右键显示菜单。
   related:
     - tray-menu
     - tray-menu-item
 evidence:
-  - id: "EV-TRAY-001"
-    image: "./evidence/2026-10-22__macbook-pro__macos-27.0.1__dark__EV-TRAY-001.png"
-    alt: "Covio 菜单栏品牌胶囊在真实 Mac 菜单栏中的收起态"
-    capturedAt: "2026-10-22"
+  - id: "EV-TRAY-002"
+    image: "./evidence/2026-10-24__macbook-pro__macos-27.0.1__light__EV-TRAY-002.png"
+    alt: "Covio 菜单栏玻璃吊卡图标在真实 Mac 菜单栏中的收起态"
+    capturedAt: "2026-10-24"
     device: "MacBook Pro (MacBookPro18,2, Apple M1 Max, 64 GB)"
     os: "macOS 27.0.1 (26A434)"
     appearance: "dark"
-    scene: "菜单栏品牌胶囊：收起态窗口截图"
-    sourceCommit: "35525750c914"
-    sourceBranch: "main"
-    sha256: "616fd942468d47663c9f218255756cef10471c7fe5ff68716097f6aff4cec5fd"
+    scene: "菜单栏玻璃吊卡图标：收起态窗口截图"
+    sourceCommit: "afdb7f4e5f43"
+    sourceBranch: "task/remove-screenshot-takeover-317"
+    sha256: "4b1d92603a9e2fc8e421c578a6aa546692c65b269b6d727ea39717da5c052be0"
     status: "real-device"
     maxWidth: 300
 ---
@@ -68,12 +68,12 @@ import Legend from '../../../../components/guide/Legend.astro';
 
 ## 两种入口
 
-- 品牌胶囊是主要入口。它使用品牌色和 `Covio` 名称。
-- 系统状态项是兜底入口。品牌胶囊没有上屏时，用户仍可打开 Hub。
+- 菜单栏浮层是主要入口。它显示玻璃吊卡图标。
+- 系统状态项是兜底入口。图标使用同一份光栅缓存。
 
 ## 交互
 
-左键切换 Hub。右键打开菜单。菜单提供截图工具条、设置和退出。
+左键切换 Hub。右键打开菜单。菜单提供「文件 → 截图」入口、设置和退出。
 
 <Legend />
 
@@ -85,5 +85,5 @@ import Legend from '../../../../components/guide/Legend.astro';
 
 ## 已知限制
 
-- 品牌胶囊视觉高度是 20 点，窗口命中区约 32 点。合同要求 44 点，仍需对照验收。
+- 图标视觉尺寸是 18 点。浮层窗口通过悬停余量扩大命中区。
 - VoiceOver 是否能读出最高优先级状态和完整摘要，本轮没有完成验证。

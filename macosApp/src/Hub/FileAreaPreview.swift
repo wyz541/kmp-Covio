@@ -326,12 +326,10 @@ final class FileAreaLivePreviewController: NSWindowController {
         ))
         let shelf = ShelfRuntime(
             store: shelfStore,
-            takeover: ScreenshotTakeoverController(
-                store: FileAreaPreviewPreferenceStore(),
-                directory: screenshotDirectory,
-                shelfStore: shelfStore
-            ),
-            environment: ShelfEnvironment()
+            preferences: FileAreaPreviewPreferenceStore(),
+            environment: ScreenshotLibraryEnvironment(
+                screenshotDirectory: { screenshotDirectory }
+            )
         )
 
         if state == .empty {
@@ -434,16 +432,7 @@ final class FileAreaLivePreviewController: NSWindowController {
     }
 }
 
-private final class FileAreaPreviewPreferenceStore: ScreenshotPreferenceStore, @unchecked Sendable {
-    func read() -> ScreenshotInboxSnapshot {
-        ScreenshotInboxSnapshot(
-            location: nil,
-            locationScreenshot: nil,
-            showThumbnail: nil
-        )
-    }
-
-    func apply(directory: URL) -> Bool { true }
+private final class FileAreaPreviewPreferenceStore: LegacyScreenshotPreferenceRestoring {
     func restore(snapshot: ScreenshotInboxSnapshot) -> Bool { true }
 }
 #endif

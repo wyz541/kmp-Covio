@@ -24,14 +24,6 @@ final class GuideEvidenceRenderTests: XCTestCase {
             output: outputDirectory.appendingPathComponent("button.png")
         )
 
-        let sourceImage = outputDirectory.appendingPathComponent("screenshot-card-source.png")
-        try makeScreenshotSource(repositoryRoot: repositoryRoot).write(to: sourceImage, options: .atomic)
-        try await render(
-            GuideScreenshotCardEvidenceView(path: sourceImage.path),
-            size: NSSize(width: 640, height: 420),
-            output: outputDirectory.appendingPathComponent("screenshot-card.png"),
-            waitMilliseconds: 700
-        )
     }
 
     func testRenderSettingControlEvidence() async throws {
@@ -127,32 +119,6 @@ private struct GuideButtonEvidenceView: View {
         .padding(32)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(MacTheme.canvas)
-    }
-}
-
-@MainActor
-private struct GuideScreenshotCardEvidenceView: View {
-    let path: String
-
-    var body: some View {
-        ZStack {
-            MacTheme.canvas
-            ScreenshotCardView(
-                item: ShelfItem(path: path, addedAtEpochSeconds: 0),
-                index: 0,
-                reduceMotion: true,
-                language: .simplifiedChinese,
-                flying: false,
-                onCopy: {},
-                onPreview: {},
-                onMarkup: {},
-                onRemove: {},
-                onDragBegin: { _, _ in },
-                onSaveToWorkspace: {}
-            )
-            .scaleEffect(2.35)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

@@ -1,7 +1,7 @@
 # Covio
 
 Covio is a macOS menu-bar app.
-It controls sleep behavior and provides a screenshot toolbar at the top of the screen.
+It controls sleep behavior. It indexes native macOS screenshots in the Files area.
 
 Covio is an independent implementation.
 It does not use the Tendedero name, icon, or documentation images.
@@ -80,11 +80,14 @@ The DMG SHA-256 value is:
 - Settings search opens the matching row and highlights it.
 - Clipboard history keeps recent text, images, and files.
 - Files adds local offline auto naming with preview, safe rename, and undo.
+- The Files tab indexes native macOS screenshots. Covio does not take over screenshot capture.
 - Monitor shows CPU, GPU, memory, disk, network, battery, and power telemetry.
 - The power card shows charging data, power events, and top energy users.
 - The fan card shows RPM trends and provides automatic and manual fan control.
-- Sleep, lid, DarkWake, helper, screenshot toolbar, and LaunchAgent functions remain available.
+- Sleep, lid, DarkWake, helper, and LaunchAgent functions remain available.
 - `config.json` is compatible with 0.4.2 in both directions.
+
+The sections below describe earlier releases. See **Screenshots** for current behavior.
 
 ## What is new in 0.4.2
 
@@ -118,34 +121,25 @@ The DMG SHA-256 value is:
 - The Tray menu and the Top Shelf settings page control screenshot behavior.
 - The settings and log use the `com.wyz.covio` application identifier.
 
-## Screenshot toolbar
+## Screenshots
 
-The toolbar width equals the full width of the screen under the mouse pointer.
-The toolbar height is 210 points.
-The toolbar shows 3 to 12 screenshot cards.
-The mouse must stay on the menu bar for 0.25 seconds before the toolbar appears.
-The toolbar hides 0.5 seconds after the mouse leaves it.
-A new screenshot hides the toolbar after 2.5 seconds.
-The toolbar does not appear in a full-screen Space.
-
-Screenshot takeover writes these macOS settings:
+Covio uses native macOS screenshot capture.
+Covio does not change these settings:
 
 - `location`
 - `location-screenshot`
 - `show-thumbnail`
 
-Covio saves the old values before the first change.
-Covio restores the old values when you disable takeover or quit the app normally.
-If the app crashes, the next start reads the saved values and keeps them for the next restore.
+Covio watches the screenshot directory that macOS uses.
+A new screenshot appears in the Hub under **Files** and then **Screenshots**.
+The screenshot file stays in its original directory.
 
-The screenshot directory is:
-
-```text
-~/Library/Application Support/Covio/Screenshots
-```
-
-Screenshots stay on this Mac.
+Covio stores screenshot paths in `shelf.json`.
+Covio does not store a second copy of the image.
 Covio does not send screenshot data to the network.
+
+If an older Covio version changed the system screenshot settings, Covio restores the saved values once.
+Covio then removes the saved preference snapshot.
 
 ## Clipboard history
 
@@ -368,118 +362,20 @@ Exact 8 GB hardware validation is tracked by [#185](https://github.com/wyz541/km
 2. Confirm the app version matches `APP_VERSION` in `kmpDomain/src/com/wyz/covio/core/Models.kt`.
 3. Install the privileged helper.
 4. Confirm the helper version matches the app version.
-5. Confirm screenshot takeover changes the three `com.apple.screencapture` keys.
-6. Take a screenshot. Confirm the system thumbnail is hidden.
-7. Confirm the screenshot appears in the toolbar.
-8. Click the screenshot. Confirm the image and file URL are on the clipboard.
-9. Double-click the screenshot. Confirm Preview opens.
-10. Long-press the screenshot. Confirm Markup opens.
-11. Drag the screenshot to an app. Confirm the app receives a copy.
-12. Drag the screenshot to a folder. Confirm the source moves.
-13. Drag the screenshot to the Desktop. Confirm the source moves.
-14. Drag the screenshot to the Trash. Confirm the source uses the Trash.
-15. Cancel a drag. Confirm the card returns.
-16. Close takeover. Confirm the three system keys return to the old values.
-17. Quit Covio normally. Confirm the keys return to the old values.
-18. Force-quit Covio. Start Covio. Confirm the saved snapshot is reused.
-19. Test the toolbar on each display.
-20. Enter a full-screen Space. Confirm the toolbar hides.
-21. Press `Control+Option+T`. Confirm the toolbar toggles.
-22. Delete a screenshot outside Covio. Confirm the card disappears.
-23. Enable "Prevent lid sleep on AC power". Close the lid on AC power. Confirm SSH stays connected.
-24. Enable "Prevent lid sleep on battery power". Close the lid on battery power. Confirm SSH stays connected.
-25. Turn off the battery switch while the lid is closed. Confirm the Mac sleeps and SSH disconnects.
-26. Reach the low battery threshold. Confirm the low battery rule wins.
-27. Confirm the General page shows the DarkWake time, reason, and 24-hour count.
-28. Fully wake the Mac. Confirm the timers restore or the policy recalculates.
-29. Change the sleep mode between 0, 3, and 25.
-30. Clear the configuration. Confirm the default values return.
-31. Quit the app. Confirm the LaunchAgent does not restart it.
-32. Force-quit the app. Confirm the LaunchAgent restarts it.
-33. Remove the helper. Confirm `SleepDisabled` is `0`.
-34. Open the Hub. Confirm the navigation bar floats above the content.
-35. Confirm the content remains visible through the navigation bar.
-36. Switch all six tabs. Confirm each page fits the card. Confirm no button row is cut.
-37. Type `休眠` in the search box. Select the result. Confirm the Hub opens the Settings tab, the General section, and highlights the sleep mode row.
-38. Press Escape. Confirm the search clears and the Hub stays open. Press Escape again. Confirm the Hub collapses.
-39. Switch the language to English in the rail. Confirm all text changes.
-40. Turn on Reduce motion in System Settings. Repeat step 36. Confirm the selection changes without animation.
-41. Click quit at the bottom of the rail. Confirm the app exits and the sleep state returns to the value before start.
-42. Disconnect the network. Use Auto Name on a text file and an image. Confirm both reach preview.
-43. Apply the two renames. Confirm both files change. Undo the run. Confirm both original names return.
-
-## Privileged helper
-
-The app installs a LaunchDaemon only after you approve the installation dialog.
-The helper accepts three commands:
-
-- `version`
-- `setDisableSleep`
-- `setHibernateMode`
-
-The helper checks the peer user ID before the helper runs a command.
-The app and the helper must use the same version.
-An old helper shows "Helper: Update Required" and disables the lid-hold switches.
-
-## Paths
-
-The configuration is:
-
-```text
-~/Library/Application Support/com.wyz.covio/config.json
-```
-
-`fileNaming` is optional. Old configuration files get the default naming policy.
-The policy always preserves the original extension and requires a preview.
-
-The log is:
-
-```text
-~/Library/Application Support/com.wyz.covio/logs/Covio.log
-```
-
-The LaunchAgent is:
-
-```text
-~/Library/LaunchAgents/com.wyz.covio.plist
-```
-
-The helper socket is:
-
-```text
-/Library/Application Support/Covio/helper.sock
-```
-
-The helper LaunchDaemon is:
-
-```text
-/Library/LaunchDaemons/com.wyz.covio.helper.plist
-```
-
-The screenshot shelf state and the screenshot files are:
-
-```text
-~/Library/Application Support/Covio/Screenshots
-```
-
-The clipboard state and the clipboard images are:
-
-```text
-~/Library/Application Support/Covio/Clipboard
-```
-
-## Publish an internal test release
-
-1. Run `scripts/package-macos-swift.sh` with the model directory.
-2. Run `bash scripts/verify-file-naming-bundle.sh dist/Covio-0.5.0.dmg`.
-3. Confirm the DMG is smaller than the GitHub Release asset limit.
-4. Run `gh auth login`.
-5. Run `bash scripts/create-release.sh`.
-
-The release tag must be a full release.
-The update checker ignores pre-release tags.
-
-## License
-
-MIT. See `LICENSE`.
-Third-party notices are in `THIRD_PARTY_NOTICES.md`.
+5. Record `defaults read com.apple.screencapture`. Take a screenshot. Confirm the values do not change.
+6. Confirm the native macOS thumbnail remains visible.
+7. Confirm the screenshot appears in **Files** → **Screenshots**.
+8. Copy, preview, and mark up the screenshot from the file area.
+9. Remove the screenshot from the index. Confirm the file remains on disk.
+10. Confirm an old `shelf.json` item still appears.
+11. Enable "Prevent lid sleep on AC power". Close the lid on AC power. Confirm SSH stays connected.
+12. Enable "Prevent lid sleep on battery power". Close the lid on battery power. Confirm SSH stays connected.
+13. Turn off the battery switch while the lid is closed. Confirm the Mac sleeps and SSH disconnects.
+14. Reach the low battery threshold. Confirm the low battery rule wins.
+15. Confirm the General page shows the DarkWake time, reason, and 24-hour count.
+16. Fully wake the Mac. Confirm the timers restore or the policy recalculates.
+17. Change the sleep mode between 0, 3, and 25.
+18. Clear the configuration. Confirm the default values return.
+19. Quit the app. Confirm the LaunchAgent does not restart it.
+20. Force-quit the app. Confirm the LaunchAgent restarts it.
+21. Remove the helper. Confirm `SleepDisabled` is `0`.

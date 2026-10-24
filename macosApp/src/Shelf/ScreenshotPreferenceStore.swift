@@ -7,17 +7,18 @@ struct PreferenceCommandResult: Equatable, Sendable {
     let output: String
 }
 
-/// 读写系统截图偏好。
+/// 读取系统截图偏好，并清理旧版接管留下的快照。
 ///
 /// 对应 Compose 版的
 /// `app/src/com/wyz/covio/app/platform/ScreenshotPreferenceStore.kt`。
 ///
 /// 系统截图偏好存在 `com.apple.screencapture` 这个 defaults 域里。
-/// 接管打开时改三个键，关闭时按保存的快照还原。
-protocol ScreenshotPreferenceStore: Sendable {
+/// 新版只读取截图目录。快照只在升级时用于恢复旧版改动。
+protocol ScreenshotPreferenceStore: LegacyScreenshotPreferenceRestoring, Sendable {
     func read() -> ScreenshotInboxSnapshot
-    func apply(directory: URL) -> Bool
     func restore(snapshot: ScreenshotInboxSnapshot) -> Bool
+    /// macOS 当前保存截图的目录。
+    func screenshotDirectory() -> URL
 }
 
 /// 走 `/usr/bin/defaults` 的实现。
@@ -30,13 +31,16 @@ final class MacScreenshotPreferenceStore: ScreenshotPreferenceStore, @unchecked 
 
     private let runner: Runner
     private let domain: String
+    private let captureDirectoryOverride: URL?
 
     init(
         domain: String = ScreenshotPreferencePolicy.shared.DOMAIN,
-        runner: @escaping Runner = MacScreenshotPreferenceStore.runDefaults
+        runner: @escaping Runner = MacScreenshotPreferenceStore.runDefaults,
+        captureDirectoryOverride: URL? = MacScreenshotPreferenceStore.environmentCaptureDirectory
     ) {
         self.domain = domain
         self.runner = runner
+        self.captureDirectoryOverride = captureDirectoryOverride
     }
 
     func read() -> ScreenshotInboxSnapshot {
@@ -48,17 +52,6 @@ final class MacScreenshotPreferenceStore: ScreenshotPreferenceStore, @unchecked 
             showThumbnail: readBoolean(ScreenshotPreferencePolicy.shared.KEY_SHOW_THUMBNAIL)
                 .map { KotlinBoolean(bool: $0) }
         )
-    }
-
-    func apply(directory: URL) -> Bool {
-        let path = directory.standardizedFileURL.path
-        // 三个都写。任何一个失败都算失败，调用方据此判断接管有没有真的生效。
-        let location = writeString(ScreenshotPreferencePolicy.shared.KEY_LOCATION, value: path)
-        let screenshot = writeString(
-            ScreenshotPreferencePolicy.shared.KEY_LOCATION_SCREENSHOT, value: path
-        )
-        let thumbnail = writeBoolean(ScreenshotPreferencePolicy.shared.KEY_SHOW_THUMBNAIL, value: false)
-        return location && screenshot && thumbnail
     }
 
     func restore(snapshot: ScreenshotInboxSnapshot) -> Bool {
@@ -77,6 +70,27 @@ final class MacScreenshotPreferenceStore: ScreenshotPreferenceStore, @unchecked 
             ScreenshotPreferencePolicy.shared.KEY_SHOW_THUMBNAIL, value: thumbnail, isString: false
         ) && ok
         return ok
+    }
+
+    /// 调试构建可用 `COVIO_SCREENSHOT_CAPTURE_DIR` 指向隔离目录。
+    static var environmentCaptureDirectory: URL? {
+        guard let value = ProcessInfo.processInfo.environment["COVIO_SCREENSHOT_CAPTURE_DIR"],
+              !value.isEmpty
+        else { return nil }
+        return URL(fileURLWithPath: value, isDirectory: true)
+    }
+
+    /// 读取 macOS 27 的截图专用目录。没有设置时回落到桌面。
+    func screenshotDirectory() -> URL {
+        if let captureDirectoryOverride {
+            return captureDirectoryOverride.standardizedFileURL
+        }
+        let snapshot = read()
+        let value = snapshot.locationScreenshot ?? snapshot.location
+        guard let value, !value.isEmpty else { return ShelfPaths.desktopDirectory }
+        let expanded = (value as NSString).expandingTildeInPath
+        let url = URL(fileURLWithPath: expanded, isDirectory: true)
+        return url.standardizedFileURL
     }
 
     /// 读取一个字符串键。键不存在或输出为空时返回空。
@@ -218,72 +232,5 @@ private final class OutputBox: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return data
-    }
-}
-
-/// 截图接管的开关。
-///
-/// 状态迁移住在共享层的 `ScreenshotTakeover` 里，这里只做两件事：
-/// 把 Swift 的 `ScreenshotPreferenceStore` 接到共享层要的端口上，
-/// 以及把共享层的对象包成一个能跨线程传的值。
-///
-/// **为什么要包一层。** 开关会在后台线程上跑（见 `ShelfRuntime.syncTakeover`），
-/// 而 Kotlin 导出的类在 Swift 侧不是 `Sendable`，直接捕获过不了 Swift 6 的检查。
-/// 标 `@unchecked` 的依据：共享层内部用可重入锁保护开关状态，
-/// 状态文件的读写由 `ShelfStore` 自己的锁串行化，这个类没有可变状态。
-///
-/// 快照存在 `shelf.json` 里，不在内存里，所以应用崩了也能在下次启动时还原。
-final class ScreenshotTakeoverController: @unchecked Sendable {
-    private let takeover: ScreenshotTakeover
-
-    /// - Parameters:
-    ///   - store: 系统截图偏好的读写实现。
-    ///   - directory: 接管打开时截图要落进去的目录。
-    ///   - shelfStore: 晾衣线的状态存储。**必须是运行时用的那一个实例**，
-    ///     否则接管存快照时会覆盖掉刚上架的卡片。
-    init(store: ScreenshotPreferenceStore, directory: URL, shelfStore: ShelfStoreClient) {
-        takeover = ScreenshotTakeover(
-            port: ScreenshotPreferenceBridge(store: store),
-            directory: directory.path,
-            store: shelfStore.sharedStore
-        )
-    }
-
-    /// 接管是不是开着。
-    var isActive: Bool { takeover.isActive }
-
-    /// 打开接管。没有快照时先存一份。
-    func enable() -> Bool { takeover.enable() }
-
-    /// 关闭接管，还原系统设置。
-    func disable() -> Bool { takeover.disable() }
-
-    /// 正常退出时还原。与 `disable` 是同一件事，名字不同是为了调用点读起来清楚。
-    func restoreOnExit() -> Bool { takeover.restoreOnExit() }
-}
-
-/// 把 Swift 的 `ScreenshotPreferenceStore` 接到共享层的端口上。
-///
-/// 继承 `NSObject`：Kotlin 的接口在 Swift 侧只能由 `NSObject` 子类实现（ADR-001 实测 7）。
-///
-/// 目录在共享层是一个字符串，这里再变回 `URL`：
-/// 写进 `defaults` 的必须是标准化之后的路径，那是 Foundation 的事。
-private final class ScreenshotPreferenceBridge: NSObject, ScreenshotPreferencePort {
-    private let store: ScreenshotPreferenceStore
-
-    init(store: ScreenshotPreferenceStore) {
-        self.store = store
-    }
-
-    func read() -> ScreenshotInboxSnapshot {
-        store.read()
-    }
-
-    func apply(directory: String) -> Bool {
-        store.apply(directory: URL(fileURLWithPath: directory))
-    }
-
-    func restore(snapshot: ScreenshotInboxSnapshot) -> Bool {
-        store.restore(snapshot: snapshot)
     }
 }

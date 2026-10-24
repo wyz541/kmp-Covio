@@ -3,7 +3,7 @@
   "metadata": {
     "name": "Covio Product Design Contract",
     "status": "native-source-verified",
-    "updatedAt": "2026-10-22",
+    "updatedAt": "2026-10-24",
     "authority": "docs/covio-design-contract.json",
     "visualProjection": {
       "fileName": "Covio — Product Design · macOS 27",
@@ -1623,7 +1623,7 @@
       ],
       "sourceAuthority": "macOS 27 (Community)",
       "swiftMapping": {
-        "target": "HubPanel, ShelfPanel",
+        "target": "HubPanel",
         "behavior": "Hub 面板无标题栏，也不需要红绿灯按钮。窗口边缘由 ShellPanel 的两个子类画。"
       }
     },
@@ -2316,7 +2316,7 @@
       ],
       "sourceAuthority": "macOS 27 (Community)",
       "swiftMapping": {
-        "target": "ScreenshotCardView, ShelfMotionPlan",
+        "target": "HubPanel",
         "behavior": "浮动提示以卡片动效呈现，没有独立的提示浮层控件。时长取合同 motion 段。"
       }
     },
@@ -2352,7 +2352,7 @@
       ],
       "composeMapping": {
         "target": "ScreenshotCard",
-        "behavior": "Expose copy, preview, markup, drag, and removal semantics."
+        "behavior": "Show screenshots as file-area focus or quiet tiles. Expose copy, open, markup, workspace, and remove actions."
       },
       "nativeSize": {
         "width": 150,
@@ -2368,8 +2368,8 @@
       ],
       "sourceAuthority": "macOS 27 (Community)",
       "swiftMapping": {
-        "target": "ScreenshotCardView",
-        "behavior": "截图卡片。尺寸取合同的 nativeSize，与截图工具条共用几何。"
+        "target": "FileFocusCardView, FileQuietTileView",
+        "behavior": "截图条目使用统一文件区的焦点卡和安静网格。尺寸取 FileAreaMetrics，不复用旧截图工具条几何。"
       }
     },
     "component/tray-menu-item": {
@@ -2429,7 +2429,7 @@
     "component/clothespin": {
       "name": "Covio/Clothespin",
       "figmaComponentSetId": "8303:68450",
-      "purpose": "Brand marker used by screenshot cards and shelf rope.",
+      "purpose": "Legacy brand marker source. Runtime uses the shared glass hanger icon.",
       "variants": [
         "DEFAULT",
         "COPIED",
@@ -2455,8 +2455,8 @@
         "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows."
       ],
       "composeMapping": {
-        "target": "Clothespin",
-        "behavior": "Preserve the rope and clothespin geometry while state changes keep the same center."
+        "target": "CovioStatusIcon",
+        "behavior": "Use the shared glass hanger icon. Do not draw rope or clothesline geometry."
       },
       "nativeSize": {
         "width": 9,
@@ -2471,14 +2471,14 @@
       ],
       "sourceAuthority": "macOS 27 (Community)",
       "swiftMapping": {
-        "target": "ClothespinView",
-        "behavior": "晾衣夹。抖动幅度与时长取合同 motion 段的截图捕获与复制两项。"
+        "target": "CovioStatusIcon",
+        "behavior": "只复用玻璃吊卡图标资源。运行时不再绘制夹子或挂链。"
       }
     },
     "component/tray-icon": {
       "name": "Covio/Tray Icon",
       "figmaComponentSetId": "8303:68442",
-      "purpose": "Menu bar brand capsule and fallback status item.",
+      "purpose": "Primary menu bar icon and fallback status item.",
       "variants": [
         "DEFAULT",
         "DISABLED",
@@ -2514,7 +2514,7 @@
       ],
       "composeMapping": {
         "target": "CovioTrayIcon",
-        "behavior": "Render the brand capsule: 20-point pill, brand fill, the app glyph and the app name in text-on-accent. Keep the interactive target at 44 points."
+        "behavior": "Render the shared glass hanger icon without a pill, brand fill, or app name. Keep the interactive target at least 24 points."
       },
       "nativeSize": {
         "width": 44,
@@ -2530,7 +2530,7 @@
       "sourceAuthority": "macOS 27 (Community)",
       "swiftMapping": {
         "target": "StatusItemController",
-        "behavior": "一级入口由 MenuBarCapsulePanel 绘制 20 点品牌胶囊。StatusItemController 的次级状态项加载 CovioStatusIcon 的预渲染 1× 与 2× 拟物玻璃吊卡。运行时复用缓存位图，不计算渐变和阴影。左键开合挂帘，右键开菜单。"
+        "behavior": "MenuBarCapsulePanel 与 StatusItemController 都加载 CovioStatusIcon 的预渲染位图。一级入口只显示玻璃吊卡图标。运行时复用缓存位图，不计算渐变和阴影。左键开合 Hub，右键开菜单。"
       }
     },
     "component/tray-menu": {
@@ -2718,8 +2718,8 @@
       ],
       "sourceAuthority": "macOS 27 (Community)",
       "swiftMapping": {
-        "target": "HubPanel, ShelfPanel",
-        "behavior": "两种窗口外壳：Hub 面板与全宽截图工具条。Hub 底板默认用 Liquid Glass regular 变体，不加着色；两者共用 ShellPanel 的面板配置。"
+        "target": "HubPanel",
+        "behavior": "Hub 面板使用 ShellPanel 的面板配置。底板默认用 Liquid Glass regular 变体，不加着色。"
       }
     },
     "component/toolbar": {
@@ -2792,7 +2792,7 @@
       ],
       "sourceAuthority": "macOS 27 (Community)",
       "swiftMapping": {
-        "target": "ShelfPanelContent, ShelfPanelController",
+        "target": "HubPanel",
         "behavior": "全宽截图工具条。高度 210 点，宽度等于指针所在屏的宽度。"
       }
     },
@@ -5328,6 +5328,10 @@
       "en": "Top Shelf",
       "zh-Hans": "顶部挂帘"
     },
+    "copy/nav/clipboard": {
+      "en": "Clipboard",
+      "zh-Hans": "剪贴板"
+    },
     "copy/notch-hub/layout/collapsed-presence": {
       "en": "A · Collapsed Presence",
       "zh-Hans": "A · 收起存在感"
@@ -5627,6 +5631,14 @@
     "copy/page/top-shelf-settings/title": {
       "en": "Top Shelf",
       "zh-Hans": "顶部挂帘"
+    },
+    "copy/page/clipboard/summary": {
+      "en": "Manage clipboard history, the paste stack, and shortcuts.",
+      "zh-Hans": "管理剪贴板历史、粘贴栈和快捷键。"
+    },
+    "copy/page/clipboard/title": {
+      "en": "Clipboard",
+      "zh-Hans": "剪贴板"
     },
     "copy/state/cancel": {
       "en": "Cancel",
@@ -6843,7 +6855,7 @@
       "runtimeTarget": "MacWindow, Row",
       "behavior": "Keep traffic-light controls at the leading edge and place title content after them.",
       "status": "native-source-mapped",
-      "swiftRuntimeTarget": "HubPanel, ShelfPanel"
+      "swiftRuntimeTarget": "HubPanel"
     },
     "platform/component/page-title": {
       "componentKey": "component/page-title",
@@ -6941,14 +6953,14 @@
       "runtimeTarget": "MacToast",
       "behavior": "Do not put the only recovery action in a toast; keep it announced to assistive technology.",
       "status": "native-source-mapped",
-      "swiftRuntimeTarget": "ScreenshotCardView, ShelfMotionPlan"
+      "swiftRuntimeTarget": "HubPanel"
     },
     "platform/component/screenshot-card": {
       "componentKey": "component/screenshot-card",
       "runtimeTarget": "ScreenshotCard",
-      "behavior": "Expose copy, preview, markup, drag, and removal semantics.",
+      "behavior": "Show screenshots as file-area focus or quiet tiles. Expose copy, open, markup, workspace, and remove actions.",
       "status": "native-source-mapped",
-      "swiftRuntimeTarget": "ScreenshotCardView"
+      "swiftRuntimeTarget": "FileFocusCardView, FileQuietTileView"
     },
     "platform/component/tray-menu-item": {
       "componentKey": "component/tray-menu-item",
@@ -6960,14 +6972,14 @@
     "platform/component/clothespin": {
       "componentKey": "component/clothespin",
       "runtimeTarget": "Clothespin",
-      "behavior": "Preserve the rope and clothespin geometry while state changes keep the same center.",
+      "behavior": "Use the shared glass hanger icon. Do not draw rope or clothesline geometry.",
       "status": "native-source-mapped",
-      "swiftRuntimeTarget": "ClothespinView"
+      "swiftRuntimeTarget": "CovioStatusIcon"
     },
     "platform/component/tray-icon": {
       "componentKey": "component/tray-icon",
       "runtimeTarget": "CovioTrayIcon",
-      "behavior": "一级入口由 MenuBarCapsulePanel 绘制 20 点品牌胶囊。StatusItemController 的次级状态项加载 CovioStatusIcon 的预渲染 1× 与 2× 拟物玻璃吊卡。运行时复用缓存位图，不计算渐变和阴影。左键开合挂帘，右键开菜单。",
+      "behavior": "MenuBarCapsulePanel 与 StatusItemController 都加载 CovioStatusIcon 的预渲染位图。一级入口只显示玻璃吊卡图标。运行时复用缓存位图，不计算渐变和阴影。左键开合 Hub，右键开菜单。",
       "status": "native-source-mapped",
       "swiftRuntimeTarget": "StatusItemController"
     },
@@ -7011,14 +7023,14 @@
       "runtimeTarget": "MacWindowShell",
       "behavior": "Use the shared shell. The Hub content plate uses Liquid Glass; the system material is a debug fallback.",
       "status": "native-source-mapped",
-      "swiftRuntimeTarget": "HubPanel, ShelfPanel"
+      "swiftRuntimeTarget": "HubPanel"
     },
     "platform/component/toolbar": {
       "componentKey": "component/toolbar",
       "runtimeTarget": "MacToolbar",
       "behavior": "Use the native-aligned control height, spacing, and state model.",
       "status": "native-source-mapped",
-      "swiftRuntimeTarget": "ShelfPanelContent, ShelfPanelController"
+      "swiftRuntimeTarget": "HubPanel"
     },
     "platform/component/popover": {
       "componentKey": "component/popover",

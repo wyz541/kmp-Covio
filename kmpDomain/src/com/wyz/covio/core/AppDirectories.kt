@@ -5,9 +5,9 @@ package com.wyz.covio.core
  *
  * macOS 的布局：
  * - 配置：`~/Library/Application Support/com.wyz.covio/config.json`
- * - 晾衣线：`~/Library/Application Support/Covio/Screenshots/shelf.json`
+ * - 截图索引：`~/Library/Application Support/Covio/Screenshots/shelf.json`
  *
- * 注意晾衣线目录用的是 `APP_NAME`，配置目录用的是 `APP_ID`。两者不同。
+ * 注意应用数据目录用的是 `APP_NAME`，配置目录用的是 `APP_ID`。两者不同。
  * 这是 0.4.2 的既有布局，不能改，否则老用户的设置会丢。
  *
  * 目录的字面量只在 actual 里出现。common 不写平台路径。

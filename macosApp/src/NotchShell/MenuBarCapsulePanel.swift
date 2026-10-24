@@ -55,8 +55,8 @@ final class MenuBarCapsulePanel: ShellPanel {
         )
     }
 
-    /// 实测失败时的兜底宽度。「◈ Covio」加两边内边距大约 57 点，留一点余量。
-    private static let fallbackCapsuleWidth: CGFloat = 72
+    /// 实测失败时的兜底宽度。图标 18 点，四周留一点命中余量。
+    private static let fallbackCapsuleWidth: CGFloat = 24
 
     @available(*, unavailable)
     required init?(coder: NSCoder) {

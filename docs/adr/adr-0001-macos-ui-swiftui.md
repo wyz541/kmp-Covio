@@ -4,6 +4,7 @@
 - Kind：architecture
 - Date：2026-10-12
 - Supersedes：none
+- Superseded by：ADR-0017（仅截图接管部分）
 - Implements：none
 - 阶段：M0 到 M6 已结案
 - 补充：2026-10-12 对齐共享层边界。结论见实测 26 到 28

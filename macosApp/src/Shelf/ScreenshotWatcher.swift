@@ -1,7 +1,7 @@
 import Foundation
 import kmpDomain
 
-/// 判断一个文件是不是 Covio 该收进晾衣线的截图。
+/// 判断一个文件是不是 Covio 该收进截图索引的截图。
 ///
 /// 走 `kmpDomain` 的 `acceptsShelfFile`，与 Compose 版共用同一份判断。
 /// 判断条件包括扩展名、是否在专属目录里、以及系统有没有打上截图标记。
@@ -162,10 +162,18 @@ final class ScreenshotWatcher: @unchecked Sendable {
     /// 测试直接调这个，不需要真的等文件系统事件。
     func scan() {
         var appeared: [URL] = []
-        let current = listFiles()
+        let current = listFiles().map { file in
+            (file: file, key: canonical(file))
+        }
+        let present = Set(current.map(\.key))
         lock.lock()
-        for file in current where known.insert(canonical(file)).inserted && isCandidate(file) {
-            appeared.append(file)
+        // 删除后的同名文件要能重新识别。
+        known.formIntersection(present)
+        for entry in current where !known.contains(entry.key) {
+            // 系统可能先建文件，再写截图属性。属性还没到时不能记为已处理。
+            guard isCandidate(entry.file) else { continue }
+            known.insert(entry.key)
+            appeared.append(entry.file)
         }
         lock.unlock()
 
@@ -183,7 +191,7 @@ final class ScreenshotWatcher: @unchecked Sendable {
         Thread.sleep(forTimeInterval: debounceSeconds)
     }
 
-    /// 这个文件要不要收进晾衣线。
+    /// 这个文件要不要收进截图索引。
     func isCandidate(_ path: URL) -> Bool {
         let requireAttribute = requireScreenCaptureAttribute
         let reader = attributeReader

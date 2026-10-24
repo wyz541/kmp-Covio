@@ -89,8 +89,13 @@ struct ClipboardEnvironment {
 /// `self` 全部属性赋值完之前交出去，那时还不能捕获 `AppRuntime`。
 @MainActor
 final class ClipboardBridge {
+    var config: AppConfig
     /// 错误出口。`AppRuntime` 在 `start()` 里接上。
     var report: ((LocalizedCopy) -> Void)?
+
+    init(config: AppConfig) {
+        self.config = config
+    }
 }
 
 /// 剪切板的运行时。对应 M4 的数据与行为层。

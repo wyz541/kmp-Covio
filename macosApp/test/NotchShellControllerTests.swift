@@ -309,6 +309,7 @@ final class NotchShellControllerTests: XCTestCase {
             XCTAssertEqual(panel.level, .statusBar, "热区面板的层级必须高于菜单栏")
         }
         XCTAssertEqual(hubs.first?.level, .statusBar, "Hub 面板的层级必须高于菜单栏")
-        XCTAssertFalse(try XCTUnwrap(hubs.first).isVisible, "启动时 Hub 应该收起")
+        // 本用例只验证宿主接线。启动时收起由 testStartCreatesOneHotZonePerScreenAndKeepsTheHubHidden 覆盖；
+        // 这里再读可见性会受真实鼠标是否停在胶囊上影响。
     }
 }

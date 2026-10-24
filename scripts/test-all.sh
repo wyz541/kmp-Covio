@@ -19,6 +19,7 @@ cd "$ROOT"
 step() { printf '\n=== %s ===\n' "$1"; }
 
 step "Kotlin 共享层"
+bash "$ROOT/scripts/provision-amper-github-downloads.sh"
 /bin/sh ./kotlin test
 
 step "设计合同常量"

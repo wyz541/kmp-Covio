@@ -69,6 +69,10 @@ struct WorkbenchTabBar: View {
     /// 正在拖的页签 id，与这一次拖动已经挪过的条数。
     @State private var reorderID: String?
     @State private var reorder = TabReorderState(step: HubMetrics.tabReorderStep)
+    /// 指针当前所在的导航按钮。未选中按钮只在指针进入时显示玻璃。
+    @State private var hoveredTarget: NavigationGlassTarget?
+    /// 键盘焦点所在的导航按钮。焦点态同样显示玻璃。
+    @FocusState private var focusedTarget: NavigationGlassTarget?
 
     var body: some View {
         HStack(spacing: HubMetrics.tabBarItemGap) {
@@ -92,16 +96,20 @@ struct WorkbenchTabBar: View {
         return Button(action: onHome) {
             Text("▦")
                 .font(.system(size: 14))
-                .foregroundStyle(isSelected ? onAccent : MacTheme.textPrimary)
+                .foregroundStyle(isSelected ? MacTheme.accent : MacTheme.textPrimary)
                 .frame(width: HubMetrics.homeEntryWidth, height: HubMetrics.homeEntryHeight)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.glass)
-        .tint(isSelected ? MacTheme.accent : nil)
+        .buttonStyle(.plain)
+        .focused($focusedTarget, equals: .home)
+        .workbenchNavigationGlass(navigationGlass(for: .home, isSelected: isSelected))
         .animation(selectionAnimation, value: isSelected)
         .accessibilityLabel(ContractCopy.copyHubActionHome.text(for: language))
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
-        .onHover { onHover(.home, $0) }
+        .onHover { inside in
+            hoveredTarget = inside ? .home : nil
+            onHover(.home, inside)
+        }
     }
 
     // MARK: - 搜索
@@ -164,33 +172,43 @@ struct WorkbenchTabBar: View {
                 }
                 Text(pane.glyph)
                     .font(.system(size: 11))
-                    .foregroundStyle(isSelected ? onAccent : MacTheme.textSecondary)
+                    .foregroundStyle(isSelected ? MacTheme.accent : MacTheme.textSecondary)
                     .accessibilityHidden(true)
                 Text(pane.title)
                     .font(.system(size: 12, weight: isSelected ? .medium : .regular))
-                    .foregroundStyle(isSelected ? onAccent : MacTheme.textPrimary)
+                    .foregroundStyle(MacTheme.textPrimary)
                     .lineLimit(1)
             }
             .padding(.horizontal, HubMetrics.tabHPadding)
             .frame(height: HubMetrics.tabHeight)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.glass)
-        .tint(isSelected ? MacTheme.accent : nil)
+        .buttonStyle(.plain)
+        .focused($focusedTarget, equals: .pane(pane.id))
+        .workbenchNavigationGlass(navigationGlass(for: .pane(pane.id), isSelected: isSelected))
         .animation(selectionAnimation, value: isSelected)
         .accessibilityLabel(pane.title)
         .accessibilityHint(pane.tab.summary.text(for: language))
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
-        .onHover { onHover(.pane(id: pane.id), $0) }
+        .onHover { inside in
+            hoveredTarget = inside ? .pane(pane.id) : nil
+            onHover(.pane(id: pane.id), inside)
+        }
         .gesture(isEditing ? reorderGesture(pane: pane) : nil)
-    }
-
-    private var onAccent: Color {
-        MacTheme.color(ContractColors.tokenColorTextOnAccent)
     }
 
     private var selectionAnimation: Animation? {
         reduceMotion ? nil : .easeOut(duration: HubMotion.tabSwitch)
+    }
+
+    private func navigationGlass(for target: NavigationGlassTarget, isSelected: Bool) -> Glass {
+        if isSelected {
+            return .clear.tint(MacTheme.accent.opacity(0.35)).interactive()
+        }
+        if hoveredTarget == target || focusedTarget == target {
+            return .clear.interactive()
+        }
+        return .identity
     }
 
     /// 编辑模式里的拖动排序。跨过一条页签的宽度就换一次位置。
@@ -231,7 +249,31 @@ struct WorkbenchTabBar: View {
                 .frame(minWidth: HubMetrics.actionButtonMinWidth, minHeight: HubMetrics.tabHeight)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.glass)
+        .buttonStyle(.plain)
+        .focused($focusedTarget, equals: .pageAction)
+        .workbenchNavigationGlass(navigationGlass(for: .pageAction, isSelected: false))
         .accessibilityLabel(pageAction.text(for: language))
+        .onHover { hoveredTarget = $0 ? .pageAction : nil }
+    }
+}
+
+private enum NavigationGlassTarget: Hashable {
+    case home
+    case pane(String)
+    case pageAction
+}
+
+/// 顶栏本身已经是玻璃。按钮只在选中、悬停或聚焦时叠 clear 玻璃。
+private struct WorkbenchNavigationGlass: ViewModifier {
+    let glass: Glass
+
+    func body(content: Content) -> some View {
+        content.glassEffect(glass, in: .capsule)
+    }
+}
+
+private extension View {
+    func workbenchNavigationGlass(_ glass: Glass) -> some View {
+        modifier(WorkbenchNavigationGlass(glass: glass))
     }
 }

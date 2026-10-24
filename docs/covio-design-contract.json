@@ -2655,7 +2655,7 @@
       "sourceAuthority": "macOS 27 (Community)",
       "swiftMapping": {
         "target": "MacTheme",
-        "behavior": "材质不透明度取 token/material/*。窗口用 NSVisualEffectView 的对应材质。"
+        "behavior": "材质不透明度取 token/material/*。Hub 底板默认用 Liquid Glass 的 regular 变体；系统材质只作调试对照。"
       }
     },
     "component/window-shell": {
@@ -2719,7 +2719,7 @@
       "sourceAuthority": "macOS 27 (Community)",
       "swiftMapping": {
         "target": "HubPanel, ShelfPanel",
-        "behavior": "两种窗口外壳：Hub 面板与全宽截图工具条。两者共用 ShellPanel 的面板配置。"
+        "behavior": "两种窗口外壳：Hub 面板与全宽截图工具条。Hub 底板默认用 Liquid Glass regular 变体，不加着色；两者共用 ShellPanel 的面板配置。"
       }
     },
     "component/toolbar": {
@@ -6885,7 +6885,7 @@
     "platform/component/window-shell": {
       "componentKey": "component/window-shell",
       "runtimeTarget": "MacWindowShell",
-      "behavior": "Use the shared title bar, sidebar, toolbar, and content shell.",
+      "behavior": "Use the shared shell. The Hub content plate uses Liquid Glass; the system material is a debug fallback.",
       "status": "native-source-mapped",
       "swiftRuntimeTarget": "HubPanel, ShelfPanel"
     },

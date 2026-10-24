@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var instanceLock: SingleInstanceLock?
     #if DEBUG
     private var monitorPreview: MonitorPreviewWindowController?
+    private var glassPlatePreviewWindow: NSWindow?
     private var reportPreview: MonitorReportPreviewWindowController?
     private var fileAreaPreview: NSWindow?
     private var fileAreaLivePreview: FileAreaLivePreviewController?
@@ -122,6 +123,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let preview = MonitorPreviewWindowController()
             monitorPreview = preview
             preview.showWindow(nil)
+            return
+        }
+        if ProcessInfo.processInfo.environment["COVIO_GLASS_PLATE_PREVIEW"] == "1" {
+            NSApp.setActivationPolicy(.regular)
+            let isDark = ProcessInfo.processInfo.environment["AppleInterfaceStyle"]?
+                .lowercased() == "dark"
+            let colorScheme: ColorScheme = isDark ? .dark : .light
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 1_120, height: 760),
+                styleMask: [.borderless],
+                backing: .buffered,
+                defer: false
+            )
+            window.title = "Covio Glass Plate Preview"
+            window.appearance = NSAppearance(named: isDark ? .darkAqua : .aqua)
+            window.isOpaque = false
+            window.backgroundColor = .clear
+            window.contentView = NSHostingView(
+                rootView: HubGlassPlatePreviewRoot(colorScheme: colorScheme)
+            )
+            window.center()
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            glassPlatePreviewWindow = window
             return
         }
         if ProcessInfo.processInfo.environment["COVIO_POWER_PREVIEW"] == "1" {

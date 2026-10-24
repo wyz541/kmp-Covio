@@ -3,51 +3,21 @@ import SwiftUI
 
 /// 玻璃底材的模式。
 ///
-/// 底板按 Apple 的官方做法取：`NSVisualEffectView` 加**语义材质**。
-/// 语义材质就是按它所属的界面元素命名的那一组。
+/// 底板默认使用 Liquid Glass 的 `.regular` 变体。
+/// Liquid Glass 负责面板级模糊与自带的镜面亮边。
+/// 卡片继续使用 `.clear`，只加薄高光，不重复底板模糊。
 ///
-/// AppKit 头文件把这条规则写死了：
+/// 面板仍有三层：
 ///
-/// - `NSVisualEffectMaterialAppearanceBased` 标了 `API_DEPRECATED`，
-///   注释是「You should instead choose an appropriate semantic material.」
-/// - `Light`、`Dark`、`MediumLight`、`UltraDark` 这一组标着
-///   「Materials with specific looks. You should instead choose an appropriate semantic material.」
-/// - 剩下的每个材质都按它所属的元素命名并说明。
+/// 1. 一块铺满面板的**内容层**，使用 Liquid Glass。
+/// 2. 卡片叠在内容层上，使用 `.clear`。
+/// 3. 导航层叠在内容层上方，使用超薄材质。
 ///
-/// 浮在桌面上的面板对应 `.hudWindow`。头文件的说明是
-/// 「The material used as the background of heads-up display (HUD) windows.」
+/// `.system` 保留为调试对照。它使用 `NSVisualEffectView` 的语义材质，
+/// 不再作为默认底板。
 ///
-/// SwiftUI 的 `Material` 没有面板这一档，只有 `ultraThin` 到 `ultraThick` 和 `bar`。
-/// 所以面板底材走 `NSVisualEffectView`。材质原样使用：不乘不透明度倍率，不加着色。
-///
-/// 面板有三层：
-///
-/// 1. 一块铺满面板的**内容层**，把桌面与工作区分开。
-/// 2. 卡片叠在内容层上，自己走 `.clear`，只加一层薄高光，不重复模糊。
-/// 3. 导航层叠在内容层上方，用超薄材质模糊背后的内容。
-///
-/// 真机对照：把一个带文字的 TextEdit 窗口摆在面板下面。整片面板区域的文字
-/// 都被抹成灰条。模糊来自底板，不是来自卡片本身。
-///
-/// 所以 `.clear` 只有在**底下已经有模糊**时才成立。单独把 `.clear` 压在桌面上，
-/// 背后窗口的文字会原样透上来，与卡片自己的正文撞在一起。
-///
-/// 现在的分派：
-///
-/// | 位置 | 底材 | 理由 |
-/// | --- | --- | --- |
-/// | 内容层 | `.system` + `.hudWindow` | 面板底材，用系统给的语义材质 |
-/// | 内容区的卡片 | `.clear` | 叠在内容层上，不重复模糊，保留 Liquid Glass 的亮边 |
-/// | 导航层 | `.ultraThin` | 模糊背后的内容，不带边框 |
-///
-/// 内容层与导航层都不带边框。卡片保留 Liquid Glass 自带的亮边。
-///
-/// 内容层与导航层都不加着色：真机实测，压平传递曲线的是那层黑色着色，
-/// 见 [plateTintOpacity]。
-/// 卡片只带一点点色相，见 `MacTheme.tintedCardOpacity`。
-///
-/// 这几个模式也用于真机对照：同一个面板换底材截图，挑出最接近目标的那个。
-/// 圆角、间距与排版在几种模式下完全一致，只有底材不同。
+/// 真机对照时，把一个带文字的窗口摆在面板下面。正常模式下，面板区域的文字
+/// 会被底板模糊。卡片自身不再重复模糊。
 enum GlassSurfaceMode: String, CaseIterable, Sendable {
     /// Liquid Glass 的标准材质。模糊到位，自带一圈镜面亮边。卡片用它。
     ///
@@ -61,10 +31,9 @@ enum GlassSurfaceMode: String, CaseIterable, Sendable {
     case material
     /// 超薄毛玻璃。对照用。斜率 0.53。不带边框。
     case ultraThin
-    /// 系统材质（`NSVisualEffectView`）。面板底材走这一条。
+    /// 系统材质（`NSVisualEffectView`）。保留为调试对照。
     ///
-    /// 材质种类由 [plateMaterial] 定。系统材质只做半透明模糊，不自适应外观，
-    /// 也不带 Liquid Glass 的亮边。
+    /// 材质种类由 [plateMaterial] 定。该模式不带 Liquid Glass 的亮边。
     case system
 
     /// 当前生效的模式。
@@ -75,7 +44,7 @@ enum GlassSurfaceMode: String, CaseIterable, Sendable {
     /// 这里只影响没显式传 `mode` 的调用点，也就是叠在底板上的那些卡片。
     @MainActor static var current: GlassSurfaceMode = .clear
 
-    /// `.system` 模式用的材质。
+    /// `.system` 对照模式用的材质。
     ///
     /// 取 `.hudWindow`：AppKit 头文件的说明是
     /// 「The material used as the background of heads-up display (HUD) windows.」
@@ -84,6 +53,7 @@ enum GlassSurfaceMode: String, CaseIterable, Sendable {
     /// 它是语义材质里最透的一档，真机实测（2026-10-17，浅色外观，满量程渐变垫在背后）
     /// 传递曲线是 `0.25·桌面 + 149`。会模糊的材质里没有比它更透的。
     ///
+    /// 默认底板不再使用这个材质。
     /// 调试构建可以用 `COVIO_PLATE_MATERIAL` 换成别的语义材质对照，
     /// 认得出的名字见 [material(named:)]。
     @MainActor static var plateMaterial: NSVisualEffectView.Material = .hudWindow
@@ -127,16 +97,15 @@ enum GlassSurfaceMode: String, CaseIterable, Sendable {
     /// 调试构建可以用 `COVIO_PLATE_TINT` 覆盖。真机对照用它扫值。
     @MainActor static var plateTintOpacity: Double = 0
 
-    /// 底板用的底材。取 `.system`：面板底材用系统给的语义材质，见 [plateMaterial]。
+    /// 底板默认使用的 Liquid Glass 材质。
+    static let plateDefaultMode: GlassSurfaceMode = .glass
+
+    /// 底板当前使用的底材。默认走 Liquid Glass。
     ///
-    /// 为什么不用 `.glass`：Liquid Glass 自带一圈镜面亮边。控制中心的**模块**有亮边，
-    /// **内容层**没有。真机对照（2026-10-17）：把旧的上下两板左上角放大，内容板
-    /// 沿上边缘有一条浅蓝亮线，控制中心的底板边缘是干净的。
-    ///
-    /// 卡片的亮边保留：卡片走 `.clear` 玻璃，与控制中心的模块一样带边。
+    /// 卡片仍走 `.clear`。卡片不重复底板模糊。
     ///
     /// 调试构建可以用 `COVIO_PLATE_MODE` 覆盖，用来复核别的底材。
-    @MainActor static var plateMode: GlassSurfaceMode = .system
+    @MainActor static var plateMode: GlassSurfaceMode = plateDefaultMode
 
     /// 顶栏功能层用的底材。默认 `.ultraThin`，参考 macOS 26 Tahoe 的 Apple Maps。
     ///

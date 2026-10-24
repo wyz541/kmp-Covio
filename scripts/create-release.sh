@@ -13,8 +13,8 @@ if [[ -z "$VERSION" ]]; then
 fi
 TAG="v$VERSION"
 DMG="$DIST/Covio-$VERSION.dmg"
+CHECKSUM="$DMG.sha256"
 NOTES="$ROOT/RELEASE_NOTES.md"
-REPO="wises231/kmp-Covio"
 
 if ! command -v gh >/dev/null 2>&1; then
   printf 'Install the GitHub CLI first: brew install gh\n' >&2
@@ -26,6 +26,15 @@ if ! gh auth status >/dev/null 2>&1; then
   exit 1
 fi
 
+# Use the active GitHub repository instead of a hard-coded owner. The remote
+# repository moved before, and a stale owner would publish to the wrong place.
+REPO="${RELEASE_REPO:-$(gh repo view --json nameWithOwner --jq .nameWithOwner)}"
+if [[ -z "$REPO" ]]; then
+  printf 'Could not resolve the GitHub repository.\n' >&2
+  exit 1
+fi
+
+TARGET="$(git -C "$ROOT" rev-parse HEAD)"
 if [[ ! -f "$DMG" ]]; then
   printf 'Missing artifact: %s\nRun scripts/package-macos-swift.sh first.\n' "$DMG" >&2
   exit 1
@@ -38,11 +47,13 @@ if [[ "$DMG_BYTES" -ge "$GITHUB_ASSET_LIMIT" ]]; then
   exit 1
 fi
 bash "$ROOT/scripts/verify-file-naming-bundle.sh" "$DMG"
+(cd "$DIST" && shasum -a 256 "$(basename "$DMG")" > "$(basename "$CHECKSUM")")
 
 # The app reads the Releases page.
 # Therefore this release must stay a full release, not a pre-release.
-gh release create "$TAG" "$DMG" \
+gh release create "$TAG" "$DMG" "$CHECKSUM" \
   --repo "$REPO" \
+  --target "$TARGET" \
   --title "Covio $VERSION (internal test)" \
   --notes-file "$NOTES"
 

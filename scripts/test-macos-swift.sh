@@ -48,3 +48,6 @@ xcodebuild \
   COVIO_GIT_COMMIT="$COMMIT" \
   COVIO_RELEASE_ID="$RELEASE_ID" \
   test
+
+bash "$ROOT/scripts/verify-helper-daemon.sh" \
+  "$ROOT/build/xcode-dd/Build/Products/$CONFIGURATION/Covio.app"

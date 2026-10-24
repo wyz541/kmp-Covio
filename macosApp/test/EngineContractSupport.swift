@@ -307,6 +307,7 @@ final class FakePrivilegedOps: NSObject, PrivilegedOps {
         set { statusValue = newValue ? .match : .missing }
     }
     var disableSleepResult = true
+    var installResult = true
     var sleepDisabled = false
     var covioOwned: Bool?
     var disableSleepValues: [Bool] = []
@@ -317,7 +318,7 @@ final class FakePrivilegedOps: NSObject, PrivilegedOps {
 
     func helperVersion() -> String? { GeneratedReleaseIdentityKt.APP_VERSION }
 
-    func install() -> Bool { true }
+    func install() -> Bool { installResult }
 
     func uninstall() -> Bool { true }
 

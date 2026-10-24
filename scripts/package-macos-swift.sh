@@ -108,6 +108,8 @@ mkdir -p "$NOTICES_DIR/licenses" "$NOTICES_DIR/model"
 /usr/bin/ditto "$ROOT/third_party/models/Qwen3-VL-2B-Instruct" "$NOTICES_DIR/model/Qwen3-VL-2B-Instruct"
 
 PLIST="$APP_IMAGE/Contents/Info.plist"
+HELPER="$APP_IMAGE/Contents/MacOS/CovioHelper"
+DAEMON_PLIST="$APP_IMAGE/Contents/Library/LaunchDaemons/com.wyz.covio.helper.plist"
 
 read_plist() {
   "$PLIST_BUDDY" -c "Print :$1" "$PLIST" 2>/dev/null || true
@@ -157,15 +159,22 @@ if [[ ! -d "$APP_IMAGE/Contents/Frameworks/kmpDomain.framework" ]]; then
   exit 1
 fi
 
+if [[ ! -x "$HELPER" || ! -f "$DAEMON_PLIST" ]]; then
+  printf 'Missing bundled CovioHelper or daemon plist.\n' >&2
+  exit 1
+fi
+
 # 统一用 ad-hoc 签名对外发布。归档里的签名可能带本地开发者身份，不适合分发。
 # 内嵌的 framework 由 --deep 一起签。
 /usr/bin/codesign --force --deep --sign - "$APP_IMAGE"
 /usr/bin/codesign --verify --deep --strict "$APP_IMAGE"
 
 python3 -I "$ROOT/scripts/release_manifest.py" generate-artifact \
-  --helper "$APP_IMAGE/Contents/MacOS/$APP_NAME" \
+  --helper "$HELPER" \
   --output "$DIST/release-manifest.json" \
   --commit "$COMMIT"
+
+bash "$ROOT/scripts/verify-helper-daemon.sh" "$APP_IMAGE"
 
 # 镜像的根要同时有 app 与指向 /Applications 的链接，装的时候才能拖进去。
 STAGE="$(mktemp -d)"

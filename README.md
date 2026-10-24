@@ -370,6 +370,7 @@ The script verifies the model manifest, file sizes, SHA-256 values, license, and
 The script embeds the model under `Contents/Resources/Models/Qwen3VL-2B-Instruct-4bit/`.
 The script reads versions from `release/release-manifest.json` and checks that the bundle carries them.
 The script writes the final release identity, Git commit, and helper SHA-256 to `dist/release-manifest.json`.
+The app contains `Contents/MacOS/CovioHelper` and the matching `SMAppService` daemon plist.
 The script checks that the bundle carries `macosApp/src/Covio.icns` and applies an ad-hoc signature.
 The script builds the DMG with `diskutil image create`.
 The script prints app and DMG byte sizes.

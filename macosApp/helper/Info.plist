@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>CovioHelper</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.wyz.covio.helper</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>CovioHelper</string>
+    <key>CFBundlePackageType</key>
+    <string>TOOL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>$(MARKETING_VERSION)</string>
+    <key>CFBundleVersion</key>
+    <string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>CovioReleaseChannel</key>
+    <string>$(COVIO_RELEASE_CHANNEL)</string>
+    <key>CovioGitCommit</key>
+    <string>$(COVIO_GIT_COMMIT)</string>
+    <key>CovioReleaseId</key>
+    <string>$(COVIO_RELEASE_ID)</string>
+    <key>CovioHelperProtocolVersion</key>
+    <string>$(COVIO_HELPER_PROTOCOL_VERSION)</string>
+</dict>
+</plist>

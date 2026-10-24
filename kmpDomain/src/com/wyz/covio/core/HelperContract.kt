@@ -18,6 +18,18 @@ package com.wyz.covio.core
 /** 以 helper 身份启动的命令行参数。 */
 const val HELPER_ARGUMENT = "--helper"
 
+/** XPC daemon 的可执行文件名。 */
+const val HELPER_EXECUTABLE_NAME = "CovioHelper"
+
+/** daemon 可执行文件相对 app bundle 根目录的位置。 */
+const val HELPER_EXECUTABLE_BUNDLE_PATH = "Contents/MacOS/$HELPER_EXECUTABLE_NAME"
+
+/** SMAppService.daemon 使用的 plist 文件名。 */
+const val HELPER_DAEMON_PLIST_NAME = "com.wyz.covio.helper.plist"
+
+/** XPC Mach service 名称。 */
+const val HELPER_XPC_SERVICE_NAME = "com.wyz.covio.helper.xpc"
+
 /** 客户端与服务端协商的协议版本。改协议时必须同时改这里。 */
 const val HELPER_PROTOCOL_VERSION = "8"
 
@@ -69,7 +81,7 @@ const val HELPER_LEASE_MAX_ACTIVE = 16
 /** helper 的日志。 */
 const val HELPER_LOG_PATH = "$HELPER_DIRECTORY/helper.log"
 
-/** LaunchDaemon 的 plist。 */
+/** Legacy LaunchDaemon 的 plist。迁移完成后删除。 */
 const val HELPER_PLIST_PATH = "/Library/LaunchDaemons/com.wyz.covio.helper.plist"
 
 /** LaunchDaemon 的标签。 */

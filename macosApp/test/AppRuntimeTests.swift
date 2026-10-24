@@ -17,6 +17,7 @@ final class AppRuntimeTests: XCTestCase {
     private var chargeLimitClient: FakeChargeLimitClient!
     private var loginItem: FakeLoginItem!
     private var notifier: FakeNotifier!
+    private var helperServiceManager: FakeHelperServiceManager!
 
     override func setUpWithError() throws {
         directory = FileManager.default.temporaryDirectory
@@ -44,6 +45,7 @@ final class AppRuntimeTests: XCTestCase {
         engineStarted: Bool = false,
         helperInstalled: Bool = false,
         helperStatus: HelperStatus? = nil,
+        helperServiceState: HelperServiceState? = nil,
         brightnessBackend: FakeClosedLidBrightnessBackend = FakeClosedLidBrightnessBackend(brightness: 0.6)
     ) -> AppRuntime {
         privileged = FakePrivilegedOps()
@@ -53,6 +55,9 @@ final class AppRuntimeTests: XCTestCase {
         chargeLimitClient = FakeChargeLimitClient()
         loginItem = FakeLoginItem()
         notifier = FakeNotifier()
+        helperServiceManager = FakeHelperServiceManager(
+            state: helperServiceState ?? (helperInstalled ? .enabled : .legacy)
+        )
         let created = AppRuntime(
             logger: MemoryLogger(),
             configStore: ConfigStore.companion.create(path: configFile.path),
@@ -63,6 +68,7 @@ final class AppRuntimeTests: XCTestCase {
             sleepWatcher: FakeSleepWatcher(),
             wakeLogReader: WakeLogStore(nil),
             privileged: privileged,
+            helperServiceManager: helperServiceManager,
             chargeLimitClient: chargeLimitClient,
             loginItem: loginItem,
             notifier: notifier,
@@ -364,6 +370,23 @@ final class AppRuntimeTests: XCTestCase {
         XCTAssertFalse(created.welcomeVisible, "装好之后欢迎页要让位")
     }
 
+    func testInstallHelperOpensApprovalAndKeepsSafeModeVisible() async throws {
+        let created = makeRuntime(
+            helperServiceState: .requiresApproval
+        )
+        privileged.installResult = false
+
+        created.installHelper()
+        await waitUntil { !created.busy }
+
+        XCTAssertEqual(created.helperServiceState, .requiresApproval)
+        XCTAssertEqual(
+            created.statusMessage,
+            ContractCopy.copyHelperServiceRequiresApproval.text(for: created.language)
+        )
+        XCTAssertTrue(helperServiceManager.didOpenSettings)
+    }
+
     /// 卸载 helper 之后状态回到未安装，并撤销合盖限制。
     func testUninstallHelperClearsTheLidPolicy() async throws {
         let created = makeRuntime(engineStarted: true, helperInstalled: true)
@@ -593,6 +616,27 @@ final class AppRuntimeTests: XCTestCase {
         created.requestQuit()
 
         XCTAssertEqual(quits, 2)
+    }
+}
+
+private final class FakeHelperServiceManager: HelperServiceManaging {
+    var state: HelperServiceState
+    var lastError: String?
+    var hasRegisteredService: Bool { state == .enabled || state == .requiresApproval }
+    var didOpenSettings = false
+
+    init(state: HelperServiceState) {
+        self.state = state
+    }
+
+    func register() throws {}
+
+    func unregister() throws {
+        state = .notRegistered
+    }
+
+    func openSystemSettings() {
+        didOpenSettings = true
     }
 }
 

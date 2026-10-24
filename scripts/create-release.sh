@@ -41,7 +41,7 @@ fi
 
 python3 -I "$ROOT/scripts/release_manifest.py" verify-artifact \
   "$MANIFEST" \
-  --helper "$DIST/Covio.app/Contents/MacOS/Covio"
+  --helper "$DIST/Covio.app/Contents/MacOS/CovioHelper"
 
 DMG_BYTES="$(stat -f %z "$DMG")"
 GITHUB_ASSET_LIMIT=2147483648

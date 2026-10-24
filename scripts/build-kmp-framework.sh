@@ -19,6 +19,8 @@ BUILD_TYPE="${BUILD_TYPE:-Debug}"
 SHARED_CACHE="${KOTLIN_SHARED_CACHE_DIR:-$HOME/Library/Caches/JetBrains/Kotlin}"
 OUT_DIR="$ROOT/build/kmp-framework"
 FRAMEWORK="$OUT_DIR/$MODULE.framework"
+STATIC_OUT_DIR="$ROOT/build/kmp-framework-static"
+STATIC_FRAMEWORK="$STATIC_OUT_DIR/$MODULE.framework"
 KLIB="$ROOT/build/tasks/_${MODULE}_compile${PLATFORM_ID}${BUILD_TYPE}/${MODULE}.klib"
 BUNDLE_ID="com.wyz.covio.$MODULE"
 
@@ -148,8 +150,8 @@ else
   LINK_FLAGS+=(-g)
 fi
 
-rm -rf "$FRAMEWORK" "$FRAMEWORK.dSYM"
-mkdir -p "$OUT_DIR"
+rm -rf "$FRAMEWORK" "$FRAMEWORK.dSYM" "$STATIC_FRAMEWORK" "$STATIC_FRAMEWORK.dSYM"
+mkdir -p "$OUT_DIR" "$STATIC_OUT_DIR"
 
 # -Xinclude 把 Amper 编好的 klib 当作源码处理。
 # 只用 -library 会报 `you have not specified any compilation arguments`。
@@ -177,3 +179,29 @@ fi
 
 printf 'Built %s\n' "$FRAMEWORK"
 file "$FRAMEWORK/$MODULE"
+
+STATIC_LINK_LOG="$STATIC_OUT_DIR/link.log"
+if ! "$KONANC_BIN" \
+  "${LINK_FLAGS[@]}" \
+  -Xstatic-framework \
+  -Xinclude="$KLIB" \
+  ${LIB_ARGS[@]+"${LIB_ARGS[@]}"} \
+  -o "$STATIC_OUT_DIR/$MODULE" \
+  >"$STATIC_LINK_LOG" 2>&1; then
+  grep -v '^WARNING: ' "$STATIC_LINK_LOG" >&2 || true
+  printf 'konanc static link failed. Full log: %s\n' "$STATIC_LINK_LOG" >&2
+  exit 1
+fi
+
+if [[ ! -f "$STATIC_FRAMEWORK/$MODULE" ]]; then
+  printf 'Static framework was not produced: %s\n' "$STATIC_FRAMEWORK" >&2
+  exit 1
+fi
+
+if [[ ! -f "$STATIC_FRAMEWORK/Headers/$MODULE.h" ]]; then
+  printf 'Static framework has no header: %s/Headers/%s.h\n' "$STATIC_FRAMEWORK" "$MODULE" >&2
+  exit 1
+fi
+
+printf 'Built %s\n' "$STATIC_FRAMEWORK"
+file "$STATIC_FRAMEWORK/$MODULE"

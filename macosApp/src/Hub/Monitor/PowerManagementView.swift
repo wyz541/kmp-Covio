@@ -92,16 +92,30 @@ struct PowerManagementView: View {
                 model.helperStatus,
                 language: language
             ) {
+                let requiresApproval = model.helperServiceState == .requiresApproval
+                let serviceReason = HelperServicePresentation.value(
+                    model.helperServiceState,
+                    language: language
+                )
                 statusAlert(
-                    message: reason,
+                    message: requiresApproval
+                        ? serviceReason
+                        : "\(serviceReason). \(reason)",
                     kind: .warning
                 ) {
                     MacButton(
-                        title: HelperStatusPresentation.repairTitle.text(for: language),
+                        title: HelperServicePresentation.actionTitle(
+                            model.helperServiceState,
+                            language: language
+                        ) ?? HelperStatusPresentation.repairTitle.text(for: language),
                         kind: .primary,
                         isEnabled: !model.busy
                     ) {
-                        model.installHelper()
+                        if requiresApproval {
+                            model.openHelperApproval()
+                        } else {
+                            model.installHelper()
+                        }
                     }
                 }
             }
@@ -643,7 +657,10 @@ struct PowerManagementView: View {
     }
 
     private var helperValue: String {
-        HelperStatusPresentation.value(model.helperStatus, language: language)
+        if model.helperServiceState == .requiresApproval {
+            return HelperServicePresentation.value(model.helperServiceState, language: language)
+        }
+        return HelperStatusPresentation.value(model.helperStatus, language: language)
     }
 
     private var thermalNeedsAttention: Bool {
@@ -754,6 +771,7 @@ protocol PowerManagementModel: AnyObject {
     var snapshot: PowerSnapshot { get }
     var decision: PowerDecision { get }
     var helperStatus: HelperStatus { get }
+    var helperServiceState: HelperServiceState { get }
     var executionError: String? { get }
     var hasManualSession: Bool { get }
     var sessionMode: PowerRuntime.SessionMode? { get }
@@ -779,6 +797,7 @@ protocol PowerManagementModel: AnyObject {
     func startSession(mode: PowerRuntime.SessionMode, duration: PowerRuntime.SessionDuration) -> Bool
     func endSession()
     func installHelper()
+    func openHelperApproval()
 }
 
 extension AppRuntime: PowerManagementModel {

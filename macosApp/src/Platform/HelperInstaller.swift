@@ -1,46 +1,156 @@
 import Foundation
 import kmpDomain
 
-/// 安装与卸载特权 helper。
+/// 安装、迁移与卸载特权 helper。
 ///
 /// 对应 Compose 版的 `app/src/com/wyz/covio/app/helper/HelperInstaller.kt`。
 /// 生成的 shell 脚本与 plist 来自共享模块的 `HelperInstallScript`，
 /// 所以 0.4.2 装上的 helper 可以被本版卸载，反之亦然。
 ///
-/// **警告：** 安装会用 `osascript` 请求管理员权限。脚本以 root 运行，
-/// 会写入 `/Library/LaunchDaemons`。调用前先确认用户已经同意。
+/// 新安装只使用 `SMAppService`。Legacy 安装脚本只用于移除旧 LaunchDaemon。
+///
+/// **警告：** 移除 legacy helper 会用 `osascript` 请求管理员权限。
+/// 只有检测到旧 LaunchDaemon 时才会走这条路径。
 enum HelperInstaller {
-    /// 安装 helper 并启动 LaunchDaemon。
-    /// - Parameter executablePath: 应用可执行文件的绝对路径。
-    ///   它写进 plist 的 `ProgramArguments[0]`，也是 helper 进程自己的路径。
-    static func install(executablePath: String, logger: (String) -> Void = { _ in }) -> Bool {
-        let requirement = HelperSignature.currentRequirement()
-        if requirement == nil {
-            logger("Cannot determine the client signature requirement; privileged controls will stay unavailable.")
+    enum InstallResult: Equatable {
+        case enabled
+        case requiresApproval
+        case failed(String)
+
+        var registered: Bool {
+            switch self {
+            case .enabled, .requiresApproval: true
+            case .failed: false
+            }
         }
-        let script = installScript(
-            executablePath: executablePath,
-            clientRequirement: requirement
-        )
-        logger("Installing privileged helper")
-        return runWithAdministrator(script)
     }
 
-    static func uninstall(logger: (String) -> Void = { _ in }) -> Bool {
+    /// 恢复旧 helper 的活动状态，移除 legacy LaunchDaemon，再注册签名 daemon。
+    static func migrateAndRegister(
+        serviceManager: any HelperServiceManaging = SMAppHelperServiceManager.shared,
+        logger: (String) -> Void = { _ in }
+    ) -> InstallResult {
         let client = HelperClient()
-        guard restoreChargeLimitIfNeeded(using: client, logger: logger) else {
+        let previousState = serviceManager.state
+        let expectsRunningHelper = previousState == .enabled
+            || FileManager.default.fileExists(atPath: HelperProtocol.socketPath)
+        guard restorePrivilegedState(
+            using: client,
+            expectRunningHelper: expectsRunningHelper,
+            logger: logger
+        ) else {
+            return .failed("Cannot restore privileged state before helper migration")
+        }
+
+        if serviceManager.hasRegisteredService {
+            do {
+                logger("Unregistering the previous SMAppService helper")
+                try serviceManager.unregister()
+            } catch {
+                logger(error.localizedDescription)
+                return .failed(error.localizedDescription)
+            }
+        }
+
+        if FileManager.default.fileExists(atPath: HelperProtocol.plistPath) {
+            logger("Removing the legacy LaunchDaemon")
+            guard removeLegacyInstallation(logger: logger) else {
+                return .failed("Cannot remove the legacy LaunchDaemon")
+            }
+        }
+
+        do {
+            logger("Registering CovioHelper with SMAppService")
+            try serviceManager.register()
+        } catch {
+            logger(error.localizedDescription)
+            return .failed(error.localizedDescription)
+        }
+
+        switch serviceManager.state {
+        case .enabled:
+            return .enabled
+        case .requiresApproval, .notRegistered:
+            return .requiresApproval
+        case .notFound:
+            return .failed("SMAppService cannot find the bundled daemon plist")
+        case .legacy:
+            return .failed("The legacy LaunchDaemon still exists")
+        case .unsupported:
+            return .failed("This macOS version cannot manage the helper daemon")
+        case .error(let message):
+            return .failed(message)
+        }
+    }
+
+    /// 保持旧的维护命令入口。新路径不再安装 legacy daemon。
+    static func install(executablePath _: String, logger: (String) -> Void = { _ in }) -> Bool {
+        migrateAndRegister(logger: logger).registered
+    }
+
+    static func uninstall(
+        serviceManager: any HelperServiceManaging = SMAppHelperServiceManager.shared,
+        logger: (String) -> Void = { _ in }
+    ) -> Bool {
+        let client = HelperClient()
+        let state = serviceManager.state
+        let expectsRunningHelper = state == .enabled
+            || FileManager.default.fileExists(atPath: HelperProtocol.socketPath)
+        guard restorePrivilegedState(
+            using: client,
+            expectRunningHelper: expectsRunningHelper,
+            logger: logger
+        ) else {
             return false
         }
-        if client.fanControlStatus()?.active == true {
-            logger("Restoring system fan control before uninstall")
-            guard client.restoreFanControl().ok else {
-                logger("Cannot uninstall the helper: fan control restore failed")
+        if serviceManager.hasRegisteredService {
+            do {
+                logger("Unregistering CovioHelper")
+                try serviceManager.unregister()
+            } catch {
+                logger(error.localizedDescription)
                 return false
             }
         }
-        let script = uninstallScript()
-        logger("Uninstalling privileged helper")
-        return runWithAdministrator(script)
+
+        if FileManager.default.fileExists(atPath: HelperProtocol.plistPath) {
+            return removeLegacyInstallation(logger: logger)
+        }
+        return true
+    }
+
+    /// 在升级、卸载或迁移前恢复 helper 持有的系统状态。
+    static func restorePrivilegedState(
+        using client: HelperClient,
+        expectRunningHelper: Bool = false,
+        logger: (String) -> Void = { _ in }
+    ) -> Bool {
+        let chargeStatus = client.chargeLimitStatus()
+        if expectRunningHelper && chargeStatus == nil {
+            logger("Cannot continue: helper charge status is unavailable")
+            return false
+        }
+        if chargeStatus?.enabled == true {
+            logger("Restoring charge limit before helper change")
+            guard client.restoreChargeLimit() else {
+                logger("Cannot continue: charge limit restore failed")
+                return false
+            }
+            logger("Charge limit restored")
+        }
+        let fanStatus = client.fanControlStatus()
+        if expectRunningHelper && fanStatus == nil {
+            logger("Cannot continue: helper fan status is unavailable")
+            return false
+        }
+        if fanStatus?.active == true {
+            logger("Restoring system fan control before helper change")
+            guard client.restoreFanControl().ok else {
+                logger("Cannot continue: fan control restore failed")
+                return false
+            }
+        }
+        return true
     }
 
     /// 卸载前恢复原 MCL。失败时保留 helper 和状态文件，避免丢失恢复凭据。
@@ -49,9 +159,9 @@ enum HelperInstaller {
         logger: (String) -> Void = { _ in }
     ) -> Bool {
         guard let status = client.chargeLimitStatus(), status.enabled else { return true }
-        logger("Restoring charge limit before uninstall")
+        logger("Restoring charge limit before helper change")
         guard client.restoreChargeLimit() else {
-            logger("Cannot uninstall the helper: charge limit restore failed")
+            logger("Cannot continue: charge limit restore failed")
             return false
         }
         logger("Charge limit restored")
@@ -90,6 +200,11 @@ enum HelperInstaller {
     }
 
     // MARK: - 私有
+
+    private static func removeLegacyInstallation(logger: (String) -> Void) -> Bool {
+        logger("Removing legacy privileged helper")
+        return runWithAdministrator(uninstallScript())
+    }
 
     private static func runWithAdministrator(_ shellScript: String) -> Bool {
         let process = Process()

@@ -156,7 +156,26 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# kmpDomain.framework 由 konanc 产出，Amper 不做这件事。见 docs/adr/adr-0001-macos-ui-swiftui.md\ncd \"$SRCROOT/..\" || exit 1\nBUILD_TYPE=\"$CONFIGURATION\" bash scripts/build-kmp-framework.sh\n";
+			shellScript = "# kmpDomain.framework 由 konanc 产出，Amper 不做这件事。见 docs/adr/adr-0001-macos-ui-swiftui.md\ncd \"$SRCROOT/..\" || exit 1\nBUILD_TYPE=\"$CONFIGURATION\" bash scripts/build-kmp-framework.sh || exit 1\nbash scripts/build-covio-helper.sh || exit 1\n";
+		};
+		C00000000000000000000024 /* Install helper daemon */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Install helper daemon";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "cd \"$SRCROOT/..\" || exit 1\nbash scripts/install-covio-helper.sh \"$TARGET_BUILD_DIR/$WRAPPER_NAME\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -195,6 +214,7 @@
 				C0000000000000000000000C /* Frameworks */,
 				C0000000000000000000000D /* Resources */,
 				C0000000000000000000000E /* Embed Frameworks */,
+				C00000000000000000000024 /* Install helper daemon */,
 			);
 			buildRules = (
 			);
@@ -400,7 +420,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				COMBINE_HIDPI_IMAGES = YES;
-				ENABLE_HARDENED_RUNTIME = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(SRCROOT)/../build/kmp-framework",

@@ -21,6 +21,8 @@ final class AppRuntime {
     private(set) var config: AppConfig
     /// 特权 helper 的状态。
     private(set) var helperStatus: HelperStatus = .missing
+    /// SMAppService 生命周期状态。
+    private(set) var helperServiceState: HelperServiceState = .notRegistered
     /// helper 当前执行的充电上限状态。
     private(set) var chargeLimitStatus: ChargeLimitHelperStatus?
     /// 一次性提示。界面读完应调用 `clearStatus`。
@@ -91,6 +93,7 @@ final class AppRuntime {
     private let sleepWatcher: SleepWatcher
     private let wakeLogReader: WakeLogReader
     private let privileged: PrivilegedOps
+    private let helperServiceManager: any HelperServiceManaging
     private let chargeLimitClient: any ChargeLimitClientProtocol
     private let loginItem: LoginItem
     private let notifier: Notifier
@@ -122,6 +125,7 @@ final class AppRuntime {
         sleepWatcher: SleepWatcher = MacSleepWatcher(),
         wakeLogReader: WakeLogReader = PmsetWakeLogReader(),
         privileged: PrivilegedOps? = nil,
+        helperServiceManager: (any HelperServiceManaging)? = nil,
         chargeLimitClient: any ChargeLimitClientProtocol = HelperClient(),
         loginItem: LoginItem = MacLoginItem(),
         notifier: Notifier? = nil,
@@ -160,6 +164,7 @@ final class AppRuntime {
         self.sleepWatcher = sleepWatcher
         self.wakeLogReader = wakeLogReader
         self.privileged = resolvedPrivileged
+        self.helperServiceManager = helperServiceManager ?? SMAppHelperServiceManager.shared
         self.chargeLimitClient = chargeLimitClient
         self.loginItem = loginItem
         self.notificationGate = NotificationGate()
@@ -500,6 +505,7 @@ final class AppRuntime {
         guard tickTimer == nil else { return }
         logger.info(message: "Covio \(GeneratedReleaseIdentityKt.APP_VERSION) starting")
 
+        helperServiceState = helperServiceManager.state
         helperStatus = privileged.status()
         reconcileChargeLimit()
         syncHibernateMode()
@@ -782,11 +788,25 @@ final class AppRuntime {
         busy = true
         Task { @MainActor in
             let installed = privileged.install()
+            helperServiceState = helperServiceManager.state
+            if helperServiceState == .requiresApproval {
+                helperServiceManager.openSystemSettings()
+            }
             await refreshHelperStatus(waitForMatch: installed)
             busy = false
             let success = helperStatus == .match
-            let entry = success ? ContractCopy.copyOverviewHelperInstalled : ContractCopy.copyDialogHelperUnavailableBody
-            statusMessage = entry.text(for: language)
+            if success {
+                statusMessage = ContractCopy.copyOverviewHelperInstalled.text(for: language)
+            } else if helperServiceState == .requiresApproval {
+                statusMessage = ContractCopy.copyHelperServiceRequiresApproval.text(for: language)
+            } else if case .error = helperServiceState {
+                statusMessage = HelperServicePresentation.value(
+                    helperServiceState,
+                    language: language
+                )
+            } else {
+                statusMessage = ContractCopy.copyDialogHelperUnavailableBody.text(for: language)
+            }
             if success { dismissWelcome() }
         }
     }
@@ -796,6 +816,7 @@ final class AppRuntime {
         busy = true
         Task { @MainActor in
             let removed = privileged.uninstall()
+            helperServiceState = helperServiceManager.state
             helperStatus = .missing
             chargeLimitStatus = nil
             _ = engine.setLidSleepAvailable(available: true)
@@ -811,6 +832,7 @@ final class AppRuntime {
     ///
     /// 与 Compose 版 `awaitHelperStatus` 一致：最多等 5 秒，每 200 毫秒查一次。
     private func refreshHelperStatus(waitForMatch: Bool = false) async {
+        helperServiceState = helperServiceManager.state
         var status = privileged.status()
         if waitForMatch && status != .match {
             let deadline = Date().addingTimeInterval(5)
@@ -832,6 +854,10 @@ final class AppRuntime {
             _ = engine.updateConfig(newConfig: config)
             reconcileChargeLimit()
         }
+    }
+
+    func openHelperApproval() {
+        helperServiceManager.openSystemSettings()
     }
 
     // MARK: - 充电上限

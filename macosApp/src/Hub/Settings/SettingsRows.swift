@@ -72,16 +72,25 @@ struct HelperCard: View {
             MacStatusLine(
                 text: HelperStatusPresentation.value(runtime.helperStatus, language: runtime.language)
             )
+            MacStatusLine(
+                text: HelperServicePresentation.value(
+                    runtime.helperServiceState,
+                    language: runtime.language
+                )
+            )
 
-            switch runtime.helperStatus {
-            case .match:
+            if runtime.helperServiceState == .requiresApproval {
+                MacButton(
+                    title: ContractCopy.copyClipboardActionOpenSettings.text(for: runtime.language),
+                    kind: .primary,
+                    isEnabled: !runtime.busy
+                ) { runtime.openHelperApproval() }
+            } else if runtime.helperStatus == .match && runtime.helperServiceState != .legacy {
                 MacButton(
                     title: ContractCopy.copyDialogHelperUnavailableTitle.text(for: runtime.language),
                     isEnabled: !runtime.busy
                 ) { runtime.uninstallHelper() }
-            // 未安装、版本不符、出错三种情况都给安装按钮：
-            // 这四种下 helper 都不能用于写入，用户的动作都是修复。
-            default:
+            } else {
                 MacButton(
                     title: HelperStatusPresentation.repairTitle.text(for: runtime.language),
                     kind: .primary,
@@ -89,7 +98,15 @@ struct HelperCard: View {
                 ) { runtime.installHelper() }
             }
 
-            if let reason = HelperStatusPresentation.readOnlyReason(
+            if runtime.helperServiceState == .requiresApproval {
+                MacAlert(
+                    message: HelperServicePresentation.value(
+                        runtime.helperServiceState,
+                        language: runtime.language
+                    ),
+                    kind: .warning
+                )
+            } else if let reason = HelperStatusPresentation.readOnlyReason(
                 runtime.helperStatus,
                 language: runtime.language
             ) {

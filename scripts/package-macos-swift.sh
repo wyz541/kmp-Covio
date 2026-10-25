@@ -371,13 +371,12 @@ fi
 PKG_COMMAND+=("$PKG_PATH")
 "${PKG_COMMAND[@]}"
 
-if ! /usr/sbin/pkgutil --payload-files "$PKG_PATH" | \
-    grep -Fq "Library/Application Support/Covio/Installer/staged/$APP_NAME.app/Contents/MacOS/CovioHelper"; then
+PKG_PAYLOAD_FILES="$(/usr/sbin/pkgutil --payload-files "$PKG_PATH")"
+if [[ "$PKG_PAYLOAD_FILES" != *"Library/Application Support/Covio/Installer/staged/$APP_NAME.app/Contents/MacOS/CovioHelper"* ]]; then
   printf 'PKG payload is missing the staged app helper.\n' >&2
   exit 1
 fi
-if ! /usr/sbin/pkgutil --payload-files "$PKG_PATH" | \
-    grep -Fq "Library/Application Support/Covio/Installer/bin/CovioTransaction"; then
+if [[ "$PKG_PAYLOAD_FILES" != *"Library/Application Support/Covio/Installer/bin/CovioTransaction"* ]]; then
   printf 'PKG payload is missing the transaction executable.\n' >&2
   exit 1
 fi

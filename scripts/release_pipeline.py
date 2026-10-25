@@ -171,13 +171,17 @@ def signature_errors(
     if channel == "internal":
         return []
     errors: list[str] = []
-    for name, report in (("app", app), ("helper", helper), ("dmg", disk_image)):
+    for name, report in (("app", app), ("helper", helper)):
         if "Authority=Developer ID Application:" not in report:
             errors.append(f"{name} is not signed with Developer ID Application")
         if re.search(r"^TeamIdentifier=not set$", report, re.MULTILINE):
             errors.append(f"{name} has no TeamIdentifier")
         if "runtime" not in report:
             errors.append(f"{name} does not enable hardened runtime")
+    if "Authority=Developer ID Application:" not in disk_image:
+        errors.append("dmg is not signed with Developer ID Application")
+    if re.search(r"^TeamIdentifier=not set$", disk_image, re.MULTILINE):
+        errors.append("dmg has no TeamIdentifier")
     if "Developer ID Installer:" not in package or "Status: signed" not in package:
         errors.append("pkg is not signed with Developer ID Installer")
     return errors
@@ -451,7 +455,7 @@ def verify_release(
         require_command(["/usr/bin/codesign", "--verify", "--strict", str(helper)])
         app_signature = _signature_report(app)
         helper_signature = _signature_report(helper)
-        package_signature = run_command(["/usr/bin/pkgutil", "--check-signature", str(directory / names[2])])
+        package_signature = run_command(["/usr/sbin/pkgutil", "--check-signature", str(directory / names[2])])
         disk_image_signature = run_command(["/usr/bin/codesign", "-dv", "--verbose=4", str(directory / names[1])])
         errors = signature_errors(
             app_signature,
@@ -499,7 +503,7 @@ def verify_release(
         finally:
             _detach_dmg(mount)
 
-        package_payload = require_command(["/usr/bin/pkgutil", "--payload-files", str(directory / names[2])])
+        package_payload = require_command(["/usr/sbin/pkgutil", "--payload-files", str(directory / names[2])])
         if "Covio.app/Contents/MacOS/CovioHelper" not in package_payload:
             raise ReleaseVerificationError("PKG payload is missing Covio.app/Contents/MacOS/CovioHelper")
 

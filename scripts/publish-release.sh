@@ -52,7 +52,7 @@ mkdir -p "$ASSET_DIR"
 
 gh release view "$TAG" \
   --repo "$REPO" \
-  --json isDraft,isPrerelease,tagName,targetCommitish \
+  --json isDraft,isPrerelease,tagName \
   > "$RELEASE_TMP/release-info.json"
 
 if [[ -z "${COVIO_RELEASE_ASSET_DIR:-}" ]]; then
@@ -70,15 +70,19 @@ if [[ ! -f "$ASSET_DIR/release-evidence.json" ]]; then
   exit 1
 fi
 
-TARGET_COMMIT="$(python3 -I - "$RELEASE_TMP/release-info.json" <<'PY'
+TARGET_COMMIT="$(python3 -I - "$ASSET_DIR/release-evidence.json" <<'PY'
 import json
+import re
 import sys
 with open(sys.argv[1], encoding="utf-8") as stream:
-    print(json.load(stream)["targetCommitish"])
+    commit = json.load(stream).get("gitCommit")
+if not isinstance(commit, str) or not re.fullmatch(r"[0-9a-f]{40}", commit):
+    raise SystemExit("release evidence has no full lowercase gitCommit")
+print(commit)
 PY
 )"
 if ! git -C "$ROOT" cat-file -e "$TARGET_COMMIT^{commit}" 2>/dev/null; then
-  git -C "$ROOT" fetch origin main --tags
+  git -C "$ROOT" fetch origin --tags
 fi
 if ! git -C "$ROOT" cat-file -e "$TARGET_COMMIT^{commit}" 2>/dev/null; then
   printf 'Cannot resolve release target commit: %s\n' "$TARGET_COMMIT" >&2

@@ -86,7 +86,8 @@ COVIO_NOTARY_PROFILE
 
 正式渠道还必须满足：
 
-- app、helper 和 DMG 使用 Developer ID Application。
+- app 和 helper 使用 Developer ID Application 和 hardened runtime。
+- DMG 使用 Developer ID Application。
 - PKG 使用 Developer ID Installer。
 - app、DMG 和 PKG 通过 notarization staple。
 - app 和 PKG 通过 Gatekeeper。

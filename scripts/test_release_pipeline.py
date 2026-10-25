@@ -91,10 +91,13 @@ class ReleasePipelineTests(unittest.TestCase):
 
     def test_public_signature_requires_developer_id_runtime_and_installer(self):
         app = "Authority=Developer ID Application: Covio\nTeamIdentifier=TEAM\nflags=0x10000(runtime)"
+        dmg = "Authority=Developer ID Application: Covio\nTeamIdentifier=TEAM"
         pkg = "Status: signed\nDeveloper ID Installer: Covio"
-        self.assertEqual(pipeline.signature_errors(app, app, pkg, app, "public"), [])
-        self.assertNotEqual(pipeline.signature_errors("Signature=adhoc", app, pkg, app, "public"), [])
-        self.assertNotEqual(pipeline.signature_errors(app, app, "Status: unsigned", app, "public"), [])
+        self.assertEqual(pipeline.signature_errors(app, app, pkg, dmg, "public"), [])
+        self.assertNotEqual(pipeline.signature_errors("Signature=adhoc", app, pkg, dmg, "public"), [])
+        self.assertNotEqual(pipeline.signature_errors(app, app, "Status: unsigned", dmg, "public"), [])
+        self.assertNotEqual(pipeline.signature_errors(app.replace("(runtime)", ""), app, pkg, dmg, "public"), [])
+        self.assertNotEqual(pipeline.signature_errors(app, app, pkg, "Signature=adhoc", "public"), [])
 
     def test_internal_signature_does_not_require_developer_id(self):
         self.assertEqual(

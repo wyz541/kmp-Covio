@@ -105,12 +105,18 @@ struct AgentTabView: View {
             Circle()
                 .fill(MacTheme.successText)
                 .frame(width: 6, height: 6)
-            Text(ContractCopy.copyAgentOffline.text(for: language))
+            Text(localStatusText)
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(MacTheme.textSecondary)
             Spacer(minLength: 0)
         }
         .accessibilityElement(children: .combine)
+    }
+
+    private var localStatusText: String {
+        let offline = ContractCopy.copyAgentOffline.text(for: language)
+        guard modelSetup?.isAIReady == true else { return offline }
+        return "\(offline) · \(ContractCopy.copyModelSetupStateReady.text(for: language))"
     }
 
     private var emptyState: some View {

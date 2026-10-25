@@ -192,6 +192,10 @@ struct ModelSetupSettingsCard: View {
                 .font(.system(size: 11))
                 .foregroundStyle(MacTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
+            Text(ContractCopy.copyModelSetupNetwork.text(for: language))
+                .font(.system(size: 10))
+                .foregroundStyle(MacTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
 
             ForEach(model.orderedStates) { state in
                 modelRow(state)

@@ -57,6 +57,15 @@ struct AutoNamingPreviewView: View {
                     .lineLimit(2)
             }
             Spacer(minLength: 0)
+            if modelSetup?.isAIReady == true {
+                Label(
+                    ContractCopy.copyModelSetupStateReady.text(for: language),
+                    systemImage: "checkmark.circle.fill"
+                )
+                .font(.system(size: 9, weight: .medium))
+                .foregroundStyle(MacTheme.successText)
+                .accessibilityElement(children: .combine)
+            }
             Text(summaryText)
                 .font(.system(size: 10, design: .monospaced))
                 .foregroundStyle(.tertiary)

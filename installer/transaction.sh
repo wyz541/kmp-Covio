@@ -53,7 +53,8 @@ covio_tx_configure() {
         staged_app="${STAGED_APP_PATH:-$TX_INSTALLER_ROOT/staged/$COVIO_TX_APP_NAME}"
     fi
     TX_STAGED_APP="$staged_app"
-    TX_TRANSACTION_ROOT="$TX_INSTALLER_ROOT/transactions/$TRANSACTION_ID"
+    # recover.sh configures paths before it loads the transaction environment.
+    TX_TRANSACTION_ROOT="$TX_INSTALLER_ROOT/transactions/${TRANSACTION_ID:-recovery}"
     TX_BACKUP_APP="$TX_TRANSACTION_ROOT/previous/$COVIO_TX_APP_NAME"
     TX_CANDIDATE_APP="$TX_TRANSACTION_ROOT/candidate/$COVIO_TX_APP_NAME"
     TX_HELPER_PATH="${COVIO_TX_HELPER_PATH:-$state_root/bin/CovioHelper}"

@@ -368,6 +368,21 @@ covio_tx_recover
 assert_eq "$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$TX_APP_PATH/Contents/Info.plist")" 1 "interrupted transaction did not recover"
 assert_json "$TX_RECORD_PATH" releaseId "0.5.2+1+$OLD_COMMIT"
 
+printf 'case: recovery config works before loading a transaction ID\n'
+prepare_case recovery-entrypoint 0.5.2 7 "$NEW_COMMIT"
+covio_tx_prepare
+stage_new_app
+if ! covio_tx_verify_new_app "$TX_STAGED_APP"; then
+  fail "staged app verification failed before recovery-entrypoint probe"
+fi
+"$COVIO_TX_ATOMIC_SWAP" "$TX_APP_PATH" "$TX_STAGED_APP"
+covio_tx_write_state app-installed
+unset TRANSACTION_ID
+covio_tx_configure "$COVIO_TX_STATE_ROOT" "$COVIO_TX_APPLICATIONS_ROOT"
+covio_tx_recover
+assert_eq "$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$TX_APP_PATH/Contents/Info.plist")" 1 "recovery entrypoint did not restore the app"
+assert_json "$TX_RECORD_PATH" releaseId "0.5.2+1+$OLD_COMMIT"
+
 printf 'case: an SMAppService rollback removes Legacy helper metadata\n'
 prepare_case sm-rollback 0.5.2 3 "$NEW_COMMIT" 0 "" 1 1 ""
 covio_tx_prepare

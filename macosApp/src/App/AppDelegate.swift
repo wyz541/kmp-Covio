@@ -33,19 +33,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // LSUIElement 已经让进程成为代理应用。这里显式再设一次，防止从 Xcode 直接运行时不一致。
         NSApp.setActivationPolicy(.accessory)
 
-        if let path = ProcessInfo.processInfo.environment["COVIO_MODEL_DOWNLOAD_ACCEPTANCE_PATH"],
-           !path.isEmpty
-        {
-            Task { @MainActor in
-                exit(
-                    await ModelDownloadAcceptanceVerifier.run(
-                        outputURL: URL(fileURLWithPath: path)
-                    )
-                )
-            }
-            return
-        }
-
         if let path = ProcessInfo.processInfo.environment["COVIO_FILE_NAMING_ACCEPTANCE_PATH"],
            !path.isEmpty
         {
@@ -371,6 +358,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         shell.start()
         let statusItemController = StatusItemController(shell: shell, runtime: runtime)
         self.statusItemController = statusItemController
+
+        if LaunchEnvironment.isSlimInstallProfile() {
+            Task { @MainActor in
+                self.shell.show()
+            }
+        }
 
         #if DEBUG
         // Visual QA uses an isolated support directory and skips the global hotkey.

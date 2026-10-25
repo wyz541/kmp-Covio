@@ -29,4 +29,27 @@ final class LaunchEnvironmentTests: XCTestCase {
     func testOrdinaryLaunchIsNotATestHost() {
         XCTAssertFalse(LaunchEnvironment.isRunningTests(environment: [:], isClassLoaded: { _ in false }))
     }
+
+    func testSlimInstallProfileUsesASeparateArgument() {
+        XCTAssertTrue(
+            LaunchEnvironment.isSlimInstallProfile(
+                arguments: ["Covio", "--test-profile", "slim-install"]
+            )
+        )
+    }
+
+    func testSlimInstallProfileAcceptsTheEqualsForm() {
+        XCTAssertTrue(
+            LaunchEnvironment.isSlimInstallProfile(
+                arguments: ["Covio", "--test-profile=slim-install"]
+            )
+        )
+    }
+
+    func testOrdinaryLaunchDoesNotOpenTheSlimInstallProfile() {
+        XCTAssertFalse(LaunchEnvironment.isSlimInstallProfile(arguments: ["Covio"]))
+        XCTAssertFalse(
+            LaunchEnvironment.isSlimInstallProfile(arguments: ["Covio", "--test-profile", "other"])
+        )
+    }
 }

@@ -80,7 +80,7 @@ env -i \
   COVIO_SUPPORT_DIR="$SUPPORT" \
   COVIO_MODEL_DOWNLOAD_ACCEPTANCE_PATH="$RESULT" \
   COVIO_MODEL_DOWNLOAD_ACCEPTANCE_PAUSE_BYTES="${COVIO_MODEL_DOWNLOAD_ACCEPTANCE_PAUSE_BYTES:-33554432}" \
-  "$SOURCE_APP/Contents/MacOS/Covio"
+  "$SOURCE_APP/Contents/MacOS/Covio" --verify-model-download
 
 if [[ ! -f "$RESULT" ]]; then
   printf 'Model download acceptance produced no result.\n' >&2

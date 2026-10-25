@@ -24,6 +24,9 @@ enum ModelDownloadAcceptanceVerifier {
         let tier = LocalModelTier.compact2B
         let source = try BundleLocalModelPackageSourceProvider().source(for: tier)
         let manifest = source.manifest
+        if ProcessInfo.processInfo.environment["COVIO_MODEL_DOWNLOAD_ACCEPTANCE_DISK_GUARD_ONLY"] == "1" {
+            return try await verifyDiskGuard(tier: tier, manifest: manifest)
+        }
         let pauseThreshold = Int64(
             ProcessInfo.processInfo.environment["COVIO_MODEL_DOWNLOAD_ACCEPTANCE_PAUSE_BYTES"]
                 ?? "33554432"
@@ -115,6 +118,40 @@ enum ModelDownloadAcceptanceVerifier {
                 "buildNumber": Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "",
                 "releaseId": Bundle.main.object(forInfoDictionaryKey: "CovioReleaseId") as? String ?? "",
             ],
+        ]
+    }
+
+    private static func verifyDiskGuard(
+        tier: LocalModelTier,
+        manifest: LocalModelPackageManifest
+    ) async throws -> [String: Any] {
+        let roots = LocalModelDownloadRoots(
+            downloadsDirectory: AppPaths.localModelDownloadsDirectory,
+            packagesDirectory: AppPaths.localModelPackagesDirectory
+        )
+        let registry = LocalModelPackageRegistryStore(path: AppPaths.localModelPackagesFile)
+        let downloader = makeDownloader(roots: roots, registry: registry)
+        do {
+            _ = try await downloader.download(tier: tier)
+            throw AcceptanceError("A download on the restricted volume did not fail.")
+        } catch let failure as LocalModelDownloadFailure {
+            guard failure.code == .insufficientDisk else {
+                throw AcceptanceError("The disk guard returned \(failure.code.rawValue).")
+            }
+        }
+        guard registry.load().registration(for: tier) == nil else {
+            throw AcceptanceError("The disk guard registered a model.")
+        }
+        return [
+            "schemaVersion": 1,
+            "ok": true,
+            "tier": tier.rawValue,
+            "modelID": manifest.modelID,
+            "revision": manifest.revision,
+            "totalBytes": manifest.totalBytes,
+            "errorCode": LocalModelDownloadErrorCode.insufficientDisk.rawValue,
+            "registered": false,
+            "supportDirectory": AppPaths.supportDirectory.path,
         ]
     }
 

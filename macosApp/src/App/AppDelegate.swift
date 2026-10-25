@@ -72,6 +72,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        #if DEBUG
         if let path = ProcessInfo.processInfo.environment["COVIO_MODEL_SETUP_RENDER"],
            !path.isEmpty
         {
@@ -80,6 +81,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             return
         }
+        #endif
 
         // 调试构建可以用环境变量换玻璃底材，便于同一次构建对照截图。
         GlassSurfaceMode.applyEnvironmentOverride()

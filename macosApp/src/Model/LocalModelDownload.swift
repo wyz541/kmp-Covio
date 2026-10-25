@@ -1,5 +1,6 @@
 import Foundation
 import Hub
+import kmpDomain
 
 enum LocalModelDownloadPhase: String, Codable, Sendable, Equatable {
     case notDownloaded
@@ -56,7 +57,7 @@ struct LocalModelDownloadStatus: Codable, Equatable, Sendable {
         detail: String? = nil,
         updatedAtEpochMilliseconds: Int64
     ) {
-        let fraction = min(max(fractionCompleted, 0), 1)
+        let fraction = ModelDownloadStatePolicy.shared.clampProgress(value: fractionCompleted)
         self.schemaVersion = Self.schemaVersion
         tier = source.manifest.tier
         modelID = source.manifest.modelID
@@ -66,17 +67,23 @@ struct LocalModelDownloadStatus: Codable, Equatable, Sendable {
         totalBytes = source.manifest.totalBytes
         self.phase = phase
         self.fractionCompleted = fraction
-        downloadedBytes = Int64(Double(source.manifest.totalBytes) * fraction)
+        downloadedBytes = ModelDownloadStatePolicy.shared.downloadedBytes(
+            fractionCompleted: fraction,
+            totalBytes: source.manifest.totalBytes
+        )
         self.errorCode = errorCode
         self.detail = detail
         self.updatedAtEpochMilliseconds = updatedAtEpochMilliseconds
     }
 
     mutating func setFraction(_ fraction: Double, now: Int64) {
-        let clamped = min(max(fraction, 0), 1)
+        let clamped = ModelDownloadStatePolicy.shared.clampProgress(value: fraction)
         guard clamped >= fractionCompleted else { return }
         fractionCompleted = clamped
-        downloadedBytes = Int64(Double(totalBytes) * clamped)
+        downloadedBytes = ModelDownloadStatePolicy.shared.downloadedBytes(
+            fractionCompleted: clamped,
+            totalBytes: totalBytes
+        )
         updatedAtEpochMilliseconds = now
     }
 }
@@ -120,8 +127,8 @@ struct BundleLocalModelPackageSourceProvider: LocalModelPackageSourceProviding {
                 detail: "The bundled model manifest does not match the requested tier."
             )
         }
-        guard Self.isFlatFileName(manifest.licenseFile),
-              Self.isFlatFileName(manifest.noticeFile)
+        guard ModelPackageContract.shared.isSafeFileName(name: manifest.licenseFile),
+              ModelPackageContract.shared.isSafeFileName(name: manifest.noticeFile)
         else {
             throw LocalModelDownloadFailure(
                 code: .manifestInvalid,
@@ -172,13 +179,6 @@ struct BundleLocalModelPackageSourceProvider: LocalModelPackageSourceProviding {
         }
     }
 
-    private static func isFlatFileName(_ name: String) -> Bool {
-        !name.isEmpty
-            && name != "."
-            && name != ".."
-            && !name.contains("/")
-            && !name.contains("\\")
-    }
 }
 
 protocol LocalModelRemoteDownloading: Sendable {
@@ -365,8 +365,13 @@ actor LocalModelDownloader {
             status.updatedAtEpochMilliseconds = nowEpochMilliseconds()
             normalized = true
         }
-        if status.phase == .downloading || status.phase == .verifying {
-            status.phase = .paused
+        let normalizedPhaseKey = ModelDownloadStatePolicy.shared.phaseKeyAfterInterruption(
+            phaseKey: status.phase.rawValue
+        )
+        if normalizedPhaseKey != status.phase.rawValue,
+           let normalizedPhase = LocalModelDownloadPhase(rawValue: normalizedPhaseKey)
+        {
+            status.phase = normalizedPhase
             status.detail = "The previous download was interrupted."
             status.updatedAtEpochMilliseconds = nowEpochMilliseconds()
             normalized = true
@@ -507,12 +512,13 @@ actor LocalModelDownloader {
             let cancelled = pauseRequested || Task.isCancelled || Self.isCancellation(error)
             let failure = Self.failure(from: error)
             var next = activeStatus ?? status
+            next.phase = LocalModelDownloadPhase(
+                rawValue: ModelDownloadStatePolicy.shared.phaseKeyAfterFailure(paused: cancelled)
+            ) ?? .failed
             if cancelled {
-                next.phase = .paused
                 next.errorCode = .cancelled
                 next.detail = "The model download is paused."
             } else {
-                next.phase = .failed
                 next.errorCode = failure.code
                 next.detail = failure.detail
             }
@@ -757,33 +763,19 @@ actor LocalModelDownloader {
                 detail: "The requested model tier has no trusted package definition."
             )
         }
-        let manifest = source.manifest
-        guard manifest.schemaVersion == 1,
-              manifest.tier == tier,
-              manifest.modelID == expectation.modelID,
-              manifest.revision == expectation.revision,
-              manifest.license == expectation.license,
-              manifest.totalBytes == expectation.totalBytes,
-              manifest.totalBytes == manifest.files.reduce(0, { $0 + $1.size })
-        else {
+        let validation = ModelPackageContract.shared.validateManifestText(
+            manifestText: String(decoding: source.manifestData, as: UTF8.self),
+            expectedTier: tier.rawValue,
+            expectedModelId: expectation.modelID,
+            expectedRevision: expectation.revision,
+            expectedRuntimeDirectory: "Models/\(tier.runtimeDirectoryName)",
+            expectedTotalBytes: expectation.totalBytes,
+            expectedLicense: expectation.license
+        )
+        guard validation.valid else {
             throw LocalModelDownloadFailure(
                 code: .manifestInvalid,
-                detail: "The bundled model manifest does not match the trusted package definition."
-            )
-        }
-        let paths = manifest.files.map(\.path) + [manifest.licenseFile, manifest.noticeFile]
-        guard paths.allSatisfy({
-            !$0.isEmpty
-                && !$0.hasPrefix("/")
-                && !$0.contains("/")
-                && !$0.contains("\\")
-                && !$0.contains("*")
-                && !$0.contains("?")
-                && !$0.contains("[")
-        }) else {
-            throw LocalModelDownloadFailure(
-                code: .manifestInvalid,
-                detail: "The bundled model manifest contains an unsafe file path."
+                detail: validation.detail
             )
         }
     }

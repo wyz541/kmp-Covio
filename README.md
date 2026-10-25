@@ -391,6 +391,9 @@ The default app downloads model packages through `macosApp/src/Model/LocalModelD
 The downloader uses a fixed manifest revision and stores files under `$HOME/Library/Application Support/com.wyz.covio/Models/`.
 It pauses and resumes through the Hub download cache.
 It verifies the complete package before registering it.
+The manifest, status, registry, and path rules live in `kmpDomain/src/com/wyz/covio/core/ModelPackageContract.kt`.
+A JVM or Windows host supplies transport and storage adapters. The model runtime remains platform-specific.
+The Windows runtime boundary is recorded in [#391](https://github.com/wyz541/kmp-Covio/issues/391).
 The model setup UI is tracked by [#380](https://github.com/wyz541/kmp-Covio/issues/380).
 
 Create a Draft Release with the default slim package:

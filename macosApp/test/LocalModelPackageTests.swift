@@ -34,6 +34,38 @@ final class LocalModelPackageTests: XCTestCase {
         }
     }
 
+    func testUnsafeManifestPathIsRejectedByTheSharedContract() throws {
+        let package = try makePackage()
+        let manifestURL = package.directory.appendingPathComponent("FileNamingModelManifest.json")
+        let manifest = try JSONDecoder().decode(
+            LocalModelPackageManifest.self,
+            from: Data(contentsOf: manifestURL)
+        )
+        let unsafe = LocalModelPackageManifest(
+            schemaVersion: manifest.schemaVersion,
+            tier: manifest.tier,
+            modelID: manifest.modelID,
+            revision: manifest.revision,
+            displayName: manifest.displayName,
+            runtimeDirectory: manifest.runtimeDirectory,
+            license: manifest.license,
+            licenseFile: manifest.licenseFile,
+            noticeFile: manifest.noticeFile,
+            totalBytes: manifest.totalBytes,
+            files: manifest.files.map {
+                LocalModelPackageFile(path: "../\($0.path)", size: $0.size, sha256: $0.sha256)
+            }
+        )
+        try JSONEncoder().encode(unsafe).write(to: manifestURL)
+
+        XCTAssertThrowsError(
+            try makeVerifier(totalBytes: package.modelSize)
+                .verify(directory: package.directory, tier: .compact2B)
+        ) {
+            XCTAssertEqual(($0 as? LocalModelPackageFailure)?.code, .invalidPath)
+        }
+    }
+
     func testRevisionMismatchIsRejected() throws {
         let package = try makePackage(revision: String(repeating: "b", count: 40))
         XCTAssertThrowsError(

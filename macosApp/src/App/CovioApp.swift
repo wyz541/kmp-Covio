@@ -51,6 +51,9 @@ enum CovioMain {
         if handleChargeLimitMaintenance(arguments) {
             return
         }
+        if handleFanControlMaintenance(arguments) {
+            return
+        }
 #endif
         CovioApp.main()
     }
@@ -226,6 +229,67 @@ enum CovioMain {
         return false
     }
 
+    /// Debug 构建的风扇维护入口。配置写入要求完整身份握手；恢复始终允许。
+    private static func handleFanControlMaintenance(_ arguments: [String]) -> Bool {
+        if arguments.contains(DebugFanCommand.status) {
+            let status = HelperClient().fanControlStatus()
+            exit(printFanControlStatus(status))
+        }
+        if arguments.contains(DebugFanCommand.configureMinimum) {
+            let client = HelperClient()
+            let status = HelperReleaseInspector.inspect(client: client)
+            guard status == .match else {
+                log("Privileged write rejected by the helper release handshake: \(status)")
+                exit(1)
+            }
+            let result = client.configureFanControl(
+                MonitorFanConfiguration(enabled: true, mode: .manual)
+            )
+            let value: [String: String] = [
+                "ok": result.ok ? "true" : "false",
+                "message": result.message ?? "",
+                "status": result.status.map(fanControlStatusText) ?? "unknown",
+            ]
+            guard printJSON(value) else { exit(1) }
+            exit(result.ok ? 0 : 1)
+        }
+        if arguments.contains(DebugFanCommand.restore) {
+            let result = HelperClient().restoreFanControl()
+            let value: [String: String] = [
+                "ok": result.ok ? "true" : "false",
+                "message": result.message ?? "",
+                "status": result.status.map(fanControlStatusText) ?? "unknown",
+            ]
+            guard printJSON(value) else { exit(1) }
+            exit(result.ok ? 0 : 1)
+        }
+        return false
+    }
+
+    private static func printFanControlStatus(_ status: FanControlHelperStatus?) -> Int32 {
+        guard let status else {
+            log("Helper did not report fan control status")
+            return 1
+        }
+        guard printJSON(["status": fanControlStatusText(status)]) else { return 1 }
+        return 0
+    }
+
+    private static func fanControlStatusText(_ status: FanControlHelperStatus) -> String {
+        var parts: [String] = [
+            "active=\(status.active)",
+            "mode=\(status.mode)",
+            "leaseRemainingSeconds=\(status.leaseRemainingSeconds)",
+        ]
+        if let controlTemperature = status.controlTemperature {
+            parts.append("controlTemperature=\(controlTemperature)")
+        } else {
+            parts.append("controlTemperature=nil")
+        }
+        parts.append("error=\(status.error ?? "")")
+        return parts.joined(separator: ",")
+    }
+
     private static func printChargeLimitReply(
         command: String,
         payload: [String: String] = [:],
@@ -301,6 +365,12 @@ enum MaintenanceCommand {
 
 #if DEBUG
 /// 只用于真机验证的调试命令。发布构建不包含这些入口。
+enum DebugFanCommand {
+    static let status = "--fan-control-status"
+    static let configureMinimum = "--fan-control-configure-minimum"
+    static let restore = "--fan-control-restore"
+}
+
 enum DebugChargeCommand {
     static let helperStatus = "--helper-status"
     static let status = "--charge-limit-status"

@@ -274,6 +274,26 @@ seed_legacy_helper() {
     > "$TX_LAUNCHD_PATH"
 }
 
+printf 'case: app quit probe targets only the installed app path\n'
+FAKE_PGREP="$TEST_ROOT/fake-pgrep"
+FAKE_PGREP_LOG="$TEST_ROOT/fake-pgrep.log"
+cat > "$FAKE_PGREP" <<'PGGREP'
+#!/bin/bash
+printf '%s\n' "$*" > "$FAKE_PGREP_LOG"
+exit 1
+PGGREP
+chmod 0755 "$FAKE_PGREP"
+OLD_PGREP="$COVIO_TX_PGREP"
+OLD_TEST_MODE="${TX_TEST_MODE:-1}"
+TX_APP_PATH="$TEST_ROOT/Applications/Covio.app"
+COVIO_TX_PGREP="$FAKE_PGREP"
+TX_TEST_MODE=0
+export FAKE_PGREP_LOG
+covio_tx_quit_running_app
+assert_eq "$(cat "$FAKE_PGREP_LOG")" "-f -x $TX_APP_PATH/Contents/MacOS/Covio" "app quit probe did not use the installed path"
+COVIO_TX_PGREP="$OLD_PGREP"
+TX_TEST_MODE="$OLD_TEST_MODE"
+
 printf 'case: successful upgrade commits app, helper and record\n'
 prepare_case success 0.5.2 2 "$NEW_COMMIT"
 seed_legacy_helper

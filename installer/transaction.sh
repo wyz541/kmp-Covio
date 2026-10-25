@@ -461,16 +461,20 @@ covio_tx_run_as_user() {
     /bin/launchctl asuser "$uid" /usr/bin/sudo -u "$user" -H "$@"
 }
 
+covio_tx_running_installed_app() {
+    "$COVIO_TX_PGREP" -f -x "$TX_APP_PATH/Contents/MacOS/Covio" >/dev/null 2>&1
+}
+
 covio_tx_quit_running_app() {
     if [[ "$TX_TEST_MODE" == "1" ]]; then
         return 0
     fi
-    "$COVIO_TX_PGREP" -x Covio >/dev/null 2>&1 || return 0
+    covio_tx_running_installed_app || return 0
     covio_tx_log "Asking Covio to quit before the bundle exchange"
     covio_tx_run_as_user /usr/bin/osascript -e 'tell application id "com.wyz.covio" to quit' || return 1
     local attempt
     for attempt in $(seq 1 40); do
-        "$COVIO_TX_PGREP" -x Covio >/dev/null 2>&1 || return 0
+        covio_tx_running_installed_app || return 0
         sleep 0.25
     done
     covio_tx_log "Covio did not quit; upgrade stopped before changing the app"

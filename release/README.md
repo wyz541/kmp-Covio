@@ -45,3 +45,15 @@ Do not edit generated files by hand.
 The source manifest contains the release inputs.
 The artifact manifest adds `gitCommit`, `releaseId` and `helperSHA256`.
 `CovioHelper` statically links `kmpDomain`; the app bundle must not supply its runtime dependencies.
+
+Build and create a Draft Release:
+
+```sh
+bash scripts/create-release.sh
+```
+
+Verify all downloaded Draft assets and publish explicitly:
+
+```sh
+bash scripts/publish-release.sh v<tag>
+```

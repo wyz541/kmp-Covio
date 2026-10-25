@@ -23,6 +23,10 @@ PLIST_BUDDY="/usr/libexec/PlistBuddy"
 FILE_NAMING_MODEL_DIR="${COVIO_FILE_NAMING_MODEL_DIR:-}"
 MODEL_MANIFEST="$ROOT/macosApp/src/AutoNaming/FileNamingModelManifest.json"
 MODEL_VERIFY="$ROOT/scripts/file_naming_model.py"
+RELEASE_SIGN_IDENTITY="${COVIO_CODE_SIGN_IDENTITY:-}"
+INSTALLER_SIGN_IDENTITY="${COVIO_INSTALLER_SIGN_IDENTITY:-}"
+DEVELOPMENT_TEAM="${COVIO_DEVELOPMENT_TEAM:-}"
+NOTARY_PROFILE="${COVIO_NOTARY_PROFILE:-}"
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
   printf 'This script requires macOS.\n' >&2
@@ -48,22 +52,57 @@ python3 -I "$MODEL_VERIFY" --manifest "$MODEL_MANIFEST" verify-directory "$FILE_
 python3 -I "$ROOT/scripts/release_manifest.py" check-clean
 VERSION="$(python3 -I "$ROOT/scripts/release_manifest.py" value productVersion)"
 BUILD_NUMBER="$(python3 -I "$ROOT/scripts/release_manifest.py" value buildNumber)"
+CHANNEL="$(python3 -I "$ROOT/scripts/release_manifest.py" value channel)"
 COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
 RELEASE_ID="$(python3 -I "$ROOT/scripts/release_manifest.py" release-id --commit "$COMMIT")"
 DMG_PATH="$DIST/$APP_NAME-$VERSION.dmg"
+APP_ZIP="$DIST/$APP_NAME-$VERSION.app.zip"
+PKG_PATH="$DIST/$APP_NAME-$VERSION.pkg"
+
+if [[ "$CHANNEL" == "public" ]]; then
+  if [[ -z "$RELEASE_SIGN_IDENTITY" || "$RELEASE_SIGN_IDENTITY" == "-" ]]; then
+    printf 'Public packaging requires COVIO_CODE_SIGN_IDENTITY.\n' >&2
+    exit 1
+  fi
+  if [[ -z "$INSTALLER_SIGN_IDENTITY" ]]; then
+    printf 'Public packaging requires COVIO_INSTALLER_SIGN_IDENTITY.\n' >&2
+    exit 1
+  fi
+  if [[ -z "$DEVELOPMENT_TEAM" ]]; then
+    printf 'Public packaging requires COVIO_DEVELOPMENT_TEAM.\n' >&2
+    exit 1
+  fi
+  if [[ -z "$NOTARY_PROFILE" ]]; then
+    printf 'Public packaging requires COVIO_NOTARY_PROFILE.\n' >&2
+    exit 1
+  fi
+fi
 
 if [[ -d "$APP_IMAGE" ]]; then
   find "$APP_IMAGE" -depth -delete
 fi
-if [[ -e "$DMG_PATH" ]]; then
-  unlink "$DMG_PATH"
-fi
+for artifact in "$DMG_PATH" "$APP_ZIP" "$PKG_PATH"; do
+  if [[ -e "$artifact" ]]; then
+    unlink "$artifact"
+  fi
+done
 mkdir -p "$DIST"
 
 cd "$ROOT"
 
 # ARCHS 在工程里也写死为 arm64：kmpDomain.framework 只有 macosArm64 一个切片。
 # 这里再传一次，任何人从命令行归档都得到同样的结果。
+XCODE_SIGN_ARGS=()
+if [[ -n "$RELEASE_SIGN_IDENTITY" && "$RELEASE_SIGN_IDENTITY" != "-" ]]; then
+  XCODE_SIGN_ARGS+=(
+    CODE_SIGN_STYLE=Manual
+    CODE_SIGN_IDENTITY="$RELEASE_SIGN_IDENTITY"
+    DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM"
+  )
+else
+  XCODE_SIGN_ARGS+=(CODE_SIGN_STYLE=Automatic CODE_SIGN_IDENTITY=-)
+fi
+
 xcodebuild \
   -project "$PROJECT" \
   -scheme "$SCHEME" \
@@ -79,6 +118,7 @@ xcodebuild \
   CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
   COVIO_GIT_COMMIT="$COMMIT" \
   COVIO_RELEASE_ID="$RELEASE_ID" \
+  "${XCODE_SIGN_ARGS[@]}" \
   archive
 
 ARCHIVED_APP="$ARCHIVE/Products/Applications/$APP_NAME.app"
@@ -132,7 +172,7 @@ require_plist() {
 # 版本从 release manifest 走到 MARKETING_VERSION，再经 Info.plist 落进包内。
 require_plist CFBundleShortVersionString "$VERSION"
 require_plist CFBundleVersion "$BUILD_NUMBER"
-require_plist CovioReleaseChannel "$(python3 -I "$ROOT/scripts/release_manifest.py" value channel)"
+require_plist CovioReleaseChannel "$CHANNEL"
 require_plist CovioGitCommit "$COMMIT"
 require_plist CovioReleaseId "$RELEASE_ID"
 require_plist CovioHelperProtocolVersion "$(python3 -I "$ROOT/scripts/release_manifest.py" value helperProtocolVersion)"
@@ -164,10 +204,37 @@ if [[ ! -x "$HELPER" || ! -f "$DAEMON_PLIST" ]]; then
   exit 1
 fi
 
-# 统一用 ad-hoc 签名对外发布。归档里的签名可能带本地开发者身份，不适合分发。
-# 内嵌的 framework 由 --deep 一起签。
-/usr/bin/codesign --force --deep --sign - "$APP_IMAGE"
+# 内部包使用 ad-hoc。正式包必须使用 Developer ID Application 和 hardened runtime。
+if [[ -n "$RELEASE_SIGN_IDENTITY" && "$RELEASE_SIGN_IDENTITY" != "-" ]]; then
+  /usr/bin/codesign \
+    --force \
+    --deep \
+    --options runtime \
+    --timestamp \
+    --sign "$RELEASE_SIGN_IDENTITY" \
+    "$APP_IMAGE"
+else
+  /usr/bin/codesign --force --deep --sign - "$APP_IMAGE"
+fi
 /usr/bin/codesign --verify --deep --strict "$APP_IMAGE"
+
+notarize_and_staple() {
+  local target="$1"
+  local submit_path="$2"
+  printf 'Submitting %s for notarization\n' "$target"
+  /usr/bin/xcrun notarytool submit "$submit_path" \
+    --keychain-profile "$NOTARY_PROFILE" \
+    --wait
+  /usr/bin/xcrun stapler staple "$target"
+  /usr/bin/xcrun stapler validate "$target"
+}
+
+if [[ -n "$NOTARY_PROFILE" ]]; then
+  APP_NOTARY_ZIP="$DIST/$APP_NAME-$VERSION-notary.zip"
+  /usr/bin/ditto -c -k --keepParent "$APP_IMAGE" "$APP_NOTARY_ZIP"
+  notarize_and_staple "$APP_IMAGE" "$APP_NOTARY_ZIP"
+  unlink "$APP_NOTARY_ZIP"
+fi
 
 python3 -I "$ROOT/scripts/release_manifest.py" generate-artifact \
   --helper "$HELPER" \
@@ -175,6 +242,9 @@ python3 -I "$ROOT/scripts/release_manifest.py" generate-artifact \
   --commit "$COMMIT"
 
 bash "$ROOT/scripts/verify-helper-daemon.sh" "$APP_IMAGE"
+
+# app.zip lets the publish command download and verify the app and helper pair again.
+/usr/bin/ditto -c -k --keepParent "$APP_IMAGE" "$APP_ZIP"
 
 # 镜像的根要同时有 app 与指向 /Applications 的链接，装的时候才能拖进去。
 STAGE="$(mktemp -d)"
@@ -198,9 +268,50 @@ fi
 
 /usr/bin/hdiutil verify "$DMG_PATH" >/dev/null
 
+if [[ -n "$RELEASE_SIGN_IDENTITY" && "$RELEASE_SIGN_IDENTITY" != "-" ]]; then
+  /usr/bin/codesign --force --timestamp --sign "$RELEASE_SIGN_IDENTITY" "$DMG_PATH"
+  /usr/bin/codesign --verify --strict "$DMG_PATH"
+fi
+
+PKG_SIGN_ARGS=()
+if [[ -n "$INSTALLER_SIGN_IDENTITY" ]]; then
+  PKG_SIGN_ARGS+=(--sign "$INSTALLER_SIGN_IDENTITY")
+fi
+if [[ -e "$PKG_PATH" ]]; then
+  unlink "$PKG_PATH"
+fi
+PKG_COMMAND=(
+  /usr/bin/pkgbuild
+  --component "$APP_IMAGE"
+  --install-location "/Applications"
+  --identifier "$APP_ID.pkg"
+  --version "$VERSION"
+)
+if [[ ${#PKG_SIGN_ARGS[@]} -gt 0 ]]; then
+  PKG_COMMAND+=("${PKG_SIGN_ARGS[@]}")
+fi
+PKG_COMMAND+=("$PKG_PATH")
+"${PKG_COMMAND[@]}"
+
+if [[ -n "$NOTARY_PROFILE" ]]; then
+  notarize_and_staple "$DMG_PATH" "$DMG_PATH"
+  if [[ ${#PKG_SIGN_ARGS[@]} -eq 0 ]]; then
+    printf 'Public packaging requires a signed PKG before notarization.\n' >&2
+    exit 1
+  fi
+  notarize_and_staple "$PKG_PATH" "$PKG_PATH"
+fi
+
+if [[ ! -f "$APP_ZIP" || ! -f "$PKG_PATH" ]]; then
+  printf 'Packaging did not create the expected app zip or PKG.\n' >&2
+  exit 1
+fi
+
 APP_BYTES="$(du -sk "$APP_IMAGE" | awk '{print $1 * 1024}')"
 DMG_BYTES="$(stat -f %z "$DMG_PATH")"
 printf 'Created %s\n' "$APP_IMAGE"
 printf 'App bytes: %s\n' "$APP_BYTES"
 printf 'Created %s\n' "$DMG_PATH"
 printf 'DMG bytes: %s\n' "$DMG_BYTES"
+printf 'Created %s\n' "$APP_ZIP"
+printf 'Created %s\n' "$PKG_PATH"

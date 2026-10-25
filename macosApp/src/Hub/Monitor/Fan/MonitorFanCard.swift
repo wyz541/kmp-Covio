@@ -541,6 +541,8 @@ struct MonitorFanPopover: View {
                 .controlSize(.mini)
             }
         }
+        .frame(minHeight: 24)
+        .contentShape(Rectangle())
         .disabled(model.busy)
     }
 
@@ -608,6 +610,24 @@ struct MonitorFanPopover: View {
 
     private var manualControls: some View {
         VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Text(ContractCopy.copyMonitorFanManualRpm.text(for: language))
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(MacTheme.textPrimary)
+                Spacer(minLength: 0)
+                compactActionButton(
+                    ContractCopy.copyMonitorFanFullSpeedAll,
+                    systemImage: "forward.fill"
+                ) {
+                    model.boostAllFans(reading: reading)
+                }
+                compactActionButton(
+                    ContractCopy.copyMonitorFanRestoreAutoCurve,
+                    systemImage: "arrow.uturn.backward"
+                ) {
+                    model.restoreAutoCurve(reading: reading)
+                }
+            }
             if reading.units.count > 1 {
                 HStack(spacing: 10) {
                     VStack(alignment: .leading, spacing: 2) {
@@ -652,6 +672,16 @@ struct MonitorFanPopover: View {
                         ))
                             .font(.system(size: 10, weight: .semibold, design: .rounded))
                             .monospacedDigit()
+                        compactActionButton(
+                            ContractCopy.copyMonitorFanFullSpeed,
+                            systemImage: "forward.fill"
+                        ) {
+                            model.boostFan(fan.index, reading: reading)
+                        }
+                        .accessibilityLabel(String(
+                            format: ContractCopy.copyMonitorFanFullSpeedUnit.text(for: language),
+                            fan.index + 1
+                        ))
                     }
                     Picker("", selection: Binding(
                         get: { model.manualMode(for: fan.index) },
@@ -696,6 +726,32 @@ struct MonitorFanPopover: View {
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private func compactActionButton(
+        _ title: LocalizedCopy,
+        systemImage: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Group {
+            if rendersForSnapshot {
+                Button(action: action) {
+                    Label(title.text(for: language), systemImage: systemImage)
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(MacTheme.textPrimary)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(MacTheme.textSecondary.opacity(0.12), in: Capsule())
+                }
+                .buttonStyle(.plain)
+            } else {
+                Button(title.text(for: language), systemImage: systemImage, action: action)
+                    .buttonStyle(.bordered)
+                    .controlSize(.mini)
+            }
+        }
+        .disabled(model.busy)
     }
 
     private var fanSection: some View {

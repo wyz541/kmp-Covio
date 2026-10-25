@@ -1,6 +1,7 @@
 # ADR-0018：用统一发布身份和 SMAppService 管理特权 helper
 
-- Status：accepted
+- Status：superseded
+- Superseded by：[ADR-0020](adr-0020-local-only-helper-distribution.md)
 - Kind：architecture
 - Date：2026-10-24
 - Supersedes：ADR-0006 的 helper 形式部分

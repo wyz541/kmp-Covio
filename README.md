@@ -364,6 +364,8 @@ The package script writes these files:
 
 - `dist/Covio.app`
 - `dist/Covio-0.5.2.dmg`
+- `dist/Covio-0.5.2.pkg`
+- `dist/Covio-0.5.2.app.zip`
 - `dist/release-manifest.json`
 
 The script verifies the model manifest, file sizes, SHA-256 values, license, and NOTICE.
@@ -374,6 +376,18 @@ The app contains `Contents/MacOS/CovioHelper` and the matching `SMAppService` da
 The script checks that the bundle carries `macosApp/src/Covio.icns` and applies an ad-hoc signature.
 The script builds the DMG with `diskutil image create`.
 The script prints app and DMG byte sizes.
+
+Create a Draft Release with:
+
+```sh
+bash scripts/create-release.sh
+```
+
+Publish the verified Draft with:
+
+```sh
+bash scripts/publish-release.sh v0.5.2-internal.1
+```
 
 The model adds about 1.8 GB before DMG compression.
 Use `python3 scripts/file_naming_model.py verify-manifest` to validate the fixed file list without downloading weights.

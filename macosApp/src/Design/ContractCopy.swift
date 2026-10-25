@@ -292,7 +292,7 @@ enum ContractCopy {
     /// `copy/general/local-model/minimum`
     static let copyGeneralLocalModelMinimum = LocalizedCopy(key: "copy/general/local-model/minimum", en: "Requires %d GB RAM", zhHans: "需要 %d GB 内存")
     /// `copy/general/local-model/summary`
-    static let copyGeneralLocalModelSummary = LocalizedCopy(key: "copy/general/local-model/summary", en: "Import an offline model package. The model files stay on this Mac.", zhHans: "导入离线模型包。模型文件只保存在这台 Mac 上。")
+    static let copyGeneralLocalModelSummary = LocalizedCopy(key: "copy/general/local-model/summary", en: "Download or import a model. AI features run locally after setup.", zhHans: "下载或导入模型。安装完成后，AI 功能在本机运行。")
     /// `copy/general/local-model/title`
     static let copyGeneralLocalModelTitle = LocalizedCopy(key: "copy/general/local-model/title", en: "Local model", zhHans: "本地模型")
     /// `copy/general/local-model/unsupported`
@@ -567,6 +567,60 @@ enum ContractCopy {
     static let copyModeDark = LocalizedCopy(key: "copy/mode/dark", en: "Dark", zhHans: "深色")
     /// `copy/mode/light`
     static let copyModeLight = LocalizedCopy(key: "copy/mode/light", en: "Light", zhHans: "浅色")
+    /// `copy/model-setup/action-download`
+    static let copyModelSetupActionDownload = LocalizedCopy(key: "copy/model-setup/action-download", en: "Download model", zhHans: "下载模型")
+    /// `copy/model-setup/action-pause`
+    static let copyModelSetupActionPause = LocalizedCopy(key: "copy/model-setup/action-pause", en: "Pause", zhHans: "暂停")
+    /// `copy/model-setup/action-remove`
+    static let copyModelSetupActionRemove = LocalizedCopy(key: "copy/model-setup/action-remove", en: "Remove model", zhHans: "移除模型")
+    /// `copy/model-setup/action-resume`
+    static let copyModelSetupActionResume = LocalizedCopy(key: "copy/model-setup/action-resume", en: "Resume", zhHans: "继续")
+    /// `copy/model-setup/action-retry`
+    static let copyModelSetupActionRetry = LocalizedCopy(key: "copy/model-setup/action-retry", en: "Retry", zhHans: "重试")
+    /// `copy/model-setup/error-activation`
+    static let copyModelSetupErrorActivation = LocalizedCopy(key: "copy/model-setup/error-activation", en: "The model was downloaded but could not be activated. Retry.", zhHans: "模型已下载，但无法启用。请重试。")
+    /// `copy/model-setup/error-disk`
+    static let copyModelSetupErrorDisk = LocalizedCopy(key: "copy/model-setup/error-disk", en: "Not enough disk space. Free space and retry.", zhHans: "磁盘空间不足。释放空间后重试。")
+    /// `copy/model-setup/error-generic`
+    static let copyModelSetupErrorGeneric = LocalizedCopy(key: "copy/model-setup/error-generic", en: "The model could not be installed. Retry or import a local package.", zhHans: "无法安装模型。请重试或导入本地模型包。")
+    /// `copy/model-setup/error-memory`
+    static let copyModelSetupErrorMemory = LocalizedCopy(key: "copy/model-setup/error-memory", en: "This Mac does not have enough available memory.", zhHans: "这台 Mac 的可用内存不足。")
+    /// `copy/model-setup/error-network`
+    static let copyModelSetupErrorNetwork = LocalizedCopy(key: "copy/model-setup/error-network", en: "The model could not be downloaded. Check the network and retry.", zhHans: "无法下载模型。检查网络后重试。")
+    /// `copy/model-setup/error-revision`
+    static let copyModelSetupErrorRevision = LocalizedCopy(key: "copy/model-setup/error-revision", en: "The model revision does not match this app. Import a compatible package or update the app.", zhHans: "模型 revision 与此 App 不匹配。请导入兼容模型包或更新 App。")
+    /// `copy/model-setup/error-verification`
+    static let copyModelSetupErrorVerification = LocalizedCopy(key: "copy/model-setup/error-verification", en: "The model failed verification. Retry or import a valid package.", zhHans: "模型未通过校验。请重试或导入有效模型包。")
+    /// `copy/model-setup/license`
+    static let copyModelSetupLicense = LocalizedCopy(key: "copy/model-setup/license", en: "License: %@", zhHans: "许可证：%@")
+    /// `copy/model-setup/network`
+    static let copyModelSetupNetwork = LocalizedCopy(key: "copy/model-setup/network", en: "First download requires an internet connection. After setup, AI works offline.", zhHans: "首次下载需要网络连接。安装完成后，AI 功能可离线使用。")
+    /// `copy/model-setup/recommended`
+    static let copyModelSetupRecommended = LocalizedCopy(key: "copy/model-setup/recommended", en: "Recommended", zhHans: "推荐")
+    /// `copy/model-setup/remove-body`
+    static let copyModelSetupRemoveBody = LocalizedCopy(key: "copy/model-setup/remove-body", en: "AI features will stop until a model is installed again. Imported model files remain on this Mac.", zhHans: "AI 功能会停止，直到重新安装模型。导入的模型文件仍保留在这台 Mac。")
+    /// `copy/model-setup/remove-title`
+    static let copyModelSetupRemoveTitle = LocalizedCopy(key: "copy/model-setup/remove-title", en: "Remove this model?", zhHans: "移除此模型？")
+    /// `copy/model-setup/select-model`
+    static let copyModelSetupSelectModel = LocalizedCopy(key: "copy/model-setup/select-model", en: "Choose another model in Settings.", zhHans: "请在设置中选择其他模型。")
+    /// `copy/model-setup/size`
+    static let copyModelSetupSize = LocalizedCopy(key: "copy/model-setup/size", en: "Download size: %@", zhHans: "下载大小：%@")
+    /// `copy/model-setup/state-downloading`
+    static let copyModelSetupStateDownloading = LocalizedCopy(key: "copy/model-setup/state-downloading", en: "Downloading %d%%", zhHans: "正在下载 %d%%")
+    /// `copy/model-setup/state-failed`
+    static let copyModelSetupStateFailed = LocalizedCopy(key: "copy/model-setup/state-failed", en: "Model setup failed", zhHans: "模型安装失败")
+    /// `copy/model-setup/state-not-installed`
+    static let copyModelSetupStateNotInstalled = LocalizedCopy(key: "copy/model-setup/state-not-installed", en: "Not installed", zhHans: "未安装")
+    /// `copy/model-setup/state-paused`
+    static let copyModelSetupStatePaused = LocalizedCopy(key: "copy/model-setup/state-paused", en: "Download paused", zhHans: "下载已暂停")
+    /// `copy/model-setup/state-ready`
+    static let copyModelSetupStateReady = LocalizedCopy(key: "copy/model-setup/state-ready", en: "Ready for offline use", zhHans: "已可离线使用")
+    /// `copy/model-setup/state-verifying`
+    static let copyModelSetupStateVerifying = LocalizedCopy(key: "copy/model-setup/state-verifying", en: "Verifying downloaded files", zhHans: "正在校验下载文件")
+    /// `copy/model-setup/summary`
+    static let copyModelSetupSummary = LocalizedCopy(key: "copy/model-setup/summary", en: "Covio downloads the model after your confirmation. The model runs only on this Mac.", zhHans: "确认后 Covio 下载模型。模型只在这台 Mac 上运行。")
+    /// `copy/model-setup/title`
+    static let copyModelSetupTitle = LocalizedCopy(key: "copy/model-setup/title", en: "AI model required", zhHans: "需要 AI 模型")
     /// `copy/monitor/battery/remaining`
     static let copyMonitorBatteryRemaining = LocalizedCopy(key: "copy/monitor/battery/remaining", en: "Remaining", zhHans: "剩余")
     /// `copy/monitor/battery/source`
@@ -1699,6 +1753,33 @@ enum ContractCopy {
         copyMacos27AlignmentStaticVerified,
         copyModeDark,
         copyModeLight,
+        copyModelSetupActionDownload,
+        copyModelSetupActionPause,
+        copyModelSetupActionRemove,
+        copyModelSetupActionResume,
+        copyModelSetupActionRetry,
+        copyModelSetupErrorActivation,
+        copyModelSetupErrorDisk,
+        copyModelSetupErrorGeneric,
+        copyModelSetupErrorMemory,
+        copyModelSetupErrorNetwork,
+        copyModelSetupErrorRevision,
+        copyModelSetupErrorVerification,
+        copyModelSetupLicense,
+        copyModelSetupNetwork,
+        copyModelSetupRecommended,
+        copyModelSetupRemoveBody,
+        copyModelSetupRemoveTitle,
+        copyModelSetupSelectModel,
+        copyModelSetupSize,
+        copyModelSetupStateDownloading,
+        copyModelSetupStateFailed,
+        copyModelSetupStateNotInstalled,
+        copyModelSetupStatePaused,
+        copyModelSetupStateReady,
+        copyModelSetupStateVerifying,
+        copyModelSetupSummary,
+        copyModelSetupTitle,
         copyMonitorBatteryRemaining,
         copyMonitorBatterySource,
         copyMonitorBatteryState,

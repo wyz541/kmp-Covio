@@ -5,11 +5,42 @@ import kmpDomain
 struct AgentTabView: View {
     @Bindable var agent: AgentChatRuntime
     let language: AppLanguage
+    let modelSetup: ModelSetupRuntime?
 
     @State private var draft = ""
     @FocusState private var inputFocused: Bool
 
+    init(
+        agent: AgentChatRuntime,
+        language: AppLanguage,
+        modelSetup: ModelSetupRuntime? = nil
+    ) {
+        _agent = Bindable(agent)
+        self.language = language
+        self.modelSetup = modelSetup
+    }
+
     var body: some View {
+        Group {
+            if let modelSetup,
+               !modelSetup.isAIReady || !modelSetup.activeModelSupportsAgent
+            {
+                ModelSetupInlineCard(
+                    model: modelSetup,
+                    language: language,
+                    purpose: .agent
+                )
+            } else {
+                chatBody
+            }
+        }
+        .frame(height: HubMetrics.agentBodyHeight, alignment: .top)
+        .task { await modelSetup?.refresh() }
+        .onAppear { agent.language = language }
+        .onChange(of: language) { _, next in agent.language = next }
+    }
+
+    private var chatBody: some View {
         VStack(spacing: MacTheme.space2) {
             transcript
             if let pending = agent.pendingAction {
@@ -24,9 +55,6 @@ struct AgentTabView: View {
                     .accessibilityLabel(error)
             }
         }
-        .frame(height: HubMetrics.agentBodyHeight, alignment: .top)
-        .onAppear { agent.language = language }
-        .onChange(of: language) { _, next in agent.language = next }
     }
 
     private var transcript: some View {

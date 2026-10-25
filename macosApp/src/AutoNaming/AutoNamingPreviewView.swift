@@ -3,13 +3,34 @@ import SwiftUI
 struct AutoNamingPreviewView: View {
     let runtime: AutoNamingRuntime
     let language: AppLanguage
+    let modelSetup: ModelSetupRuntime?
+
+    init(
+        runtime: AutoNamingRuntime,
+        language: AppLanguage,
+        modelSetup: ModelSetupRuntime? = nil
+    ) {
+        self.runtime = runtime
+        self.language = language
+        self.modelSetup = modelSetup
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: MacTheme.space2) {
-            header
-            Divider().overlay(MacTheme.divider)
-            content
-            footer
+        Group {
+            if let modelSetup, !modelSetup.isAIReady {
+                ModelSetupPanel(
+                    model: modelSetup,
+                    language: language,
+                    purpose: .naming
+                )
+            } else {
+                VStack(alignment: .leading, spacing: MacTheme.space2) {
+                    header
+                    Divider().overlay(MacTheme.divider)
+                    content
+                    footer
+                }
+            }
         }
         .padding(MacTheme.space2)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -21,6 +42,7 @@ struct AutoNamingPreviewView: View {
             RoundedRectangle(cornerRadius: MacTheme.mediumRadius, style: .continuous)
                 .strokeBorder(MacTheme.divider, lineWidth: 1)
         )
+        .task { await modelSetup?.refresh() }
     }
 
     private var header: some View {

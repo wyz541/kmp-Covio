@@ -58,6 +58,28 @@ final class AppRuntimeTests: XCTestCase {
         helperServiceManager = FakeHelperServiceManager(
             state: helperServiceState ?? (helperInstalled ? .enabled : .legacy)
         )
+        let modelRoot = directory.appendingPathComponent("Models", isDirectory: true)
+        let downloadsDirectory = modelRoot.appendingPathComponent("Downloads", isDirectory: true)
+        let packagesDirectory = modelRoot.appendingPathComponent("Packages", isDirectory: true)
+        let modelRegistry = LocalModelPackageRegistryStore(
+            path: modelRoot.appendingPathComponent("registry.json")
+        )
+        let modelInstaller = LocalModelDownloader(
+            downloadsDirectory: downloadsDirectory,
+            packagesDirectory: packagesDirectory,
+            registry: modelRegistry
+        )
+        let modelSetup = ModelSetupRuntime(
+            installer: modelInstaller,
+            registry: modelRegistry,
+            statusStore: LocalModelDownloadStatusStore(
+                roots: LocalModelDownloadRoots(
+                    downloadsDirectory: downloadsDirectory,
+                    packagesDirectory: packagesDirectory
+                )
+            ),
+            packagesDirectory: packagesDirectory
+        )
         let created = AppRuntime(
             logger: MemoryLogger(),
             configStore: ConfigStore.companion.create(path: configFile.path),
@@ -81,6 +103,7 @@ final class AppRuntimeTests: XCTestCase {
             closedLidBrightnessStore: FakeClosedLidBrightnessRecoveryStore(),
             shelf: makeShelf(),
             workspace: makeWorkspace(),
+            modelSetup: modelSetup,
             agentHistoryStore: AgentHistoryStore(
                 path: directory.appendingPathComponent("agent-history.sqlite3")
             ),
@@ -93,6 +116,17 @@ final class AppRuntimeTests: XCTestCase {
         runtime = created
         if engineStarted { created.start() }
         return created
+    }
+
+    func testStartupWithoutModelKeepsNonAIFeaturesAvailable() {
+        let created = makeRuntime()
+
+        XCTAssertNil(created.activeModelTier)
+        XCTAssertEqual(created.modelSetup.preferredState.phase, .notInstalled)
+
+        created.setLowBatteryCapacity(42, valid: true)
+
+        XCTAssertEqual(created.config.lowBatteryCapacity, 42)
     }
 
     func testAgentUIActionsUseOnlyAllowlistedSettings() {

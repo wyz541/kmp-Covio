@@ -86,6 +86,7 @@ enum class ModelDownloadErrorCodeContract(val wire: String) {
     @SerialName("busy") BUSY("busy"),
     @SerialName("sourceUnavailable") SOURCE_UNAVAILABLE("sourceUnavailable"),
     @SerialName("manifestInvalid") MANIFEST_INVALID("manifestInvalid"),
+    @SerialName("revisionMismatch") REVISION_MISMATCH("revisionMismatch"),
     @SerialName("insufficientHardware") INSUFFICIENT_HARDWARE("insufficientHardware"),
     @SerialName("insufficientMemory") INSUFFICIENT_MEMORY("insufficientMemory"),
     @SerialName("insufficientDisk") INSUFFICIENT_DISK("insufficientDisk"),

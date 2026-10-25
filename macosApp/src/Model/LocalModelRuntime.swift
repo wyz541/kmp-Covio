@@ -41,6 +41,15 @@ enum LocalModelTier: String, CaseIterable, Codable, Sendable {
         self != .heavy30BA3B
     }
 
+    var displayName: String {
+        switch self {
+        case .compact2B: "Qwen3-VL 2B Instruct"
+        case .balanced4B: "Qwen3-VL 4B Instruct"
+        case .highQuality8B: "Qwen3-VL 8B Instruct"
+        case .heavy30BA3B: "Qwen3-VL 30B-A3B Instruct"
+        }
+    }
+
     var runtimeDirectoryName: String {
         switch self {
         case .compact2B: "Qwen3VL-2B-Instruct-4bit"
@@ -182,9 +191,15 @@ struct LocalModelLease: Sendable {
 typealias LocalModelRuntime = SharedModelRuntime<ModelContainer>
 
 extension SharedModelRuntime: LocalModelContainerProviding where Resource == ModelContainer {
-    init(modelDirectory: URL) {
+    init(modelDirectory: URL?) {
         self.init(loader: {
-            try await loadLocalModelContainer(from: modelDirectory)
+            guard let modelDirectory else {
+                throw NamingModelError(
+                    .modelDirectoryMissing,
+                    detail: "No local model is installed."
+                )
+            }
+            return try await loadLocalModelContainer(from: modelDirectory)
         })
     }
 
@@ -196,9 +211,15 @@ extension SharedModelRuntime: LocalModelContainerProviding where Resource == Mod
         await unload()
     }
 
-    func replaceModelDirectory(_ directory: URL) async {
+    func replaceModelDirectory(_ directory: URL?) async {
         await replaceLoader {
-            try await loadLocalModelContainer(from: directory)
+            guard let directory else {
+                throw NamingModelError(
+                    .modelDirectoryMissing,
+                    detail: "No local model is installed."
+                )
+            }
+            return try await loadLocalModelContainer(from: directory)
         }
     }
 }

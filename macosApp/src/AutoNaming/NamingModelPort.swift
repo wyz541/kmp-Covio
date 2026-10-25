@@ -197,6 +197,22 @@ extension NamingModelServing {
     func prepareForModelSwitch() async {}
 }
 
+/// A model service used before any local package is active.
+/// It never falls back to heuristics, so the UI cannot hide a missing model.
+struct UnavailableNamingModel: NamingModelServing {
+    func preheat() async throws -> NamingModelMetrics {
+        throw NamingModelError(.modelNotLoaded, detail: "No local model is installed.")
+    }
+
+    func generate(_ request: NamingModelRequest) async throws -> NamingModelResponse {
+        throw NamingModelError(.modelNotLoaded, detail: "No local model is installed.")
+    }
+
+    func cancel() async {}
+    func release() async {}
+    func prepareForModelSwitch() async {}
+}
+
 /// 对上暴露一个入口。它串行执行请求，并统一处理超时和失败回退。
 actor NamingModelCoordinator {
     private let primary: any NamingModelPort

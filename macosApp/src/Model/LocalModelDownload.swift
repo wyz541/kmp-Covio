@@ -15,6 +15,7 @@ enum LocalModelDownloadErrorCode: String, Codable, Sendable, Equatable {
     case busy
     case sourceUnavailable
     case manifestInvalid
+    case revisionMismatch
     case insufficientHardware
     case insufficientMemory
     case insufficientDisk
@@ -260,6 +261,15 @@ struct LocalModelDownloadStatusStore: Sendable {
             ofItemAtPath: path.path
         )
     }
+}
+
+/// The model setup view model uses this boundary for download and recovery.
+/// Tests can replace the real Hub downloader without opening the network.
+protocol LocalModelInstalling: Actor {
+    func status(for tier: LocalModelTier) throws -> LocalModelDownloadStatus
+    func download(tier: LocalModelTier) async throws -> VerifiedLocalModelPackage
+    func pause() -> LocalModelDownloadStatus?
+    func reset(tier: LocalModelTier) throws
 }
 
 actor LocalModelDownloader {
@@ -554,6 +564,22 @@ actor LocalModelDownloader {
         return activeStatus
     }
 
+    /// Removes only downloader-managed staging and status data.
+    /// The registry and installed package are owned by the model setup runtime.
+    func reset(tier: LocalModelTier) throws {
+        guard activeTask == nil else {
+            throw LocalModelDownloadFailure(
+                code: .busy,
+                detail: "A model download is still active."
+            )
+        }
+        let tierDirectory = roots.downloadsDirectory
+            .appendingPathComponent(tier.rawValue, isDirectory: true)
+        if FileManager.default.fileExists(atPath: tierDirectory.path) {
+            try FileManager.default.removeItem(at: tierDirectory)
+        }
+    }
+
     private func performDownload(
         source: LocalModelPackageSource
     ) async throws -> VerifiedLocalModelPackage {
@@ -774,7 +800,9 @@ actor LocalModelDownloader {
         )
         guard validation.valid else {
             throw LocalModelDownloadFailure(
-                code: .manifestInvalid,
+                code: validation.errorCode == "revisionMismatch"
+                    ? .revisionMismatch
+                    : .manifestInvalid,
                 detail: validation.detail
             )
         }
@@ -929,6 +957,8 @@ actor LocalModelDownloader {
     }
 
 }
+
+extension LocalModelDownloader: LocalModelInstalling {}
 
 private func localModelVolumeAvailableBytes(at url: URL) -> Int64? {
     guard let values = try? url.resourceValues(

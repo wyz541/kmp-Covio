@@ -330,6 +330,7 @@ struct HubTabContent: View {
                 workspace: runtime.workspace,
                 transfer: runtime.transfer,
                 autoNaming: runtime.autoNaming,
+                modelSetup: runtime.modelSetup,
                 policy: runtime.config.fileNaming,
                 language: language,
                 searchText: chrome.searchText,
@@ -337,7 +338,11 @@ struct HubTabContent: View {
                 onConsumeRequestedFilter: workbench.consumeFileFilterRequest
             )
         } else if let runtime, tab == .agent {
-            AgentTabView(agent: runtime.agent, language: language)
+            AgentTabView(
+                agent: runtime.agent,
+                language: language,
+                modelSetup: runtime.modelSetup
+            )
         } else {
             HubPlaceholderView(
                 tab: tab,

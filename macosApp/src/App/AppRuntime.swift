@@ -68,12 +68,13 @@ final class AppRuntime {
     private(set) var agentExternalError: String?
 
     /// 文件自动命名和 Agent 共用同一个本地模型容器。
+    let modelSetup: ModelSetupRuntime
     private let localModelRuntime: LocalModelRuntime
+    private var activeModelConfiguration: NamingModelConfiguration?
     private let agentGateway: AgentServiceGateway
-    private let localModelPackageRegistry: LocalModelPackageRegistryStore
     private let modelSelectionState: LocalModelSelectionState
-    /// 当前激活的模型档位。切换完成后更新。
-    private(set) var activeModelTier: LocalModelTier
+    /// 当前激活的模型档位。没有模型时是 nil。
+    var activeModelTier: LocalModelTier? { modelSetup.activeTier }
     private let agentHistoryStore: any AgentHistoryStoring
     private let agentExternalAuditStore: (any AgentExternalAuditStoring)?
     private let monitorHistorySampler: any MonitorHistorySampling
@@ -139,6 +140,7 @@ final class AppRuntime {
         workspace: WorkspaceRuntime? = nil,
         transfer: WorkspaceTransferRuntime? = nil,
         autoNaming: AutoNamingRuntime? = nil,
+        modelSetup: ModelSetupRuntime? = nil,
         agentHistoryStore: (any AgentHistoryStoring)? = nil,
         monitorHistoryStore: (any MonitorHistoryStoring)? = nil,
         monitorHistorySampler: (any MonitorHistorySampling)? = nil,
@@ -230,39 +232,42 @@ final class AppRuntime {
         self.transfer = transfer ?? WorkspaceTransferRuntime(workspace: resolvedWorkspace)
 
         let resourceRoot = Bundle.main.resourceURL ?? Bundle.main.bundleURL
-        let packageRegistry = LocalModelPackageRegistryStore(
-            path: AppPaths.localModelPackagesFile
-        )
-        self.localModelPackageRegistry = packageRegistry
-        let importedConfiguration = Self.registeredModelConfiguration(
-            registry: packageRegistry.load(),
-            memory: LocalModelMemoryProbe.current()
-        )
-        let modelConfiguration = importedConfiguration
-            ?? NamingModelConfiguration.bundled(
-                resourceDirectory: resourceRoot,
-                environment: ProcessInfo.processInfo.environment
+        let resolvedModelSetup = modelSetup ?? ModelSetupRuntime()
+        self.modelSetup = resolvedModelSetup
+        let memory = LocalModelMemoryProbe.current()
+        let registeredConfiguration: NamingModelConfiguration? = {
+            guard let registeredTier = resolvedModelSetup.selectedRegisteredTier,
+                  resolvedModelSetup.state(for: registeredTier).isReady,
+                  let registration = resolvedModelSetup.registration(for: registeredTier),
+                  memory.availableBytes >= registeredTier.estimatedWorkingSetBytes
+            else { return nil }
+            return NamingModelConfiguration(
+                modelDirectory: URL(fileURLWithPath: registration.directoryPath, isDirectory: true),
+                tier: registeredTier
             )
-            ?? NamingModelConfiguration(
-                modelDirectory: resourceRoot
-                    .appendingPathComponent("Models", isDirectory: true)
-                    .appendingPathComponent("Qwen3VL-2B-Instruct-4bit", isDirectory: true)
-            )
-        self.activeModelTier = modelConfiguration.tier
-        let modelSelectionState = LocalModelSelectionState(initialTier: modelConfiguration.tier)
+        }()
+        let bundledConfiguration = NamingModelConfiguration.bundled(
+            resourceDirectory: resourceRoot,
+            environment: ProcessInfo.processInfo.environment
+        )
+        let modelConfiguration = registeredConfiguration ?? bundledConfiguration
+        if let modelConfiguration {
+            resolvedModelSetup.setActiveTier(modelConfiguration.tier)
+            if registeredConfiguration == nil {
+                resolvedModelSetup.markBundledModel(tier: modelConfiguration.tier)
+            }
+        }
+        let modelSelectionState = LocalModelSelectionState(initialTier: modelConfiguration?.tier)
         self.modelSelectionState = modelSelectionState
         let localModelRuntime = LocalModelRuntime(
-            modelDirectory: modelConfiguration.modelDirectory
+            modelDirectory: modelConfiguration?.modelDirectory
         )
         self.localModelRuntime = localModelRuntime
-        let resolvedAutoNaming = autoNaming ?? AutoNamingRuntime(
-            model: NamingModelCoordinator(
-                primary: MLXNamingModel(
-                    configuration: modelConfiguration,
-                    containerRuntime: localModelRuntime
-                )
-            )
-        )
+        self.activeModelConfiguration = modelConfiguration
+        let initialNamingModel = modelConfiguration.map {
+            Self.makeNamingModel(configuration: $0, containerRuntime: localModelRuntime)
+        } ?? UnavailableNamingModel()
+        let resolvedAutoNaming = autoNaming ?? AutoNamingRuntime(model: initialNamingModel)
         self.autoNaming = resolvedAutoNaming
         let agentAttachments = AgentAttachmentStore()
         self.agentAttachments = agentAttachments
@@ -290,7 +295,7 @@ final class AppRuntime {
         self.agentGateway = agentGateway
         self.agent = AgentChatRuntime(
             model: LocalAgentModel(
-                modelDirectory: modelConfiguration.modelDirectory,
+                modelDirectory: modelConfiguration?.modelDirectory,
                 gateway: agentGateway,
                 containerRuntime: localModelRuntime,
                 agentToolCallingAvailable: {
@@ -344,6 +349,19 @@ final class AppRuntime {
 
         forwarder.handler = { @Sendable [weak self] state in
             MainActor.assumeIsolated { self?.appState = state }
+        }
+        resolvedModelSetup.activatePackage = { [weak self] verified in
+            guard let self else {
+                throw LocalModelPackageFailure(
+                    code: .modelBusy,
+                    detail: "The app runtime is unavailable."
+                )
+            }
+            try await self.activateVerifiedModelPackage(verified)
+        }
+        resolvedModelSetup.deactivatePackage = { [weak self] tier in
+            guard let self else { return }
+            try await self.deactivateModelPackage(tier: tier)
         }
         agentUIActions.install(
             openPane: nil,
@@ -423,15 +441,10 @@ final class AppRuntime {
         }
     }
 
-    /// Verifies, registers, and activates one user-imported model package.
-    ///
-    /// The shared runtime waits for every existing lease to finish before it
-    /// replaces the loader. Therefore the old model is unloaded before the next
-    /// generation can load the new weights.
-    func importLocalModelPackage(
-        directory: URL,
-        tier: LocalModelTier
-    ) async throws -> VerifiedLocalModelPackage {
+    /// Unloads the old model before the shared runtime receives the next loader.
+    private func activateVerifiedModelPackage(
+        _ verified: VerifiedLocalModelPackage
+    ) async throws {
         guard !agent.isBusy,
               agent.pendingAction == nil,
               await autoNaming.prepareForModelSwitch(),
@@ -442,60 +455,74 @@ final class AppRuntime {
                 detail: "Finish the current local model task before switching."
             )
         }
+        let previousConfiguration = activeModelConfiguration
         let previousTier = await modelSelectionState.currentTier()
-        await modelSelectionState.set(tier)
         await localModelRuntime.unloadModelContainer()
         do {
-            let verifier = LocalModelPackageVerifier()
-            let verified = try await Task.detached(priority: .userInitiated) {
-                try verifier.verify(directory: directory, tier: tier)
-            }.value
-            try localModelPackageRegistry.register(verified)
             await localModelRuntime.replaceModelDirectory(verified.directory)
-            activeModelTier = tier
-            return verified
+            let configuration = NamingModelConfiguration(
+                modelDirectory: verified.directory,
+                tier: verified.tier
+            )
+            let replaced = await autoNaming.replaceModel(
+                Self.makeNamingModel(
+                    configuration: configuration,
+                    containerRuntime: localModelRuntime
+                )
+            )
+            guard replaced else {
+                throw LocalModelPackageFailure(
+                    code: .modelBusy,
+                    detail: "Finish the current file naming task before switching."
+                )
+            }
+            await modelSelectionState.set(verified.tier)
+            activeModelConfiguration = configuration
         } catch {
+            await localModelRuntime.replaceModelDirectory(previousConfiguration?.modelDirectory)
+            _ = await autoNaming.replaceModel(
+                previousConfiguration.map {
+                    Self.makeNamingModel(
+                        configuration: $0,
+                        containerRuntime: localModelRuntime
+                    )
+                } ?? UnavailableNamingModel()
+            )
             await modelSelectionState.set(previousTier)
-            try? localModelPackageRegistry.select(tier: previousTier)
+            activeModelConfiguration = previousConfiguration
             throw error
         }
     }
 
-    func activateRegisteredLocalModelPackage(tier: LocalModelTier) async throws -> VerifiedLocalModelPackage {
-        guard let registration = localModelPackageRegistry.load().registration(for: tier) else {
+    private func deactivateModelPackage(tier: LocalModelTier) async throws {
+        guard modelSetup.activeTier == tier else { return }
+        guard !agent.isBusy,
+              agent.pendingAction == nil,
+              await autoNaming.prepareForModelSwitch(),
+              await agent.prepareForModelSwitch()
+        else {
             throw LocalModelPackageFailure(
-                code: .fileMissing,
-                detail: "The model package is not registered."
+                code: .modelBusy,
+                detail: "Finish the current local model task before removing it."
             )
         }
-        return try await importLocalModelPackage(
-            directory: URL(fileURLWithPath: registration.directoryPath, isDirectory: true),
-            tier: tier
+        await localModelRuntime.unloadModelContainer()
+        await localModelRuntime.replaceModelDirectory(nil)
+        _ = await autoNaming.replaceModel(UnavailableNamingModel())
+        await modelSelectionState.set(nil)
+        activeModelConfiguration = nil
+    }
+
+    private static func makeNamingModel(
+        configuration: NamingModelConfiguration,
+        containerRuntime: LocalModelRuntime
+    ) -> any NamingModelServing {
+        NamingModelCoordinator(
+            primary: MLXNamingModel(
+                configuration: configuration,
+                containerRuntime: containerRuntime
+            )
         )
-    }
-
-    func hasRegisteredLocalModelPackage(tier: LocalModelTier) -> Bool {
-        localModelPackageRegistry.load().registration(for: tier) != nil
-    }
-
-    func supportsLocalModelTier(_ tier: LocalModelTier) -> Bool {
-        ProcessInfo.processInfo.physicalMemory >= tier.minimumPhysicalMemoryBytes
-    }
-
-    private static func registeredModelConfiguration(
-        registry: LocalModelPackageRegistry,
-        memory: LocalModelMemorySnapshot
-    ) -> NamingModelConfiguration? {
-        guard let tier = registry.selectedTier,
-              let registration = registry.registration(for: tier),
-              memory.physicalBytes >= tier.minimumPhysicalMemoryBytes,
-              memory.availableBytes >= tier.estimatedWorkingSetBytes
-        else { return nil }
-        let directory = URL(fileURLWithPath: registration.directoryPath, isDirectory: true)
-        guard FileManager.default.fileExists(
-            atPath: directory.appendingPathComponent("FileNamingModelManifest.json").path
-        ) else { return nil }
-        return NamingModelConfiguration(modelDirectory: directory, tier: tier)
     }
 
     // MARK: - 生命周期
@@ -514,7 +541,10 @@ final class AppRuntime {
         powerRuntime.start()
         monitorHistorySampler.start()
         syncState()
-        Task { await agent.restoreHistory() }
+        Task {
+            await modelSetup.refresh()
+            await agent.restoreHistory()
+        }
         if agentExternalServiceEnabled {
             agentExternalService?.start()
         }

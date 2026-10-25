@@ -4,9 +4,10 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 状态 | 尚未执行 |
-| 日期 | `2026-10-24` |
+| 状态 | 通过 |
+| 日期 | `2026-10-25` |
 | 关联测试 | `V01`、`V02` |
+| 环境 | MacBook Pro `18,2`，Apple M1 Max，64 GB，macOS `27.0.1`（`26A434`） |
 
 ## 验证目标
 
@@ -18,81 +19,62 @@
 
 | 检查 | 期望 | 实际 |
 | --- | --- | --- |
-| app 版本 | 测试版本 | 待填写 |
-| 模型目录 | 默认 app 不含模型 | 待填写 |
-| 用户数据目录 | 使用隔离目录 | 待填写 |
-| 网络 | 关闭 | 待填写 |
+| app 版本 | `0.5.2` build `3` | `0.5.2` build `3` |
+| 模型目录 | 默认 app 不含模型 | `Models` 目录不存在 |
+| 用户数据目录 | 使用隔离目录 | 使用独立目录 |
+| 网络 | 关闭 | `sandbox-exec` 拒绝全部网络 |
 
-## 测试前采集
+## V01：安装包体积
 
-```bash
-stat -f '%z' "<default-dmg>"
-shasum -a 256 "<default-dmg>"
-find "<default-app>" -path '*/Models/*' -type f -print
-```
+默认 DMG：
 
-预期结果：
+| 项目 | 值 |
+| --- | --- |
+| 文件名 | `Covio-0.5.2.dmg` |
+| 大小 | `13,223,936` bytes |
+| SHA-256 | `03ceca15468b0faa77994a0a0971db46a113a570711e2fbafe3bdc4e28a223f0` |
+| `hdiutil verify` | 通过 |
+| `model.safetensors` | `0` |
 
-1. DMG 不大于 `50 MB`。
-2. 模型文件列表为空。
-3. SHA-256 已记录。
+结果：通过。
+默认 DMG 比 `50 MB` 门槛少 `39,205,664` bytes。
+app 只携带模型 manifest、许可证和 NOTICE。
 
-## 步骤
+## V02：无模型启动
 
-### V01：安装并检查体积
+操作：直接启动默认 app，设置独立 `COVIO_SUPPORT_DIR`，并拒绝全部网络。
 
-前置条件：拿到默认 DMG。
+观察：
 
-命令：
+1. 进程保持运行。
+2. `config.json` 生成。
+3. Monitor 历史数据库生成。
+4. `Models` 状态文件数量为 `0`。
+5. 模型安装面板显示大小、许可证、网络需求、下载和导入入口。
 
-```bash
-hdiutil attach "<default-dmg>" -nobrowse -readonly
-stat -f '%z' "<default-dmg>"
-```
+模型安装面板证据：[model-setup-uninstalled.png](evidence/2026-10-25-model-setup-uninstalled.png)。
 
-预期结果：DMG 不大于 `50 MB`，镜像可读。
-
-实际结果：待填写。
-
-错误码：待填写。
-
-### V02：无模型启动
-
-前置条件：安装默认 app，用户数据目录为空，网络关闭。
-
-命令：
-
-```bash
-open "<default-app>" --args --test-profile slim-install
-```
-
-预期结果：app 完成启动，AI 功能显示模型安装入口，非 AI 功能可用。
-
-实际结果：待填写。
-
-错误码：待填写。
+结果：通过。
+UI 渲染检查没有发现溢出或重叠。
+`AppRuntimeTests.testStartupWithoutModelKeepsNonAIFeaturesAvailable` 同时通过。
 
 ## 结果汇总
 
 | 测试 | 结果 | 证据 |
 | --- | --- | --- |
-| V01 | 待填写 | 待填写 |
-| V02 | 待填写 | 待填写 |
+| V01 | 通过 | [release-final.json](evidence/2026-10-25-release-final.json) |
+| V02 | 通过 | [model-setup-uninstalled.png](evidence/2026-10-25-model-setup-uninstalled.png) |
+
+## 错误码
+
+无。
 
 ## 清理记录
 
 1. 退出测试 app。
-2. 卸载测试 DMG。
-3. 删除隔离用户数据目录。
-4. 恢复网络设置。
-5. 记录清理结果。
-
-## 更新规则
-
-1. 执行前把状态改为 `执行中`。
-2. 执行后填写实际结果和错误码。
-3. 两项都通过时把状态改为 `通过`。
-4. 任一失败时把状态改为 `失败` 并保留输出。
+2. 删除隔离用户数据目录。
+3. 卸载测试 DMG。
+4. 检查没有测试 app 或 helper 在运行。
 
 ## 关联文档
 

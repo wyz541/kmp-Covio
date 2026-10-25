@@ -1,0 +1,21 @@
+{
+  "default": {
+    "gatekeeper": "rejected",
+    "modelWeightCount": 0,
+    "name": "Covio-0.5.2.dmg",
+    "sha256": "03ceca15468b0faa77994a0a0971db46a113a570711e2fbafe3bdc4e28a223f0",
+    "signature": "ad-hoc, valid",
+    "size": 13223936
+  },
+  "offline": {
+    "gatekeeper": "rejected",
+    "modelFileCount": 17,
+    "modelVerification": "14 manifest files passed",
+    "modelWeightCount": 1,
+    "name": "Covio-Offline-0.5.2.dmg",
+    "sha256": "6d2154b826df104d17fc950e87f2ef607a90ade6eecf7a36446076a466c8fd5c",
+    "signature": "ad-hoc, valid",
+    "size": 1540934656
+  },
+  "releaseId": "0.5.2+3+61632aac4dc2ab25bf18276e664edf08acbe4453"
+}

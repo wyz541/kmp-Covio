@@ -1,0 +1,13 @@
+{
+  "networkRows": 0,
+  "ok": true,
+  "peakResidentBytes": 1993850880,
+  "serviceCounts": {
+    "copy": 1,
+    "monitor": 1,
+    "power": 1,
+    "workspace": 1
+  },
+  "steps": 6,
+  "thresholdsPassed": true
+}

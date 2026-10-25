@@ -1,0 +1,24 @@
+{
+  "apply": {
+    "failed": 0,
+    "ready": 7,
+    "renamed": 7
+  },
+  "corpusFailures": [],
+  "networkRows": 0,
+  "ok": true,
+  "peakResidentBytes": 2238332928,
+  "performance": {
+    "analysisMilliseconds": 11824.583958,
+    "cancelLatencyMilliseconds": 273.01525,
+    "imageMaximumMilliseconds": 390.319,
+    "loadMilliseconds": 719.615958,
+    "pdfMaximumMilliseconds": 439.265917,
+    "textMaximumMilliseconds": 450.66625
+  },
+  "thresholdsPassed": true,
+  "undo": {
+    "failed": 0,
+    "restored": 7
+  }
+}

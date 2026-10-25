@@ -42,10 +42,6 @@ final class NotchShellController {
     private var machine = HubStateMachine()
     private var hotZonePanels: [HotZonePanel] = []
     private var hubPanel: HubPanel?
-    /// 菜单栏上的品牌胶囊窗口。收起态由它显示。
-    private var capsulePanel: MenuBarCapsulePanel?
-    /// 品牌胶囊当前是否显示。它与备用状态项互斥。
-    private(set) var isMenuBarCapsuleVisible = false
     private var expandTimer: Timer?
     private var collapseTimer: Timer?
     private var observers: [NSObjectProtocol] = []
@@ -54,11 +50,6 @@ final class NotchShellController {
 
     /// 运行时。Hub 的设置页读它。测试与预览里可以是 nil，那时设置页显示占位。
     var runtime: AppRuntime?
-    /// 胶囊可见性变化。应用代理用它切换备用状态项。
-    var onMenuBarCapsuleVisibilityChanged: (@MainActor (Bool) -> Void)?
-    /// 胶囊收到右键或 Control 点击。应用代理用它弹出状态项菜单。
-    var onMenuBarCapsuleSecondaryClick: (@MainActor () -> Void)?
-
     /// `pointerLocation` 是唯一为了测试留的接缝。默认读真实指针位置。
     /// 测试注入固定坐标，就不必真的移动用户的鼠标。
     init(pointerLocation: @escaping @MainActor () -> CGPoint = { NSEvent.mouseLocation }) {
@@ -90,7 +81,6 @@ final class NotchShellController {
             self?.popoverActivityChanged(active)
         }
         makeHubPanel()
-        makeCapsulePanel()
         rebuildHotZones()
         observeSystemChanges()
         observeWorkbench()
@@ -109,9 +99,6 @@ final class NotchShellController {
         hotZonePanels.removeAll()
         hubPanel?.orderOut(nil)
         hubPanel = nil
-        capsulePanel?.orderOut(nil)
-        capsulePanel = nil
-        setMenuBarCapsuleVisible(false)
     }
 
     // MARK: - 外部入口
@@ -311,32 +298,6 @@ final class NotchShellController {
         if !hubVisible {
             hubPanel?.orderOut(nil)
         }
-        placeCapsule()
-    }
-
-    /// 把胶囊放到指针所在屏幕的菜单栏上。
-    ///
-    /// 胶囊与挂帘的开合无关：打样里展开时胶囊也在。所以它不受 `hubVisible` 影响，
-    /// 只受菜单栏可见性影响（全屏 Space 里菜单栏会藏起来）。
-    private func placeCapsule() {
-        guard let capsulePanel else { return }
-        guard let screenGeometry = ScreenGeometry.current(location: pointerLocation()) ?? geometry,
-              screenGeometry.isMenuBarVisible
-        else {
-            capsulePanel.orderOut(nil)
-            setMenuBarCapsuleVisible(false)
-            return
-        }
-        capsulePanel.place(on: screenGeometry)
-        capsulePanel.orderFrontRegardless()
-        setMenuBarCapsuleVisible(true)
-    }
-
-    /// 同步胶囊可见性，只在值变化时通知备用状态项。
-    private func setMenuBarCapsuleVisible(_ visible: Bool) {
-        guard isMenuBarCapsuleVisible != visible else { return }
-        isMenuBarCapsuleVisible = visible
-        onMenuBarCapsuleVisibilityChanged?(visible)
     }
 
     private func relocateIfNeeded() {
@@ -424,28 +385,6 @@ final class NotchShellController {
         // 屏幕变化时由 rebuild 重建面板。
         let snapshot = geometry ?? ScreenGeometry.current(location: pointerLocation())
         return HubContentRoot(controller: self, initialGeometry: snapshot, runtime: runtime)
-    }
-
-    /// 建菜单栏胶囊窗口。
-    ///
-    /// 它同时是收起态的样子和展开的入口：指针进胶囊等于进热区，点胶囊等于切换。
-    private func makeCapsulePanel() {
-        let panel = MenuBarCapsulePanel()
-        panel.onPointerEnter = { [weak self] in
-            guard let self else { return }
-            self.capsulePanel?.setHovered(true)
-            self.send(.pointerEnteredHotZone)
-        }
-        panel.onPointerExit = { [weak self] in
-            self?.capsulePanel?.setHovered(false)
-        }
-        panel.onClick = { [weak self] in
-            self?.toggle()
-        }
-        panel.onSecondaryClick = { [weak self] in
-            self?.onMenuBarCapsuleSecondaryClick?()
-        }
-        capsulePanel = panel
     }
 
     /// 盯着工作台里影响面板高度的几个值。它们一变就重排面板。

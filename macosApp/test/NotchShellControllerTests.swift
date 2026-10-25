@@ -345,26 +345,12 @@ final class NotchShellControllerTests: XCTestCase {
         )
     }
 
-    // MARK: - 菜单栏胶囊
+    // MARK: - 菜单栏状态项
 
-    /// 宿主进程里应该有一个胶囊窗口，层级与热区一致，且不接受键盘。
-    func testHostApplicationShowsTheMenuBarCapsule() throws {
-        let capsules = NSApp.windows.compactMap { $0 as? MenuBarCapsulePanel }
-        XCTAssertEqual(capsules.count, 1, "宿主进程里应该只有一个胶囊窗口")
-        let capsule = try XCTUnwrap(capsules.first)
-        XCTAssertEqual(capsule.level, .statusBar)
-        XCTAssertFalse(capsule.canBecomeKey, "胶囊不该抢走 Hub 的键盘")
-    }
-
-    /// 胶囊可见时备用状态项必须隐藏，菜单栏只能有一个 Covio 入口。
-    func testHostApplicationShowsExactlyOneMenuBarEntry() throws {
+    /// 宿主进程显示一个原生状态项，菜单栏只能有一个 Covio 入口。
+    func testHostApplicationShowsOneNativeMenuBarEntry() throws {
         let appDelegate = try XCTUnwrap(AppDelegate.current)
-        let visibleCapsules = NSApp.windows
-            .compactMap { $0 as? MenuBarCapsulePanel }
-            .filter(\.isVisible)
-        let visibleStatusItem = appDelegate.statusItemController?.isVisible == true
-
-        XCTAssertEqual(visibleCapsules.count + (visibleStatusItem ? 1 : 0), 1)
+        XCTAssertEqual(appDelegate.statusItemController?.isVisible, true)
     }
 
     // MARK: - 宿主进程

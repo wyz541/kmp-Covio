@@ -7,14 +7,14 @@
   "corpusFailures": [],
   "networkRows": 0,
   "ok": true,
-  "peakResidentBytes": 2238332928,
+  "peakResidentBytes": 2231812096,
   "performance": {
-    "analysisMilliseconds": 11824.583958,
-    "cancelLatencyMilliseconds": 273.01525,
-    "imageMaximumMilliseconds": 390.319,
-    "loadMilliseconds": 719.615958,
-    "pdfMaximumMilliseconds": 439.265917,
-    "textMaximumMilliseconds": 450.66625
+    "analysisMilliseconds": 12425.727208,
+    "cancelLatencyMilliseconds": 264.793208,
+    "imageMaximumMilliseconds": 385.627875,
+    "loadMilliseconds": 705.936917,
+    "pdfMaximumMilliseconds": 427.147917,
+    "textMaximumMilliseconds": 821.317291
   },
   "thresholdsPassed": true,
   "undo": {

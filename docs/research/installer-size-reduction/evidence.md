@@ -724,7 +724,7 @@ The artifact manifest adds gitCommit, releaseId and helperSHA256.
 
 | 项目 | 状态 | 证据 |
 | --- | --- | --- |
-| 默认包和离线包拆分 | 完成 | 默认 `13,223,936` bytes；离线 `1,540,934,656` bytes |
+| 默认包和离线包拆分 | 完成 | 默认 `13,218,304` bytes；离线 `1,540,934,144` bytes |
 | 无模型启动 | 通过 | [case-slim-install.md](validation/case-slim-install.md) |
 | 真实下载恢复 | 通过 | [model-download.json](validation/evidence/2026-10-25-model-download.json) |
 | 损坏模型拒绝 | 通过 | 返回 `checksumMismatch` |

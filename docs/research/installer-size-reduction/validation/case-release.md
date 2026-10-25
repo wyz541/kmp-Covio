@@ -5,11 +5,11 @@
 | 项目 | 内容 |
 | --- | --- |
 | 状态 | 通过 internal/local 检查 |
-| 日期 | `2026-10-25` |
+| 日期 | `2026-10-25` 至 `2026-10-26` |
 | 关联测试 | `V09` |
 | 渠道 | internal/local |
 | 签名 | ad-hoc |
-| Draft | `v0.5.2-internal.3` |
+| Draft | `v0.5.2-internal.5` |
 
 ## 验证目标
 
@@ -23,8 +23,8 @@
 
 | 检查 | 期望 | 实际 |
 | --- | --- | --- |
-| 发布版本 | 唯一 | `0.5.2` build `3` |
-| 默认 DMG | 不大于 `50 MB` | `13,223,936` bytes |
+| 发布版本 | 唯一 | `0.5.2` build `5` |
+| 默认 DMG | 不大于 `50 MB` | `13,218,304` bytes |
 | 离线 DMG | 含完整模型 | 含 1 个 `model.safetensors` |
 | 签名身份 | internal/local 可用 | ad-hoc |
 | Developer ID | 当前范围外 | 未配置 |
@@ -35,8 +35,8 @@
 
 | 发布物 | 大小 | SHA-256 |
 | --- | --- | --- |
-| `Covio-0.5.2.dmg` | `13,223,936` bytes | `03ceca15468b0faa77994a0a0971db46a113a570711e2fbafe3bdc4e28a223f0` |
-| `Covio-Offline-0.5.2.dmg` | `1,540,934,656` bytes | `6d2154b826df104d17fc950e87f2ef607a90ade6eecf7a36446076a466c8fd5c` |
+| `Covio-0.5.2.dmg` | `13,218,304` bytes | `5eced02d91ca0eb9585cd028afb6ed5c63d24e06bd55e40e2730b073997aee99` |
+| `Covio-Offline-0.5.2.dmg` | `1,540,934,144` bytes | `8bea35be7bd4c7dd7a439142153292f9672edaee63b3f1d2710eea92d6a754d7` |
 
 两个 DMG 的 `hdiutil verify` 都通过。
 `dist/release-manifest.json` 记录的 size 和 SHA-256 与本地文件一致。
@@ -70,7 +70,7 @@ Draft 包含：
 远程复核命令：
 
 ```sh
-bash scripts/publish-release.sh v0.5.2-internal.3 --dry-run
+bash scripts/publish-release.sh v0.5.2-internal.5 --dry-run
 ```
 
 实际复核：

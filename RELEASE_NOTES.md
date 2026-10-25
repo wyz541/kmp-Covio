@@ -12,8 +12,8 @@ It is not a public release.
 
 | Installer | Size | Model |
 | --- | --- | --- |
-| `Covio-0.5.2.dmg` | `13,223,936` bytes | Not included |
-| `Covio-Offline-0.5.2.dmg` | `1,540,934,656` bytes | Qwen3-VL 2B, revision `9c4f5209e57b31f4b9dfba735de3fb983739c9cc` |
+| `Covio-0.5.2.dmg` | `13,218,304` bytes | Not included |
+| `Covio-Offline-0.5.2.dmg` | `1,540,934,144` bytes | Qwen3-VL 2B, revision `9c4f5209e57b31f4b9dfba735de3fb983739c9cc` |
 
 Use the default DMG for online installation.
 Use the offline DMG when the target Mac cannot download the model.
@@ -63,8 +63,8 @@ xattr -dr com.apple.quarantine /Applications/Covio.app
 ## Checksums
 
 ```text
-03ceca15468b0faa77994a0a0971db46a113a570711e2fbafe3bdc4e28a223f0  Covio-0.5.2.dmg
-6d2154b826df104d17fc950e87f2ef607a90ade6eecf7a36446076a466c8fd5c  Covio-Offline-0.5.2.dmg
+5eced02d91ca0eb9585cd028afb6ed5c63d24e06bd55e40e2730b073997aee99  Covio-0.5.2.dmg
+8bea35be7bd4c7dd7a439142153292f9672edaee63b3f1d2710eea92d6a754d7  Covio-Offline-0.5.2.dmg
 ```
 
 ## Internal test notes

@@ -2,52 +2,52 @@
   "assets": [
     {
       "name": "Covio-0.5.2.app.zip",
-      "sha256": "ed4bd9b8a83b750414a4552b5b18ae7708d839d449a8a9ddc9decab05cd5453c",
-      "size": 13154406
+      "sha256": "3c7a138d6f7ee5d475be45aa316543125c1046771ee3ffd4ee2007342b220854",
+      "size": 13154444
     },
     {
       "name": "Covio-0.5.2.dmg",
-      "sha256": "03ceca15468b0faa77994a0a0971db46a113a570711e2fbafe3bdc4e28a223f0",
-      "size": 13223936
+      "sha256": "5eced02d91ca0eb9585cd028afb6ed5c63d24e06bd55e40e2730b073997aee99",
+      "size": 13218304
     },
     {
       "name": "Covio-0.5.2.pkg",
-      "sha256": "d91ad581d8ceac13213e8557e73e31d9bc6bf22d741eae7a6fc6a524a73ab1a3",
-      "size": 13089812
+      "sha256": "093195148f6724682ac653e9a8a9e49e9246a3c7fd1796e8954bb8c79cbe6b5f",
+      "size": 13091222
     },
     {
       "name": "Covio-Offline-0.5.2.dmg",
-      "sha256": "6d2154b826df104d17fc950e87f2ef607a90ade6eecf7a36446076a466c8fd5c",
-      "size": 1540934656
+      "sha256": "8bea35be7bd4c7dd7a439142153292f9672edaee63b3f1d2710eea92d6a754d7",
+      "size": 1540934144
     },
     {
       "name": "checksums.txt",
-      "sha256": "2bd71d7d0c2f67fbe10ca5b88d01a273becfdb7c0ad09c81fe3b764ce424be00",
+      "sha256": "bc273579d72db3f92e287005798254f9fd910cbc05e8fffbff658cbc1c483ab5",
       "size": 428
     },
     {
       "name": "release-evidence.json",
-      "sha256": "05ee546a0f3f0bd1ddbfc19792315180b41e9c72a4415bf62e496671ba98f9f7",
+      "sha256": "b72fe93a952efd5e0074337a51a1b62e7946041afea0c230d2f9712aec9c99d4",
       "size": 2143
     },
     {
       "name": "release-manifest.json",
-      "sha256": "6ff214767a8c0da788a6c4ca23f485fa2606dc8472370b5081de463f4687d70f",
+      "sha256": "632d967e8d5906574d12ac69d13ad54b6f990891d1ddc55fe114173e016af06c",
       "size": 1062
     },
     {
       "name": "release-notes.generated.md",
-      "sha256": "f486106ce805c9a63e3b303a2591cbb938dab1562e18339d145653f5598e8a72",
+      "sha256": "dde2e82172f0d2866bdac95b67efc8369c20262dfd0a14b5d9b9852461bc8042",
       "size": 3932
     },
     {
       "name": "release-operation.json",
-      "sha256": "93075ca6c2c3610ff6a871315e7d145ff4832dcd1e026cc887f3e9463836dcea",
+      "sha256": "0808d1d534299cc429f2b6d09a5c38cc6ffdbe324ddec7a0ab196abd10f65c02",
       "size": 1196
     }
   ],
   "isDraft": true,
   "isPrerelease": true,
-  "tagName": "v0.5.2-internal.3",
-  "targetCommitish": "61632aac4dc2ab25bf18276e664edf08acbe4453"
+  "tagName": "v0.5.2-internal.5",
+  "targetCommitish": "ca9d240bd2cce58e309b3715257c752220afab77"
 }

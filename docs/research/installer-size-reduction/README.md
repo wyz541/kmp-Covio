@@ -6,7 +6,7 @@
 | --- | --- |
 | 文档版本 | `1.0` |
 | 状态 | internal/local 验证通过；Draft 待审阅 |
-| 日期 | `2026-10-25` |
+| 日期 | `2026-10-26` |
 | 适用对象 | 产品、研发、发布、测试和安全评审人员 |
 | 当前结论 | 默认发布瘦 app 安装包。模型通过受控的首次使用下载交付。需要完全离线安装的用户使用可选大包。 |
 
@@ -62,8 +62,8 @@ Covio 的安装包问题不是 Swift 或 KMP 二进制过大。
 
 | 发布物 | 大小 | 模型 |
 | --- | --- | --- |
-| 默认 DMG | `13,223,936` bytes | 不包含 |
-| 离线 DMG | `1,540,934,656` bytes | Qwen3-VL 2B |
+| 默认 DMG | `13,218,304` bytes | 不包含 |
+| 离线 DMG | `1,540,934,144` bytes | Qwen3-VL 2B |
 
 `V01` 到 `V09` 的真机结果见 [validation/README.md](validation/README.md)。
 Developer ID 和 notarization 按 ADR-0020 不在当前 internal/local 范围。

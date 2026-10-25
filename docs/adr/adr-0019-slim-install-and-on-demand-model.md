@@ -130,7 +130,7 @@ Sparkle BinaryDelta 可以减少后续 app 更新流量。
 
 | 项目 | 状态 | 确认方法 |
 | --- | --- | --- |
-| 瘦包默认构建 | passed | `V01`；DMG 为 `13,223,936` bytes |
+| 瘦包默认构建 | passed | `V01`；DMG 为 `13,218,304` bytes |
 | 无模型启动 | passed | `V02` |
 | 下载暂停与恢复 | passed | `V03` |
 | 损坏模型拒绝 | passed | `V04` |

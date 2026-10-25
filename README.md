@@ -44,7 +44,7 @@ Covio is under internal test.
 Covio 0.5.2 is the current build.
 It requires macOS 26 or later on Apple Silicon.
 The published `v0.5.2` asset predates the slim/offline split.
-The slim and offline assets are in the Draft `v0.5.2-internal.3` pending review.
+The slim and offline assets are in the Draft `v0.5.2-internal.5` pending review.
 Validation results are in `docs/research/installer-size-reduction/validation/`.
 
 - [Covio-0.5.2.dmg](https://github.com/wyz541/kmp-Covio/releases/download/v0.5.2/Covio-0.5.2.dmg)

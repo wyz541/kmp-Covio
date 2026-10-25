@@ -5,11 +5,11 @@
 | 项目 | 内容 |
 | --- | --- |
 | 状态 | internal/local 真机矩阵通过 |
-| 日期 | `2026-10-25` |
+| 日期 | `2026-10-25` 至 `2026-10-26` |
 | 环境 | MacBook Pro `18,2`，Apple M1 Max，64 GB，macOS `27.0.1`（`26A434`） |
-| 发布身份 | `0.5.2` build `3`，internal，ad-hoc |
-| 默认 DMG | `13,223,936` bytes |
-| 离线 DMG | `1,540,934,656` bytes |
+| 发布身份 | `0.5.2` build `5`，internal，ad-hoc |
+| 默认 DMG | `13,218,304` bytes |
+| 离线 DMG | `1,540,934,144` bytes |
 | 模型 | Qwen3-VL 2B，revision `9c4f5209e57b31f4b9dfba735de3fb983739c9cc` |
 
 ## 案例索引
@@ -59,7 +59,7 @@
 
 ## 当前事实
 
-1. 默认 DMG 为 `13,223,936` bytes，比 `50 MB` 门槛少 `39,205,664` bytes。
+1. 默认 DMG 为 `13,218,304` bytes，比 `50 MB` 门槛少 `39,210,496` bytes。
 2. 默认 app 没有 `Models` 目录，没有 `model.safetensors`。
 3. 离线 DMG 含 1 个 `model.safetensors`，manifest 的 14 个文件全部通过 SHA-256 校验。
 4. 真实下载在 `1,284,301,146` bytes 暂停，重启后恢复到 `1,798,021,605` bytes。

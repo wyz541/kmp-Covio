@@ -119,8 +119,7 @@ class ReleasePipelineTests(unittest.TestCase):
     def test_checksums_are_deterministic_and_detect_changes(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
-            for name in (*pipeline.expected_asset_names("1.2.3"), "release-manifest.json"):
-                (root / name).write_bytes(name.encode("utf-8"))
+            self._write_release_assets(root)
             first = pipeline.write_checksums(root, "1.2.3").read_text(encoding="utf-8")
             second = pipeline.write_checksums(root, "1.2.3").read_text(encoding="utf-8")
             self.assertEqual(first, second)
@@ -132,12 +131,42 @@ class ReleasePipelineTests(unittest.TestCase):
     def test_checksum_asset_set_is_complete(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
-            for name in (*pipeline.expected_asset_names("1.2.3"), "release-manifest.json"):
-                (root / name).write_bytes(name.encode("utf-8"))
+            self._write_release_assets(root)
             pipeline.write_checksums(root, "1.2.3")
             (root / "Covio-1.2.3.pkg").unlink()
             with self.assertRaises(pipeline.ReleaseVerificationError):
                 pipeline.verify_checksums(root, "1.2.3")
+
+    def test_offline_installer_is_included_in_checksums(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self._write_release_assets(root, offline=True)
+            checksums = pipeline.write_checksums(root, "1.2.3").read_text(encoding="utf-8")
+            self.assertIn("Covio-Offline-1.2.3.dmg", checksums)
+            pipeline.verify_checksums(root, "1.2.3")
+
+    def test_model_metadata_mismatch_is_rejected(self):
+        manifest = {
+            "tier": "2b",
+            "modelID": "example/model",
+            "revision": "a" * 40,
+            "runtimeDirectory": "Models/Example",
+            "license": "Apache-2.0",
+            "totalBytes": 1,
+        }
+        self.assertEqual(pipeline.model_metadata_errors(manifest, manifest), [])
+        self.assertNotEqual(
+            pipeline.model_metadata_errors(manifest | {"revision": "b" * 40}, manifest),
+            [],
+        )
+
+    def test_model_weights_are_detected_inside_an_app(self):
+        with tempfile.TemporaryDirectory() as directory:
+            app = pathlib.Path(directory) / "Covio.app"
+            weights = app / "Contents" / "Resources" / "Models" / "Example" / "model.safetensors"
+            weights.parent.mkdir(parents=True)
+            weights.write_bytes(b"weights")
+            self.assertEqual(pipeline.model_weight_paths(app), (weights,))
 
     def test_internal_and_public_tags_are_distinct(self):
         public = self.source.__class__(1, "1.2.3", 4, "public", 8)
@@ -159,6 +188,10 @@ class ReleasePipelineTests(unittest.TestCase):
             "assets": {
                 name: {"sha256": "a" * 64, "size": 1}
                 for name in pipeline.expected_asset_names("1.2.3")
+            },
+            "installers": {
+                "default": {"name": "Covio-1.2.3.dmg"},
+                "offline": None,
             },
         }
         info = {"isDraft": True, "isPrerelease": True, "tagName": evidence["tag"]}
@@ -193,6 +226,44 @@ class ReleasePipelineTests(unittest.TestCase):
         self.assertIn(evidence["releaseId"], notes)
         self.assertIn("c" * 64, notes)
         self.assertIn("# Notes", notes)
+
+    def _write_release_assets(self, root: pathlib.Path, offline: bool = False) -> None:
+        for name in pipeline.expected_asset_names("1.2.3"):
+            (root / name).write_bytes(name.encode("utf-8"))
+        installers = {
+            "default": {
+                "name": "Covio-1.2.3.dmg",
+                "size": 1,
+                "sha256": "1" * 64,
+            },
+            "offline": None,
+        }
+        model = None
+        if offline:
+            (root / "Covio-Offline-1.2.3.dmg").write_bytes(b"offline")
+            installers["offline"] = {
+                "name": "Covio-Offline-1.2.3.dmg",
+                "size": 1,
+                "sha256": "2" * 64,
+            }
+            model = {
+                "tier": "2b",
+                "modelID": "example/model",
+                "revision": "a" * 40,
+                "runtimeDirectory": "Models/Example",
+                "license": "Apache-2.0",
+                "totalBytes": 1,
+                "manifestSHA256": "3" * 64,
+            }
+        manifest = {
+            "schemaVersion": pipeline.release.ARTIFACT_SCHEMA_VERSION,
+            "installers": installers,
+            "model": model,
+        }
+        (root / "release-manifest.json").write_text(
+            json.dumps(manifest),
+            encoding="utf-8",
+        )
 
 
 if __name__ == "__main__":

@@ -26,13 +26,18 @@ python3 scripts/release_manifest.py bump
 python3 scripts/release_manifest.py bump --version 0.6.0
 ```
 
-Generate the final artifact manifest from the signed helper:
+Generate the final artifact manifest from the signed helper and built installers:
 
 ```sh
 python3 scripts/release_manifest.py generate-artifact \
-  --helper dist/Covio.app/Contents/MacOS/CovioHelper \
+  --helper dist/Covio-Offline.app/Contents/MacOS/CovioHelper \
+  --default-dmg dist/Covio-0.5.2.dmg \
+  --offline-dmg dist/Covio-Offline-0.5.2.dmg \
+  --model-manifest macosApp/src/AutoNaming/FileNamingModelManifest.json \
   --output dist/release-manifest.json
 ```
+
+For a default-only artifact manifest, omit `--offline-dmg` and `--model-manifest`.
 
 The generated files are:
 
@@ -43,8 +48,21 @@ The generated files are:
 Do not edit generated files by hand.
 
 The source manifest contains the release inputs.
-The artifact manifest adds `gitCommit`, `releaseId` and `helperSHA256`.
+The artifact manifest adds `gitCommit`, `releaseId`, `helperSHA256`, both installer identities and the model identity.
 `CovioHelper` statically links `kmpDomain`; the app bundle must not supply its runtime dependencies.
+
+Build the default slim app:
+
+```sh
+bash scripts/package-macos-swift.sh
+```
+
+Build the optional offline app and DMG:
+
+```sh
+COVIO_FILE_NAMING_MODEL_DIR=build/models/Qwen3VL-2B-Instruct-4bit \
+  bash scripts/package-macos-offline-swift.sh
+```
 
 Build and create a Draft Release:
 

@@ -763,20 +763,36 @@ covio_tx_wait_for_helper_match() {
     local binary="$app/Contents/MacOS/Covio"
     local transaction_version="$2"
     local expected_version="$3"
-    local attempt output attempts="${COVIO_TX_WAIT_ATTEMPTS:-40}"
+    local probe_output="$TX_TRANSACTION_ROOT/helper-probe.out"
+    local probe_error="$TX_TRANSACTION_ROOT/helper-probe.err"
+    local attempt status attempts="${COVIO_TX_WAIT_ATTEMPTS:-40}"
+    mkdir -p "$TX_TRANSACTION_ROOT"
     for attempt in $(seq 1 "$attempts"); do
         if [[ "$transaction_version" == "1" ]]; then
-            if covio_tx_run_as_user "$binary" --verify-install-transaction >/dev/null 2>&1; then
+            if covio_tx_run_as_user "$binary" --verify-install-transaction \
+                >"$probe_output" 2>"$probe_error"
+            then
                 return 0
             fi
+            status=$?
         else
-            output="$(covio_tx_run_as_user "$binary" --helper-version 2>/dev/null || true)"
-            if [[ "$output" == "$expected_version" ]]; then
-                return 0
+            if covio_tx_run_as_user "$binary" --helper-version \
+                >"$probe_output" 2>"$probe_error"
+            then
+                status=0
+                if [[ "$(cat "$probe_output")" == "$expected_version" ]]; then
+                    return 0
+                fi
+            else
+                status=$?
             fi
         fi
         sleep 0.25
     done
+    local output_text error_text
+    output_text="$(tail -c 4096 "$probe_output" 2>/dev/null || true)"
+    error_text="$(tail -c 4096 "$probe_error" 2>/dev/null || true)"
+    covio_tx_log "Helper handshake did not match after $attempts attempts: exit=${status:-unknown} stdout=${output_text:-<empty>} stderr=${error_text:-<empty>}"
     return 1
 }
 
@@ -784,24 +800,56 @@ covio_tx_register_and_verify_helper() {
     local app="$1"
     local prefix="$2"
     local binary="$app/Contents/MacOS/Covio"
-    local transaction_version version install_mode uid
+    local transaction_version version install_mode uid register_output register_error status
     transaction_version="$(covio_tx_identity_value "$prefix" TRANSACTION_VERSION)"
     version="$(covio_tx_identity_value "$prefix" PRODUCT_VERSION)"
     install_mode="$(covio_tx_identity_value "$prefix" INSTALL_MODE)"
+    register_output="$TX_TRANSACTION_ROOT/helper-register-$prefix.out"
+    register_error="$TX_TRANSACTION_ROOT/helper-register-$prefix.err"
+    mkdir -p "$TX_TRANSACTION_ROOT"
+    covio_tx_log "Installing helper for $prefix: mode=${install_mode:-smappservice} transactionVersion=${transaction_version:-legacy}"
     if [[ "$install_mode" == "legacy" ]]; then
         uid="$(covio_tx_console_uid)" || return 1
-        "$binary" --install-legacy-helper-as-root "$uid" >/dev/null 2>&1 || return 1
+        if "$binary" --install-legacy-helper-as-root "$uid" \
+            >"$register_output" 2>"$register_error"
+        then
+            :
+        else
+            status=$?
+            covio_tx_log "Fixed helper installation failed: exit=$status stderr=$(tail -c 4096 "$register_error" 2>/dev/null || true)"
+            return 1
+        fi
         if [[ ! -x "$TX_HELPER_PATH" || ! -f "$TX_LAUNCHD_PATH" ]]; then
             covio_tx_log "Legacy helper installation did not create the fixed paths"
             return 1
         fi
     elif [[ "$transaction_version" == "1" ]]; then
-        covio_tx_run_as_user "$binary" --register-install-transaction-helper \
-            >/dev/null 2>&1 || return 1
+        if covio_tx_run_as_user "$binary" --register-install-transaction-helper \
+            >"$register_output" 2>"$register_error"
+        then
+            :
+        else
+            status=$?
+            covio_tx_log "SMAppService helper registration failed: exit=$status stderr=$(tail -c 4096 "$register_error" 2>/dev/null || true)"
+            return 1
+        fi
     else
-        covio_tx_run_as_user "$binary" --install-helper >/dev/null 2>&1 || return 1
+        if covio_tx_run_as_user "$binary" --install-helper \
+            >"$register_output" 2>"$register_error"
+        then
+            :
+        else
+            status=$?
+            covio_tx_log "Legacy helper installer failed: exit=$status stderr=$(tail -c 4096 "$register_error" 2>/dev/null || true)"
+            return 1
+        fi
     fi
-    covio_tx_wait_for_helper_match "$app" "$transaction_version" "$version"
+    covio_tx_log "Helper installation completed for $prefix; waiting for exact handshake"
+    if ! covio_tx_wait_for_helper_match "$app" "$transaction_version" "$version"; then
+        covio_tx_log "Exact helper handshake failed for $prefix"
+        return 1
+    fi
+    covio_tx_log "Exact helper handshake matched for $prefix"
 }
 
 covio_tx_write_installed_record() {

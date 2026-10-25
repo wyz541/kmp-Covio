@@ -181,7 +181,28 @@ bash scripts/test-all.sh
 
 结果：通过。
 
-## 8. 限制
+## 8. 最终 Release 安装
+
+最终内部 Release：
+
+```text
+releaseId: 0.5.2+3+45d1beccc041346061286595c6c0693ec7cf2982
+buildNumber: 3
+channel: internal
+```
+
+执行干净安装。
+安装结果：`installed`。
+最终状态：
+
+- app、helper 和记录 releaseId 相同。
+- 固定 helper 为 `root:wheel`。
+- LaunchDaemon 使用固定 helper。
+- XPC 握手为 MATCH。
+- `SleepDisabled=0`。
+- 没有充电和租约状态残留。
+
+## 9. 限制
 
 1. 损坏 Mach-O 没有单独执行。
 2. LaunchDaemon 被系统策略拒绝没有单独执行。
@@ -190,7 +211,7 @@ bash scripts/test-all.sh
 5. 测试使用 ad-hoc 签名。
 6. 最终 Release 制品仍需发布负责人审阅。
 
-## 9. 清理结果
+## 10. 清理结果
 
 - 充电上限已恢复。
 - 风扇控制已恢复。

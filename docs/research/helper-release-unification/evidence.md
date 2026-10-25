@@ -181,3 +181,41 @@ python3 -I scripts/test_release_pipeline.py
 - `SMAppService` 迁移。
 - `TMPDIR` 不可用。
 - 内部渠道不创建 latest。
+
+
+## E-10：最终 Release 干净安装
+
+最终内部 Release：
+
+```text
+releaseId: 0.5.2+3+45d1beccc041346061286595c6c0693ec7cf2982
+productVersion: 0.5.2
+buildNumber: 3
+channel: internal
+helperProtocolVersion: 9
+helperSHA256: 0f73158c02d5731bef68169c4368d7b8bf468f596c227b5d5cf265591d0fd519
+```
+
+制品 SHA-256：
+
+```text
+Covio-0.5.2.pkg      33d2a05abe5c82bf975eba2452505eb0c82c8d9e8a6201dfa10d36181139d62c
+Covio-0.5.2.dmg      b9eb626d3f2516f10a16b278faf663af91913b09b80468490260759fce593404
+Covio-0.5.2.app.zip  b4de59474e745872ff6bde8f512afd8ec63088ba15b317ab05a02f1ca7e039e8
+```
+
+安装结果：
+
+```text
+result=installed
+previousReleaseId=""
+```
+
+最终验证：
+
+- app、运行中的 helper 和安装记录 releaseId 相同。
+- helper 位于固定 root-owned 路径。
+- LaunchDaemon 声明 XPC Mach service。
+- `scripts/verify-helper-cutover.sh verify` 通过。
+- `SleepDisabled=0`。
+- `state.json` 和 `runtime.json` 不存在。

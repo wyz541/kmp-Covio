@@ -390,7 +390,7 @@ assert_app_helper_record_match "$TX_APP_PATH" "0.5.2+9+$NEW_COMMIT"
 [[ -x "$TX_HELPER_PATH" && -f "$TX_LAUNCHD_PATH" ]] || \
   fail "SMAppService migration did not create the Legacy helper"
 
-printf 'case: clean install commits a matching app and record\n'
+printf 'case: clean install commits without a usable TMPDIR\n'
 setup_case clean-install
 NEW_APP="$CASE_ROOT/new/Covio.app"
 build_app "$NEW_APP" 0.5.2 8 "$NEW_COMMIT" 9 internal 1 "" 1
@@ -399,7 +399,7 @@ covio_tx_load_environment "$TX_ENVIRONMENT_SOURCE"
 covio_tx_configure
 covio_tx_prepare
 stage_new_app
-covio_tx_commit
+TMPDIR="$CASE_ROOT/unavailable-tmp" covio_tx_commit
 assert_eq "$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$TX_APP_PATH/Contents/Info.plist")" 8 "clean install did not commit"
 assert_json "$TX_RECORD_PATH" releaseId "0.5.2+8+$NEW_COMMIT"
 assert_app_helper_record_match "$TX_APP_PATH" "0.5.2+8+$NEW_COMMIT"

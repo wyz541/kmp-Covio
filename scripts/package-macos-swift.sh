@@ -363,7 +363,7 @@ PKG_COMMAND=(
   --scripts "$PKG_SCRIPTS"
   --install-location "/"
   --identifier "$APP_ID.pkg"
-  --version "$VERSION"
+  --version "$VERSION.$BUILD_NUMBER"
 )
 if [[ ${#PKG_SIGN_ARGS[@]} -gt 0 ]]; then
   PKG_COMMAND+=("${PKG_SIGN_ARGS[@]}")

@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import kmpDomain
 
@@ -315,6 +316,19 @@ final class HelperClient: @unchecked Sendable {
     }
 }
 
+protocol FanControlLeaseClient: AnyObject {
+    var allowsFanControlWrites: Bool { get }
+    func keepAliveFanControl() -> FanControlHelperStatus?
+    func configureFanControl(_ configuration: MonitorFanConfiguration) -> FanControlCommandResult
+    func restoreFanControl() -> FanControlCommandResult
+}
+
+extension HelperClient: FanControlLeaseClient {
+    var allowsFanControlWrites: Bool {
+        HelperReleaseInspector.inspect(client: self).allowsPrivilegedWrites
+    }
+}
+
 private struct HelperTransaction {
     let reply: HelperReply
     let peerPID: pid_t?
@@ -431,46 +445,113 @@ final class FanControlLeaseKeeper: @unchecked Sendable {
     static let shared = FanControlLeaseKeeper()
 
     private let queue = DispatchQueue(label: "com.wyz.covio.fan-control-lease")
-    private let client: HelperClient
+    private let client: any FanControlLeaseClient
+    private let notificationCenter: NotificationCenter
+    private let wakeDelay: TimeInterval
+    private var sleepPolicy = FanControlSleepPolicy()
     private var timer: DispatchSourceTimer?
+    private var wakeTask: DispatchWorkItem?
+    private var observers: [NSObjectProtocol] = []
 
-    init(client: HelperClient = HelperClient()) {
+    init(
+        client: any FanControlLeaseClient = HelperClient(),
+        notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
+        wakeDelay: TimeInterval = 3,
+        observeSleepWake: Bool = true
+    ) {
         self.client = client
+        self.notificationCenter = notificationCenter
+        self.wakeDelay = wakeDelay
+        if observeSleepWake {
+            observers.append(notificationCenter.addObserver(
+                forName: NSWorkspace.willSleepNotification,
+                object: nil,
+                queue: nil
+            ) { [weak self] _ in
+                self?.systemWillSleep()
+            })
+            observers.append(notificationCenter.addObserver(
+                forName: NSWorkspace.didWakeNotification,
+                object: nil,
+                queue: nil
+            ) { [weak self] _ in
+                self?.systemDidWake()
+            })
+        }
     }
 
-    func start() {
+    deinit {
+        observers.forEach(notificationCenter.removeObserver)
+    }
+
+    func start(configuration: MonitorFanConfiguration) {
         queue.async { [weak self] in
-            guard let self, timer == nil else { return }
-            let source = DispatchSource.makeTimerSource(queue: queue)
-            source.schedule(
-                deadline: .now() + .seconds(Int(MonitorFanPolicy.heartbeatSeconds)),
-                repeating: .seconds(Int(MonitorFanPolicy.heartbeatSeconds))
-            )
-            source.setEventHandler { [weak self] in
-                guard let self else { return }
-                guard HelperReleaseInspector.inspect(client: self.client).allowsPrivilegedWrites else {
-                    return
-                }
-                _ = self.client.keepAliveFanControl()
-            }
-            source.resume()
-            timer = source
+            guard let self else { return }
+            self.sleepPolicy.start(configuration)
+            self.startTimerLocked()
         }
     }
 
     func stop() {
         queue.async { [weak self] in
-            self?.timer?.cancel()
-            self?.timer = nil
+            guard let self else { return }
+            self.sleepPolicy.stop()
+            self.wakeTask?.cancel()
+            self.wakeTask = nil
+            self.timer?.cancel()
+            self.timer = nil
         }
     }
 
     /// Called on normal app termination. A crash is covered by the helper lease.
     func stopAndRestore() {
         queue.sync {
+            sleepPolicy.stop()
+            wakeTask?.cancel()
+            wakeTask = nil
             timer?.cancel()
             timer = nil
             _ = client.restoreFanControl()
         }
+    }
+
+    func systemWillSleep() {
+        queue.async { [weak self] in
+            guard let self, self.sleepPolicy.willSleep() != nil else { return }
+            self.timer?.cancel()
+            self.timer = nil
+            _ = self.client.restoreFanControl()
+        }
+    }
+
+    func systemDidWake() {
+        queue.async { [weak self] in
+            guard let self, let configuration = self.sleepPolicy.didWake() else { return }
+            self.wakeTask?.cancel()
+            let task = DispatchWorkItem { [weak self] in
+                guard let self, self.sleepPolicy.activeConfiguration != nil else { return }
+                let result = self.client.configureFanControl(configuration)
+                if result.ok {
+                    self.startTimerLocked()
+                }
+            }
+            self.wakeTask = task
+            self.queue.asyncAfter(deadline: .now() + self.wakeDelay, execute: task)
+        }
+    }
+
+    private func startTimerLocked() {
+        guard sleepPolicy.activeConfiguration != nil, timer == nil else { return }
+        let source = DispatchSource.makeTimerSource(queue: queue)
+        source.schedule(
+            deadline: .now() + .seconds(Int(MonitorFanPolicy.heartbeatSeconds)),
+            repeating: .seconds(Int(MonitorFanPolicy.heartbeatSeconds))
+        )
+        source.setEventHandler { [weak self] in
+            guard let self, self.client.allowsFanControlWrites else { return }
+            _ = self.client.keepAliveFanControl()
+        }
+        source.resume()
+        timer = source
     }
 }

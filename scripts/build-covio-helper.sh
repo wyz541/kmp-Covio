@@ -65,7 +65,7 @@ SOURCES=(
   "$ROOT/macosApp/src/Platform/PowerUIChargeClient.swift"
   "$ROOT/macosApp/src/Platform/SMC/SMCAccess.swift"
   "$ROOT/macosApp/src/Platform/SMC/SMCFanHardware.swift"
-  "$ROOT/macosApp/src/Platform/SMC/SMCFanWriter.swift"
+  "$ROOT/macosApp/src/Platform/SMC/StatsFanControl.swift"
   "$ROOT/macosApp/src/Hub/Monitor/Fan/FanControlRuntime.swift"
   "$ROOT/macosApp/src/Hub/Monitor/Fan/MonitorFanModels.swift"
 )

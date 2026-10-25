@@ -278,11 +278,7 @@ final class MonitorFanControlModel: ObservableObject {
                         leaseRemainingSeconds: 0,
                         error: nil
                     )
-                    if result.status?.active == true {
-                        FanControlLeaseKeeper.shared.start()
-                    } else {
-                        FanControlLeaseKeeper.shared.stop()
-                    }
+                    FanControlLeaseKeeper.shared.stop()
                     self.persist()
                 } else {
                     self.message = result.message
@@ -343,6 +339,7 @@ final class MonitorFanControlModel: ObservableObject {
                 await MainActor.run {
                     self.busy = false
                     self.configuration.enabled = false
+                    FanControlLeaseKeeper.shared.stop()
                     self.persist()
                 }
                 return
@@ -361,7 +358,7 @@ final class MonitorFanControlModel: ObservableObject {
                     self.configuration.enabled = status.active
                     self.helperStatus = status
                     if status.active {
-                        FanControlLeaseKeeper.shared.start()
+                        FanControlLeaseKeeper.shared.start(configuration: configuration)
                     } else {
                         FanControlLeaseKeeper.shared.stop()
                     }

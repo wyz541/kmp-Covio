@@ -30,6 +30,8 @@ struct SMCFanReadingSnapshot: Equatable, Sendable {
 final class SMCFanReader {
     private let smc: SMCAccess
     private let temperatureKeys: [SMCAccessKey]
+    private let availableKeys: Set<String>
+    private let appleSilicon: Bool
 
     convenience init() throws {
         let access = try SMCAccess()
@@ -38,7 +40,10 @@ final class SMCFanReader {
 
     init(access: SMCAccess, allKeys: [SMCAccessKey]? = nil) {
         smc = access
-        temperatureKeys = (allKeys ?? access.allKeys()).filter { $0.description.hasPrefix("T") }
+        let keys = allKeys ?? access.allKeys()
+        availableKeys = Set(keys.map(\.description))
+        appleSilicon = StatsFanControl.isAppleSilicon
+        temperatureKeys = keys.filter { $0.description.hasPrefix("T") }
     }
 
     static func controlSensorKeys(for sensors: [SMCTemperatureReading], allKeys: [String]) -> [String] {
@@ -108,10 +113,38 @@ final class SMCFanReader {
                 minimumRPM: max(0, minimum),
                 maximumRPM: max(minimum, maximum),
                 targetRPM: max(0, readFanDouble(index: index, suffix: "Tg") ?? 0),
-                mode: readFanInt(index: index, suffix: "Md") ?? -1
+                mode: readFanMode(index: index) ?? -1
             ))
         }
         return fans
+    }
+
+    /// Stats treats mode 3 as system automatic.
+    private func readFanMode(index: Int) -> Int? {
+        if appleSilicon {
+            guard let modeName = StatsFanModeResolver.modeKey(
+                for: index,
+                availableKeys: availableKeys,
+                appleSilicon: true
+            ), let key = SMCAccessKey(modeName), let raw = try? smc.readInt(key)
+            else { return nil }
+            return StatsFanModeResolver.normalizedMode(
+                rawValue: raw,
+                appleSilicon: true,
+                fanIndex: index,
+                fansModeBits: nil
+            )?.rawValue
+        }
+
+        guard let key = SMCAccessKey("FS! "), let raw = try? smc.readInt(key) else {
+            return nil
+        }
+        return StatsFanModeResolver.normalizedMode(
+            rawValue: 0,
+            appleSilicon: false,
+            fanIndex: index,
+            fansModeBits: raw
+        )?.rawValue
     }
 
     private func readFanDouble(index: Int, suffix: String) -> Double? {
@@ -119,10 +152,6 @@ final class SMCFanReader {
         return try? smc.readDouble(key)
     }
 
-    private func readFanInt(index: Int, suffix: String) -> Int? {
-        guard let key = SMCAccessKey("F\(index)\(suffix)") else { return nil }
-        return try? smc.readInt(key)
-    }
 }
 
 enum SMCTemperatureName {

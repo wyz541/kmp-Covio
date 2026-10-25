@@ -136,7 +136,7 @@ FanControlRuntime --20 秒无续租--> 恢复系统控制
 - 用户卸载 helper。
 
 Apple Silicon 使用 `F%dMd` 和 `F%dTg`。
-Intel 使用 `F%dMn`。
+Intel 使用 `F%dTg`，并用 `FS! ` 位掩码切换模式。
 写入前记录原模式或原最小转速，恢复时写回。
 
 ## 7. 故障状态
@@ -173,7 +173,8 @@ Intel 使用 `F%dMn`。
 ## 10. 依据
 
 - 需求来源：[#313](https://github.com/wyz541/kmp-Covio/issues/313)
-- SMC 与风扇实现：MacFanControl `d26184f`，MIT 许可
+- SMC 设备的底层读写：MacFanControl `d26184f`，MIT 许可
+- 风扇模式、目标转速、恢复和睡眠逻辑：Stats `7d3f70d`，MIT 许可
 - 自动模式与同步控制：Stats `7d3f70d`，MIT 许可
 - 现有监控页：`macosApp/src/Hub/Monitor/MonitorTabView.swift`
 - 现有快照：`macosApp/src/Hub/Monitor/MonitorSnapshot.swift`

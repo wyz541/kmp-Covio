@@ -57,7 +57,8 @@ class ReleaseManifestTests(unittest.TestCase):
                         "CovioHelperProtocolVersion",
                     )
                 )
-                + "<string>$(CURRENT_PROJECT_VERSION)</string>\n",
+                + "<string>$(CURRENT_PROJECT_VERSION)</string>\n"
+                + "<key>CovioInstallTransactionVersion</key>\n<string>1</string>\n",
                 encoding="utf-8",
             )
             (root / release.PBXPROJ).parent.mkdir(parents=True)
@@ -97,6 +98,25 @@ class ReleaseManifestTests(unittest.TestCase):
             helper.write_bytes(b"helper-v2")
             with self.assertRaises(release.ManifestError):
                 release.verify_artifact(manifest_path, helper, root)
+
+    def test_bundle_manifest_carries_identity_without_installer_records(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self._write_fixture(root)
+            helper = root / "helper"
+            helper.write_bytes(b"helper-v1")
+            spec = release.load_spec(root)
+            manifest = release.bundle_manifest(spec, "b" * 40, helper)
+            manifest_path = root / "bundle-release-manifest.json"
+            release._write_json(manifest_path, manifest)
+            release.verify_bundle_manifest(manifest_path, helper, spec)
+
+            self.assertEqual(manifest["schemaVersion"], release.BUNDLE_SCHEMA_VERSION)
+            self.assertNotIn("installers", manifest)
+            self.assertNotIn("model", manifest)
+            helper.write_bytes(b"helper-v2")
+            with self.assertRaises(release.ManifestError):
+                release.verify_bundle_manifest(manifest_path, helper, spec)
 
     def test_artifact_manifest_contains_release_identity(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -263,7 +283,8 @@ class ReleaseManifestTests(unittest.TestCase):
                     "CovioHelperProtocolVersion",
                 )
             )
-            + "<string>$(CURRENT_PROJECT_VERSION)</string>\n",
+            + "<string>$(CURRENT_PROJECT_VERSION)</string>\n"
+            + "<key>CovioInstallTransactionVersion</key>\n<string>1</string>\n",
             encoding="utf-8",
         )
         (root / release.PBXPROJ).parent.mkdir(parents=True)

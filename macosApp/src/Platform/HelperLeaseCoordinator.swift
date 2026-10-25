@@ -81,6 +81,40 @@ final class HelperLeaseCoordinator: @unchecked Sendable {
         }
     }
 
+    /// 安装事务只清除 Covio 持有的租约和 SleepDisabled，不覆盖外部状态。
+    func prepareForInstallTransaction(requestId: String) -> HelperReply {
+        queue.sync { () -> HelperReply in
+            _ = book.clear()
+            guard let disabled = environment.readSleepDisabled() else {
+                return HelperWire.shared.failure(
+                    requestId: requestId,
+                    message: HelperWire.shared.ERROR_CANNOT_READ_SLEEP_DISABLED
+                )
+            }
+            let owner = environment.readOwner()
+            if !disabled {
+                if owner == HelperProtocol.sleepOwnerValue {
+                    environment.clearOwner()
+                }
+                return HelperWire.shared.success(requestId: requestId, result: [:])
+            }
+            guard owner == HelperProtocol.sleepOwnerValue else {
+                return HelperWire.shared.success(requestId: requestId, result: [:])
+            }
+            guard environment.writeSleepDisabled(false),
+                  environment.readSleepDisabled() == false
+            else {
+                return HelperWire.shared.failure(
+                    requestId: requestId,
+                    message: HelperWire.shared.ERROR_CANNOT_WRITE_SLEEP_DISABLED
+                )
+            }
+            environment.clearOwner()
+            log.info("Released Covio SleepDisabled for install transaction")
+            return HelperWire.shared.success(requestId: requestId, result: [:])
+        }
+    }
+
     private func acquire(_ request: HelperRequest, renew: Bool) -> HelperReply {
         let leaseId = request.payload["leaseId"] ?? ""
         let clientDisplayCount = Int(request.payload["externalDisplayCount"] ?? "") ?? 0

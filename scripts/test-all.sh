@@ -8,8 +8,9 @@ set -euo pipefail
 #   2. 合同常量有没有漂移。
 #   3. 合同的跨段规则。schema 表达不了的那些。
 #   4. 割接脚本的断言。
-#   5. 文件自动命名模型清单。
-#   6. macOS SwiftUI 宿主的 XCTest。
+#   5. 本机 app-helper 升级与回滚事务。
+#   6. 文件自动命名模型清单。
+#   7. macOS SwiftUI 宿主的 XCTest。
 #
 # 第 5 步自己也会跑第 2、3 步。分开列是为了让它们单独报错，一眼能看出问题在哪。
 
@@ -36,6 +37,9 @@ python3 -I "$ROOT/scripts/validate-contract.py"
 
 step "helper 割接脚本"
 bash "$ROOT/scripts/verify-helper-cutover.sh" selftest
+
+step "本机升级事务"
+bash "$ROOT/scripts/test-transactional-installer.sh"
 
 step "文件自动命名模型清单"
 python3 -I "$ROOT/scripts/file_naming_model.py" verify-all

@@ -46,6 +46,7 @@ SOURCE_REQUIRED = (
     "helperProtocolVersion",
 )
 ARTIFACT_SCHEMA_VERSION = 2
+BUNDLE_SCHEMA_VERSION = 1
 DEFAULT_DMG_MAX_BYTES = 50_000_000
 ARTIFACT_REQUIRED = (
     "schemaVersion",
@@ -60,6 +61,15 @@ ARTIFACT_REQUIRED = (
     "model",
 )
 INSTALLER_NAMES = ("default", "offline")
+BUNDLE_IDENTITY_FIELDS = (
+    "releaseId",
+    "productVersion",
+    "buildNumber",
+    "gitCommit",
+    "helperProtocolVersion",
+    "helperSHA256",
+    "channel",
+)
 MODEL_REQUIRED = (
     "tier",
     "modelID",
@@ -221,11 +231,17 @@ def project_errors(root: pathlib.Path = ROOT) -> list[str]:
         "CovioGitCommit",
         "CovioReleaseId",
         "CovioHelperProtocolVersion",
+        "CovioInstallTransactionVersion",
     ):
         if f"<key>{key}</key>" not in plist:
             errors.append(f"Info.plist is missing {key}")
     if "<string>$(CURRENT_PROJECT_VERSION)</string>" not in plist:
         errors.append("CFBundleVersion must use $(CURRENT_PROJECT_VERSION)")
+    if not re.search(
+        r"<key>CovioInstallTransactionVersion</key>\s*<string>1</string>",
+        plist,
+    ):
+        errors.append("CovioInstallTransactionVersion must be 1")
     contract_protocol = _protocol_from_contract(root)
     if contract_protocol != spec.helper_protocol_version:
         errors.append(
@@ -426,6 +442,55 @@ def artifact_manifest(
     }
 
 
+def bundle_manifest(
+    spec: ReleaseSpec,
+    commit: str,
+    helper_path: pathlib.Path,
+) -> dict[str, Any]:
+    if not helper_path.is_file():
+        raise ManifestError(f"helper path is not a file: {helper_path}")
+    return {
+        "schemaVersion": BUNDLE_SCHEMA_VERSION,
+        "releaseId": release_id(spec, commit),
+        "productVersion": spec.product_version,
+        "buildNumber": spec.build_number,
+        "gitCommit": commit,
+        "helperProtocolVersion": spec.helper_protocol_version,
+        "helperSHA256": sha256_file(helper_path),
+        "channel": spec.channel,
+    }
+
+
+def verify_bundle_manifest(
+    manifest_path: pathlib.Path,
+    helper_path: pathlib.Path,
+    source_spec: ReleaseSpec,
+) -> dict[str, Any]:
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError) as error:
+        raise ManifestError(f"cannot read bundle manifest: {error}") from error
+    if not isinstance(manifest, dict):
+        raise ManifestError("bundle manifest must be a JSON object")
+    missing = [field for field in BUNDLE_IDENTITY_FIELDS if field not in manifest]
+    if missing:
+        raise ManifestError(f"bundle manifest is missing: {', '.join(missing)}")
+    if manifest.get("schemaVersion") != BUNDLE_SCHEMA_VERSION:
+        raise ManifestError(f"bundle schemaVersion must be {BUNDLE_SCHEMA_VERSION}")
+    for field in ("releaseId", "productVersion", "gitCommit", "helperSHA256", "channel"):
+        if not isinstance(manifest[field], str):
+            raise ManifestError(f"bundle {field} must be a string")
+    for field in ("buildNumber", "helperProtocolVersion"):
+        if not isinstance(manifest[field], int) or isinstance(manifest[field], bool):
+            raise ManifestError(f"bundle {field} must be an integer")
+    expected = bundle_manifest(source_spec, manifest["gitCommit"], helper_path)
+    expected.pop("schemaVersion")
+    actual = {field: manifest[field] for field in BUNDLE_IDENTITY_FIELDS}
+    if actual != expected:
+        raise ManifestError("bundle manifest identity does not match its app inputs")
+    return manifest
+
+
 def _write_json(path: pathlib.Path, data: dict[str, Any]) -> None:
     _atomic_write(path, json.dumps(data, indent=2, sort_keys=False) + "\n")
 
@@ -557,6 +622,16 @@ def main(argv: list[str] | None = None, root: pathlib.Path = ROOT) -> int:
     verify.add_argument("manifest", type=pathlib.Path)
     verify.add_argument("--helper", required=True, type=pathlib.Path)
 
+    generate_bundle = sub.add_parser("generate-bundle-manifest")
+    generate_bundle.add_argument("--helper", required=True, type=pathlib.Path)
+    generate_bundle.add_argument("--output", required=True, type=pathlib.Path)
+    generate_bundle.add_argument("--commit")
+    generate_bundle.add_argument("--allow-dirty", action="store_true")
+
+    verify_bundle = sub.add_parser("verify-bundle-manifest")
+    verify_bundle.add_argument("manifest", type=pathlib.Path)
+    verify_bundle.add_argument("--helper", required=True, type=pathlib.Path)
+
     bump = sub.add_parser("bump")
     bump.add_argument("--version")
 
@@ -616,6 +691,23 @@ def main(argv: list[str] | None = None, root: pathlib.Path = ROOT) -> int:
         if args.command == "verify-artifact":
             verify_artifact(args.manifest, args.helper, root)
             print("artifact manifest is valid")
+            return 0
+        if args.command == "generate-bundle-manifest":
+            if not args.allow_dirty:
+                ensure_clean(root)
+            errors = drift_errors(root)
+            if errors:
+                return _print_errors(errors)
+            commit = args.commit or git_commit(root)
+            manifest = bundle_manifest(load_spec(root), commit, args.helper)
+            output = args.output if args.output.is_absolute() else root / args.output
+            _write_json(output, manifest)
+            verify_bundle_manifest(output, args.helper, load_spec(root))
+            print(output)
+            return 0
+        if args.command == "verify-bundle-manifest":
+            verify_bundle_manifest(args.manifest, args.helper, load_spec(root))
+            print("bundle manifest is valid")
             return 0
         if args.command == "bump":
             spec = bump_build(root, args.version)

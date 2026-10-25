@@ -99,7 +99,7 @@ else
   /usr/bin/codesign --force --sign - "$OFFLINE_APP"
 fi
 /usr/bin/codesign --verify --deep --strict "$OFFLINE_APP"
-bash "$ROOT/scripts/verify-helper-daemon.sh" "$OFFLINE_APP"
+bash "$ROOT/scripts/verify-helper-daemon.sh" "$OFFLINE_APP" --require-manifest
 
 notarize_and_staple() {
   local target="$1"

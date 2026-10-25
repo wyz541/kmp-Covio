@@ -76,6 +76,33 @@ final class HelperServiceManagerTests: XCTestCase {
         XCTAssertEqual(manager.state, .requiresApproval)
     }
 
+    func testInstallTransactionReplacesTheRegistrationWithoutReadingTheOldHelper() {
+        let manager = manager(status: .enabled)
+
+        let result = HelperInstaller.registerForInstallTransaction(
+            serviceManager: manager,
+            legacyPlistPath: legacyPlist
+        )
+
+        XCTAssertEqual(result, .requiresApproval)
+        XCTAssertEqual(manager.state, .requiresApproval)
+    }
+
+    func testInstallTransactionRejectsALegacyDaemon() throws {
+        try Data().write(to: URL(fileURLWithPath: legacyPlist))
+        let manager = manager(status: .notRegistered)
+
+        let result = HelperInstaller.registerForInstallTransaction(
+            serviceManager: manager,
+            legacyPlistPath: legacyPlist
+        )
+
+        guard case .failed(let message) = result else {
+            return XCTFail("legacy daemon should block the transaction")
+        }
+        XCTAssertTrue(message.contains("Legacy helper"))
+    }
+
     private func manager(status: SMAppService.Status) -> SMAppHelperServiceManager {
         SMAppHelperServiceManager(
             backing: FakeSMAppServiceBacking(status: status),

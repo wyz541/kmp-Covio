@@ -59,6 +59,12 @@ final class FanControlRuntime: @unchecked Sendable {
         }
     }
 
+    func prepareForInstallTransaction(requestId: String) -> HelperReply {
+        queue.sync {
+            restore(requestId: requestId, error: nil)
+        }
+    }
+
     private func configure(_ request: HelperRequest) -> HelperReply {
         guard let parsed = parseConfiguration(request.payload) else {
             return HelperWire.shared.failure(

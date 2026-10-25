@@ -1,0 +1,832 @@
+#!/bin/bash
+
+# Covio 本机升级事务。这个文件只提供函数，由 preinstall、postinstall 和恢复命令加载。
+#
+# 事务边界是整个 Covio.app。helper 是 app bundle 的嵌套可执行文件，
+# 因此原子交换 bundle 就是同时提交 app 与 helper，不会留下混合版本。
+
+COVIO_TX_APP_NAME="Covio.app"
+COVIO_TX_CODESIGN="${COVIO_TX_CODESIGN:-/usr/bin/codesign}"
+COVIO_TX_DITTO="${COVIO_TX_DITTO:-/usr/bin/ditto}"
+COVIO_TX_FIND="${COVIO_TX_FIND:-/usr/bin/find}"
+COVIO_TX_INSTALL="${COVIO_TX_INSTALL:-/usr/bin/install}"
+COVIO_TX_LIPO="${COVIO_TX_LIPO:-/usr/bin/lipo}"
+COVIO_TX_PGREP="${COVIO_TX_PGREP:-/usr/bin/pgrep}"
+COVIO_TX_PLUTIL="${COVIO_TX_PLUTIL:-/usr/bin/plutil}"
+COVIO_TX_SHASUM="${COVIO_TX_SHASUM:-/usr/bin/shasum}"
+COVIO_TX_SPCTL="${COVIO_TX_SPCTL:-/usr/sbin/spctl}"
+COVIO_TX_STAPLER="${COVIO_TX_STAPLER:-/usr/bin/xcrun}"
+COVIO_TX_UNAME="${COVIO_TX_UNAME:-/usr/bin/uname}"
+COVIO_TX_ID="${COVIO_TX_ID:-/usr/bin/id}"
+
+covio_tx_load_environment() {
+    local environment_file="$1"
+    if [[ ! -f "$environment_file" ]]; then
+        printf 'Missing transaction environment: %s\n' "$environment_file" >&2
+        return 1
+    fi
+    # shellcheck disable=SC1090
+    source "$environment_file"
+    local key
+    for key in \
+        TRANSACTION_ID EXPECTED_RELEASE_ID EXPECTED_PRODUCT_VERSION \
+        EXPECTED_BUILD_NUMBER EXPECTED_COMMIT EXPECTED_PROTOCOL_VERSION \
+        EXPECTED_HELPER_SHA256 EXPECTED_CHANNEL
+    do
+        if [[ -z "${!key:-}" ]]; then
+            printf 'Transaction environment is missing %s\n' "$key" >&2
+            return 1
+        fi
+    done
+}
+
+covio_tx_configure() {
+    local state_root="${1:-${COVIO_TX_STATE_ROOT:-/Library/Application Support/Covio}}"
+    local applications_root="${2:-${COVIO_TX_APPLICATIONS_ROOT:-/Applications}}"
+    local staged_app="${3:-}"
+    TX_STATE_ROOT="$state_root"
+    TX_APPLICATIONS_ROOT="$applications_root"
+    TX_APP_PATH="$applications_root/$COVIO_TX_APP_NAME"
+    TX_INSTALLER_ROOT="$state_root/Installer"
+    if [[ -z "$staged_app" ]]; then
+        staged_app="${STAGED_APP_PATH:-$TX_INSTALLER_ROOT/staged/$COVIO_TX_APP_NAME}"
+    fi
+    TX_STAGED_APP="$staged_app"
+    TX_TRANSACTION_ROOT="$TX_INSTALLER_ROOT/transactions/$TRANSACTION_ID"
+    TX_BACKUP_APP="$TX_TRANSACTION_ROOT/previous/$COVIO_TX_APP_NAME"
+    TX_CANDIDATE_APP="$TX_TRANSACTION_ROOT/candidate/$COVIO_TX_APP_NAME"
+    TX_PREVIOUS_RECORD="$TX_TRANSACTION_ROOT/previous/installed-release.json"
+    TX_STATE_FILE="$TX_TRANSACTION_ROOT/state"
+    TX_LOG_FILE="$TX_TRANSACTION_ROOT/transaction.log"
+    TX_ENVIRONMENT_FILE="$TX_TRANSACTION_ROOT/transaction.env"
+    TX_CURRENT_POINTER="$TX_INSTALLER_ROOT/current-transaction"
+    TX_LAST_POINTER="$TX_INSTALLER_ROOT/last-transaction"
+    TX_RECORD_PATH="$state_root/installed-release.json"
+    TX_REPORT_PATH="$state_root/install-report.json"
+    TX_ATOMIC_SWAP="${COVIO_TX_ATOMIC_SWAP:-$TX_INSTALLER_ROOT/bin/CovioTransaction}"
+    TX_TEST_MODE="${COVIO_TX_TEST_MODE:-0}"
+}
+
+covio_tx_require_root() {
+    if [[ "$TX_TEST_MODE" == "1" ]]; then
+        return 0
+    fi
+    if [[ "$("$COVIO_TX_ID" -u)" != "0" ]]; then
+        printf 'Covio install transactions require root.\n' >&2
+        return 1
+    fi
+}
+
+covio_tx_log() {
+    mkdir -p "$TX_TRANSACTION_ROOT"
+    printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" | tee -a "$TX_LOG_FILE" >&2
+}
+
+covio_tx_remove_tree() {
+    local path="$1"
+    if [[ -z "$path" || "$path" == "/" || ! -e "$path" ]]; then
+        return 0
+    fi
+    "$COVIO_TX_FIND" "$path" -depth -delete
+}
+
+covio_tx_write_state() {
+    local state="$1"
+    mkdir -p "$TX_TRANSACTION_ROOT"
+    printf '%s\n' "$state" > "$TX_STATE_FILE.tmp"
+    sync
+    mv "$TX_STATE_FILE.tmp" "$TX_STATE_FILE"
+}
+
+covio_tx_read_state() {
+    if [[ -f "$TX_STATE_FILE" ]]; then
+        cat "$TX_STATE_FILE"
+    else
+        printf 'missing\n'
+    fi
+}
+
+covio_tx_point_to_transaction() {
+    printf '%s\n' "$TX_TRANSACTION_ROOT" > "$TX_CURRENT_POINTER.tmp"
+    mv "$TX_CURRENT_POINTER.tmp" "$TX_CURRENT_POINTER"
+}
+
+covio_tx_mark_last_transaction() {
+    printf '%s\n' "$TX_TRANSACTION_ROOT" > "$TX_LAST_POINTER.tmp"
+    mv "$TX_LAST_POINTER.tmp" "$TX_LAST_POINTER"
+}
+
+covio_tx_clear_current_transaction() {
+    if [[ -e "$TX_CURRENT_POINTER" ]]; then
+        unlink "$TX_CURRENT_POINTER"
+    fi
+}
+
+covio_tx_plist_raw() {
+    local file="$1"
+    local key="$2"
+    "$COVIO_TX_PLUTIL" -extract "$key" raw -o - "$file"
+}
+
+covio_tx_sha256() {
+    "$COVIO_TX_SHASUM" -a 256 "$1" | awk '{print $1}'
+}
+
+covio_tx_identity_value() {
+    local prefix="$1"
+    local field="$2"
+    local name="${prefix}_${field}"
+    printf '%s' "${!name:-}"
+}
+
+covio_tx_load_info_identity() {
+    local app="$1"
+    local prefix="$2"
+    local info="$app/Contents/Info.plist"
+    local helper="$app/Contents/MacOS/CovioHelper"
+    if [[ ! -f "$info" || ! -x "$helper" ]]; then
+        return 1
+    fi
+    printf -v "${prefix}_PRODUCT_VERSION" '%s' "$(covio_tx_plist_raw "$info" CFBundleShortVersionString)"
+    printf -v "${prefix}_BUILD_NUMBER" '%s' "$(covio_tx_plist_raw "$info" CFBundleVersion)"
+    printf -v "${prefix}_GIT_COMMIT" '%s' "$(covio_tx_plist_raw "$info" CovioGitCommit)"
+    printf -v "${prefix}_RELEASE_ID" '%s' "$(covio_tx_plist_raw "$info" CovioReleaseId)"
+    printf -v "${prefix}_PROTOCOL_VERSION" '%s' "$(covio_tx_plist_raw "$info" CovioHelperProtocolVersion)"
+    printf -v "${prefix}_CHANNEL" '%s' "$(covio_tx_plist_raw "$info" CovioReleaseChannel)"
+    printf -v "${prefix}_HELPER_SHA256" '%s' "$(covio_tx_sha256 "$helper")"
+    printf -v "${prefix}_TRANSACTION_VERSION" '%s' \
+        "$("$COVIO_TX_PLUTIL" -extract CovioInstallTransactionVersion raw -o - "$info" 2>/dev/null || true)"
+}
+
+covio_tx_load_manifest_identity() {
+    local file="$1"
+    local prefix="$2"
+    [[ -f "$file" ]] || return 1
+    printf -v "${prefix}_PRODUCT_VERSION" '%s' "$(covio_tx_plist_raw "$file" productVersion)"
+    printf -v "${prefix}_BUILD_NUMBER" '%s' "$(covio_tx_plist_raw "$file" buildNumber)"
+    printf -v "${prefix}_GIT_COMMIT" '%s' "$(covio_tx_plist_raw "$file" gitCommit)"
+    printf -v "${prefix}_RELEASE_ID" '%s' "$(covio_tx_plist_raw "$file" releaseId)"
+    printf -v "${prefix}_PROTOCOL_VERSION" '%s' "$(covio_tx_plist_raw "$file" helperProtocolVersion)"
+    printf -v "${prefix}_CHANNEL" '%s' "$(covio_tx_plist_raw "$file" channel)"
+    printf -v "${prefix}_HELPER_SHA256" '%s' "$(covio_tx_plist_raw "$file" helperSHA256)"
+}
+
+covio_tx_load_helper_identity() {
+    local app="$1"
+    local prefix="$2"
+    local helper="$app/Contents/MacOS/CovioHelper"
+    local output
+    output="$($helper --print-release-identity 2>/dev/null)" || return 1
+    local temporary
+    temporary="$(mktemp "${TMPDIR:-/tmp}/covio-helper-identity.XXXXXX")"
+    printf '%s\n' "$output" > "$temporary"
+    if ! "$COVIO_TX_PLUTIL" -extract releaseId raw -o - "$temporary" >/dev/null 2>&1; then
+        unlink "$temporary"
+        return 1
+    fi
+    printf -v "${prefix}_PRODUCT_VERSION" '%s' "$(covio_tx_plist_raw "$temporary" productVersion)"
+    printf -v "${prefix}_BUILD_NUMBER" '%s' "$(covio_tx_plist_raw "$temporary" buildNumber)"
+    printf -v "${prefix}_GIT_COMMIT" '%s' "$(covio_tx_plist_raw "$temporary" gitCommit)"
+    printf -v "${prefix}_RELEASE_ID" '%s' "$(covio_tx_plist_raw "$temporary" releaseId)"
+    printf -v "${prefix}_PROTOCOL_VERSION" '%s' "$(covio_tx_plist_raw "$temporary" protocolVersion)"
+    printf -v "${prefix}_CHANNEL" '%s' "$(covio_tx_plist_raw "$temporary" channel)"
+    printf -v "${prefix}_HELPER_SHA256" '%s' "$(covio_tx_plist_raw "$temporary" helperSHA256)"
+    unlink "$temporary"
+}
+
+covio_tx_validate_prefix() {
+    local prefix="$1"
+    local version build commit release_id protocol channel helper_sha
+    version="$(covio_tx_identity_value "$prefix" PRODUCT_VERSION)"
+    build="$(covio_tx_identity_value "$prefix" BUILD_NUMBER)"
+    commit="$(covio_tx_identity_value "$prefix" GIT_COMMIT)"
+    release_id="$(covio_tx_identity_value "$prefix" RELEASE_ID)"
+    protocol="$(covio_tx_identity_value "$prefix" PROTOCOL_VERSION)"
+    channel="$(covio_tx_identity_value "$prefix" CHANNEL)"
+    helper_sha="$(covio_tx_identity_value "$prefix" HELPER_SHA256)"
+    [[ "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || return 1
+    [[ "$build" =~ ^[1-9][0-9]*$ ]] || return 1
+    [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || return 1
+    [[ "$protocol" =~ ^[1-9][0-9]*$ ]] || return 1
+    [[ "$channel" == "internal" || "$channel" == "public" ]] || return 1
+    [[ "$helper_sha" =~ ^[0-9a-f]{64}$ ]] || return 1
+    [[ "$release_id" == "$version+$build+$commit" ]]
+}
+
+covio_tx_prefixes_equal() {
+    local left="$1"
+    local right="$2"
+    local field value
+    for field in PRODUCT_VERSION BUILD_NUMBER GIT_COMMIT RELEASE_ID PROTOCOL_VERSION CHANNEL HELPER_SHA256
+    do
+        value="$(covio_tx_identity_value "$left" "$field")"
+        if [[ "$value" != "$(covio_tx_identity_value "$right" "$field")" ]]; then
+            return 1
+        fi
+    done
+}
+
+covio_tx_validate_expected_identity() {
+    if [[ ! "$EXPECTED_PRODUCT_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ||
+          ! "$EXPECTED_BUILD_NUMBER" =~ ^[1-9][0-9]*$ ||
+          ! "$EXPECTED_COMMIT" =~ ^[0-9a-f]{40}$ ||
+          ! "$EXPECTED_PROTOCOL_VERSION" =~ ^[1-9][0-9]*$ ||
+          ! "$EXPECTED_HELPER_SHA256" =~ ^[0-9a-f]{64}$ ||
+          ( "$EXPECTED_CHANNEL" != "internal" && "$EXPECTED_CHANNEL" != "public" ) ]]; then
+        covio_tx_log "Signed installer identity has invalid fields"
+        return 1
+    fi
+    if [[ "$EXPECTED_RELEASE_ID" != \
+          "$EXPECTED_PRODUCT_VERSION+$EXPECTED_BUILD_NUMBER+$EXPECTED_COMMIT" ]]; then
+        covio_tx_log "Expected releaseId does not match its version, build and commit"
+        return 1
+    fi
+    if [[ -n "${NEW_HELPER_SHA256:-}" &&
+          "$EXPECTED_HELPER_SHA256" != "$(covio_tx_identity_value NEW HELPER_SHA256)" ]]; then
+        covio_tx_log "Expected helper digest differs from the staged app"
+        return 1
+    fi
+}
+
+covio_tx_install_record_file() {
+    local source="$1"
+    local destination="$2"
+    if [[ "$TX_TEST_MODE" == "1" ]]; then
+        cp "$source" "$destination"
+        chmod 0644 "$destination"
+    else
+        "$COVIO_TX_INSTALL" -o root -g wheel -m 0644 "$source" "$destination"
+    fi
+}
+
+covio_tx_verify_signatures() {
+    local app="$1"
+    local channel="$2"
+    local helper="$app/Contents/MacOS/CovioHelper"
+    if ! "$COVIO_TX_CODESIGN" --verify --deep --strict "$app" >/dev/null 2>&1; then
+        covio_tx_log "App signature is invalid"
+        return 1
+    fi
+    if ! "$COVIO_TX_CODESIGN" --verify --strict "$helper" >/dev/null 2>&1; then
+        covio_tx_log "Helper signature is invalid"
+        return 1
+    fi
+    [[ "$channel" == "public" ]] || return 0
+
+    local app_report helper_report
+    app_report="$("$COVIO_TX_CODESIGN" -dv --verbose=4 "$app" 2>&1)" || return 1
+    helper_report="$("$COVIO_TX_CODESIGN" -dv --verbose=4 "$helper" 2>&1)" || return 1
+    if [[ "$app_report" != *"Authority=Developer ID Application:"* ||
+          "$helper_report" != *"Authority=Developer ID Application:"* ]]; then
+        covio_tx_log "Public release requires Developer ID Application signatures"
+        return 1
+    fi
+    if [[ "$app_report" != *"runtime"* || "$helper_report" != *"runtime"* ]]; then
+        covio_tx_log "Public app and helper require hardened runtime"
+        return 1
+    fi
+    if ! "$COVIO_TX_STAPLER" stapler validate "$app" >/dev/null 2>&1; then
+        covio_tx_log "App notarization ticket is missing"
+        return 1
+    fi
+    if ! "$COVIO_TX_SPCTL" -a -vv --type execute "$app" >/dev/null 2>&1; then
+        covio_tx_log "Gatekeeper rejected the app"
+        return 1
+    fi
+}
+
+covio_tx_verify_old_app() {
+    local app="$1"
+    if ! covio_tx_load_info_identity "$app" OLD ||
+       ! covio_tx_validate_prefix OLD; then
+        covio_tx_log "Installed app identity is incomplete or invalid"
+        return 1
+    fi
+    covio_tx_verify_signatures "$app" "$(covio_tx_identity_value OLD CHANNEL)" || return 1
+    if ! covio_tx_load_helper_identity "$app" OLD_HELPER ||
+       ! covio_tx_validate_prefix OLD_HELPER; then
+        covio_tx_log "Installed helper identity cannot be read"
+        return 1
+    fi
+    if ! covio_tx_prefixes_equal OLD OLD_HELPER; then
+        covio_tx_log "Installed app and helper identities differ"
+        return 1
+    fi
+}
+
+covio_tx_verify_new_app() {
+    local app="$1"
+    local manifest="$app/Contents/Resources/release-manifest.json"
+    if [[ ! -f "$manifest" ]]; then
+        covio_tx_log "Staged app has no release manifest"
+        return 1
+    fi
+    if [[ "$(covio_tx_plist_raw "$manifest" schemaVersion)" != "1" ]]; then
+        covio_tx_log "Staged app bundle manifest schemaVersion must be 1"
+        return 1
+    fi
+    if ! covio_tx_load_info_identity "$app" NEW ||
+       ! covio_tx_validate_prefix NEW; then
+        covio_tx_log "Staged app identity is incomplete or invalid"
+        return 1
+    fi
+    covio_tx_verify_signatures "$app" "$(covio_tx_identity_value NEW CHANNEL)" || return 1
+    if ! covio_tx_load_manifest_identity "$manifest" NEW_MANIFEST ||
+       ! covio_tx_validate_prefix NEW_MANIFEST; then
+        covio_tx_log "Staged release manifest is incomplete or invalid"
+        return 1
+    fi
+    if ! covio_tx_load_helper_identity "$app" NEW_HELPER ||
+       ! covio_tx_validate_prefix NEW_HELPER; then
+        covio_tx_log "Staged helper identity cannot be read"
+        return 1
+    fi
+    if ! covio_tx_prefixes_equal NEW NEW_MANIFEST ||
+       ! covio_tx_prefixes_equal NEW NEW_HELPER; then
+        covio_tx_log "Staged app, manifest and helper identities differ"
+        return 1
+    fi
+    if [[ "$(covio_tx_identity_value NEW PRODUCT_VERSION)" != "$EXPECTED_PRODUCT_VERSION" ||
+          "$(covio_tx_identity_value NEW BUILD_NUMBER)" != "$EXPECTED_BUILD_NUMBER" ||
+          "$(covio_tx_identity_value NEW RELEASE_ID)" != "$EXPECTED_RELEASE_ID" ||
+          "$(covio_tx_identity_value NEW GIT_COMMIT)" != "$EXPECTED_COMMIT" ||
+          "$(covio_tx_identity_value NEW PROTOCOL_VERSION)" != "$EXPECTED_PROTOCOL_VERSION" ||
+          "$(covio_tx_identity_value NEW HELPER_SHA256)" != "$EXPECTED_HELPER_SHA256" ||
+          "$(covio_tx_identity_value NEW CHANNEL)" != "$EXPECTED_CHANNEL" ]]; then
+        covio_tx_log "Staged app differs from the signed installer identity"
+        return 1
+    fi
+    local app_arch helper_arch
+    app_arch="$("$COVIO_TX_LIPO" -archs "$app/Contents/MacOS/Covio")"
+    helper_arch="$("$COVIO_TX_LIPO" -archs "$app/Contents/MacOS/CovioHelper")"
+    if [[ "$app_arch" != "arm64" || "$helper_arch" != "arm64" ]]; then
+        covio_tx_log "Staged app and helper must both be arm64"
+        return 1
+    fi
+}
+
+covio_tx_validate_upgrade_order() {
+    local old_build new_build old_protocol new_protocol old_channel
+    old_build="$(covio_tx_identity_value OLD BUILD_NUMBER)"
+    new_build="$(covio_tx_identity_value NEW BUILD_NUMBER)"
+    old_protocol="$(covio_tx_identity_value OLD PROTOCOL_VERSION)"
+    new_protocol="$(covio_tx_identity_value NEW PROTOCOL_VERSION)"
+    old_channel="$(covio_tx_identity_value OLD CHANNEL)"
+    if (( new_build < old_build )); then
+        covio_tx_log "Downgrade rejected: build $new_build is older than $old_build"
+        return 1
+    fi
+    if (( new_build == old_build )) &&
+       [[ "$(covio_tx_identity_value NEW RELEASE_ID)" != "$(covio_tx_identity_value OLD RELEASE_ID)" ]]; then
+        covio_tx_log "A different release must use a higher build number"
+        return 1
+    fi
+    if (( new_protocol < old_protocol )); then
+        covio_tx_log "Helper protocol downgrade rejected"
+        return 1
+    fi
+    if [[ "$old_channel" == "public" && "$EXPECTED_CHANNEL" == "internal" ]]; then
+        covio_tx_log "A public installation cannot move to the internal channel"
+        return 1
+    fi
+}
+
+covio_tx_write_identity_record() {
+    local prefix="$1"
+    local output="$2"
+    local temporary="$output.tmp.$$"
+    "$COVIO_TX_PLUTIL" -create xml1 "$temporary" >/dev/null
+    "$COVIO_TX_PLUTIL" -insert schemaVersion -integer 1 "$temporary" >/dev/null
+    "$COVIO_TX_PLUTIL" -insert releaseId -string "$(covio_tx_identity_value "$prefix" RELEASE_ID)" "$temporary" >/dev/null
+    "$COVIO_TX_PLUTIL" -insert productVersion -string "$(covio_tx_identity_value "$prefix" PRODUCT_VERSION)" "$temporary" >/dev/null
+    "$COVIO_TX_PLUTIL" -insert buildNumber -integer "$(covio_tx_identity_value "$prefix" BUILD_NUMBER)" "$temporary" >/dev/null
+    "$COVIO_TX_PLUTIL" -insert gitCommit -string "$(covio_tx_identity_value "$prefix" GIT_COMMIT)" "$temporary" >/dev/null
+    "$COVIO_TX_PLUTIL" -insert helperProtocolVersion -integer "$(covio_tx_identity_value "$prefix" PROTOCOL_VERSION)" "$temporary" >/dev/null
+    "$COVIO_TX_PLUTIL" -insert helperSHA256 -string "$(covio_tx_identity_value "$prefix" HELPER_SHA256)" "$temporary" >/dev/null
+    "$COVIO_TX_PLUTIL" -insert channel -string "$(covio_tx_identity_value "$prefix" CHANNEL)" "$temporary" >/dev/null
+    "$COVIO_TX_PLUTIL" -convert json -o "$output" "$temporary" >/dev/null
+    chmod 0644 "$output"
+    if [[ "$TX_TEST_MODE" != "1" ]]; then
+        chown root:wheel "$output"
+    fi
+    unlink "$temporary"
+}
+
+covio_tx_current_record_matches_old() {
+    [[ -f "$TX_RECORD_PATH" ]] || return 0
+    if ! covio_tx_load_manifest_identity "$TX_RECORD_PATH" RECORD ||
+       ! covio_tx_validate_prefix RECORD; then
+        covio_tx_log "installed-release.json is invalid"
+        return 1
+    fi
+    if [[ "$(covio_tx_identity_value RECORD RELEASE_ID)" != "$(covio_tx_identity_value OLD RELEASE_ID)" ]]; then
+        covio_tx_log "installed-release.json does not match the installed app"
+        return 1
+    fi
+}
+
+covio_tx_console_user() {
+    stat -f '%Su' /dev/console
+}
+
+covio_tx_run_as_user() {
+    if [[ "$TX_TEST_MODE" == "1" ]]; then
+        "$@"
+        return
+    fi
+    local user uid
+    user="$(covio_tx_console_user)"
+    if [[ -z "$user" || "$user" == "root" || "$user" == "loginwindow" || "$user" == "_mbsetupuser" ]]; then
+        covio_tx_log "No logged-in console user is available"
+        return 1
+    fi
+    uid="$(id -u "$user")"
+    /bin/launchctl asuser "$uid" /usr/bin/sudo -u "$user" -H "$@"
+}
+
+covio_tx_quit_running_app() {
+    if [[ "$TX_TEST_MODE" == "1" ]]; then
+        return 0
+    fi
+    "$COVIO_TX_PGREP" -x Covio >/dev/null 2>&1 || return 0
+    covio_tx_log "Asking Covio to quit before the bundle exchange"
+    covio_tx_run_as_user /usr/bin/osascript -e 'tell application id "com.wyz.covio" to quit' || return 1
+    local attempt
+    for attempt in $(seq 1 40); do
+        "$COVIO_TX_PGREP" -x Covio >/dev/null 2>&1 || return 0
+        sleep 0.25
+    done
+    covio_tx_log "Covio did not quit; upgrade stopped before changing the app"
+    return 1
+}
+
+covio_tx_cleanup_legacy_sleep() {
+    local owner_path="$TX_STATE_ROOT/sleep_owner"
+    if [[ -f "$owner_path" && "$(cat "$owner_path")" == "covio-sleep-disabled-v2" ]]; then
+        if ! /usr/bin/pmset -a disablesleep 0 >/dev/null 2>&1; then
+            covio_tx_log "Cannot clear Covio SleepDisabled during legacy migration"
+            return 1
+        fi
+        unlink "$owner_path"
+    fi
+}
+
+covio_tx_prepare_privileged_state() {
+    local app="$1"
+    local binary="$app/Contents/MacOS/Covio"
+    local transaction_version
+    transaction_version="$(covio_tx_identity_value OLD TRANSACTION_VERSION)"
+    if [[ "$transaction_version" == "1" ]]; then
+        covio_tx_run_as_user "$binary" --prepare-install-transaction || {
+            covio_tx_log "Privileged state restore failed; upgrade stopped"
+            return 1
+        }
+    else
+        covio_tx_run_as_user "$binary" --uninstall-helper || {
+            covio_tx_register_and_verify_helper "$app" OLD >/dev/null 2>&1 || true
+            covio_tx_log "Legacy helper restore failed; upgrade stopped"
+            return 1
+        }
+        if ! covio_tx_cleanup_legacy_sleep; then
+            covio_tx_register_and_verify_helper "$app" OLD >/dev/null 2>&1 || true
+            return 1
+        fi
+    fi
+}
+
+covio_tx_write_report() {
+    local result="$1"
+    local reason="$2"
+    local previous_release_id="${3:-}"
+    local temporary="$TX_REPORT_PATH.tmp.$$"
+    mkdir -p "$TX_STATE_ROOT"
+    "$COVIO_TX_PLUTIL" -create xml1 "$temporary" >/dev/null
+    "$COVIO_TX_PLUTIL" -insert schemaVersion -integer 1 "$temporary" >/dev/null
+    "$COVIO_TX_PLUTIL" -insert source -string "pkg" "$temporary" >/dev/null
+    "$COVIO_TX_PLUTIL" -insert transactionId -string "$TRANSACTION_ID" "$temporary" >/dev/null
+    "$COVIO_TX_PLUTIL" -insert releaseId -string "$EXPECTED_RELEASE_ID" "$temporary" >/dev/null
+    "$COVIO_TX_PLUTIL" -insert previousReleaseId -string "$previous_release_id" "$temporary" >/dev/null
+    "$COVIO_TX_PLUTIL" -insert result -string "$result" "$temporary" >/dev/null
+    "$COVIO_TX_PLUTIL" -insert rollbackReason -string "$reason" "$temporary" >/dev/null
+    "$COVIO_TX_PLUTIL" -insert recordedAt \
+        -string "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$temporary" >/dev/null
+    "$COVIO_TX_PLUTIL" -convert json -o "$TX_REPORT_PATH" "$temporary" >/dev/null
+    chmod 0644 "$TX_REPORT_PATH"
+    if [[ "$TX_TEST_MODE" != "1" ]]; then
+        chown root:wheel "$TX_REPORT_PATH"
+    fi
+    unlink "$temporary"
+}
+
+covio_tx_prepare() {
+    covio_tx_require_root || return 1
+    unset NEW_HELPER_SHA256
+    mkdir -p "$TX_INSTALLER_ROOT/transactions"
+    if [[ -e "$TX_CURRENT_POINTER" ]]; then
+        local existing_root existing_state
+        existing_root="$(cat "$TX_CURRENT_POINTER")"
+        existing_state="$(cat "$existing_root/state" 2>/dev/null || printf 'missing')"
+        if [[ "$existing_state" != "committed" && "$existing_state" != "rolled-back" ]]; then
+            covio_tx_log "Unfinished transaction exists: $existing_root"
+            return 1
+        fi
+        unlink "$TX_CURRENT_POINTER"
+    fi
+    if [[ -e "$TX_STAGED_APP" ]]; then
+        covio_tx_log "A stale staged app already exists"
+        return 1
+    fi
+    if [[ -e "$TX_TRANSACTION_ROOT" ]]; then
+        local last_root=""
+        if [[ -f "$TX_LAST_POINTER" ]]; then
+            last_root="$(cat "$TX_LAST_POINTER")"
+        fi
+        if [[ "$last_root" != "$TX_TRANSACTION_ROOT" ]]; then
+            covio_tx_log "Stale transaction directory exists: $TX_TRANSACTION_ROOT"
+            return 1
+        fi
+        local history_root="$TX_TRANSACTION_ROOT.history.$(date +%s).$RANDOM"
+        mv "$TX_TRANSACTION_ROOT" "$history_root"
+        printf '%s\n' "$history_root" > "$TX_LAST_POINTER"
+    fi
+    mkdir -p "$TX_TRANSACTION_ROOT/previous" "$TX_TRANSACTION_ROOT/candidate"
+    cp "$TX_ENVIRONMENT_SOURCE" "$TX_ENVIRONMENT_FILE"
+    covio_tx_point_to_transaction
+    covio_tx_write_report prepared "" ""
+
+    if [[ ! -d "$TX_APP_PATH" ]]; then
+        if [[ -e "$TX_RECORD_PATH" ]]; then
+            covio_tx_write_report failed "installed release record exists without the app" ""
+            return 1
+        fi
+        covio_tx_write_state prepared-new
+        covio_tx_log "Prepared clean install transaction $TRANSACTION_ID"
+        return 0
+    fi
+
+    covio_tx_verify_old_app "$TX_APP_PATH" || {
+        covio_tx_write_report failed "installed app verification failed" ""
+        return 1
+    }
+    covio_tx_current_record_matches_old || {
+        covio_tx_write_report failed "installed release record mismatch" \
+            "$(covio_tx_identity_value OLD RELEASE_ID)"
+        return 1
+    }
+    covio_tx_validate_expected_identity || {
+        covio_tx_write_report failed "signed installer identity is invalid" \
+            "$(covio_tx_identity_value OLD RELEASE_ID)"
+        return 1
+    }
+    covio_tx_quit_running_app || {
+        covio_tx_write_report failed "running app did not quit" \
+            "$(covio_tx_identity_value OLD RELEASE_ID)"
+        return 1
+    }
+    covio_tx_prepare_privileged_state "$TX_APP_PATH" || {
+        covio_tx_write_report failed "privileged state restore failed" \
+            "$(covio_tx_identity_value OLD RELEASE_ID)"
+        return 1
+    }
+    if ! "$COVIO_TX_DITTO" "$TX_APP_PATH" "$TX_BACKUP_APP"; then
+        covio_tx_register_and_verify_helper "$TX_APP_PATH" OLD >/dev/null 2>&1 || true
+        covio_tx_write_report failed "previous app backup failed" \
+            "$(covio_tx_identity_value OLD RELEASE_ID)"
+        return 1
+    fi
+    if ! covio_tx_verify_old_app "$TX_BACKUP_APP"; then
+        covio_tx_register_and_verify_helper "$TX_APP_PATH" OLD >/dev/null 2>&1 || true
+        covio_tx_write_report failed "previous app backup is not trusted" \
+            "$(covio_tx_identity_value OLD RELEASE_ID)"
+        return 1
+    fi
+    if ! covio_tx_write_identity_record OLD "$TX_PREVIOUS_RECORD"; then
+        covio_tx_register_and_verify_helper "$TX_APP_PATH" OLD >/dev/null 2>&1 || true
+        covio_tx_write_report failed "previous release record backup failed" \
+            "$(covio_tx_identity_value OLD RELEASE_ID)"
+        return 1
+    fi
+    covio_tx_write_state prepared
+    covio_tx_log "Prepared upgrade transaction $TRANSACTION_ID"
+}
+
+covio_tx_wait_for_helper_match() {
+    local app="$1"
+    local binary="$app/Contents/MacOS/Covio"
+    local transaction_version="$2"
+    local expected_version="$3"
+    local attempt output attempts="${COVIO_TX_WAIT_ATTEMPTS:-40}"
+    for attempt in $(seq 1 "$attempts"); do
+        if [[ "$transaction_version" == "1" ]]; then
+            if covio_tx_run_as_user "$binary" --verify-install-transaction >/dev/null 2>&1; then
+                return 0
+            fi
+        else
+            output="$(covio_tx_run_as_user "$binary" --helper-version 2>/dev/null || true)"
+            if [[ "$output" == "$expected_version" ]]; then
+                return 0
+            fi
+        fi
+        sleep 0.25
+    done
+    return 1
+}
+
+covio_tx_register_and_verify_helper() {
+    local app="$1"
+    local prefix="$2"
+    local binary="$app/Contents/MacOS/Covio"
+    local transaction_version version
+    transaction_version="$(covio_tx_identity_value "$prefix" TRANSACTION_VERSION)"
+    version="$(covio_tx_identity_value "$prefix" PRODUCT_VERSION)"
+    if [[ "$transaction_version" == "1" ]]; then
+        covio_tx_run_as_user "$binary" --register-install-transaction-helper \
+            >/dev/null 2>&1 || return 1
+    else
+        covio_tx_run_as_user "$binary" --install-helper >/dev/null 2>&1 || return 1
+    fi
+    covio_tx_wait_for_helper_match "$app" "$transaction_version" "$version"
+}
+
+covio_tx_write_installed_record() {
+    local prefix="$1"
+    covio_tx_write_identity_record "$prefix" "$TX_RECORD_PATH"
+}
+
+covio_tx_rollback() {
+    local reason="$1"
+    local old_release_id=""
+    if [[ -f "$TX_STATE_FILE" ]]; then
+        covio_tx_log "Rolling back transaction: $reason"
+    fi
+    if [[ -f "$TX_PREVIOUS_RECORD" ]]; then
+        covio_tx_load_manifest_identity "$TX_PREVIOUS_RECORD" ROLLBACK_OLD >/dev/null 2>&1 || true
+        old_release_id="$(covio_tx_identity_value ROLLBACK_OLD RELEASE_ID)"
+    fi
+
+    if [[ -d "$TX_BACKUP_APP" ]]; then
+        covio_tx_quit_running_app || {
+            covio_tx_write_state rollback-failed
+            covio_tx_write_report rollback-failed "$reason; cannot stop installed app" "$old_release_id"
+            return 1
+        }
+        local restore_parent="$TX_INSTALLER_ROOT/restore"
+        covio_tx_remove_tree "$restore_parent"
+        mkdir -p "$restore_parent"
+        if ! "$COVIO_TX_DITTO" "$TX_BACKUP_APP" "$restore_parent/$COVIO_TX_APP_NAME"; then
+            covio_tx_write_state rollback-failed
+            covio_tx_write_report rollback-failed "$reason; cannot copy previous app" "$old_release_id"
+            return 1
+        fi
+        if [[ -d "$TX_APP_PATH" ]]; then
+            if ! "$TX_ATOMIC_SWAP" "$TX_APP_PATH" "$restore_parent/$COVIO_TX_APP_NAME"; then
+                covio_tx_write_state rollback-failed
+                covio_tx_write_report rollback-failed "$reason; atomic restore failed" "$old_release_id"
+                return 1
+            fi
+        elif ! mv "$restore_parent/$COVIO_TX_APP_NAME" "$TX_APP_PATH"; then
+            covio_tx_write_state rollback-failed
+            covio_tx_write_report rollback-failed "$reason; cannot restore app path" "$old_release_id"
+            return 1
+        fi
+        covio_tx_remove_tree "$restore_parent"
+        if ! covio_tx_verify_old_app "$TX_APP_PATH"; then
+            covio_tx_write_state rollback-failed
+            covio_tx_write_report rollback-failed "$reason; restored app failed verification" "$old_release_id"
+            return 1
+        fi
+        if [[ -f "$TX_PREVIOUS_RECORD" ]]; then
+            covio_tx_install_record_file "$TX_PREVIOUS_RECORD" "$TX_RECORD_PATH"
+        fi
+        if ! covio_tx_register_and_verify_helper "$TX_APP_PATH" OLD; then
+            covio_tx_write_state rollback-failed
+            covio_tx_write_report rollback-failed "$reason; previous helper did not match" "$old_release_id"
+            return 1
+        fi
+        covio_tx_remove_tree "$TX_STAGED_APP"
+        covio_tx_write_state rolled-back
+        covio_tx_write_report rolled-back "$reason" "$old_release_id"
+        covio_tx_mark_last_transaction
+        covio_tx_clear_current_transaction
+        covio_tx_log "Rollback completed at release $old_release_id"
+        return 0
+    fi
+
+    covio_tx_quit_running_app || {
+        covio_tx_write_state rollback-failed
+        covio_tx_write_report rollback-failed "$reason; cannot stop installed app" ""
+        return 1
+    }
+    if [[ -d "$TX_APP_PATH" ]]; then
+        covio_tx_run_as_user "$TX_APP_PATH/Contents/MacOS/Covio" --uninstall-helper \
+            >/dev/null 2>&1 || true
+        covio_tx_remove_tree "$TX_APP_PATH"
+    fi
+    covio_tx_remove_tree "$TX_STAGED_APP"
+    if [[ -e "$TX_RECORD_PATH" ]]; then
+        unlink "$TX_RECORD_PATH"
+    fi
+    covio_tx_write_state rolled-back
+    covio_tx_write_report rolled-back "$reason" ""
+    covio_tx_mark_last_transaction
+    covio_tx_clear_current_transaction
+    covio_tx_log "Clean-install rollback completed"
+}
+
+covio_tx_commit() {
+    covio_tx_require_root || return 1
+    local state
+    state="$(covio_tx_read_state)"
+    if [[ "$state" != "prepared" && "$state" != "prepared-new" ]]; then
+        covio_tx_log "Cannot commit from transaction state $state"
+        return 1
+    fi
+    if ! covio_tx_verify_new_app "$TX_STAGED_APP"; then
+        covio_tx_write_report failed "staged app verification failed" ""
+        covio_tx_write_state failed
+        return 1
+    fi
+    covio_tx_validate_expected_identity || {
+        covio_tx_write_report failed "signed installer identity is invalid" ""
+        covio_tx_write_state failed
+        return 1
+    }
+    if [[ -d "$TX_APP_PATH" ]]; then
+        if ! covio_tx_verify_old_app "$TX_BACKUP_APP"; then
+            covio_tx_write_report failed "previous app backup failed verification" ""
+            covio_tx_write_state failed
+            return 1
+        fi
+        covio_tx_validate_upgrade_order || {
+            covio_tx_write_report failed "downgrade or mixed release rejected" \
+                "$(covio_tx_identity_value OLD RELEASE_ID)"
+            covio_tx_write_state failed
+            return 1
+        }
+    fi
+    if ! "$COVIO_TX_DITTO" "$TX_STAGED_APP" "$TX_CANDIDATE_APP"; then
+        covio_tx_rollback "cannot retain candidate app" || true
+        return 1
+    fi
+    covio_tx_write_state swapping
+    if [[ -d "$TX_APP_PATH" ]]; then
+        if ! "$TX_ATOMIC_SWAP" "$TX_APP_PATH" "$TX_STAGED_APP"; then
+            covio_tx_rollback "atomic app and helper exchange failed" || true
+            return 1
+        fi
+    elif ! mv "$TX_STAGED_APP" "$TX_APP_PATH"; then
+        covio_tx_rollback "cannot move app into Applications" || true
+        return 1
+    fi
+    covio_tx_write_state app-installed
+    if ! covio_tx_verify_new_app "$TX_APP_PATH"; then
+        covio_tx_rollback "installed app verification failed" || true
+        return 1
+    fi
+    if ! covio_tx_register_and_verify_helper "$TX_APP_PATH" NEW; then
+        covio_tx_rollback "new helper registration or exact handshake failed" || true
+        return 1
+    fi
+    if ! covio_tx_write_installed_record NEW; then
+        covio_tx_rollback "installed release record write failed" || true
+        return 1
+    fi
+    covio_tx_write_state committed
+    covio_tx_write_report installed "" "$(covio_tx_identity_value OLD RELEASE_ID)"
+    covio_tx_mark_last_transaction
+    covio_tx_clear_current_transaction
+    covio_tx_remove_tree "$TX_STAGED_APP"
+    covio_tx_remove_tree "$TX_CANDIDATE_APP"
+    covio_tx_log "Committed release $EXPECTED_RELEASE_ID"
+}
+
+covio_tx_transaction_root_from_pointer() {
+    local pointer="$1"
+    if [[ ! -f "$pointer" ]]; then
+        return 1
+    fi
+    cat "$pointer"
+}
+
+covio_tx_recover() {
+    covio_tx_require_root || return 1
+    local root state
+    if ! root="$(covio_tx_transaction_root_from_pointer "$TX_CURRENT_POINTER")"; then
+        root="$(covio_tx_transaction_root_from_pointer "$TX_LAST_POINTER")" || {
+            covio_tx_log "No Covio install transaction is available to recover"
+            return 1
+        }
+    fi
+    if [[ ! -f "$root/transaction.env" ]]; then
+        covio_tx_log "Transaction environment is missing: $root"
+        return 1
+    fi
+    covio_tx_load_environment "$root/transaction.env" || return 1
+    covio_tx_configure "$TX_STATE_ROOT" "$TX_APPLICATIONS_ROOT"
+    state="$(covio_tx_read_state)"
+    if [[ "$state" == "committed" && "${1:-}" != "--manual-rollback" ]]; then
+        printf 'The last transaction committed successfully. Use --manual-rollback to restore the previous release.\n' >&2
+        return 2
+    fi
+    covio_tx_rollback "manual recovery from state $state"
+}

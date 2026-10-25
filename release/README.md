@@ -75,3 +75,18 @@ Verify all downloaded Draft assets and publish explicitly:
 ```sh
 bash scripts/publish-release.sh v<tag>
 ```
+
+Install or upgrade with the signed PKG:
+
+```sh
+installer -pkg Covio-<version>.pkg -target /
+```
+
+The PKG validates the staged app and helper before changing `/Applications/Covio.app`.
+It atomically exchanges the app bundle and checks the new helper handshake before commit.
+
+Recover an interrupted transaction:
+
+```sh
+sudo "/Library/Application Support/Covio/Installer/recover.sh"
+```

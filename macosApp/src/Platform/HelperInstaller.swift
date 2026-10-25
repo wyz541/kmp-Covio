@@ -88,6 +88,47 @@ enum HelperInstaller {
         migrateAndRegister(logger: logger).registered
     }
 
+    /// 安装事务已经完成前置状态恢复。这里只替换 daemon 注册，不再访问旧 helper。
+    static func registerForInstallTransaction(
+        serviceManager: any HelperServiceManaging = SMAppHelperServiceManager.shared,
+        legacyPlistPath: String = HelperProtocol.plistPath,
+        logger: (String) -> Void = { _ in }
+    ) -> InstallResult {
+        if FileManager.default.fileExists(atPath: legacyPlistPath) {
+            return .failed("Legacy helper must be removed before the install transaction")
+        }
+        if serviceManager.hasRegisteredService {
+            do {
+                logger("Unregistering the previous SMAppService helper")
+                try serviceManager.unregister()
+            } catch {
+                logger(error.localizedDescription)
+                return .failed(error.localizedDescription)
+            }
+        }
+        do {
+            logger("Registering the transaction helper with SMAppService")
+            try serviceManager.register()
+        } catch {
+            logger(error.localizedDescription)
+            return .failed(error.localizedDescription)
+        }
+        switch serviceManager.state {
+        case .enabled:
+            return .enabled
+        case .requiresApproval, .notRegistered:
+            return .requiresApproval
+        case .notFound:
+            return .failed("SMAppService cannot find the bundled daemon plist")
+        case .legacy:
+            return .failed("The legacy LaunchDaemon still exists")
+        case .unsupported:
+            return .failed("This macOS version cannot manage the helper daemon")
+        case .error(let message):
+            return .failed(message)
+        }
+    }
+
     static func uninstall(
         serviceManager: any HelperServiceManaging = SMAppHelperServiceManager.shared,
         logger: (String) -> Void = { _ in }

@@ -476,6 +476,16 @@ def verify_release(
         actual_helper_hash = sha256_file(helper)
         artifact_path = directory / "release-manifest.json"
         artifact = release.verify_artifact(artifact_path, helper, root, source)
+        bundled_manifest = release.verify_bundle_manifest(
+            app / "Contents" / "Resources" / "release-manifest.json",
+            helper,
+            source,
+        )
+        for field in release.BUNDLE_IDENTITY_FIELDS:
+            if bundled_manifest.get(field) != artifact.get(field):
+                raise ReleaseVerificationError(
+                    f"bundle manifest {field} differs from the artifact manifest"
+                )
         if expected_commit and artifact["gitCommit"] != expected_commit:
             raise ReleaseVerificationError(
                 f"artifact commit {artifact['gitCommit']} != expected commit {expected_commit}"
@@ -559,6 +569,16 @@ def verify_release(
                 offline_helper = offline_app / "Contents" / "MacOS" / "CovioHelper"
                 if not offline_helper.is_file():
                     raise ReleaseVerificationError("offline DMG app is missing CovioHelper")
+                offline_bundle_manifest = release.verify_bundle_manifest(
+                    offline_app / "Contents" / "Resources" / "release-manifest.json",
+                    offline_helper,
+                    source,
+                )
+                for field in release.BUNDLE_IDENTITY_FIELDS:
+                    if offline_bundle_manifest.get(field) != artifact.get(field):
+                        raise ReleaseVerificationError(
+                            f"offline bundle manifest {field} differs from the artifact manifest"
+                        )
                 offline_errors = identity_errors(
                     source,
                     artifact,
@@ -645,8 +665,16 @@ def verify_release(
                 _detach_dmg(offline_mount)
 
         package_payload = require_command(["/usr/sbin/pkgutil", "--payload-files", str(directory / names[2])])
-        if "Covio.app/Contents/MacOS/CovioHelper" not in package_payload:
-            raise ReleaseVerificationError("PKG payload is missing Covio.app/Contents/MacOS/CovioHelper")
+        required_package_paths = (
+            "Library/Application Support/Covio/Installer/staged/Covio.app/Contents/MacOS/CovioHelper",
+            "Library/Application Support/Covio/Installer/bin/CovioTransaction",
+            "Library/Application Support/Covio/Installer/recover.sh",
+        )
+        missing_package_paths = [path for path in required_package_paths if path not in package_payload]
+        if missing_package_paths:
+            raise ReleaseVerificationError(
+                "PKG payload is missing: " + ", ".join(missing_package_paths)
+            )
 
         evidence = evidence_for(
             directory,

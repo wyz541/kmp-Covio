@@ -36,6 +36,10 @@ final class ChargeLimitHelperCommandHandler: @unchecked Sendable {
         }
     }
 
+    func prepareForInstallTransaction(requestId: String) -> HelperReply {
+        restoreReply(requestId: requestId)
+    }
+
     private func statusReply(requestId: String) -> HelperReply {
         switch runtime.status() {
         case .success(let status) where status.phase == "off" && status.userLimitPercent == 0:

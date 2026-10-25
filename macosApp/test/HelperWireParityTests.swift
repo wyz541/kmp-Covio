@@ -124,9 +124,10 @@ final class HelperWireParityTests: XCTestCase {
         XCTAssertTrue(reply.ok)
         XCTAssertEqual(reply.result?["version"], GeneratedReleaseIdentityKt.APP_VERSION)
         XCTAssertEqual(reply.result?["protocolVersion"], HelperProtocol.protocolVersion)
+        let expected = "{\"version\":\"\(HelperProtocol.protocolVersion)\",\"requestId\":\"r\",\"ok\":true,\"result\":{\"version\":\"\(GeneratedReleaseIdentityKt.APP_VERSION)\",\"protocolVersion\":\"\(HelperProtocol.protocolVersion)\"}}"
         XCTAssertEqual(
             HelperWire.shared.encodeReply(reply: reply),
-            #"{"version":"8","requestId":"r","ok":true,"result":{"version":"\#(GeneratedReleaseIdentityKt.APP_VERSION)","protocolVersion":"\#(HelperProtocol.protocolVersion)"}}"#
+            expected
         )
     }
 

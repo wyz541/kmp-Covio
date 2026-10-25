@@ -28,6 +28,8 @@
 	<string>$(COVIO_RELEASE_ID)</string>
 	<key>CovioHelperProtocolVersion</key>
 	<string>$(COVIO_HELPER_PROTOCOL_VERSION)</string>
+	<key>CovioInstallTransactionVersion</key>
+	<string>1</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 	<!-- 归档时没有这一项会出一条警告。菜单栏工具属于 utilities。 -->

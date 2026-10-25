@@ -37,6 +37,8 @@ release-operation.json
 `checksums.txt` 包含 app zip、默认 DMG、PKG 和 artifact manifest。
 发布离线包时，`checksums.txt` 还包含 `Covio-Offline-<version>.dmg`。
 `release-manifest.json` 记录默认包、可选离线包和模型 revision。
+`Covio.app` 的 Resources 携带 bundle identity manifest，不包含安装包摘要。
+PKG 把 app 写入暂存区，再通过原子 bundle 交换完成 app 与 helper 的成对安装。
 
 ## 创建 Draft
 
@@ -132,7 +134,7 @@ COVIO_NOTARY_PROFILE
 | 离线包包含固定 revision 模型 | 提供离线包时 | 提供离线包时 |
 | artifact manifest 记录全部安装包和模型身份 | 必须 | 必须 |
 | DMG 中的 app/helper 与 app zip 一致 | 必须 | 必须 |
-| PKG 包含 CovioHelper | 必须 | 必须 |
+| PKG 包含暂存 app、helper、交易工具和恢复命令 | 必须 | 必须 |
 | Developer ID Application | 不要求 | 必须 |
 | Developer ID Installer | 不要求 | 必须 |
 | hardened runtime | 不要求 | 必须 |

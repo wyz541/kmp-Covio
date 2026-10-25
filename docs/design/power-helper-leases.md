@@ -38,7 +38,7 @@ stateDiagram-v2
 
 | 项目 | 值 |
 | --- | --- |
-| 协议版本 | `8` |
+| 协议版本 | `9` |
 | 租约有效期 | `60` 秒 |
 | 续租间隔 | `15` 秒 |
 | 所有权文件 | `sleep_owner` |
@@ -89,6 +89,7 @@ app 逐项比较完整发布身份，不只比较产品版本。
 | `lidLeaseRenew` | `leaseId`、`externalDisplayCount` | 延长租约，必要时重新建立状态 |
 | `lidLeaseRelease` | `leaseId` | 结束一个租约 |
 | `lidLeaseStatus` | 无 | 回读系统状态、所有权和最近到期时间 |
+| `prepareInstallTransaction` | 无 | 清除全部 Covio 租约和自有 `SleepDisabled`，不覆盖外部状态 |
 
 `leaseId` 最长 128 个字符。
 同时有效的租约最多 16 个。

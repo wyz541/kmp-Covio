@@ -199,10 +199,11 @@ class HelperWireTest {
     }
 
     @Test
-    fun `fan commands require a client signature`() {
+    fun `privileged commands require a client signature`() {
         assertTrue(HelperWire.requiresClientSignature(HelperWire.COMMAND_FAN_CONTROL_CONFIGURE))
         assertTrue(HelperWire.requiresClientSignature(HelperWire.COMMAND_FAN_CONTROL_KEEP_ALIVE))
         assertTrue(HelperWire.requiresClientSignature(HelperWire.COMMAND_FAN_CONTROL_RESTORE))
+        assertTrue(HelperWire.requiresClientSignature(HelperWire.COMMAND_PREPARE_INSTALL_TRANSACTION))
         assertFalse(HelperWire.requiresClientSignature(HelperWire.COMMAND_VERSION))
     }
 
@@ -266,6 +267,7 @@ class HelperWireTest {
     fun `charge limit status and restore need no payload`() {
         assertNull(HelperWire.validate(request(HelperWire.COMMAND_CHARGE_LIMIT_STATUS)))
         assertNull(HelperWire.validate(request(HelperWire.COMMAND_CHARGE_LIMIT_RESTORE)))
+        assertNull(HelperWire.validate(request(HelperWire.COMMAND_PREPARE_INSTALL_TRANSACTION)))
     }
 
     @Test
@@ -301,7 +303,10 @@ class HelperWireTest {
     fun `an empty payload is left out of the request`() {
         val line = HelperWire.encodeRequest(request(HelperWire.COMMAND_VERSION))
 
-        assertEquals("""{"version":"8","requestId":"r1","command":"version"}""", line)
+        assertEquals(
+            """{"version":"$HELPER_PROTOCOL_VERSION","requestId":"r1","command":"version"}""",
+            line,
+        )
     }
 
     @Test
@@ -311,7 +316,7 @@ class HelperWireTest {
         )
 
         assertEquals(
-            """{"version":"8","requestId":"r1","command":"setDisableSleep","payload":{"disabled":"true"}}""",
+            """{"version":"$HELPER_PROTOCOL_VERSION","requestId":"r1","command":"setDisableSleep","payload":{"disabled":"true"}}""",
             line,
         )
     }
@@ -343,13 +348,16 @@ class HelperWireTest {
 
     @Test
     fun `a successful reply leaves an empty result out`() {
-        assertEquals("""{"version":"8","requestId":"r","ok":true}""", HelperWire.encodeReply(HelperWire.success("r")))
+        assertEquals(
+            """{"version":"$HELPER_PROTOCOL_VERSION","requestId":"r","ok":true}""",
+            HelperWire.encodeReply(HelperWire.success("r")),
+        )
     }
 
     @Test
     fun `a successful reply keeps a non empty result`() {
         assertEquals(
-            """{"version":"8","requestId":"r","ok":true,"result":{"a":"b"}}""",
+            """{"version":"$HELPER_PROTOCOL_VERSION","requestId":"r","ok":true,"result":{"a":"b"}}""",
             HelperWire.encodeReply(HelperWire.success("r", mapOf("a" to "b"))),
         )
     }
@@ -357,7 +365,7 @@ class HelperWireTest {
     @Test
     fun `a failure reply carries only the message`() {
         assertEquals(
-            """{"version":"8","requestId":"r","ok":false,"error":"boom"}""",
+            """{"version":"$HELPER_PROTOCOL_VERSION","requestId":"r","ok":false,"error":"boom"}""",
             HelperWire.encodeReply(HelperWire.failure("r", "boom")),
         )
     }
@@ -474,6 +482,7 @@ class HelperWireTest {
                 HelperWire.COMMAND_CHARGE_LIMIT_STATUS,
                 HelperWire.COMMAND_CHARGE_LIMIT_CONFIGURE,
                 HelperWire.COMMAND_CHARGE_LIMIT_RESTORE,
+                HelperWire.COMMAND_PREPARE_INSTALL_TRANSACTION,
                 HelperWire.COMMAND_LID_LEASE_ACQUIRE,
                 HelperWire.COMMAND_LID_LEASE_RENEW,
                 HelperWire.COMMAND_LID_LEASE_RELEASE,

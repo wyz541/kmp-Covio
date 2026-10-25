@@ -62,6 +62,15 @@ plist 声明 XPC Mach service `com.wyz.covio.helper.xpc`。
 8. app 完成发布身份握手。
 9. 只有 `MATCH` 开放特权写入。
 
+## 升级事务
+
+PKG 升级使用 app-helper 原子事务。
+安装器先把新 bundle 写入 root-owned 暂存区，再交换整个 app bundle。
+新 helper 与 app 完成精确握手以后，安装器才写入 `installed-release.json`。
+失败时安装器恢复上一版 app、helper 和安装记录。
+
+完整流程见 [本机升级事务](local-upgrade-transaction.md)。
+
 ## Legacy 迁移
 
 1. app 检测 `/Library/LaunchDaemons/com.wyz.covio.helper.plist`。

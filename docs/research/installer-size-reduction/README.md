@@ -83,6 +83,7 @@ Covio 的安装包问题不是 Swift 或 KMP 二进制过大。
 实施顺序、回滚条件和产品化条件见 [solution.md](solution.md)。
 每次实现的证据写入 [evidence.md](evidence.md)。
 每次实现的验收按 [validation/README.md](validation/README.md) 执行。
+架构决策见 [ADR-0019](../../adr/adr-0019-slim-install-and-on-demand-model.md)。
 
 ## 子文档
 

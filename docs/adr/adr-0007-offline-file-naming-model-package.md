@@ -1,9 +1,10 @@
 # ADR-0007：文件自动命名模型随应用内置
 
-- Status：accepted
+- Status：superseded
 - Kind：architecture
 - Date：2026-10-21
 - Supersedes：none
+- Superseded by：ADR-0019
 - Implements：#178
 - 相关：[文件自动命名调研](../research/file-auto-naming/README.md)
 

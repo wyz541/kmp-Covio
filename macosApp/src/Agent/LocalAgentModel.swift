@@ -38,7 +38,7 @@ actor LocalAgentModel: AgentModelServing {
     private var session: ChatSession?
 
     init(
-        modelDirectory: URL,
+        modelDirectory: URL?,
         gateway: AgentServiceGateway,
         containerRuntime: (any LocalModelContainerProviding)? = nil,
         agentToolCallingAvailable: @escaping @Sendable () async -> Bool = { true }

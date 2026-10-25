@@ -207,7 +207,10 @@ enum SettingsCatalog {
             section: .general,
             title: ContractCopy.copyGeneralLocalModelTitle,
             summary: ContractCopy.copyGeneralLocalModelSummary,
-            keywords: ["model", "mlx", "qwen", "offline", "local", "模型", "离线", "本地"]
+            keywords: [
+                "model", "mlx", "qwen", "download", "import", "license", "revision",
+                "offline", "local", "模型", "下载", "导入", "许可证", "版本", "离线", "本地",
+            ]
         ),
         SettingsCatalogEntry(
             rowID: SettingsRowID.generalExternalAgent,

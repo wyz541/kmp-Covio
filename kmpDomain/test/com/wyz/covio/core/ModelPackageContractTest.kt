@@ -102,6 +102,7 @@ class ModelPackageContractTest {
                 "busy",
                 "sourceUnavailable",
                 "manifestInvalid",
+                "revisionMismatch",
                 "insufficientHardware",
                 "insufficientMemory",
                 "insufficientDisk",

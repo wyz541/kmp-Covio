@@ -72,6 +72,7 @@ struct FilesTabView: View {
     let workspace: WorkspaceRuntime
     let transfer: WorkspaceTransferRuntime
     let autoNaming: AutoNamingRuntime
+    var modelSetup: ModelSetupRuntime? = nil
     let policy: FileNamingPolicy
     let language: AppLanguage
     let searchText: String
@@ -85,6 +86,7 @@ struct FilesTabView: View {
     @State private var dropTargeted = false
     @State private var keyboardMenuRequestID: String?
     @State private var keyboardMenuRequestNonce = 0
+    @State private var showModelSetup = false
     @FocusState private var keyboardFocusedItemID: String?
 
     var body: some View {
@@ -93,7 +95,11 @@ struct FilesTabView: View {
             if autoNaming.stage == .idle {
                 fileArea(snapshot)
             } else {
-                AutoNamingPreviewView(runtime: autoNaming, language: language)
+                AutoNamingPreviewView(
+                    runtime: autoNaming,
+                    language: language,
+                    modelSetup: modelSetup
+                )
             }
         }
         // 内边距由内容列给，这里不再加一层。
@@ -114,6 +120,23 @@ struct FilesTabView: View {
             }
             if let focused = keyboardFocusedItemID, !ids.contains(focused) {
                 keyboardFocusedItemID = firstID
+            }
+        }
+        .sheet(isPresented: $showModelSetup) {
+            if let modelSetup {
+                VStack(alignment: .trailing, spacing: MacTheme.space3) {
+                    ModelSetupInlineCard(
+                        model: modelSetup,
+                        language: language,
+                        purpose: .naming
+                    )
+                    MacButton(title: ContractCopy.copyHubActionDone.text(for: language)) {
+                        showModelSetup = false
+                    }
+                }
+                .padding(MacTheme.space4)
+                .frame(width: 620)
+                .background(MacTheme.canvas)
             }
         }
         .background {
@@ -699,6 +722,10 @@ struct FilesTabView: View {
     }
 
     private func chooseAutoNameFiles() {
+        if let modelSetup, !modelSetup.isAIReady {
+            showModelSetup = true
+            return
+        }
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false

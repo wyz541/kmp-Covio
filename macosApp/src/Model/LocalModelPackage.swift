@@ -372,6 +372,17 @@ struct LocalModelPackageRegistryStore: Sendable {
         return registry
     }
 
+    @discardableResult
+    func remove(tier: LocalModelTier) throws -> LocalModelPackageRegistry {
+        var registry = load()
+        registry.packages.removeAll { $0.tier == tier }
+        if registry.selectedTier == tier {
+            registry.selectedTier = nil
+        }
+        try save(registry)
+        return registry
+    }
+
     private func save(_ registry: LocalModelPackageRegistry) throws {
         try FileManager.default.createDirectory(
             at: path.deletingLastPathComponent(),
@@ -408,21 +419,21 @@ struct LocalModelPackageImporter: Sendable {
 }
 
 actor LocalModelSelectionState {
-    private var tier: LocalModelTier
+    private var tier: LocalModelTier?
 
-    init(initialTier: LocalModelTier) {
+    init(initialTier: LocalModelTier?) {
         tier = initialTier
     }
 
-    func set(_ next: LocalModelTier) {
+    func set(_ next: LocalModelTier?) {
         tier = next
     }
 
-    func currentTier() -> LocalModelTier {
+    func currentTier() -> LocalModelTier? {
         tier
     }
 
     func supportsAgentToolCalling() -> Bool {
-        tier.supportsAgentToolCalling
+        tier?.supportsAgentToolCalling == true
     }
 }

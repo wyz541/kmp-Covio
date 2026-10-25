@@ -3,7 +3,7 @@
   "metadata": {
     "name": "Covio Product Design Contract",
     "status": "native-source-verified",
-    "updatedAt": "2026-10-24",
+    "updatedAt": "2026-10-25",
     "authority": "docs/covio-design-contract.json",
     "visualProjection": {
       "fileName": "Covio — Product Design · macOS 27",
@@ -6861,8 +6861,8 @@
       "zh-Hans": "本地模型"
     },
     "copy/general/local-model/summary": {
-      "en": "Import an offline model package. The model files stay on this Mac.",
-      "zh-Hans": "导入离线模型包。模型文件只保存在这台 Mac 上。"
+      "en": "Download or import a model. AI features run locally after setup.",
+      "zh-Hans": "下载或导入模型。安装完成后，AI 功能在本机运行。"
     },
     "copy/general/local-model/active": {
       "en": "Active",
@@ -6895,6 +6895,114 @@
     "copy/general/local-model/agent-disabled": {
       "en": "Agent tool calling is unavailable while the 30B-A3B model is active.",
       "zh-Hans": "30B-A3B 模型启用时不能使用 Agent 工具调用。"
+    },
+    "copy/model-setup/title": {
+      "en": "AI model required",
+      "zh-Hans": "需要 AI 模型"
+    },
+    "copy/model-setup/summary": {
+      "en": "Covio downloads the model after your confirmation. The model runs only on this Mac.",
+      "zh-Hans": "确认后 Covio 下载模型。模型只在这台 Mac 上运行。"
+    },
+    "copy/model-setup/network": {
+      "en": "First download requires an internet connection. After setup, AI works offline.",
+      "zh-Hans": "首次下载需要网络连接。安装完成后，AI 功能可离线使用。"
+    },
+    "copy/model-setup/size": {
+      "en": "Download size: %@",
+      "zh-Hans": "下载大小：%@"
+    },
+    "copy/model-setup/license": {
+      "en": "License: %@",
+      "zh-Hans": "许可证：%@"
+    },
+    "copy/model-setup/state-not-installed": {
+      "en": "Not installed",
+      "zh-Hans": "未安装"
+    },
+    "copy/model-setup/state-downloading": {
+      "en": "Downloading %d%%",
+      "zh-Hans": "正在下载 %d%%"
+    },
+    "copy/model-setup/state-paused": {
+      "en": "Download paused",
+      "zh-Hans": "下载已暂停"
+    },
+    "copy/model-setup/state-verifying": {
+      "en": "Verifying downloaded files",
+      "zh-Hans": "正在校验下载文件"
+    },
+    "copy/model-setup/state-ready": {
+      "en": "Ready for offline use",
+      "zh-Hans": "已可离线使用"
+    },
+    "copy/model-setup/state-failed": {
+      "en": "Model setup failed",
+      "zh-Hans": "模型安装失败"
+    },
+    "copy/model-setup/action-pause": {
+      "en": "Pause",
+      "zh-Hans": "暂停"
+    },
+    "copy/model-setup/action-resume": {
+      "en": "Resume",
+      "zh-Hans": "继续"
+    },
+    "copy/model-setup/action-retry": {
+      "en": "Retry",
+      "zh-Hans": "重试"
+    },
+    "copy/model-setup/action-download": {
+      "en": "Download model",
+      "zh-Hans": "下载模型"
+    },
+    "copy/model-setup/action-remove": {
+      "en": "Remove model",
+      "zh-Hans": "移除模型"
+    },
+    "copy/model-setup/remove-title": {
+      "en": "Remove this model?",
+      "zh-Hans": "移除此模型？"
+    },
+    "copy/model-setup/remove-body": {
+      "en": "AI features will stop until a model is installed again. Imported model files remain on this Mac.",
+      "zh-Hans": "AI 功能会停止，直到重新安装模型。导入的模型文件仍保留在这台 Mac。"
+    },
+    "copy/model-setup/error-disk": {
+      "en": "Not enough disk space. Free space and retry.",
+      "zh-Hans": "磁盘空间不足。释放空间后重试。"
+    },
+    "copy/model-setup/error-memory": {
+      "en": "This Mac does not have enough available memory.",
+      "zh-Hans": "这台 Mac 的可用内存不足。"
+    },
+    "copy/model-setup/error-network": {
+      "en": "The model could not be downloaded. Check the network and retry.",
+      "zh-Hans": "无法下载模型。检查网络后重试。"
+    },
+    "copy/model-setup/error-revision": {
+      "en": "The model revision does not match this app. Import a compatible package or update the app.",
+      "zh-Hans": "模型 revision 与此 App 不匹配。请导入兼容模型包或更新 App。"
+    },
+    "copy/model-setup/error-verification": {
+      "en": "The model failed verification. Retry or import a valid package.",
+      "zh-Hans": "模型未通过校验。请重试或导入有效模型包。"
+    },
+    "copy/model-setup/error-activation": {
+      "en": "The model was downloaded but could not be activated. Retry.",
+      "zh-Hans": "模型已下载，但无法启用。请重试。"
+    },
+    "copy/model-setup/error-generic": {
+      "en": "The model could not be installed. Retry or import a local package.",
+      "zh-Hans": "无法安装模型。请重试或导入本地模型包。"
+    },
+    "copy/model-setup/recommended": {
+      "en": "Recommended",
+      "zh-Hans": "推荐"
+    },
+    "copy/model-setup/select-model": {
+      "en": "Choose another model in Settings.",
+      "zh-Hans": "请在设置中选择其他模型。"
     },
     "copy/agent/history/clear-all": {
       "en": "Clear All History",

@@ -79,7 +79,7 @@ final class AutoNamingRuntime {
     private(set) var infoMessage: LocalizedCopy?
 
     private let extractor: any FileNamingExtracting
-    private let model: any NamingModelServing
+    private var model: any NamingModelServing
     private let renameService: FileRenameService
     private let nowEpochSeconds: @Sendable () -> Int64
     private let makeRunID: @Sendable () -> String
@@ -113,6 +113,13 @@ final class AutoNamingRuntime {
     func prepareForModelSwitch() async -> Bool {
         guard !busy else { return false }
         await model.prepareForModelSwitch()
+        return true
+    }
+
+    func replaceModel(_ next: any NamingModelServing) async -> Bool {
+        guard !busy else { return false }
+        await model.prepareForModelSwitch()
+        model = next
         return true
     }
 

@@ -39,7 +39,7 @@
 | `Covio-Offline-0.5.2.dmg` | `1,540,934,656` bytes | `6d2154b826df104d17fc950e87f2ef607a90ade6eecf7a36446076a466c8fd5c` |
 
 两个 DMG 的 `hdiutil verify` 都通过。
-`release/release-manifest.json` 记录的 size 和 SHA-256 与本地文件一致。
+`dist/release-manifest.json` 记录的 size 和 SHA-256 与本地文件一致。
 
 ### App bundle
 

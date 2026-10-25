@@ -274,6 +274,26 @@ seed_legacy_helper() {
     > "$TX_LAUNCHD_PATH"
 }
 
+printf 'case: app quit probe targets only the installed app path\n'
+FAKE_PGREP="$TEST_ROOT/fake-pgrep"
+FAKE_PGREP_LOG="$TEST_ROOT/fake-pgrep.log"
+cat > "$FAKE_PGREP" <<'PGGREP'
+#!/bin/bash
+printf '%s\n' "$*" > "$FAKE_PGREP_LOG"
+exit 1
+PGGREP
+chmod 0755 "$FAKE_PGREP"
+OLD_PGREP="$COVIO_TX_PGREP"
+OLD_TEST_MODE="${TX_TEST_MODE:-1}"
+TX_APP_PATH="$TEST_ROOT/Applications/Covio.app"
+COVIO_TX_PGREP="$FAKE_PGREP"
+TX_TEST_MODE=0
+export FAKE_PGREP_LOG
+covio_tx_quit_running_app
+assert_eq "$(cat "$FAKE_PGREP_LOG")" "-f -x $TX_APP_PATH/Contents/MacOS/Covio" "app quit probe did not use the installed path"
+COVIO_TX_PGREP="$OLD_PGREP"
+TX_TEST_MODE="$OLD_TEST_MODE"
+
 printf 'case: successful upgrade commits app, helper and record\n'
 prepare_case success 0.5.2 2 "$NEW_COMMIT"
 seed_legacy_helper
@@ -367,6 +387,35 @@ covio_tx_write_state app-installed
 covio_tx_recover
 assert_eq "$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$TX_APP_PATH/Contents/Info.plist")" 1 "interrupted transaction did not recover"
 assert_json "$TX_RECORD_PATH" releaseId "0.5.2+1+$OLD_COMMIT"
+
+printf 'case: recovery config works before loading a transaction ID\n'
+prepare_case recovery-entrypoint 0.5.2 7 "$NEW_COMMIT"
+covio_tx_prepare
+stage_new_app
+if ! covio_tx_verify_new_app "$TX_STAGED_APP"; then
+  fail "staged app verification failed before recovery-entrypoint probe"
+fi
+"$COVIO_TX_ATOMIC_SWAP" "$TX_APP_PATH" "$TX_STAGED_APP"
+covio_tx_write_state app-installed
+unset TRANSACTION_ID
+covio_tx_configure "$COVIO_TX_STATE_ROOT" "$COVIO_TX_APPLICATIONS_ROOT"
+covio_tx_recover
+assert_eq "$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$TX_APP_PATH/Contents/Info.plist")" 1 "recovery entrypoint did not restore the app"
+assert_json "$TX_RECORD_PATH" releaseId "0.5.2+1+$OLD_COMMIT"
+
+printf 'case: an unstarted transaction is archived before retry\n'
+prepare_case unstarted-recovery 0.5.2 7 "$NEW_COMMIT"
+STALE_ROOT="$TX_INSTALLER_ROOT/transactions/unstarted"
+mkdir -p "$STALE_ROOT"
+cp "$TX_ENVIRONMENT_SOURCE" "$STALE_ROOT/transaction.env"
+printf '%s\n' "$STALE_ROOT" > "$TX_CURRENT_POINTER"
+covio_tx_recover
+[[ ! -e "$TX_CURRENT_POINTER" ]] || fail "recovery did not clear the unstarted transaction pointer"
+find "$TX_INSTALLER_ROOT/transactions" -maxdepth 1 -name 'unstarted.history.*' -print -quit | grep -q . || \
+  fail "recovery did not archive the unstarted transaction"
+assert_eq "$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$TX_APP_PATH/Contents/Info.plist")" 1 "unstarted recovery changed the installed app"
+covio_tx_prepare
+assert_eq "$(covio_tx_read_state)" prepared "retry did not prepare a new transaction"
 
 printf 'case: an SMAppService rollback removes Legacy helper metadata\n'
 prepare_case sm-rollback 0.5.2 3 "$NEW_COMMIT" 0 "" 1 1 ""

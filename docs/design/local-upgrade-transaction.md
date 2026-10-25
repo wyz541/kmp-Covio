@@ -6,7 +6,7 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 状态 | 已实现；真机升级矩阵待 #358 |
+| 状态 | 已实现；#358 真机矩阵通过 |
 | 日期 | `2026-10-25` |
 | Issue | #357、#390 |
 | 上游决策 | [ADR-0020](../adr/adr-0020-local-only-helper-distribution.md) |
@@ -121,6 +121,9 @@ sudo "/Library/Application Support/Covio/Installer/recover.sh"
 sudo "/Library/Application Support/Covio/Installer/recover.sh" --manual-rollback
 ```
 
+恢复命令先读取 `current-transaction`。
+如果事务尚未写入 state，恢复命令将事务归档，不删除当前安装。
+其他事务按 state 回滚。
 恢复命令先停止 app。
 恢复命令再恢复旧 app、旧 helper、旧 plist 和旧记录。
 恢复命令最后启动旧 helper，并要求精确握手通过。
@@ -135,10 +138,13 @@ sudo "/Library/Application Support/Covio/Installer/recover.sh" --manual-rollback
 | helper 首次握手失败 | 恢复旧 app、helper、plist 和记录 |
 | 安装记录写入失败 | 恢复旧 app、helper、plist 和记录 |
 | 交换后进程中断 | 恢复命令根据事务状态回滚 |
+| 未开始事务阻塞 | 事务归档后允许重试，当前安装不变 |
+| 其他路径的 Covio 进程存在 | 不影响已安装 app 的退出判断 |
 
 ## 验证边界
 
 - 脚本测试使用真实 ad-hoc 签名和真实原子交换。
 - 脚本测试覆盖成功、回滚、恢复失败、降级、摘要错误、签名错误、中断、`SMAppService` 迁移和干净安装。
 - 当前分发不验证 Developer ID 或 notarization。
-- 跨版本真机升级、重启恢复和成对回滚由 #358 验证。
+- 真机验证覆盖跨版本升级、干净安装、重复安装、真实进程崩溃和成对回滚。
+- 当前没有验证系统重启期间的安装事务。

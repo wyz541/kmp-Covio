@@ -53,7 +53,8 @@ covio_tx_configure() {
         staged_app="${STAGED_APP_PATH:-$TX_INSTALLER_ROOT/staged/$COVIO_TX_APP_NAME}"
     fi
     TX_STAGED_APP="$staged_app"
-    TX_TRANSACTION_ROOT="$TX_INSTALLER_ROOT/transactions/$TRANSACTION_ID"
+    # recover.sh configures paths before it loads the transaction environment.
+    TX_TRANSACTION_ROOT="$TX_INSTALLER_ROOT/transactions/${TRANSACTION_ID:-recovery}"
     TX_BACKUP_APP="$TX_TRANSACTION_ROOT/previous/$COVIO_TX_APP_NAME"
     TX_CANDIDATE_APP="$TX_TRANSACTION_ROOT/candidate/$COVIO_TX_APP_NAME"
     TX_HELPER_PATH="${COVIO_TX_HELPER_PATH:-$state_root/bin/CovioHelper}"
@@ -126,6 +127,15 @@ covio_tx_clear_current_transaction() {
     if [[ -e "$TX_CURRENT_POINTER" ]]; then
         unlink "$TX_CURRENT_POINTER"
     fi
+}
+
+covio_tx_archive_transaction_root() {
+    local root="$1"
+    local history_root="${root}.history.$(date +%s).$RANDOM"
+    mv "$root" "$history_root"
+    printf '%s\n' "$history_root" > "$TX_LAST_POINTER.tmp"
+    mv "$TX_LAST_POINTER.tmp" "$TX_LAST_POINTER"
+    printf 'Archived transaction %s as %s\n' "$root" "$history_root" >&2
 }
 
 covio_tx_plist_raw() {
@@ -460,16 +470,20 @@ covio_tx_run_as_user() {
     /bin/launchctl asuser "$uid" /usr/bin/sudo -u "$user" -H "$@"
 }
 
+covio_tx_running_installed_app() {
+    "$COVIO_TX_PGREP" -f -x "$TX_APP_PATH/Contents/MacOS/Covio" >/dev/null 2>&1
+}
+
 covio_tx_quit_running_app() {
     if [[ "$TX_TEST_MODE" == "1" ]]; then
         return 0
     fi
-    "$COVIO_TX_PGREP" -x Covio >/dev/null 2>&1 || return 0
+    covio_tx_running_installed_app || return 0
     covio_tx_log "Asking Covio to quit before the bundle exchange"
     covio_tx_run_as_user /usr/bin/osascript -e 'tell application id "com.wyz.covio" to quit' || return 1
     local attempt
     for attempt in $(seq 1 40); do
-        "$COVIO_TX_PGREP" -x Covio >/dev/null 2>&1 || return 0
+        covio_tx_running_installed_app || return 0
         sleep 0.25
     done
     covio_tx_log "Covio did not quit; upgrade stopped before changing the app"
@@ -656,11 +670,18 @@ covio_tx_prepare() {
         local existing_root existing_state
         existing_root="$(cat "$TX_CURRENT_POINTER")"
         existing_state="$(cat "$existing_root/state" 2>/dev/null || printf 'missing')"
-        if [[ "$existing_state" != "committed" && "$existing_state" != "rolled-back" ]]; then
+        if [[ "$existing_state" == "missing" ]]; then
+            printf 'Archiving unstarted transaction: %s\n' "$existing_root" >&2
+            if [[ -d "$existing_root" ]]; then
+                covio_tx_archive_transaction_root "$existing_root"
+            fi
+            unlink "$TX_CURRENT_POINTER"
+        elif [[ "$existing_state" != "committed" && "$existing_state" != "rolled-back" ]]; then
             covio_tx_log "Unfinished transaction exists: $existing_root"
             return 1
+        else
+            unlink "$TX_CURRENT_POINTER"
         fi
-        unlink "$TX_CURRENT_POINTER"
     fi
     if [[ -e "$TX_STAGED_APP" ]]; then
         covio_tx_log "A stale staged app already exists"
@@ -675,9 +696,7 @@ covio_tx_prepare() {
             covio_tx_log "Stale transaction directory exists: $TX_TRANSACTION_ROOT"
             return 1
         fi
-        local history_root="$TX_TRANSACTION_ROOT.history.$(date +%s).$RANDOM"
-        mv "$TX_TRANSACTION_ROOT" "$history_root"
-        printf '%s\n' "$history_root" > "$TX_LAST_POINTER"
+        covio_tx_archive_transaction_root "$TX_TRANSACTION_ROOT"
     fi
     mkdir -p "$TX_TRANSACTION_ROOT/previous" "$TX_TRANSACTION_ROOT/candidate"
     cp "$TX_ENVIRONMENT_SOURCE" "$TX_ENVIRONMENT_FILE"
@@ -1039,6 +1058,12 @@ covio_tx_recover() {
     covio_tx_load_environment "$root/transaction.env" || return 1
     covio_tx_configure "$TX_STATE_ROOT" "$TX_APPLICATIONS_ROOT"
     state="$(covio_tx_read_state)"
+    if [[ "$state" == "missing" ]]; then
+        printf 'Archiving unstarted transaction during recovery: %s\n' "$root" >&2
+        covio_tx_archive_transaction_root "$root"
+        covio_tx_clear_current_transaction
+        return 0
+    fi
     if [[ "$state" == "committed" && "${1:-}" != "--manual-rollback" ]]; then
         printf 'The last transaction committed successfully. Use --manual-rollback to restore the previous release.\n' >&2
         return 2

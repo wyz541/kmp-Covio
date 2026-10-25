@@ -181,6 +181,9 @@ python3 -I scripts/test_release_pipeline.py
 - `SMAppService` 迁移。
 - `TMPDIR` 不可用。
 - 内部渠道不创建 latest。
+- 恢复入口不依赖预先设置的 `TRANSACTION_ID`。
+- 退出探测只匹配已安装 app 路径。
+- 未开始事务归档后可重试。
 
 
 ## E-10：最终 Release 干净安装
@@ -188,27 +191,34 @@ python3 -I scripts/test_release_pipeline.py
 最终内部 Release：
 
 ```text
-releaseId: 0.5.2+3+45d1beccc041346061286595c6c0693ec7cf2982
+releaseId: 0.5.2+4+8582c62c94a375e754b39b90c1e6fa95f12738f6
 productVersion: 0.5.2
-buildNumber: 3
+buildNumber: 4
 channel: internal
 helperProtocolVersion: 9
-helperSHA256: 0f73158c02d5731bef68169c4368d7b8bf468f596c227b5d5cf265591d0fd519
+helperSHA256: a8a7ed3e548cb4dc96a0071535ac92b349541d9d0763dc1bb5356601a5fd7301
 ```
 
 制品 SHA-256：
 
 ```text
-Covio-0.5.2.pkg      33d2a05abe5c82bf975eba2452505eb0c82c8d9e8a6201dfa10d36181139d62c
-Covio-0.5.2.dmg      b9eb626d3f2516f10a16b278faf663af91913b09b80468490260759fce593404
-Covio-0.5.2.app.zip  b4de59474e745872ff6bde8f512afd8ec63088ba15b317ab05a02f1ca7e039e8
+Covio-0.5.2.pkg      2a8d836ec502c1efbf871df2f40194f079961714b4c757e6be6af8925f3bd5e5
+Covio-0.5.2.dmg      b06487a8a4ad3ba5140d850f0fcfdf0ea37300e2fb488649b012ce29651c7fb6
+Covio-0.5.2.app.zip  cec1f5da309c8bf2cc32e75143f21c1aea87845b078408a5596d946d68273eb5
 ```
 
-安装结果：
+干净安装结果：
 
 ```text
 result=installed
 previousReleaseId=""
+```
+
+重复安装结果：
+
+```text
+result=installed
+previousReleaseId=0.5.2+4+8582c62c94a375e754b39b90c1e6fa95f12738f6
 ```
 
 最终验证：
@@ -218,4 +228,172 @@ previousReleaseId=""
 - LaunchDaemon 声明 XPC Mach service。
 - `scripts/verify-helper-cutover.sh verify` 通过。
 - `SleepDisabled=0`。
-- `state.json` 和 `runtime.json` 不存在。
+- 充电和租约状态文件不存在。
+
+## E-11：损坏 Mach-O 和无签名 helper
+
+损坏 Mach-O：
+
+```text
+sha256=cb26434dca6258b8d64a8a44ea50b34c556e45d1e90b523ef84d201f6d620dcd
+status=UNTRUSTED
+verify_exit=1
+```
+
+无签名 helper：
+
+```text
+code object is not signed at all
+status=UNTRUSTED
+verify_exit=1
+```
+
+恢复原 helper 后：
+
+```text
+status=MATCH
+verify_exit=0
+```
+
+## E-12：LaunchDaemon 服务策略拒绝
+
+命令：
+
+```sh
+launchctl disable system/com.wyz.covio.helper
+launchctl bootstrap system /Library/LaunchDaemons/com.wyz.covio.helper.plist
+```
+
+观察：
+
+```text
+Bootstrap failed: 5: Input/output error
+status=UNTRUSTED
+verify_exit=1
+```
+
+重新 enable 和 bootstrap 后：
+
+```text
+status=MATCH
+```
+
+## E-13：合盖租约活动升级
+
+升级前：
+
+```text
+SleepDisabled=1
+activeLeaseCount=1
+covioOwned=true
+sleep_owner=root:wheel
+```
+
+升级后：
+
+```text
+SleepDisabled=0
+sleep_owner=absent
+status=MATCH
+```
+
+最终 build 4 重复执行相同步骤并通过。
+
+## E-14：真实进程崩溃和恢复
+
+测试 PKG 在 `app-installed` 状态后发送 SIGKILL：
+
+```text
+installer_exit=1
+state=app-installed
+Crash injection after app swap
+```
+
+执行恢复：
+
+```sh
+/Library/Application Support/Covio/Installer/recover.sh
+```
+
+结果：
+
+```text
+Rolling back transaction
+Exact helper handshake matched for OLD
+Rollback completed
+status=MATCH
+SleepDisabled=0
+```
+
+## E-15：崩溃测试发现的恢复缺陷
+
+缺陷一：
+
+```text
+transaction.sh: TRANSACTION_ID: unbound variable
+```
+
+修复：
+在加载事务环境前使用 `recovery` 作为安全占位事务 ID。
+
+缺陷二：
+
+```text
+running app did not quit
+```
+
+原因：
+`pgrep -x Covio` 匹配了其他工作树中的 Covio 进程。
+
+修复：
+改为精确匹配 `/Applications/Covio.app/Contents/MacOS/Covio`。
+
+缺陷三：
+
+```text
+Unfinished transaction exists
+```
+
+原因：
+失败发生在 `prepared` 状态写入前。
+缺少 state 的事务永久阻塞下一次安装。
+
+修复：
+将未开始事务移动到 `history` 目录。
+`recover.sh` 也支持归档这类事务。
+
+## E-16：真实 Draft 和 latest 隔离
+
+Draft：
+
+```text
+tag: v0.5.2-internal.4
+isDraft: true
+isPrerelease: true
+targetCommitish: 8582c62c94a375e754b39b90c1e6fa95f12738f6
+```
+
+资产数量：8。
+所有资产状态：uploaded。
+
+所有 internal Release 已标记为 prerelease。
+GitHub latest API 返回：
+
+```text
+HTTP 404 Not Found
+```
+
+结论：internal 渠道没有 latest。
+
+## E-17：全量测试
+
+```sh
+bash scripts/test-all.sh
+```
+
+结果：通过。
+
+```text
+Kotlin 共享层：通过
+macOS XCTest：866 passed，3 skipped，0 failures
+```

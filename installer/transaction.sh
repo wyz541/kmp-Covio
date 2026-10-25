@@ -479,10 +479,14 @@ covio_tx_prepare_privileged_state() {
         }
     else
         covio_tx_run_as_user "$binary" --uninstall-helper || {
+            covio_tx_register_and_verify_helper "$app" OLD >/dev/null 2>&1 || true
             covio_tx_log "Legacy helper restore failed; upgrade stopped"
             return 1
         }
-        covio_tx_cleanup_legacy_sleep || return 1
+        if ! covio_tx_cleanup_legacy_sleep; then
+            covio_tx_register_and_verify_helper "$app" OLD >/dev/null 2>&1 || true
+            return 1
+        fi
     fi
 }
 

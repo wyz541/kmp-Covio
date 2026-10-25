@@ -219,7 +219,8 @@ enum CovioMain {
                     "percent": String(percent),
                     "activeDischarge": activeDischarge,
                 ],
-                timeoutMillis: 20_000
+                timeoutMillis: 20_000,
+                requiresMatchedHelper: true
             ))
         }
         return false
@@ -228,9 +229,18 @@ enum CovioMain {
     private static func printChargeLimitReply(
         command: String,
         payload: [String: String] = [:],
-        timeoutMillis: Int? = nil
+        timeoutMillis: Int? = nil,
+        requiresMatchedHelper: Bool = false
     ) -> Int32 {
-        guard let reply = HelperClient().request(
+        let client = HelperClient()
+        if requiresMatchedHelper {
+            let status = HelperReleaseInspector.inspect(client: client)
+            guard status == .match else {
+                log("Privileged write rejected by the helper release handshake: \(status)")
+                return 1
+            }
+        }
+        guard let reply = client.request(
             command: command,
             payload: payload,
             timeoutMillis: timeoutMillis

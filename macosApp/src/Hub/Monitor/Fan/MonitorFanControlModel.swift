@@ -274,14 +274,17 @@ final class MonitorFanControlModel: ObservableObject {
         }
     }
 
-    /// 单风扇全速只修改指定风扇，不受同步开关影响。
+    /// 单风扇全速在同步开启时应用到全部风扇，与 Stats 一致。
     func boostFan(_ fanIndex: Int, reading: MonitorFanReading) {
         guard let fan = reading.units.first(where: { $0.index == fanIndex }) else { return }
         manualApplyTask?.cancel()
         configuration.enabled = true
         configuration.mode = .manual
-        configuration.manualModes[String(fan.index)] = .manual
-        configuration.manualRPM[String(fan.index)] = fan.maximumRPM
+        let targets = configuration.syncFans ? reading.units : [fan]
+        for target in targets {
+            configuration.manualModes[String(target.index)] = .manual
+            configuration.manualRPM[String(target.index)] = target.maximumRPM
+        }
         persist()
         apply(reading: reading)
     }

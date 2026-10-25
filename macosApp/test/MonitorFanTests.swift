@@ -416,7 +416,7 @@ final class MonitorFanTests: XCTestCase {
     }
 
     @MainActor
-    func testSingleFanFullSpeedUsesItsMaximumAndIgnoresSync() {
+    func testSingleFanFullSpeedOnlyChangesOneFanWhenSyncIsOff() {
         let reading = MonitorFanReading(
             temperatures: [.init(key: "TCMz", celsius: 65)],
             units: [
@@ -430,7 +430,7 @@ final class MonitorFanTests: XCTestCase {
                 mode: .manual,
                 manualRPM: ["0": 2_200, "1": 2_300],
                 manualModes: ["0": .manual, "1": .automatic],
-                syncFans: true
+                syncFans: false
             ),
             availability: .ready
         )
@@ -440,6 +440,33 @@ final class MonitorFanTests: XCTestCase {
         XCTAssertEqual(model.configuration.mode, .manual)
         XCTAssertEqual(model.configuration.manualRPM["0"], 2_200)
         XCTAssertEqual(model.configuration.manualRPM["1"], 6_000)
+        XCTAssertEqual(model.manualMode(for: 0), .manual)
+        XCTAssertEqual(model.manualMode(for: 1), .manual)
+    }
+
+    @MainActor
+    func testSingleFanFullSpeedSynchronizesWhenEnabled() {
+        let reading = MonitorFanReading(
+            temperatures: [.init(key: "TCMz", celsius: 65)],
+            units: [
+                .init(index: 0, rpm: 2_200, minimumRPM: 1_200, maximumRPM: 5_800, targetRPM: 2_200, mode: 1),
+                .init(index: 1, rpm: 2_300, minimumRPM: 1_300, maximumRPM: 6_000, targetRPM: 2_300, mode: 1),
+            ]
+        )
+        let model = MonitorFanControlModel(
+            previewConfiguration: MonitorFanConfiguration(
+                enabled: true,
+                mode: .manual,
+                manualRPM: ["0": 2_200, "1": 2_300],
+                manualModes: ["0": .automatic, "1": .manual],
+                syncFans: true
+            ),
+            availability: .ready
+        )
+
+        model.boostFan(1, reading: reading)
+
+        XCTAssertEqual(model.configuration.manualRPM, ["0": 5_800, "1": 6_000])
         XCTAssertEqual(model.manualMode(for: 0), .manual)
         XCTAssertEqual(model.manualMode(for: 1), .manual)
     }

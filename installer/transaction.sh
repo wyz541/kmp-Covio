@@ -321,6 +321,10 @@ covio_tx_verify_new_app() {
         covio_tx_log "Staged app has no release manifest"
         return 1
     fi
+    if [[ "$(covio_tx_plist_raw "$manifest" schemaVersion)" != "1" ]]; then
+        covio_tx_log "Staged app bundle manifest schemaVersion must be 1"
+        return 1
+    fi
     if ! covio_tx_load_info_identity "$app" NEW ||
        ! covio_tx_validate_prefix NEW; then
         covio_tx_log "Staged app identity is incomplete or invalid"

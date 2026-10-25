@@ -24,6 +24,7 @@
 Covio-<version>.app.zip
 Covio-<version>.dmg
 Covio-<version>.pkg
+Covio-Offline-<version>.dmg  # 可选
 release-manifest.json
 checksums.txt
 release-evidence.json
@@ -33,8 +34,10 @@ release-operation.json
 
 `release-evidence.json` 记录全部资产摘要、releaseId、commit、协议和验证结果。
 `release-notes.generated.md` 从同一份证据生成。
-`checksums.txt` 只包含四个载荷文件。
-`Covio.app` 的 Resources 同时携带同一份 `release-manifest.json`。
+`checksums.txt` 包含 app zip、默认 DMG、PKG 和 artifact manifest。
+发布离线包时，`checksums.txt` 还包含 `Covio-Offline-<version>.dmg`。
+`release-manifest.json` 记录默认包、可选离线包和模型 revision。
+`Covio.app` 的 Resources 携带 bundle identity manifest，不包含安装包摘要。
 PKG 把 app 写入暂存区，再通过原子 bundle 交换完成 app 与 helper 的成对安装。
 
 ## 创建 Draft
@@ -43,6 +46,13 @@ PKG 把 app 写入暂存区，再通过原子 bundle 交换完成 app 与 helper
 
 ```sh
 bash scripts/create-release.sh
+```
+
+附带离线整包：
+
+```sh
+COVIO_FILE_NAMING_MODEL_DIR=build/models/Qwen3VL-2B-Instruct-4bit \
+  bash scripts/create-release.sh --with-offline
 ```
 
 该命令默认构建制品并创建 Draft。
@@ -120,6 +130,9 @@ COVIO_NOTARY_PROFILE
 | helper SHA-256 一致 | 必须 | 必须 |
 | app/helper 架构为 arm64 | 必须 | 必须 |
 | app zip、DMG、PKG 和 checksums 完整 | 必须 | 必须 |
+| 默认 app 不含模型权重 | 必须 | 必须 |
+| 离线包包含固定 revision 模型 | 提供离线包时 | 提供离线包时 |
+| artifact manifest 记录全部安装包和模型身份 | 必须 | 必须 |
 | DMG 中的 app/helper 与 app zip 一致 | 必须 | 必须 |
 | PKG 包含暂存 app、helper、交易工具和恢复命令 | 必须 | 必须 |
 | Developer ID Application | 不要求 | 必须 |

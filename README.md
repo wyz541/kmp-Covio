@@ -331,8 +331,9 @@ The two versions use different lock files, so both can run at the same time.
 
 ## Package
 
-The file naming model is built into the app.
-The model weights are not in Git.
+The default app is slim and does not contain model weights.
+The optional offline package contains the verified model.
+Model weights are not in Git.
 
 1. Prepare the release identity:
 
@@ -341,23 +342,26 @@ The model weights are not in Git.
    python3 scripts/release_manifest.py check
    ```
 
-2. Download the fixed model:
+2. Package the default slim app:
+
+   ```sh
+   bash scripts/package-macos-swift.sh
+   ```
+
+   The default DMG must not exceed `50 MB` and must not contain model weights.
+
+3. Optionally download the model and build the offline package:
 
    ```sh
    python3 scripts/file_naming_model.py download build/models/Qwen3VL-2B-Instruct-4bit
-   ```
-
-3. Package the app:
-
-   ```sh
    COVIO_FILE_NAMING_MODEL_DIR=build/models/Qwen3VL-2B-Instruct-4bit \
-     bash scripts/package-macos-swift.sh
+     bash scripts/package-macos-offline-swift.sh
    ```
 
-4. Verify the signed DMG in a network-denied sandbox:
+4. Verify the optional offline DMG in a network-denied sandbox:
 
    ```sh
-   bash scripts/verify-file-naming-bundle.sh dist/Covio-0.5.2.dmg
+   bash scripts/verify-file-naming-bundle.sh dist/Covio-Offline-0.5.2.dmg
    ```
 
 The package script writes these files:
@@ -368,19 +372,32 @@ The package script writes these files:
 - `dist/Covio-0.5.2.app.zip`
 - `dist/release-manifest.json`
 
-The script verifies the model manifest, file sizes, SHA-256 values, license, and NOTICE.
-The script embeds the model under `Contents/Resources/Models/Qwen3VL-2B-Instruct-4bit/`.
+The offline packaging command adds:
+
+- `dist/Covio-Offline.app`
+- `dist/Covio-Offline-0.5.2.dmg`
+
+The default script verifies the model manifest and rejects model weights in the app.
+The offline script verifies model file sizes, SHA-256 values, license, and NOTICE.
+The offline script embeds the model under `Contents/Resources/Models/Qwen3VL-2B-Instruct-4bit/`.
 The script reads versions from `release/release-manifest.json` and checks that the bundle carries them.
-The script writes the final release identity, Git commit, and helper SHA-256 to `dist/release-manifest.json`.
+The script writes the final release identity, Git commit, helper SHA-256, installer identities, and model identity to `dist/release-manifest.json`.
 The app contains `Contents/MacOS/CovioHelper` and the matching `SMAppService` daemon plist.
 The script checks that the bundle carries `macosApp/src/Covio.icns` and applies an ad-hoc signature.
 The script builds the DMG with `diskutil image create`.
 The script prints app and DMG byte sizes.
 
-Create a Draft Release with:
+Create a Draft Release with the default slim package:
 
 ```sh
 bash scripts/create-release.sh
+```
+
+Create a Draft with the optional offline package:
+
+```sh
+COVIO_FILE_NAMING_MODEL_DIR=build/models/Qwen3VL-2B-Instruct-4bit \
+  bash scripts/create-release.sh --with-offline
 ```
 
 Publish the verified Draft with:
@@ -397,7 +414,7 @@ Recover an interrupted install transaction:
 sudo "/Library/Application Support/Covio/Installer/recover.sh"
 ```
 
-The model adds about 1.8 GB before DMG compression.
+The offline model adds about 1.8 GB before DMG compression.
 Use `python3 scripts/file_naming_model.py verify-manifest` to validate the fixed file list without downloading weights.
 
 The icon source is `assets/Covio.iconset`. Run `iconutil --convert icns --output macosApp/src/Covio.icns assets/Covio.iconset` after a change.

@@ -19,10 +19,9 @@ APP_NAME="Covio"
 APP_ID="com.wyz.covio"
 ICON="$ROOT/macosApp/src/Covio.icns"
 APP_IMAGE="$DIST/$APP_NAME.app"
+OFFLINE_APP="$DIST/$APP_NAME-Offline.app"
 PLIST_BUDDY="/usr/libexec/PlistBuddy"
-FILE_NAMING_MODEL_DIR="${COVIO_FILE_NAMING_MODEL_DIR:-}"
 MODEL_MANIFEST="$ROOT/macosApp/src/AutoNaming/FileNamingModelManifest.json"
-MODEL_VERIFY="$ROOT/scripts/file_naming_model.py"
 RELEASE_SIGN_IDENTITY="${COVIO_CODE_SIGN_IDENTITY:-}"
 INSTALLER_SIGN_IDENTITY="${COVIO_INSTALLER_SIGN_IDENTITY:-}"
 DEVELOPMENT_TEAM="${COVIO_DEVELOPMENT_TEAM:-}"
@@ -53,13 +52,6 @@ if [[ ! -f "$ICON" ]]; then
   printf 'Missing icon: %s\n' "$ICON" >&2
   exit 1
 fi
-if [[ -z "$FILE_NAMING_MODEL_DIR" ]]; then
-  printf 'Set COVIO_FILE_NAMING_MODEL_DIR to the verified local model directory.\n' >&2
-  printf 'Run python3 scripts/file_naming_model.py download <directory> first.\n' >&2
-  exit 1
-fi
-python3 -I "$MODEL_VERIFY" --manifest "$MODEL_MANIFEST" verify-directory "$FILE_NAMING_MODEL_DIR"
-
 python3 -I "$ROOT/scripts/release_manifest.py" check-clean
 VERSION="$(python3 -I "$ROOT/scripts/release_manifest.py" value productVersion)"
 BUILD_NUMBER="$(python3 -I "$ROOT/scripts/release_manifest.py" value buildNumber)"
@@ -72,6 +64,7 @@ PKG_PATH="$DIST/$APP_NAME-$VERSION.pkg"
 TRANSACTION_ID="build-$BUILD_NUMBER-${COMMIT:0:12}"
 STAGED_APP_RELATIVE="Library/Application Support/Covio/Installer/staged/$APP_NAME.app"
 STAGED_APP_PATH="/$STAGED_APP_RELATIVE"
+OFFLINE_DMG="$DIST/$APP_NAME-Offline-$VERSION.dmg"
 
 if [[ "$CHANNEL" == "public" ]]; then
   if [[ -z "$RELEASE_SIGN_IDENTITY" || "$RELEASE_SIGN_IDENTITY" == "-" ]]; then
@@ -95,7 +88,10 @@ fi
 if [[ -d "$APP_IMAGE" ]]; then
   find "$APP_IMAGE" -depth -delete
 fi
-for artifact in "$DMG_PATH" "$APP_ZIP" "$PKG_PATH"; do
+if [[ -d "$OFFLINE_APP" ]]; then
+  find "$OFFLINE_APP" -depth -delete
+fi
+for artifact in "$DMG_PATH" "$APP_ZIP" "$PKG_PATH" "$OFFLINE_DMG"; do
   if [[ -e "$artifact" ]]; then
     unlink "$artifact"
   fi
@@ -144,15 +140,15 @@ fi
 # ditto 保留符号链接与扩展属性。cp -R 会丢掉 framework 里的版本链接。
 /usr/bin/ditto "$ARCHIVED_APP" "$APP_IMAGE"
 
-# 模型随应用内置。运行时只读取应用资源，不需要网络或额外安装步骤。
+# 默认包只携带模型清单和许可证。模型权重由离线包或首次使用下载提供。
 if ! cmp -s "$MODEL_MANIFEST" "$APP_IMAGE/Contents/Resources/FileNamingModelManifest.json"; then
-  printf 'Bundled model manifest is missing or differs from the source manifest.\n' >&2
+  printf 'Model manifest is missing or differs from the source manifest.\n' >&2
   exit 1
 fi
-MODEL_RESOURCE="$APP_IMAGE/Contents/Resources/Models/Qwen3VL-2B-Instruct-4bit"
-mkdir -p "$MODEL_RESOURCE"
-/usr/bin/ditto "$FILE_NAMING_MODEL_DIR" "$MODEL_RESOURCE"
-python3 -I "$MODEL_VERIFY" --manifest "$MODEL_MANIFEST" verify-directory "$MODEL_RESOURCE"
+if [[ -n "$(find "$APP_IMAGE/Contents/Resources/Models" -name '*.safetensors' -type f -print -quit 2>/dev/null)" ]]; then
+  printf 'Default app bundle must not contain model weights.\n' >&2
+  exit 1
+fi
 
 NOTICES_DIR="$APP_IMAGE/Contents/Resources/ThirdPartyNotices"
 mkdir -p "$NOTICES_DIR/licenses" "$NOTICES_DIR/model"
@@ -234,12 +230,11 @@ else
 fi
 /usr/bin/codesign --verify --deep --strict "$APP_IMAGE"
 
-python3 -I "$ROOT/scripts/release_manifest.py" generate-artifact \
-  --helper "$HELPER" \
-  --output "$DIST/release-manifest.json" \
-  --commit "$COMMIT"
 BUNDLED_MANIFEST="$APP_IMAGE/Contents/Resources/release-manifest.json"
-/usr/bin/ditto "$DIST/release-manifest.json" "$BUNDLED_MANIFEST"
+python3 -I "$ROOT/scripts/release_manifest.py" generate-bundle-manifest \
+  --helper "$HELPER" \
+  --output "$BUNDLED_MANIFEST" \
+  --commit "$COMMIT"
 
 if [[ -n "$RELEASE_SIGN_IDENTITY" && "$RELEASE_SIGN_IDENTITY" != "-" ]]; then
   /usr/bin/codesign \
@@ -337,7 +332,7 @@ chmod 0755 "$INSTALLER_PAYLOAD/recover.sh" "$INSTALLER_PAYLOAD/transaction.sh"
 /usr/bin/ditto "$ROOT/installer/postinstall" "$PKG_SCRIPTS/postinstall"
 /usr/bin/ditto "$ROOT/installer/transaction.sh" "$PKG_SCRIPTS/transaction.sh"
 chmod 0755 "$PKG_SCRIPTS/preinstall" "$PKG_SCRIPTS/postinstall"
-HELPER_SHA256="$(/usr/bin/plutil -extract helperSHA256 raw -o - "$DIST/release-manifest.json")"
+HELPER_SHA256="$(/usr/bin/plutil -extract helperSHA256 raw -o - "$BUNDLED_MANIFEST")"
 cat > "$PKG_SCRIPTS/transaction.env" <<EOF
 TRANSACTION_ID='$TRANSACTION_ID'
 EXPECTED_RELEASE_ID='$RELEASE_ID'
@@ -394,6 +389,12 @@ if [[ ! -f "$APP_ZIP" || ! -f "$PKG_PATH" ]]; then
   printf 'Packaging did not create the expected app zip or PKG.\n' >&2
   exit 1
 fi
+
+python3 -I "$ROOT/scripts/release_manifest.py" generate-artifact \
+  --helper "$HELPER" \
+  --default-dmg "$DMG_PATH" \
+  --output "$DIST/release-manifest.json" \
+  --commit "$COMMIT"
 
 APP_BYTES="$(du -sk "$APP_IMAGE" | awk '{print $1 * 1024}')"
 DMG_BYTES="$(stat -f %z "$DMG_PATH")"

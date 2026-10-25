@@ -2530,7 +2530,7 @@
       "sourceAuthority": "macOS 27 (Community)",
       "swiftMapping": {
         "target": "StatusItemController",
-        "behavior": "MenuBarCapsulePanel 是正常 Space 的唯一菜单栏入口，并加载 CovioStatusIcon 的预渲染位图。StatusItemController 是胶囊不可见时的备用入口；两者不得同时显示。运行时复用缓存位图，不计算渐变和阴影。左键开合 Hub，右键开菜单。"
+        "behavior": "StatusItemController 使用原生 NSStatusItem，并加载 CovioStatusIcon 的预渲染位图。图标位置由 macOS 菜单栏系统排列。运行时复用缓存位图，不计算渐变和阴影。左键开合 Hub，右键开菜单。"
       }
     },
     "component/tray-menu": {
@@ -7079,7 +7079,7 @@
     "platform/component/tray-icon": {
       "componentKey": "component/tray-icon",
       "runtimeTarget": "CovioTrayIcon",
-      "behavior": "MenuBarCapsulePanel 是正常 Space 的唯一菜单栏入口，并加载 CovioStatusIcon 的预渲染位图。StatusItemController 是胶囊不可见时的备用入口；两者不得同时显示。运行时复用缓存位图，不计算渐变和阴影。左键开合 Hub，右键开菜单。",
+      "behavior": "StatusItemController 使用原生 NSStatusItem，并加载 CovioStatusIcon 的预渲染位图。图标位置由 macOS 菜单栏系统排列。运行时复用缓存位图，不计算渐变和阴影。左键开合 Hub，右键开菜单。",
       "status": "native-source-mapped",
       "swiftRuntimeTarget": "StatusItemController"
     },

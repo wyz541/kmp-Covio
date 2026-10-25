@@ -281,15 +281,9 @@ enum HelperInstaller {
             logger("Cannot read the Covio app code-signing requirement")
             return false
         }
-        if SMAppHelperServiceManager.shared.hasRegisteredService {
-            do {
-                logger("Unregistering the dormant SMAppService helper")
-                try SMAppHelperServiceManager.shared.unregister()
-            } catch {
-                logger(error.localizedDescription)
-                return false
-            }
-        }
+        // The current distribution is Legacy LaunchDaemon only. Do not call
+        // SMAppService.unregister() here: an ad-hoc app lacks the entitlement
+        // required by that API, and the legacy path does not depend on it.
         let script = installScript(
             executablePath: source,
             uid: uid,

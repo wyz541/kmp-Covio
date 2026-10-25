@@ -386,7 +386,15 @@ bash scripts/create-release.sh
 Publish the verified Draft with:
 
 ```sh
-bash scripts/publish-release.sh v0.5.2-internal.1
+bash scripts/publish-release.sh v<version>-internal.<build>
+```
+
+`.pkg` is the transactional install and upgrade entry.
+The PKG stages the new app, exchanges the app bundle atomically, and validates the new helper handshake before writing the installed release record.
+Recover an interrupted install transaction:
+
+```sh
+sudo "/Library/Application Support/Covio/Installer/recover.sh"
 ```
 
 The model adds about 1.8 GB before DMG compression.

@@ -237,6 +237,14 @@ final class HelperClient: @unchecked Sendable {
         request(command: "chargeLimitRestore", timeoutMillis: 20_000)?.ok == true
     }
 
+    /// 升级前让 helper 恢复风扇、充电上限和合盖租约。
+    func prepareInstallTransaction() -> Bool {
+        request(
+            command: HelperWire.shared.COMMAND_PREPARE_INSTALL_TRANSACTION,
+            timeoutMillis: 30_000
+        )?.ok == true
+    }
+
     // MARK: - 私有
 
     private func transact(_ line: String, timeout: TimeInterval) -> HelperTransaction? {

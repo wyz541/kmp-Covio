@@ -57,7 +57,8 @@ class ReleaseManifestTests(unittest.TestCase):
                         "CovioHelperProtocolVersion",
                     )
                 )
-                + "<string>$(CURRENT_PROJECT_VERSION)</string>\n",
+                + "<string>$(CURRENT_PROJECT_VERSION)</string>\n"
+                + "<key>CovioInstallTransactionVersion</key>\n<string>1</string>\n",
                 encoding="utf-8",
             )
             (root / release.PBXPROJ).parent.mkdir(parents=True)
@@ -164,7 +165,8 @@ class ReleaseManifestTests(unittest.TestCase):
                     "CovioHelperProtocolVersion",
                 )
             )
-            + "<string>$(CURRENT_PROJECT_VERSION)</string>\n",
+            + "<string>$(CURRENT_PROJECT_VERSION)</string>\n"
+            + "<key>CovioInstallTransactionVersion</key>\n<string>1</string>\n",
             encoding="utf-8",
         )
         (root / release.PBXPROJ).parent.mkdir(parents=True)

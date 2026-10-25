@@ -151,6 +151,30 @@ final class HelperLeaseCoordinatorTests: XCTestCase {
         XCTAssertNil(external.owner)
     }
 
+    func testInstallTransactionReleasesEveryCovioLeaseAndOwnedSleep() throws {
+        let system = FakeLeaseSystem()
+        let coordinator = coordinator(system)
+        _ = coordinator.handle(request(HelperWire.shared.COMMAND_LID_LEASE_ACQUIRE, leaseId: "lease-a"))
+        _ = coordinator.handle(request(HelperWire.shared.COMMAND_LID_LEASE_ACQUIRE, leaseId: "lease-b"))
+
+        let reply = coordinator.prepareForInstallTransaction(requestId: "upgrade")
+
+        XCTAssertTrue(reply.ok)
+        XCTAssertFalse(system.disabled)
+        XCTAssertNil(system.owner)
+    }
+
+    func testInstallTransactionLeavesExternalSleepStateUntouched() {
+        let system = FakeLeaseSystem(disabled: true, owner: nil)
+
+        let reply = coordinator(system).prepareForInstallTransaction(requestId: "upgrade")
+
+        XCTAssertTrue(reply.ok)
+        XCTAssertTrue(system.disabled)
+        XCTAssertNil(system.owner)
+        XCTAssertFalse(system.events.contains("writeSleepDisabled:false"))
+    }
+
     private func coordinator(_ system: FakeLeaseSystem) -> HelperLeaseCoordinator {
         HelperLeaseCoordinator(
             log: HelperLog(path: directory.appendingPathComponent("helper.log").path),

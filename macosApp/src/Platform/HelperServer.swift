@@ -195,6 +195,19 @@ enum HelperServer {
                 message: "Peer signature is not allowed"
             )
         }
+        if request.command == HelperWire.shared.COMMAND_PREPARE_INSTALL_TRANSACTION {
+            let chargeReply = chargeLimitHandler.prepareForInstallTransaction(
+                requestId: request.requestId
+            )
+            guard chargeReply.ok else { return chargeReply }
+            let fanReply = fanControlRuntime.prepareForInstallTransaction(
+                requestId: request.requestId
+            )
+            guard fanReply.ok else { return fanReply }
+            return leaseCoordinator.prepareForInstallTransaction(
+                requestId: request.requestId
+            )
+        }
         if HelperWire.shared.isChargeLimitCommand(command: request.command),
            let reply = chargeLimitHandler.handle(request) {
             return reply

@@ -207,11 +207,17 @@ def project_errors(root: pathlib.Path = ROOT) -> list[str]:
         "CovioGitCommit",
         "CovioReleaseId",
         "CovioHelperProtocolVersion",
+        "CovioInstallTransactionVersion",
     ):
         if f"<key>{key}</key>" not in plist:
             errors.append(f"Info.plist is missing {key}")
     if "<string>$(CURRENT_PROJECT_VERSION)</string>" not in plist:
         errors.append("CFBundleVersion must use $(CURRENT_PROJECT_VERSION)")
+    if not re.search(
+        r"<key>CovioInstallTransactionVersion</key>\s*<string>1</string>",
+        plist,
+    ):
+        errors.append("CovioInstallTransactionVersion must be 1")
     contract_protocol = _protocol_from_contract(root)
     if contract_protocol != spec.helper_protocol_version:
         errors.append(

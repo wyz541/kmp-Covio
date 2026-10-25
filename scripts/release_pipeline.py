@@ -434,6 +434,9 @@ def verify_release(
         artifact = read_json(artifact_path)
         if artifact.get("schemaVersion") != 1:
             raise ReleaseVerificationError("artifact manifest schemaVersion must be 1")
+        bundled_manifest = read_json(app / "Contents" / "Resources" / "release-manifest.json")
+        if bundled_manifest != artifact:
+            raise ReleaseVerificationError("app bundle release manifest differs from artifact manifest")
         if expected_commit and artifact["gitCommit"] != expected_commit:
             raise ReleaseVerificationError(
                 f"artifact commit {artifact['gitCommit']} != expected commit {expected_commit}"
@@ -504,8 +507,16 @@ def verify_release(
             _detach_dmg(mount)
 
         package_payload = require_command(["/usr/sbin/pkgutil", "--payload-files", str(directory / names[2])])
-        if "Covio.app/Contents/MacOS/CovioHelper" not in package_payload:
-            raise ReleaseVerificationError("PKG payload is missing Covio.app/Contents/MacOS/CovioHelper")
+        required_package_paths = (
+            "Library/Application Support/Covio/Installer/staged/Covio.app/Contents/MacOS/CovioHelper",
+            "Library/Application Support/Covio/Installer/bin/CovioTransaction",
+            "Library/Application Support/Covio/Installer/recover.sh",
+        )
+        missing_package_paths = [path for path in required_package_paths if path not in package_payload]
+        if missing_package_paths:
+            raise ReleaseVerificationError(
+                "PKG payload is missing: " + ", ".join(missing_package_paths)
+            )
 
         evidence = evidence_for(
             directory,

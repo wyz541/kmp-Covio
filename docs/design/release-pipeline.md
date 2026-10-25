@@ -34,6 +34,8 @@ release-operation.json
 `release-evidence.json` 记录全部资产摘要、releaseId、commit、协议和验证结果。
 `release-notes.generated.md` 从同一份证据生成。
 `checksums.txt` 只包含四个载荷文件。
+`Covio.app` 的 Resources 同时携带同一份 `release-manifest.json`。
+PKG 把 app 写入暂存区，再通过原子 bundle 交换完成 app 与 helper 的成对安装。
 
 ## 创建 Draft
 
@@ -119,7 +121,7 @@ COVIO_NOTARY_PROFILE
 | app/helper 架构为 arm64 | 必须 | 必须 |
 | app zip、DMG、PKG 和 checksums 完整 | 必须 | 必须 |
 | DMG 中的 app/helper 与 app zip 一致 | 必须 | 必须 |
-| PKG 包含 CovioHelper | 必须 | 必须 |
+| PKG 包含暂存 app、helper、交易工具和恢复命令 | 必须 | 必须 |
 | Developer ID Application | 不要求 | 必须 |
 | Developer ID Installer | 不要求 | 必须 |
 | hardened runtime | 不要求 | 必须 |

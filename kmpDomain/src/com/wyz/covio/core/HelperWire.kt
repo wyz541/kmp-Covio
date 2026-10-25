@@ -42,6 +42,9 @@ object HelperWire {
     const val COMMAND_FAN_CONTROL_KEEP_ALIVE = "fanControlKeepAlive"
     const val COMMAND_FAN_CONTROL_RESTORE = "fanControlRestore"
 
+    /** 升级前恢复 helper 持有的全部特权状态。 */
+    const val COMMAND_PREPARE_INSTALL_TRANSACTION = "prepareInstallTransaction"
+
     const val ERROR_UNSUPPORTED_PROTOCOL = "Unsupported protocol version"
     const val ERROR_EXTERNAL_DISPLAY = "Closed lid lease is blocked while an external display is connected"
     const val ERROR_CANNOT_READ_EXTERNAL_DISPLAY = "Cannot read external display count"
@@ -248,7 +251,8 @@ object HelperWire {
         command == COMMAND_FAN_CONTROL_RESTORE
 
     fun requiresClientSignature(command: String): Boolean =
-        isChargeLimitCommand(command) || isFanControlCommand(command)
+        isChargeLimitCommand(command) || isFanControlCommand(command) ||
+            command == COMMAND_PREPARE_INSTALL_TRANSACTION
 
     // MARK: pmset 调用
 

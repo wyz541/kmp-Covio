@@ -31,7 +31,7 @@ const val HELPER_DAEMON_PLIST_NAME = "com.wyz.covio.helper.plist"
 const val HELPER_XPC_SERVICE_NAME = "com.wyz.covio.helper.xpc"
 
 /** 客户端与服务端协商的协议版本。改协议时必须同时改这里。 */
-const val HELPER_PROTOCOL_VERSION = "8"
+const val HELPER_PROTOCOL_VERSION = "9"
 
 /** helper 监听的 Unix 域 socket。 */
 const val HELPER_SOCKET_PATH = "/Library/Application Support/Covio/helper.sock"
@@ -108,4 +108,5 @@ val HELPER_ALLOWED_COMMANDS: Set<String> = setOf(
     "fanControlConfigure",
     "fanControlKeepAlive",
     "fanControlRestore",
+    "prepareInstallTransaction",
 )

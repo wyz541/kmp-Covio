@@ -310,6 +310,9 @@ final class HelperContractMirrorTests: XCTestCase {
         let protocolVersion = try XCTUnwrap(
             bundle.object(forInfoDictionaryKey: "CovioHelperProtocolVersion") as? String
         )
+        let transactionVersion = try XCTUnwrap(
+            bundle.object(forInfoDictionaryKey: "CovioInstallTransactionVersion") as? String
+        )
 
         XCTAssertEqual(GeneratedReleaseIdentity.productVersion, GeneratedReleaseIdentityKt.APP_VERSION)
         XCTAssertEqual(GeneratedReleaseIdentity.buildNumber, Int(GeneratedReleaseIdentityKt.APP_BUILD_NUMBER))
@@ -319,6 +322,7 @@ final class HelperContractMirrorTests: XCTestCase {
         XCTAssertEqual(channel, GeneratedReleaseIdentity.channel)
         XCTAssertEqual(protocolVersion, String(GeneratedReleaseIdentity.helperProtocolVersion))
         XCTAssertEqual(protocolVersion, HelperProtocol.protocolVersion)
+        XCTAssertEqual(transactionVersion, "1")
         XCTAssertFalse(commit.isEmpty)
         XCTAssertEqual(releaseID, "\(short)+\(build)+\(commit)")
     }

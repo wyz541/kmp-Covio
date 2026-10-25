@@ -27,6 +27,17 @@ RELEASE_SIGN_IDENTITY="${COVIO_CODE_SIGN_IDENTITY:-}"
 INSTALLER_SIGN_IDENTITY="${COVIO_INSTALLER_SIGN_IDENTITY:-}"
 DEVELOPMENT_TEAM="${COVIO_DEVELOPMENT_TEAM:-}"
 NOTARY_PROFILE="${COVIO_NOTARY_PROFILE:-}"
+CLEANUP_PATHS=()
+
+cleanup_temporary_paths() {
+  local path
+  for path in "${CLEANUP_PATHS[@]:-}"; do
+    if [[ -n "$path" && -e "$path" ]]; then
+      find "$path" -depth -delete
+    fi
+  done
+}
+trap cleanup_temporary_paths EXIT
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
   printf 'This script requires macOS.\n' >&2
@@ -58,6 +69,9 @@ RELEASE_ID="$(python3 -I "$ROOT/scripts/release_manifest.py" release-id --commit
 DMG_PATH="$DIST/$APP_NAME-$VERSION.dmg"
 APP_ZIP="$DIST/$APP_NAME-$VERSION.app.zip"
 PKG_PATH="$DIST/$APP_NAME-$VERSION.pkg"
+TRANSACTION_ID="build-$BUILD_NUMBER-${COMMIT:0:12}"
+STAGED_APP_RELATIVE="Library/Application Support/Covio/Installer/staged/$APP_NAME.app"
+STAGED_APP_PATH="/$STAGED_APP_RELATIVE"
 
 if [[ "$CHANNEL" == "public" ]]; then
   if [[ -z "$RELEASE_SIGN_IDENTITY" || "$RELEASE_SIGN_IDENTITY" == "-" ]]; then
@@ -176,6 +190,7 @@ require_plist CovioReleaseChannel "$CHANNEL"
 require_plist CovioGitCommit "$COMMIT"
 require_plist CovioReleaseId "$RELEASE_ID"
 require_plist CovioHelperProtocolVersion "$(python3 -I "$ROOT/scripts/release_manifest.py" value helperProtocolVersion)"
+require_plist CovioInstallTransactionVersion "1"
 require_plist CFBundleIdentifier "$APP_ID"
 # 代理应用：只有菜单栏状态项与顶部热区，没有 Dock 图标。
 require_plist LSUIElement "true"
@@ -204,7 +219,8 @@ if [[ ! -x "$HELPER" || ! -f "$DAEMON_PLIST" ]]; then
   exit 1
 fi
 
-# 内部包使用 ad-hoc。正式包必须使用 Developer ID Application 和 hardened runtime。
+# 先签整个 bundle，确保嵌套 helper 的最终字节稳定。生成发布清单后只重签 app 外层，
+# 避免复制清单使签名失效，也避免 helper 摘要随 deep 签名再次变化。
 if [[ -n "$RELEASE_SIGN_IDENTITY" && "$RELEASE_SIGN_IDENTITY" != "-" ]]; then
   /usr/bin/codesign \
     --force \
@@ -215,6 +231,25 @@ if [[ -n "$RELEASE_SIGN_IDENTITY" && "$RELEASE_SIGN_IDENTITY" != "-" ]]; then
     "$APP_IMAGE"
 else
   /usr/bin/codesign --force --deep --sign - "$APP_IMAGE"
+fi
+/usr/bin/codesign --verify --deep --strict "$APP_IMAGE"
+
+python3 -I "$ROOT/scripts/release_manifest.py" generate-artifact \
+  --helper "$HELPER" \
+  --output "$DIST/release-manifest.json" \
+  --commit "$COMMIT"
+BUNDLED_MANIFEST="$APP_IMAGE/Contents/Resources/release-manifest.json"
+/usr/bin/ditto "$DIST/release-manifest.json" "$BUNDLED_MANIFEST"
+
+if [[ -n "$RELEASE_SIGN_IDENTITY" && "$RELEASE_SIGN_IDENTITY" != "-" ]]; then
+  /usr/bin/codesign \
+    --force \
+    --options runtime \
+    --timestamp \
+    --sign "$RELEASE_SIGN_IDENTITY" \
+    "$APP_IMAGE"
+else
+  /usr/bin/codesign --force --sign - "$APP_IMAGE"
 fi
 /usr/bin/codesign --verify --deep --strict "$APP_IMAGE"
 
@@ -236,19 +271,14 @@ if [[ -n "$NOTARY_PROFILE" ]]; then
   unlink "$APP_NOTARY_ZIP"
 fi
 
-python3 -I "$ROOT/scripts/release_manifest.py" generate-artifact \
-  --helper "$HELPER" \
-  --output "$DIST/release-manifest.json" \
-  --commit "$COMMIT"
-
-bash "$ROOT/scripts/verify-helper-daemon.sh" "$APP_IMAGE"
+bash "$ROOT/scripts/verify-helper-daemon.sh" "$APP_IMAGE" --require-manifest
 
 # app.zip lets the publish command download and verify the app and helper pair again.
 /usr/bin/ditto -c -k --keepParent "$APP_IMAGE" "$APP_ZIP"
 
 # 镜像的根要同时有 app 与指向 /Applications 的链接，装的时候才能拖进去。
-STAGE="$(mktemp -d)"
-trap 'rm -rf "$STAGE"' EXIT
+STAGE="$(mktemp -d "${TMPDIR:-/tmp}/covio-dmg-stage.XXXXXX")"
+CLEANUP_PATHS+=("$STAGE")
 /usr/bin/ditto "$APP_IMAGE" "$STAGE/$APP_NAME.app"
 ln -s /Applications "$STAGE/Applications"
 if [[ -e "$DMG_PATH" ]]; then
@@ -273,6 +303,53 @@ if [[ -n "$RELEASE_SIGN_IDENTITY" && "$RELEASE_SIGN_IDENTITY" != "-" ]]; then
   /usr/bin/codesign --verify --strict "$DMG_PATH"
 fi
 
+PKG_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/covio-pkg-root.XXXXXX")"
+PKG_SCRIPTS="$(mktemp -d "${TMPDIR:-/tmp}/covio-pkg-scripts.XXXXXX")"
+CLEANUP_PATHS+=("$PKG_ROOT" "$PKG_SCRIPTS")
+TRANSACTION_BINARY="$PKG_ROOT/Library/Application Support/Covio/Installer/bin/CovioTransaction"
+INSTALLER_PAYLOAD="$PKG_ROOT/Library/Application Support/Covio/Installer"
+mkdir -p \
+  "$(dirname "$TRANSACTION_BINARY")" \
+  "$INSTALLER_PAYLOAD/staged"
+
+/usr/bin/xcrun clang \
+  -arch arm64 \
+  -mmacosx-version-min=14.0 \
+  -Wall -Wextra -Werror \
+  "$ROOT/installer/atomic_swap.c" \
+  -o "$TRANSACTION_BINARY"
+if [[ -n "$RELEASE_SIGN_IDENTITY" && "$RELEASE_SIGN_IDENTITY" != "-" ]]; then
+  /usr/bin/codesign \
+    --force \
+    --options runtime \
+    --timestamp \
+    --sign "$RELEASE_SIGN_IDENTITY" \
+    "$TRANSACTION_BINARY"
+else
+  /usr/bin/codesign --force --sign - "$TRANSACTION_BINARY"
+fi
+/usr/bin/ditto "$APP_IMAGE" "$PKG_ROOT/$STAGED_APP_RELATIVE"
+/usr/bin/ditto "$ROOT/installer/transaction.sh" "$INSTALLER_PAYLOAD/transaction.sh"
+/usr/bin/ditto "$ROOT/installer/recover.sh" "$INSTALLER_PAYLOAD/recover.sh"
+chmod 0755 "$INSTALLER_PAYLOAD/recover.sh" "$INSTALLER_PAYLOAD/transaction.sh"
+
+/usr/bin/ditto "$ROOT/installer/preinstall" "$PKG_SCRIPTS/preinstall"
+/usr/bin/ditto "$ROOT/installer/postinstall" "$PKG_SCRIPTS/postinstall"
+/usr/bin/ditto "$ROOT/installer/transaction.sh" "$PKG_SCRIPTS/transaction.sh"
+chmod 0755 "$PKG_SCRIPTS/preinstall" "$PKG_SCRIPTS/postinstall"
+HELPER_SHA256="$(/usr/bin/plutil -extract helperSHA256 raw -o - "$DIST/release-manifest.json")"
+cat > "$PKG_SCRIPTS/transaction.env" <<EOF
+TRANSACTION_ID='$TRANSACTION_ID'
+EXPECTED_RELEASE_ID='$RELEASE_ID'
+EXPECTED_PRODUCT_VERSION='$VERSION'
+EXPECTED_BUILD_NUMBER='$BUILD_NUMBER'
+EXPECTED_COMMIT='$COMMIT'
+EXPECTED_PROTOCOL_VERSION='$(python3 -I "$ROOT/scripts/release_manifest.py" value helperProtocolVersion)'
+EXPECTED_HELPER_SHA256='$HELPER_SHA256'
+EXPECTED_CHANNEL='$CHANNEL'
+STAGED_APP_PATH='$STAGED_APP_PATH'
+EOF
+
 PKG_SIGN_ARGS=()
 if [[ -n "$INSTALLER_SIGN_IDENTITY" ]]; then
   PKG_SIGN_ARGS+=(--sign "$INSTALLER_SIGN_IDENTITY")
@@ -282,8 +359,9 @@ if [[ -e "$PKG_PATH" ]]; then
 fi
 PKG_COMMAND=(
   /usr/bin/pkgbuild
-  --component "$APP_IMAGE"
-  --install-location "/Applications"
+  --root "$PKG_ROOT"
+  --scripts "$PKG_SCRIPTS"
+  --install-location "/"
   --identifier "$APP_ID.pkg"
   --version "$VERSION"
 )
@@ -292,6 +370,17 @@ if [[ ${#PKG_SIGN_ARGS[@]} -gt 0 ]]; then
 fi
 PKG_COMMAND+=("$PKG_PATH")
 "${PKG_COMMAND[@]}"
+
+if ! /usr/sbin/pkgutil --payload-files "$PKG_PATH" | \
+    grep -Fxq "Library/Application Support/Covio/Installer/staged/$APP_NAME.app/Contents/MacOS/CovioHelper"; then
+  printf 'PKG payload is missing the staged app helper.\n' >&2
+  exit 1
+fi
+if ! /usr/sbin/pkgutil --payload-files "$PKG_PATH" | \
+    grep -Fxq "Library/Application Support/Covio/Installer/bin/CovioTransaction"; then
+  printf 'PKG payload is missing the transaction executable.\n' >&2
+  exit 1
+fi
 
 if [[ -n "$NOTARY_PROFILE" ]]; then
   notarize_and_staple "$DMG_PATH" "$DMG_PATH"

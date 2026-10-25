@@ -32,6 +32,18 @@ enum CovioMain {
         if arguments.contains(MaintenanceCommand.helperProtocolVersion) {
             exit(printHelperProtocolVersion())
         }
+        if arguments.contains(MaintenanceCommand.printReleaseIdentity) {
+            exit(printReleaseIdentity())
+        }
+        if arguments.contains(MaintenanceCommand.prepareInstallTransaction) {
+            exit(prepareInstallTransaction())
+        }
+        if arguments.contains(MaintenanceCommand.registerInstallTransactionHelper) {
+            exit(registerInstallTransactionHelper())
+        }
+        if arguments.contains(MaintenanceCommand.verifyInstallTransaction) {
+            exit(verifyInstallTransaction())
+        }
 #if DEBUG
         if handleChargeLimitMaintenance(arguments) {
             return
@@ -71,6 +83,83 @@ enum CovioMain {
         }
         print(protocolVersion)
         return 0
+    }
+
+    private static func printReleaseIdentity() -> Int32 {
+        guard let identity = HelperReleaseIdentitySource.expectedAppIdentity else {
+            log("The bundled release identity is unavailable")
+            return 1
+        }
+        return printJSON(identityObject(identity)) ? 0 : 1
+    }
+
+    private static func prepareInstallTransaction() -> Int32 {
+        let client = HelperClient()
+        guard HelperReleaseInspector.inspect(client: client) == .match else {
+            log("The running helper does not match the installed app")
+            return 1
+        }
+        guard client.prepareInstallTransaction() else {
+            log("The helper did not restore privileged state for the install transaction")
+            return 1
+        }
+        return 0
+    }
+
+    private static func registerInstallTransactionHelper() -> Int32 {
+        switch HelperInstaller.registerForInstallTransaction(logger: log) {
+        case .enabled, .requiresApproval:
+            return 0
+        case .failed(let message):
+            log(message)
+            return 1
+        }
+    }
+
+    private static func verifyInstallTransaction() -> Int32 {
+        let client = HelperClient()
+        let status = HelperReleaseInspector.inspect(client: client)
+        var value: [String: String] = ["status": statusName(status)]
+        if let identity = HelperReleaseIdentitySource.expectedAppIdentity {
+            value.merge(identityObject(identity)) { _, new in new }
+        }
+        guard printJSON(value) else { return 1 }
+        return status == .match ? 0 : 1
+    }
+
+    private static func identityObject(_ identity: HelperReleaseIdentity) -> [String: String] {
+        [
+            "releaseId": identity.releaseId,
+            "productVersion": identity.productVersion,
+            "buildNumber": identity.buildNumber,
+            "gitCommit": identity.gitCommit,
+            "protocolVersion": identity.protocolVersion,
+            "helperSHA256": identity.helperSHA256,
+            "channel": identity.channel,
+        ]
+    }
+
+    private static func statusName(_ status: HelperStatus) -> String {
+        switch status {
+        case .match: "MATCH"
+        case .missing: "MISSING"
+        case .outdated: "OUTDATED"
+        case .identityMismatch: "IDENTITY_MISMATCH"
+        case .untrusted: "UNTRUSTED"
+        default: "UNKNOWN"
+        }
+    }
+
+    private static func printJSON(_ value: [String: String]) -> Bool {
+        guard JSONSerialization.isValidJSONObject(value),
+              let data = try? JSONSerialization.data(withJSONObject: value, options: [.sortedKeys]),
+              let text = String(data: data, encoding: .utf8)
+        else {
+            log("Cannot encode the release identity")
+            return false
+        }
+        print(text)
+        return true
     }
 
 #if DEBUG
@@ -169,6 +258,14 @@ enum MaintenanceCommand {
     static let helperVersion = "--helper-version"
     /// 打印 helper 报告的协议版本号。
     static let helperProtocolVersion = "--helper-protocol-version"
+    /// 打印 app bundle 中 helper 的完整发布身份。
+    static let printReleaseIdentity = "--print-release-identity"
+    /// 升级前恢复风扇、充电上限和合盖租约。
+    static let prepareInstallTransaction = "--prepare-install-transaction"
+    /// 事务交换 bundle 后替换 SMAppService 注册。
+    static let registerInstallTransactionHelper = "--register-install-transaction-helper"
+    /// 验证新 helper 与当前 app 的发布身份完全一致。
+    static let verifyInstallTransaction = "--verify-install-transaction"
 }
 
 #if DEBUG

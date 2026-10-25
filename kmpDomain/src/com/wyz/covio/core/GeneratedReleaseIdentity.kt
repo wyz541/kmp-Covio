@@ -3,5 +3,5 @@
 package com.wyz.covio.core
 
 const val APP_VERSION = "0.5.2"
-const val APP_BUILD_NUMBER = 1L
+const val APP_BUILD_NUMBER = 2L
 const val APP_RELEASE_CHANNEL = "internal"

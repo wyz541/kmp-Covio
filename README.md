@@ -387,6 +387,12 @@ The script checks that the bundle carries `macosApp/src/Covio.icns` and applies 
 The script builds the DMG with `diskutil image create`.
 The script prints app and DMG byte sizes.
 
+The default app downloads model packages through `macosApp/src/Model/LocalModelDownload.swift`.
+The downloader uses a fixed manifest revision and stores files under `$HOME/Library/Application Support/com.wyz.covio/Models/`.
+It pauses and resumes through the Hub download cache.
+It verifies the complete package before registering it.
+The model setup UI is tracked by [#380](https://github.com/wyz541/kmp-Covio/issues/380).
+
 Create a Draft Release with the default slim package:
 
 ```sh

@@ -21,7 +21,6 @@ ICON="$ROOT/macosApp/src/Covio.icns"
 APP_IMAGE="$DIST/$APP_NAME.app"
 OFFLINE_APP="$DIST/$APP_NAME-Offline.app"
 PLIST_BUDDY="/usr/libexec/PlistBuddy"
-MODEL_MANIFEST="$ROOT/macosApp/src/AutoNaming/FileNamingModelManifest.json"
 RELEASE_SIGN_IDENTITY="${COVIO_CODE_SIGN_IDENTITY:-}"
 INSTALLER_SIGN_IDENTITY="${COVIO_INSTALLER_SIGN_IDENTITY:-}"
 DEVELOPMENT_TEAM="${COVIO_DEVELOPMENT_TEAM:-}"
@@ -141,10 +140,13 @@ fi
 /usr/bin/ditto "$ARCHIVED_APP" "$APP_IMAGE"
 
 # 默认包只携带模型清单和许可证。模型权重由离线包或首次使用下载提供。
-if ! cmp -s "$MODEL_MANIFEST" "$APP_IMAGE/Contents/Resources/FileNamingModelManifest.json"; then
-  printf 'Model manifest is missing or differs from the source manifest.\n' >&2
-  exit 1
-fi
+for model_manifest in "$ROOT"/macosApp/src/AutoNaming/FileNamingModelManifest*.json; do
+  manifest_name="$(basename "$model_manifest")"
+  if ! cmp -s "$model_manifest" "$APP_IMAGE/Contents/Resources/$manifest_name"; then
+    printf 'Model manifest is missing or differs from its source: %s\n' "$manifest_name" >&2
+    exit 1
+  fi
+done
 if [[ -n "$(find "$APP_IMAGE/Contents/Resources/Models" -name '*.safetensors' -type f -print -quit 2>/dev/null)" ]]; then
   printf 'Default app bundle must not contain model weights.\n' >&2
   exit 1
@@ -155,7 +157,23 @@ mkdir -p "$NOTICES_DIR/licenses" "$NOTICES_DIR/model"
 /usr/bin/ditto "$ROOT/LICENSE" "$APP_IMAGE/Contents/Resources/LICENSE"
 /usr/bin/ditto "$ROOT/THIRD_PARTY_NOTICES.md" "$NOTICES_DIR/THIRD_PARTY_NOTICES.md"
 /usr/bin/ditto "$ROOT/third_party/licenses" "$NOTICES_DIR/licenses"
-/usr/bin/ditto "$ROOT/third_party/models/Qwen3-VL-2B-Instruct" "$NOTICES_DIR/model/Qwen3-VL-2B-Instruct"
+for model_notice_name in \
+  Qwen3-VL-2B-Instruct \
+  Qwen3-VL-4B-Instruct \
+  Qwen3-VL-8B-Instruct \
+  Qwen3-VL-30B-A3B-Instruct
+do
+  model_notice="$ROOT/third_party/models/$model_notice_name"
+  if [[ ! -d "$model_notice" ]]; then
+    printf 'Missing model notice directory: %s\n' "$model_notice_name" >&2
+    exit 1
+  fi
+  if [[ ! -f "$model_notice/LICENSE" || ! -f "$model_notice/NOTICE" ]]; then
+    printf 'Model notice directory is incomplete: %s\n' "$model_notice_name" >&2
+    exit 1
+  fi
+  /usr/bin/ditto "$model_notice" "$NOTICES_DIR/model/$model_notice_name"
+done
 
 PLIST="$APP_IMAGE/Contents/Info.plist"
 HELPER="$APP_IMAGE/Contents/MacOS/CovioHelper"

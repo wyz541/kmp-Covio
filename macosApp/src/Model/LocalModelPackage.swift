@@ -108,6 +108,7 @@ struct LocalModelPackageVerifier: Sendable {
         directory: URL,
         tier: LocalModelTier
     ) throws -> VerifiedLocalModelPackage {
+        try Task.checkCancellation()
         guard let expectation = expectations[tier] else {
             throw failure(.modelMismatch, "This model tier has no trusted package definition.")
         }
@@ -172,6 +173,7 @@ struct LocalModelPackageVerifier: Sendable {
 
         var seen = Set<String>()
         for item in manifest.files {
+            try Task.checkCancellation()
             guard isSafeRelativePath(item.path), seen.insert(item.path).inserted else {
                 throw failure(.invalidPath, "The package contains an invalid file path.")
             }
@@ -186,7 +188,7 @@ struct LocalModelPackageVerifier: Sendable {
             guard isSafeRelativePath(name) else {
                 throw failure(.invalidPath, "The package contains an invalid attribution path.")
             }
-            try requireRegularFile(
+            _ = try requireRegularFile(
                 root.appendingPathComponent(name),
                 code: .fileMissing,
                 detail: "The package is missing its license or notice file."
@@ -270,8 +272,11 @@ struct LocalModelPackageVerifier: Sendable {
         var hasher = SHA256()
         do {
             while let data = try handle.read(upToCount: 8 * 1_024 * 1_024), !data.isEmpty {
+                try Task.checkCancellation()
                 hasher.update(data: data)
             }
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             throw failure(.fileMissing, "A model file cannot be read.")
         }

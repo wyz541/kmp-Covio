@@ -45,6 +45,8 @@ SOURCE_REQUIRED = (
     "channel",
     "helperProtocolVersion",
 )
+ARTIFACT_SCHEMA_VERSION = 2
+DEFAULT_DMG_MAX_BYTES = 50_000_000
 ARTIFACT_REQUIRED = (
     "schemaVersion",
     "releaseId",
@@ -54,6 +56,18 @@ ARTIFACT_REQUIRED = (
     "helperProtocolVersion",
     "helperSHA256",
     "channel",
+    "installers",
+    "model",
+)
+INSTALLER_NAMES = ("default", "offline")
+MODEL_REQUIRED = (
+    "tier",
+    "modelID",
+    "revision",
+    "runtimeDirectory",
+    "license",
+    "totalBytes",
+    "manifestSHA256",
 )
 
 
@@ -264,15 +278,139 @@ def sha256_file(path: pathlib.Path) -> str:
     return digest.hexdigest()
 
 
+def _file_record(path: pathlib.Path, expected_name: str) -> dict[str, Any]:
+    if path.name != expected_name:
+        raise ManifestError(f"artifact must be named {expected_name}: {path.name}")
+    if not path.is_file():
+        raise ManifestError(f"artifact path is not a file: {path}")
+    return {
+        "name": path.name,
+        "size": path.stat().st_size,
+        "sha256": sha256_file(path),
+    }
+
+
+def _model_record(manifest_path: pathlib.Path) -> dict[str, Any]:
+    try:
+        raw = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError) as error:
+        raise ManifestError(f"cannot read model manifest: {error}") from error
+    if not isinstance(raw, dict):
+        raise ManifestError("model manifest must be a JSON object")
+    required = (
+        "tier",
+        "modelID",
+        "revision",
+        "runtimeDirectory",
+        "license",
+        "totalBytes",
+    )
+    missing = [key for key in required if key not in raw]
+    if missing:
+        raise ManifestError(f"model manifest is missing: {', '.join(missing)}")
+    for key in ("tier", "modelID", "runtimeDirectory", "license"):
+        if not isinstance(raw[key], str) or not raw[key]:
+            raise ManifestError(f"model manifest {key} must be a non-empty string")
+    revision = raw["revision"]
+    if not isinstance(revision, str) or not COMMIT.fullmatch(revision):
+        raise ManifestError("model revision must be a 40-character lowercase SHA")
+    total_bytes = raw["totalBytes"]
+    if not isinstance(total_bytes, int) or isinstance(total_bytes, bool) or total_bytes < 1:
+        raise ManifestError("model totalBytes must be a positive integer")
+    return {
+        "tier": raw["tier"],
+        "modelID": raw["modelID"],
+        "revision": revision,
+        "runtimeDirectory": raw["runtimeDirectory"],
+        "license": raw["license"],
+        "totalBytes": total_bytes,
+        "manifestSHA256": sha256_file(manifest_path),
+    }
+
+
+def _validate_model_record(record: Any) -> None:
+    if not isinstance(record, dict):
+        raise ManifestError("artifact model must be an object or null")
+    missing = [key for key in MODEL_REQUIRED if key not in record]
+    if missing:
+        raise ManifestError(f"artifact model is missing: {', '.join(missing)}")
+    for key in ("tier", "modelID", "runtimeDirectory", "license"):
+        if not isinstance(record[key], str) or not record[key]:
+            raise ManifestError(f"artifact model {key} must be a non-empty string")
+    revision = record["revision"]
+    if not isinstance(revision, str) or not COMMIT.fullmatch(revision):
+        raise ManifestError("artifact model revision must be a 40-character lowercase SHA")
+    total_bytes = record["totalBytes"]
+    if not isinstance(total_bytes, int) or isinstance(total_bytes, bool) or total_bytes < 1:
+        raise ManifestError("artifact model totalBytes must be a positive integer")
+    manifest_sha = record["manifestSHA256"]
+    if not isinstance(manifest_sha, str) or not re.fullmatch(r"[0-9a-f]{64}", manifest_sha):
+        raise ManifestError("artifact model manifestSHA256 must be 64 lowercase hex characters")
+
+
+def installer_names(manifest: dict[str, Any], product_version: str) -> tuple[str, str | None]:
+    installers = manifest.get("installers")
+    if not isinstance(installers, dict):
+        raise ManifestError("artifact installers must be an object")
+    unknown = sorted(set(installers) - set(INSTALLER_NAMES))
+    if unknown:
+        raise ManifestError(f"artifact installers contain unknown keys: {unknown}")
+    default = installers.get("default")
+    if not isinstance(default, dict):
+        raise ManifestError("artifact must contain a default installer")
+    default_name = f"Covio-{product_version}.dmg"
+    if default.get("name") != default_name:
+        raise ManifestError(f"default installer must be named {default_name}")
+    offline = installers.get("offline")
+    offline_name = None
+    if offline is not None:
+        if not isinstance(offline, dict):
+            raise ManifestError("artifact offline installer must be an object or null")
+        offline_name = f"Covio-Offline-{product_version}.dmg"
+        if offline.get("name") != offline_name:
+            raise ManifestError(f"offline installer must be named {offline_name}")
+    model = manifest.get("model")
+    if offline is None and model is not None:
+        raise ManifestError("artifact model requires an offline installer")
+    if offline is not None and model is None:
+        raise ManifestError("offline installer requires artifact model metadata")
+    if model is not None:
+        _validate_model_record(model)
+    return default_name, offline_name
+
+
 def artifact_manifest(
     spec: ReleaseSpec,
     commit: str,
     helper_path: pathlib.Path,
+    default_dmg_path: pathlib.Path,
+    offline_dmg_path: pathlib.Path | None = None,
+    model_manifest_path: pathlib.Path | None = None,
 ) -> dict[str, Any]:
     if not helper_path.is_file():
         raise ManifestError(f"helper path is not a file: {helper_path}")
+    default_record = _file_record(
+        default_dmg_path,
+        f"Covio-{spec.product_version}.dmg",
+    )
+    if default_record["size"] > DEFAULT_DMG_MAX_BYTES:
+        raise ManifestError(
+            f"default DMG exceeds {DEFAULT_DMG_MAX_BYTES} bytes: {default_record['size']}"
+        )
+    offline_record = None
+    model_record = None
+    if offline_dmg_path is not None:
+        if model_manifest_path is None:
+            raise ManifestError("offline DMG requires a model manifest")
+        offline_record = _file_record(
+            offline_dmg_path,
+            f"Covio-Offline-{spec.product_version}.dmg",
+        )
+        model_record = _model_record(model_manifest_path)
+    elif model_manifest_path is not None:
+        raise ManifestError("model manifest requires an offline DMG")
     return {
-        "schemaVersion": 1,
+        "schemaVersion": ARTIFACT_SCHEMA_VERSION,
         "releaseId": release_id(spec, commit),
         "productVersion": spec.product_version,
         "buildNumber": spec.build_number,
@@ -280,6 +418,11 @@ def artifact_manifest(
         "helperProtocolVersion": spec.helper_protocol_version,
         "helperSHA256": sha256_file(helper_path),
         "channel": spec.channel,
+        "installers": {
+            "default": default_record,
+            "offline": offline_record,
+        },
+        "model": model_record,
     }
 
 
@@ -287,10 +430,37 @@ def _write_json(path: pathlib.Path, data: dict[str, Any]) -> None:
     _atomic_write(path, json.dumps(data, indent=2, sort_keys=False) + "\n")
 
 
+def _verify_file_record(
+    record: Any,
+    expected_name: str,
+    base_directory: pathlib.Path,
+) -> None:
+    if not isinstance(record, dict):
+        raise ManifestError(f"artifact installer {expected_name} must be an object")
+    if record.get("name") != expected_name:
+        raise ManifestError(f"artifact installer must be named {expected_name}")
+    size = record.get("size")
+    if not isinstance(size, int) or isinstance(size, bool) or size < 1:
+        raise ManifestError(f"artifact installer {expected_name} size must be positive")
+    digest = record.get("sha256")
+    if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+        raise ManifestError(
+            f"artifact installer {expected_name} sha256 must be 64 lowercase hex characters"
+        )
+    path = base_directory / expected_name
+    if not path.is_file():
+        raise ManifestError(f"artifact installer is missing: {expected_name}")
+    if path.stat().st_size != size:
+        raise ManifestError(f"artifact installer size mismatch: {expected_name}")
+    if sha256_file(path) != digest:
+        raise ManifestError(f"artifact installer SHA-256 mismatch: {expected_name}")
+
+
 def verify_artifact(
     manifest_path: pathlib.Path,
     helper_path: pathlib.Path,
     root: pathlib.Path = ROOT,
+    source_spec: ReleaseSpec | None = None,
 ) -> dict[str, Any]:
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -309,9 +479,9 @@ def verify_artifact(
             raise ManifestError(f"artifact {key} must be an integer")
     if not re.fullmatch(r"[0-9a-f]{64}", manifest["helperSHA256"]):
         raise ManifestError("artifact helperSHA256 must be 64 lowercase hex characters")
-    spec = load_spec(root)
-    if manifest["schemaVersion"] != 1:
-        raise ManifestError("artifact schemaVersion must be 1")
+    spec = source_spec or load_spec(root)
+    if manifest["schemaVersion"] != ARTIFACT_SCHEMA_VERSION:
+        raise ManifestError(f"artifact schemaVersion must be {ARTIFACT_SCHEMA_VERSION}")
     if manifest["productVersion"] != spec.product_version:
         raise ManifestError("artifact productVersion differs from source manifest")
     if manifest["buildNumber"] != spec.build_number:
@@ -326,6 +496,16 @@ def verify_artifact(
     actual_hash = sha256_file(helper_path)
     if manifest["helperSHA256"] != actual_hash:
         raise ManifestError("artifact helperSHA256 does not match the helper binary")
+    default_name, offline_name = installer_names(manifest, spec.product_version)
+    installers = manifest["installers"]
+    default_record = installers["default"]
+    _verify_file_record(default_record, default_name, manifest_path.parent)
+    if default_record["size"] > DEFAULT_DMG_MAX_BYTES:
+        raise ManifestError(
+            f"default DMG exceeds {DEFAULT_DMG_MAX_BYTES} bytes: {default_record['size']}"
+        )
+    if offline_name is not None:
+        _verify_file_record(installers["offline"], offline_name, manifest_path.parent)
     return manifest
 
 
@@ -366,6 +546,9 @@ def main(argv: list[str] | None = None, root: pathlib.Path = ROOT) -> int:
 
     generate = sub.add_parser("generate-artifact")
     generate.add_argument("--helper", required=True, type=pathlib.Path)
+    generate.add_argument("--default-dmg", required=True, type=pathlib.Path)
+    generate.add_argument("--offline-dmg", type=pathlib.Path)
+    generate.add_argument("--model-manifest", type=pathlib.Path)
     generate.add_argument("--output", required=True, type=pathlib.Path)
     generate.add_argument("--commit")
     generate.add_argument("--allow-dirty", action="store_true")
@@ -417,7 +600,14 @@ def main(argv: list[str] | None = None, root: pathlib.Path = ROOT) -> int:
             if errors:
                 return _print_errors(errors)
             commit = args.commit or git_commit(root)
-            manifest = artifact_manifest(load_spec(root), commit, args.helper)
+            manifest = artifact_manifest(
+                load_spec(root),
+                commit,
+                args.helper,
+                args.default_dmg,
+                args.offline_dmg,
+                args.model_manifest,
+            )
             output = args.output if args.output.is_absolute() else root / args.output
             _write_json(output, manifest)
             verify_artifact(output, args.helper, root)

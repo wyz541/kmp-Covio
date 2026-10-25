@@ -82,6 +82,20 @@ def expected_asset_names(version: str) -> tuple[str, ...]:
     )
 
 
+def release_asset_names(directory: pathlib.Path, version: str) -> tuple[str, ...]:
+    artifact = read_json(directory / "release-manifest.json")
+    if artifact.get("schemaVersion") != release.ARTIFACT_SCHEMA_VERSION:
+        raise ReleaseVerificationError(
+            f"artifact manifest schemaVersion must be {release.ARTIFACT_SCHEMA_VERSION}"
+        )
+    default_name, offline_name = release.installer_names(artifact, version)
+    names = [f"Covio-{version}.app.zip", default_name]
+    if offline_name is not None:
+        names.append(offline_name)
+    names.extend((f"Covio-{version}.pkg", "release-manifest.json"))
+    return tuple(names)
+
+
 def release_tag(spec: release.ReleaseSpec) -> str:
     if spec.channel == "internal":
         return f"v{spec.product_version}-internal.{spec.build_number}"
@@ -161,6 +175,34 @@ def architecture_errors(app_binary: str, helper_binary: str) -> list[str]:
     return errors
 
 
+def model_weight_paths(app: pathlib.Path) -> tuple[pathlib.Path, ...]:
+    root = app / "Contents" / "Resources" / "Models"
+    if not root.is_dir():
+        return ()
+    return tuple(sorted(path for path in root.rglob("*.safetensors") if path.is_file()))
+
+
+def model_metadata_errors(
+    model_manifest: dict[str, Any],
+    expected_model: dict[str, Any],
+) -> list[str]:
+    errors: list[str] = []
+    for key in (
+        "tier",
+        "modelID",
+        "revision",
+        "runtimeDirectory",
+        "license",
+        "totalBytes",
+    ):
+        if model_manifest.get(key) != expected_model.get(key):
+            errors.append(
+                f"offline model {key} mismatch: "
+                f"{model_manifest.get(key)!r} != {expected_model.get(key)!r}"
+            )
+    return errors
+
+
 def signature_errors(
     app: str,
     helper: str,
@@ -211,7 +253,7 @@ def notarization_errors(
 
 
 def checksum_text(directory: pathlib.Path, version: str) -> str:
-    names = (*expected_asset_names(version), "release-manifest.json")
+    names = release_asset_names(directory, version)
     lines: list[str] = []
     for name in names:
         path = directory / name
@@ -233,7 +275,7 @@ def verify_checksums(directory: pathlib.Path, version: str) -> pathlib.Path:
         lines = path.read_text(encoding="utf-8").splitlines()
     except FileNotFoundError as error:
         raise ReleaseVerificationError("missing checksums.txt") from error
-    expected_names = (*expected_asset_names(version), "release-manifest.json")
+    expected_names = release_asset_names(directory, version)
     actual: dict[str, str] = {}
     for line in lines:
         match = CHECKSUM_LINE.fullmatch(line)
@@ -278,7 +320,7 @@ def evidence_for(
 ) -> dict[str, Any]:
     checksum_path = directory / "checksums.txt"
     assets: dict[str, dict[str, Any]] = {}
-    for name in (*expected_asset_names(source.product_version), "release-manifest.json", "checksums.txt"):
+    for name in (*release_asset_names(directory, source.product_version), "checksums.txt"):
         path = directory / name
         if not path.is_file():
             raise ReleaseVerificationError(f"missing evidence asset: {name}")
@@ -295,6 +337,8 @@ def evidence_for(
         "gitCommit": artifact["gitCommit"],
         "helperProtocolVersion": source.helper_protocol_version,
         "helperSHA256": helper_sha256,
+        "installers": artifact["installers"],
+        "model": artifact["model"],
         "tag": release_tag(source),
         "assets": assets,
         "verification": {
@@ -431,13 +475,13 @@ def verify_release(
 
         actual_helper_hash = sha256_file(helper)
         artifact_path = directory / "release-manifest.json"
-        artifact = read_json(artifact_path)
-        if artifact.get("schemaVersion") != 1:
-            raise ReleaseVerificationError("artifact manifest schemaVersion must be 1")
+        artifact = release.verify_artifact(artifact_path, helper, root, source)
         if expected_commit and artifact["gitCommit"] != expected_commit:
             raise ReleaseVerificationError(
                 f"artifact commit {artifact['gitCommit']} != expected commit {expected_commit}"
             )
+        if model_weight_paths(app):
+            raise ReleaseVerificationError("default app archive must not contain model weights")
 
         app_info = read_plist(app_plist_path)
         helper_identity = _helper_identity(helper)
@@ -502,6 +546,103 @@ def verify_release(
                 raise ReleaseVerificationError("DMG app identity mismatch:\n" + "\n".join(mounted_errors))
         finally:
             _detach_dmg(mount)
+
+        _, offline_name = release.installer_names(artifact, source.product_version)
+        if offline_name is not None:
+            offline_mount = temp / "offline-dmg"
+            try:
+                _mount_dmg(directory / offline_name, offline_mount)
+                offline_app = offline_mount / "Covio.app"
+                if not offline_app.is_dir():
+                    raise ReleaseVerificationError("offline DMG is missing Covio.app")
+                offline_info = read_plist(offline_app / "Contents" / "Info.plist")
+                offline_helper = offline_app / "Contents" / "MacOS" / "CovioHelper"
+                if not offline_helper.is_file():
+                    raise ReleaseVerificationError("offline DMG app is missing CovioHelper")
+                offline_errors = identity_errors(
+                    source,
+                    artifact,
+                    offline_info,
+                    helper_identity,
+                    sha256_file(offline_helper),
+                )
+                if offline_errors:
+                    raise ReleaseVerificationError(
+                        "offline DMG identity mismatch:\n" + "\n".join(offline_errors)
+                    )
+                if not model_weight_paths(offline_app):
+                    raise ReleaseVerificationError("offline DMG must contain model weights")
+
+                expected_model = artifact["model"]
+                model_manifest_path = (
+                    offline_app / "Contents" / "Resources" / "FileNamingModelManifest.json"
+                )
+                if not model_manifest_path.is_file():
+                    raise ReleaseVerificationError("offline app is missing the model manifest")
+                if sha256_file(model_manifest_path) != expected_model["manifestSHA256"]:
+                    raise ReleaseVerificationError("offline model manifest SHA-256 mismatch")
+                model_manifest = read_json(model_manifest_path)
+                metadata_errors = model_metadata_errors(model_manifest, expected_model)
+                if metadata_errors:
+                    raise ReleaseVerificationError("\n".join(metadata_errors))
+                model_directory = (
+                    offline_app / "Contents" / "Resources" / expected_model["runtimeDirectory"]
+                )
+                require_command(
+                    [
+                        sys.executable,
+                        "-I",
+                        str(root / "scripts" / "file_naming_model.py"),
+                        "--manifest",
+                        str(model_manifest_path),
+                        "verify-directory",
+                        str(model_directory),
+                    ],
+                    timeout=900,
+                )
+                require_command(
+                    ["/usr/bin/codesign", "--verify", "--deep", "--strict", str(offline_app)]
+                )
+
+                if channel == "public":
+                    require_command(
+                        ["/usr/bin/codesign", "--verify", "--strict", str(directory / offline_name)]
+                    )
+                    offline_app_signature = _signature_report(offline_app)
+                    offline_dmg_signature = _signature_report(directory / offline_name)
+                    if "Authority=Developer ID Application:" not in offline_app_signature:
+                        raise ReleaseVerificationError(
+                            "offline app is not signed with Developer ID Application"
+                        )
+                    if "Authority=Developer ID Application:" not in offline_dmg_signature:
+                        raise ReleaseVerificationError(
+                            "offline DMG is not signed with Developer ID Application"
+                        )
+                    for label, target in (
+                        ("offline app", offline_app),
+                        ("offline DMG", directory / offline_name),
+                    ):
+                        staple = run_command(
+                            ["/usr/bin/xcrun", "stapler", "validate", str(target)]
+                        )
+                        if staple.returncode != 0:
+                            raise ReleaseVerificationError(
+                                f"{label} notarization ticket is invalid"
+                            )
+                    gatekeeper = run_command(
+                        [
+                            "/usr/sbin/spctl",
+                            "-a",
+                            "-vv",
+                            "--type",
+                            "execute",
+                            str(offline_app),
+                        ]
+                    )
+                    if gatekeeper.returncode != 0:
+                        raise ReleaseVerificationError("offline app failed Gatekeeper verification")
+            finally:
+                _detach_dmg(offline_mount)
 
         package_payload = require_command(["/usr/sbin/pkgutil", "--payload-files", str(directory / names[2])])
         if "Covio.app/Contents/MacOS/CovioHelper" not in package_payload:
@@ -591,6 +732,18 @@ def promotion_errors(channel: str, release_info: dict[str, Any], evidence: dict[
     for name in expected_asset_names(version):
         if name not in assets:
             errors.append(f"release evidence is missing {name}")
+    installers = evidence.get("installers", {})
+    if not isinstance(installers, dict):
+        errors.append("release evidence installers must be an object")
+        return errors
+    for kind, record in installers.items():
+        if record is None:
+            continue
+        if not isinstance(record, dict) or not isinstance(record.get("name"), str):
+            errors.append(f"release evidence installer {kind} is invalid")
+            continue
+        if record["name"] not in assets:
+            errors.append(f"release evidence is missing {record['name']}")
     return errors
 
 
@@ -692,7 +845,7 @@ def main(argv: list[str] | None = None) -> int:
                 raise ReleaseVerificationError("\n".join(errors))
             print("draft release can be promoted")
             return 0
-    except (ReleaseVerificationError, OSError, subprocess.SubprocessError) as error:
+    except (ReleaseVerificationError, release.ManifestError, OSError, subprocess.SubprocessError) as error:
         print(str(error), file=sys.stderr)
         return 1
     return 1

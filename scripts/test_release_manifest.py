@@ -87,8 +87,10 @@ class ReleaseManifestTests(unittest.TestCase):
             self._write_fixture(root)
             helper = root / "helper"
             helper.write_bytes(b"helper-v1")
+            default_dmg = root / "Covio-1.2.3.dmg"
+            default_dmg.write_bytes(b"default-dmg")
             spec = release.load_spec(root)
-            manifest = release.artifact_manifest(spec, "b" * 40, helper)
+            manifest = release.artifact_manifest(spec, "b" * 40, helper, default_dmg)
             manifest_path = root / "release-manifest.json"
             release._write_json(manifest_path, manifest)
             release.verify_artifact(manifest_path, helper, root)
@@ -102,9 +104,106 @@ class ReleaseManifestTests(unittest.TestCase):
             self._write_fixture(root)
             helper = root / "helper"
             helper.write_bytes(b"helper")
-            manifest = release.artifact_manifest(release.load_spec(root), "c" * 40, helper)
+            default_dmg = root / "Covio-1.2.3.dmg"
+            default_dmg.write_bytes(b"default-dmg")
+            manifest = release.artifact_manifest(
+                release.load_spec(root),
+                "c" * 40,
+                helper,
+                default_dmg,
+            )
+            self.assertEqual(manifest["schemaVersion"], release.ARTIFACT_SCHEMA_VERSION)
             self.assertEqual(manifest["releaseId"], f"1.2.3+4+{'c' * 40}")
             self.assertEqual(manifest["helperSHA256"], release.sha256_file(helper))
+            self.assertEqual(manifest["installers"]["default"]["name"], "Covio-1.2.3.dmg")
+            self.assertIsNone(manifest["installers"]["offline"])
+            self.assertIsNone(manifest["model"])
+
+    def test_offline_manifest_records_model_and_both_installers(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self._write_fixture(root)
+            helper = root / "helper"
+            helper.write_bytes(b"helper")
+            default_dmg = root / "Covio-1.2.3.dmg"
+            default_dmg.write_bytes(b"default-dmg")
+            offline_dmg = root / "Covio-Offline-1.2.3.dmg"
+            offline_dmg.write_bytes(b"offline-dmg")
+            model_manifest = self._write_model_manifest(root)
+
+            manifest = release.artifact_manifest(
+                release.load_spec(root),
+                "d" * 40,
+                helper,
+                default_dmg,
+                offline_dmg,
+                model_manifest,
+            )
+            manifest_path = root / "release-manifest.json"
+            release._write_json(manifest_path, manifest)
+            release.verify_artifact(manifest_path, helper, root)
+
+            self.assertEqual(
+                manifest["installers"]["offline"]["sha256"],
+                release.sha256_file(offline_dmg),
+            )
+            self.assertEqual(manifest["model"]["revision"], "e" * 40)
+            self.assertEqual(
+                manifest["model"]["manifestSHA256"],
+                release.sha256_file(model_manifest),
+            )
+
+    def test_offline_and_model_metadata_must_appear_together(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self._write_fixture(root)
+            helper = root / "helper"
+            helper.write_bytes(b"helper")
+            default_dmg = root / "Covio-1.2.3.dmg"
+            default_dmg.write_bytes(b"default-dmg")
+            offline_dmg = root / "Covio-Offline-1.2.3.dmg"
+            offline_dmg.write_bytes(b"offline-dmg")
+            model_manifest = self._write_model_manifest(root)
+            spec = release.load_spec(root)
+
+            with self.assertRaises(release.ManifestError):
+                release.artifact_manifest(
+                    spec,
+                    "f" * 40,
+                    helper,
+                    default_dmg,
+                    offline_dmg,
+                    None,
+                )
+            with self.assertRaises(release.ManifestError):
+                release.artifact_manifest(
+                    spec,
+                    "f" * 40,
+                    helper,
+                    default_dmg,
+                    None,
+                    model_manifest,
+                )
+
+    def test_installer_hash_mismatch_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self._write_fixture(root)
+            helper = root / "helper"
+            helper.write_bytes(b"helper")
+            default_dmg = root / "Covio-1.2.3.dmg"
+            default_dmg.write_bytes(b"default-dmg")
+            manifest = release.artifact_manifest(
+                release.load_spec(root),
+                "a" * 40,
+                helper,
+                default_dmg,
+            )
+            manifest_path = root / "release-manifest.json"
+            release._write_json(manifest_path, manifest)
+            default_dmg.write_bytes(b"changed")
+            with self.assertRaises(release.ManifestError):
+                release.verify_artifact(manifest_path, helper, root)
 
     def test_clean_worktree_is_required(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -170,6 +269,28 @@ class ReleaseManifestTests(unittest.TestCase):
         (root / release.PBXPROJ).parent.mkdir(parents=True)
         (root / release.PBXPROJ).write_text("// clean\n", encoding="utf-8")
         release.write_generated(root)
+
+    def _write_model_manifest(self, root: pathlib.Path) -> pathlib.Path:
+        path = root / "model-manifest.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "schemaVersion": 1,
+                    "tier": "2b",
+                    "modelID": "example/model",
+                    "revision": "e" * 40,
+                    "displayName": "Example",
+                    "runtimeDirectory": "Models/Example",
+                    "license": "Apache-2.0",
+                    "licenseFile": "LICENSE",
+                    "noticeFile": "NOTICE",
+                    "totalBytes": 1,
+                    "files": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+        return path
 
 
 if __name__ == "__main__":

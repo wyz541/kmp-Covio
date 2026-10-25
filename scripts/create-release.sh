@@ -9,15 +9,17 @@ PIPELINE="$ROOT/scripts/release_pipeline.py"
 NOTES_TEMPLATE="$ROOT/RELEASE_NOTES.md"
 DRY_RUN=0
 SKIP_PACKAGE=0
+WITH_OFFLINE=0
 
 usage() {
-  printf 'Usage: %s [--dry-run] [--skip-package]\n' "$0"
+  printf 'Usage: %s [--dry-run] [--skip-package] [--with-offline]\n' "$0"
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run) DRY_RUN=1 ;;
     --skip-package) SKIP_PACKAGE=1 ;;
+    --with-offline) WITH_OFFLINE=1 ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; exit 2 ;;
   esac
@@ -40,6 +42,28 @@ OPERATION="$DIST/release-operation.json"
 
 if [[ "$SKIP_PACKAGE" -ne 1 ]]; then
   bash "$ROOT/scripts/package-macos-swift.sh"
+  if [[ "$WITH_OFFLINE" -eq 1 ]]; then
+    bash "$ROOT/scripts/package-macos-offline-swift.sh"
+  fi
+fi
+
+if [[ ! -f "$MANIFEST" ]]; then
+  printf 'Missing artifact manifest: %s\n' "$MANIFEST" >&2
+  printf 'Run scripts/package-macos-swift.sh first.\n' >&2
+  exit 1
+fi
+
+OFFLINE_NAME="$(python3 -I - "$MANIFEST" <<'PY'
+import json
+import sys
+with open(sys.argv[1], encoding="utf-8") as stream:
+    offline = json.load(stream).get("installers", {}).get("offline")
+print(offline.get("name", "") if isinstance(offline, dict) else "")
+PY
+)"
+if [[ "$WITH_OFFLINE" -eq 1 && -z "$OFFLINE_NAME" ]]; then
+  printf 'Offline packaging did not record an offline installer.\n' >&2
+  exit 1
 fi
 
 python3 -I "$PIPELINE" checksums \
@@ -92,7 +116,11 @@ if [[ "$CHANNEL" == "internal" ]]; then
   PRERELEASE=true
 fi
 
-ASSETS=("$APP_ZIP" "$DMG" "$PKG" "$MANIFEST" "$CHECKSUMS" "$EVIDENCE" "$NOTES" "$OPERATION")
+ASSETS=("$APP_ZIP" "$DMG" "$PKG")
+if [[ -n "$OFFLINE_NAME" ]]; then
+  ASSETS+=("$DIST/$OFFLINE_NAME")
+fi
+ASSETS+=("$MANIFEST" "$CHECKSUMS" "$EVIDENCE" "$NOTES" "$OPERATION")
 for asset in "${ASSETS[@]}"; do
   if [[ ! -f "$asset" ]]; then
     printf 'Missing release asset: %s\n' "$asset" >&2

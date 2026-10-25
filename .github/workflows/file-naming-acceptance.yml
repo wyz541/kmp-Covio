@@ -34,7 +34,10 @@ jobs:
         run: python3 -I scripts/file_naming_model.py download "$COVIO_FILE_NAMING_MODEL_DIR"
 
       - name: Package the app
-        run: bash scripts/package-macos-swift.sh
+        run: |
+          bash scripts/package-macos-swift.sh
+          COVIO_FILE_NAMING_MODEL_DIR="$COVIO_FILE_NAMING_MODEL_DIR" \
+            bash scripts/package-macos-offline-swift.sh
 
       - name: Free build inputs
         run: |
@@ -48,7 +51,7 @@ jobs:
         run: |
           set -o pipefail
           COVIO_FILE_NAMING_ACCEPTANCE=1 \
-            bash scripts/verify-file-naming-bundle.sh dist/Covio.app \
+            bash scripts/verify-file-naming-bundle.sh dist/Covio-Offline.app \
             2>&1 | tee "$RUNNER_TEMP/file-naming-acceptance.log"
 
       - name: Upload the acceptance log

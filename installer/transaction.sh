@@ -129,6 +129,15 @@ covio_tx_clear_current_transaction() {
     fi
 }
 
+covio_tx_archive_transaction_root() {
+    local root="$1"
+    local history_root="${root}.history.$(date +%s).$RANDOM"
+    mv "$root" "$history_root"
+    printf '%s\n' "$history_root" > "$TX_LAST_POINTER.tmp"
+    mv "$TX_LAST_POINTER.tmp" "$TX_LAST_POINTER"
+    printf 'Archived transaction %s as %s\n' "$root" "$history_root" >&2
+}
+
 covio_tx_plist_raw() {
     local file="$1"
     local key="$2"
@@ -661,11 +670,18 @@ covio_tx_prepare() {
         local existing_root existing_state
         existing_root="$(cat "$TX_CURRENT_POINTER")"
         existing_state="$(cat "$existing_root/state" 2>/dev/null || printf 'missing')"
-        if [[ "$existing_state" != "committed" && "$existing_state" != "rolled-back" ]]; then
+        if [[ "$existing_state" == "missing" ]]; then
+            printf 'Archiving unstarted transaction: %s\n' "$existing_root" >&2
+            if [[ -d "$existing_root" ]]; then
+                covio_tx_archive_transaction_root "$existing_root"
+            fi
+            unlink "$TX_CURRENT_POINTER"
+        elif [[ "$existing_state" != "committed" && "$existing_state" != "rolled-back" ]]; then
             covio_tx_log "Unfinished transaction exists: $existing_root"
             return 1
+        else
+            unlink "$TX_CURRENT_POINTER"
         fi
-        unlink "$TX_CURRENT_POINTER"
     fi
     if [[ -e "$TX_STAGED_APP" ]]; then
         covio_tx_log "A stale staged app already exists"
@@ -680,9 +696,7 @@ covio_tx_prepare() {
             covio_tx_log "Stale transaction directory exists: $TX_TRANSACTION_ROOT"
             return 1
         fi
-        local history_root="$TX_TRANSACTION_ROOT.history.$(date +%s).$RANDOM"
-        mv "$TX_TRANSACTION_ROOT" "$history_root"
-        printf '%s\n' "$history_root" > "$TX_LAST_POINTER"
+        covio_tx_archive_transaction_root "$TX_TRANSACTION_ROOT"
     fi
     mkdir -p "$TX_TRANSACTION_ROOT/previous" "$TX_TRANSACTION_ROOT/candidate"
     cp "$TX_ENVIRONMENT_SOURCE" "$TX_ENVIRONMENT_FILE"
@@ -1044,6 +1058,12 @@ covio_tx_recover() {
     covio_tx_load_environment "$root/transaction.env" || return 1
     covio_tx_configure "$TX_STATE_ROOT" "$TX_APPLICATIONS_ROOT"
     state="$(covio_tx_read_state)"
+    if [[ "$state" == "missing" ]]; then
+        printf 'Archiving unstarted transaction during recovery: %s\n' "$root" >&2
+        covio_tx_archive_transaction_root "$root"
+        covio_tx_clear_current_transaction
+        return 0
+    fi
     if [[ "$state" == "committed" && "${1:-}" != "--manual-rollback" ]]; then
         printf 'The last transaction committed successfully. Use --manual-rollback to restore the previous release.\n' >&2
         return 2

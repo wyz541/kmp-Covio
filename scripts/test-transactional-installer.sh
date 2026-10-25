@@ -403,6 +403,20 @@ covio_tx_recover
 assert_eq "$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$TX_APP_PATH/Contents/Info.plist")" 1 "recovery entrypoint did not restore the app"
 assert_json "$TX_RECORD_PATH" releaseId "0.5.2+1+$OLD_COMMIT"
 
+printf 'case: an unstarted transaction is archived before retry\n'
+prepare_case unstarted-recovery 0.5.2 7 "$NEW_COMMIT"
+STALE_ROOT="$TX_INSTALLER_ROOT/transactions/unstarted"
+mkdir -p "$STALE_ROOT"
+cp "$TX_ENVIRONMENT_SOURCE" "$STALE_ROOT/transaction.env"
+printf '%s\n' "$STALE_ROOT" > "$TX_CURRENT_POINTER"
+covio_tx_recover
+[[ ! -e "$TX_CURRENT_POINTER" ]] || fail "recovery did not clear the unstarted transaction pointer"
+find "$TX_INSTALLER_ROOT/transactions" -maxdepth 1 -name 'unstarted.history.*' -print -quit | grep -q . || \
+  fail "recovery did not archive the unstarted transaction"
+assert_eq "$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$TX_APP_PATH/Contents/Info.plist")" 1 "unstarted recovery changed the installed app"
+covio_tx_prepare
+assert_eq "$(covio_tx_read_state)" prepared "retry did not prepare a new transaction"
+
 printf 'case: an SMAppService rollback removes Legacy helper metadata\n'
 prepare_case sm-rollback 0.5.2 3 "$NEW_COMMIT" 0 "" 1 1 ""
 covio_tx_prepare

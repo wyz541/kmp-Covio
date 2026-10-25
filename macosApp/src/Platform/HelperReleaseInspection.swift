@@ -8,7 +8,7 @@ enum HelperReleaseInspector {
     static func inspect(
         client: HelperClient,
         expectedIdentity: HelperReleaseIdentity? = HelperReleaseIdentitySource.expectedAppIdentity,
-        expectedExecutablePath: String? = HelperReleaseIdentitySource.bundledHelperExecutablePath,
+        expectedExecutablePath: String? = HelperReleaseIdentitySource.installedHelperExecutablePath,
         isTrusted: (pid_t?, String) -> Bool = {
             HelperCodeTrust.isTrusted(peerPID: $0, expectedExecutablePath: $1)
         }

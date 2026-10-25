@@ -2,7 +2,8 @@ import Foundation
 import ServiceManagement
 import kmpDomain
 
-/// `SMAppService` 生命周期状态。发布身份握手状态仍由 `HelperStatus` 表示。
+/// Helper 服务生命周期状态。发布身份握手状态仍由 `HelperStatus` 表示。
+/// `SMAppService` backing 只保留给旧安装迁移和休眠路径。
 enum HelperServiceState: Equatable, Sendable {
     case legacy
     case notRegistered
@@ -51,6 +52,7 @@ final class SMAppHelperServiceManager: HelperServiceManaging, @unchecked Sendabl
     private let backing: any SMAppServiceBacking
     private let legacyPlistPath: String
     private let legacySocketPath: String
+    private let localHelperPath: String
     private let openSettings: () -> Void
     private let errorLock = NSLock()
     private var lastErrorStorage: String?
@@ -60,6 +62,7 @@ final class SMAppHelperServiceManager: HelperServiceManaging, @unchecked Sendabl
         backing: any SMAppServiceBacking = RealSMAppServiceBacking(),
         legacyPlistPath: String = HelperProtocol.plistPath,
         legacySocketPath: String = HelperProtocol.socketPath,
+        localHelperPath: String = HelperProtocol.helperBinaryPath,
         openSettings: @escaping () -> Void = {
             SMAppService.openSystemSettingsLoginItems()
         }
@@ -67,14 +70,18 @@ final class SMAppHelperServiceManager: HelperServiceManaging, @unchecked Sendabl
         self.backing = backing
         self.legacyPlistPath = legacyPlistPath
         self.legacySocketPath = legacySocketPath
+        self.localHelperPath = localHelperPath
         self.openSettings = openSettings
     }
 
     var state: HelperServiceState {
         if let lastError { return .error(lastError) }
-        // 旧 LaunchDaemon 与新 daemon 使用同一 Label。只要 legacy plist 或 socket
-        // 还在，就必须继续走 legacy transport，直到一次迁移完整清除旧安装。
-        if legacyExists { return .legacy }
+        // 新本机安装使用固定 helper 路径和 LaunchDaemon plist。
+        // 旧安装只有 plist/socket，没有固定 helper。
+        if FileManager.default.fileExists(atPath: legacyPlistPath) {
+            return FileManager.default.fileExists(atPath: localHelperPath) ? .enabled : .legacy
+        }
+        if FileManager.default.fileExists(atPath: legacySocketPath) { return .legacy }
         switch backing.status {
         case .enabled:
             clearRegistrationPending()
@@ -124,11 +131,6 @@ final class SMAppHelperServiceManager: HelperServiceManaging, @unchecked Sendabl
 
     func openSystemSettings() {
         openSettings()
-    }
-
-    private var legacyExists: Bool {
-        FileManager.default.fileExists(atPath: legacyPlistPath)
-            || FileManager.default.fileExists(atPath: legacySocketPath)
     }
 
     private func setLastError(_ value: String?) {

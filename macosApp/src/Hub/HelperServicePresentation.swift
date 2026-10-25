@@ -1,6 +1,6 @@
 import Foundation
 
-/// SMAppService 生命周期状态的界面文案。
+/// Helper 服务生命周期状态的界面文案。
 enum HelperServicePresentation {
     static func value(_ state: HelperServiceState, language: AppLanguage) -> String {
         switch state {

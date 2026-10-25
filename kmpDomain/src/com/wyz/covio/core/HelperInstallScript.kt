@@ -4,7 +4,8 @@ package com.wyz.covio.core
  * 特权 helper 的安装脚本、卸载脚本与 LaunchDaemon plist。
  *
  * 两端的安装器都调用这里：macOS 宿主的 Swift 版与 Compose 版的 Kotlin 版。
- * 生成的文本逐行一致，所以新版应用能卸掉旧版装上的 helper，反之亦然。
+ * 生成文本逐行一致，所以两端不会安装出不同形状的 helper。
+ * 新版应用可以移除旧版装上的 helper。
  *
  * 留在各宿主的部分：
  * - 取得管理员权限并运行脚本（Swift 用 `osascript`，Kotlin 同样，但进程 API 不同）。
@@ -27,15 +28,26 @@ object HelperInstallScript {
         clientRequirement: String? = null,
     ): String = buildString {
         val directory = shellEscaped(HELPER_DIRECTORY)
+        val binaryDirectory = shellEscaped(HELPER_BINARY_DIRECTORY)
+        val binaryPath = shellEscaped(HELPER_BINARY_PATH)
+        val temporaryBinary = shellEscaped("$HELPER_BINARY_PATH.new")
         val allowedUid = shellEscaped(HELPER_ALLOWED_UID_PATH)
         val requirementPath = shellEscaped(HELPER_CLIENT_REQUIREMENT_PATH)
         val versionPath = shellEscaped(HELPER_VERSION_PATH)
         val appPath = shellEscaped(HELPER_APP_PATH_FILE)
         val plistPath = shellEscaped(HELPER_PLIST_PATH)
+        val temporaryPlist = shellEscaped("$HELPER_PLIST_PATH.new")
         append("set -e\n")
         append("install -d -m 0755 '$directory'\n")
         append("chown root:wheel '$directory'\n")
         append("chmod 0755 '$directory'\n")
+        append("install -d -m 0755 '$binaryDirectory'\n")
+        append("chown root:wheel '$binaryDirectory'\n")
+        append("chmod 0755 '$binaryDirectory'\n")
+        append("rm -f '$temporaryBinary' '$temporaryPlist'\n")
+        append("/usr/bin/ditto '${shellEscaped(executablePath)}' '$temporaryBinary'\n")
+        append("chown root:wheel '$temporaryBinary'\n")
+        append("chmod 0755 '$temporaryBinary'\n")
         append("printf '%s\\n' '${shellEscaped(uid)}' > '$allowedUid'\n")
         append("printf '%s\\n' '${shellEscaped(version)}' > '$versionPath'\n")
         append("printf '%s\\n' '${shellEscaped(executablePath)}' > '$appPath'\n")
@@ -48,12 +60,14 @@ object HelperInstallScript {
             append("chown root:wheel '$requirementPath'\n")
             append("chmod 0644 '$requirementPath'\n")
         }
-        append("cat > '$plistPath' <<'PLIST'\n")
-        append(plistText(executablePath)).append('\n')
+        append("cat > '$temporaryPlist' <<'PLIST'\n")
+        append(plistText(HELPER_BINARY_PATH)).append('\n')
         append("PLIST\n")
-        append("chown root:wheel '$plistPath'\n")
-        append("chmod 0644 '$plistPath'\n")
+        append("chown root:wheel '$temporaryPlist'\n")
+        append("chmod 0644 '$temporaryPlist'\n")
         append("/bin/launchctl bootout system '$plistPath' 2>/dev/null || true\n")
+        append("mv '$temporaryBinary' '$binaryPath'\n")
+        append("mv '$temporaryPlist' '$plistPath'\n")
         append("/bin/launchctl bootstrap system '$plistPath'\n")
     }
 
@@ -68,8 +82,16 @@ object HelperInstallScript {
      */
     fun uninstallScript(): String = buildString {
         val plistPath = shellEscaped(HELPER_PLIST_PATH)
+        val binaryDirectory = shellEscaped(HELPER_BINARY_DIRECTORY)
         val statePath = shellEscaped(HELPER_CHARGE_LIMIT_STATE_PATH)
         val runtimePath = shellEscaped(HELPER_CHARGE_LIMIT_RUNTIME_PATH)
+        val clientRequirement = shellEscaped(HELPER_CLIENT_REQUIREMENT_PATH)
+        val allowedUid = shellEscaped(HELPER_ALLOWED_UID_PATH)
+        val versionPath = shellEscaped(HELPER_VERSION_PATH)
+        val appPath = shellEscaped(HELPER_APP_PATH_FILE)
+        val sleepOwner = shellEscaped(HELPER_SLEEP_OWNER_PATH)
+        val socketPath = shellEscaped(HELPER_SOCKET_PATH)
+        val logPath = shellEscaped(HELPER_LOG_PATH)
         append("set -e\n")
         append("if [ -e '$statePath' ] || [ -e '$runtimePath' ]; then\n")
         append("  printf '%s\\n' 'Covio charge limit state is still active. Restore it in Covio before uninstalling the helper.' >&2\n")
@@ -78,7 +100,8 @@ object HelperInstallScript {
         append("/usr/bin/pmset -a disablesleep 0 || true\n")
         append("/bin/launchctl bootout system '$plistPath' 2>/dev/null || true\n")
         append("rm -f '$plistPath'\n")
-        append("rm -rf '${shellEscaped(HELPER_DIRECTORY)}'\n")
+        append("rm -rf '$binaryDirectory'\n")
+        append("rm -f '$allowedUid' '$clientRequirement' '$versionPath' '$appPath' '$sleepOwner' '$socketPath' '$logPath'\n")
     }
 
     /** LaunchDaemon 的 plist。标签与命令行参数都取自共享常量。 */
@@ -92,12 +115,20 @@ object HelperInstallScript {
         |    <key>ProgramArguments</key>
         |    <array>
         |        <string>${xmlEscaped(executablePath)}</string>
-        |        <string>$HELPER_ARGUMENT</string>
         |    </array>
+        |    <key>MachServices</key>
+        |    <dict>
+        |        <key>$HELPER_XPC_SERVICE_NAME</key>
+        |        <true/>
+        |    </dict>
         |    <key>RunAtLoad</key>
         |    <true/>
         |    <key>KeepAlive</key>
         |    <true/>
+        |    <key>ProcessType</key>
+        |    <string>Interactive</string>
+        |    <key>ThrottleInterval</key>
+        |    <integer>5</integer>
         |    <key>StandardOutPath</key>
         |    <string>${xmlEscaped(HELPER_LOG_PATH)}</string>
         |    <key>StandardErrorPath</key>

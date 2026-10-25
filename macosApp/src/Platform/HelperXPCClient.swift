@@ -1,7 +1,7 @@
 import Foundation
 import kmpDomain
 
-/// 通过 SMAppService daemon 的 Mach service 执行一次同步 RPC。
+/// 通过 launchd Mach service 执行一次同步 RPC。
 final class HelperXPCClient: @unchecked Sendable {
     private let serviceName: String
     private let lock = NSLock()

@@ -260,6 +260,7 @@ final class HelperContractMirrorTests: XCTestCase {
     func testPathsComeFromKotlin() {
         XCTAssertEqual(HelperProtocol.socketPath, HelperContractKt.HELPER_SOCKET_PATH)
         XCTAssertEqual(HelperProtocol.helperDirectory, HelperContractKt.HELPER_DIRECTORY)
+        XCTAssertEqual(HelperProtocol.helperBinaryPath, HelperContractKt.HELPER_BINARY_PATH)
         XCTAssertEqual(HelperProtocol.chargeLimitStatePath, HelperContractKt.HELPER_CHARGE_LIMIT_STATE_PATH)
         XCTAssertEqual(HelperProtocol.chargeLimitRuntimePath, HelperContractKt.HELPER_CHARGE_LIMIT_RUNTIME_PATH)
         XCTAssertEqual(HelperProtocol.versionPath, HelperContractKt.HELPER_VERSION_PATH)
@@ -313,6 +314,9 @@ final class HelperContractMirrorTests: XCTestCase {
         let transactionVersion = try XCTUnwrap(
             bundle.object(forInfoDictionaryKey: "CovioInstallTransactionVersion") as? String
         )
+        let helperInstallMode = try XCTUnwrap(
+            bundle.object(forInfoDictionaryKey: "CovioHelperInstallMode") as? String
+        )
 
         XCTAssertEqual(GeneratedReleaseIdentity.productVersion, GeneratedReleaseIdentityKt.APP_VERSION)
         XCTAssertEqual(GeneratedReleaseIdentity.buildNumber, Int(GeneratedReleaseIdentityKt.APP_BUILD_NUMBER))
@@ -323,21 +327,25 @@ final class HelperContractMirrorTests: XCTestCase {
         XCTAssertEqual(protocolVersion, String(GeneratedReleaseIdentity.helperProtocolVersion))
         XCTAssertEqual(protocolVersion, HelperProtocol.protocolVersion)
         XCTAssertEqual(transactionVersion, "1")
+        XCTAssertEqual(helperInstallMode, "legacy")
         XCTAssertFalse(commit.isEmpty)
         XCTAssertEqual(releaseID, "\(short)+\(build)+\(commit)")
     }
 
-    /// helper 参数是命令行契约，跟安装脚本里写死的字面量必须一致。
-    /// 不一致的表现是装上了但 LaunchDaemon 起不来。
-    func testHelperArgumentMatchesTheInstalledLaunchDaemon() {
+    /// Legacy plist 必须指向固定 helper 并声明同一个 XPC 服务。
+    func testInstalledLaunchDaemonUsesTheFixedHelperAndXPCService() {
         let script = HelperInstaller.installScript(
-            executablePath: "/Applications/Covio.app/Contents/MacOS/Covio",
+            executablePath: "/Applications/Covio.app/Contents/MacOS/CovioHelper",
             uid: "501",
             version: GeneratedReleaseIdentityKt.APP_VERSION
         )
         XCTAssertTrue(
-            script.contains("<string>\(HelperProtocol.helperArgument)</string>"),
-            "安装脚本没把 \(HelperProtocol.helperArgument) 写进 ProgramArguments：\(script)"
+            script.contains("<string>\(HelperProtocol.helperBinaryPath)</string>"),
+            "安装脚本没写固定 helper 路径：\(script)"
+        )
+        XCTAssertTrue(
+            script.contains("<key>\(HelperProtocol.xpcServiceName)</key>"),
+            "安装脚本没声明 XPC Mach service：\(script)"
         )
     }
 

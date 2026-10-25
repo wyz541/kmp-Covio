@@ -1,25 +1,39 @@
 # 本机 app 与 helper 升级事务
 
+结论：PKG 把 app、固定 helper、LaunchDaemon plist 和安装记录作为一个事务处理。
+
 ## 状态
 
 | 项目 | 内容 |
 | --- | --- |
-| 状态 | 已实现；Developer ID 真机矩阵待 #358 |
+| 状态 | 已实现；真机升级矩阵待 #358 |
 | 日期 | `2026-10-25` |
-| Issue | #357 |
-| 上游决策 | ADR-0018 |
+| Issue | #357、#390 |
+| 上游决策 | [ADR-0020](../adr/adr-0020-local-only-helper-distribution.md) |
 
 ## 目标
 
-PKG 把 app 与 helper 作为一个事务安装。
-任一步失败时，安装器恢复上一版 app、helper 和 `installed-release.json`。
+app 与 helper 必须来自同一个 `releaseId`。
+任一步失败时，安装器恢复上一版 app、helper、plist 和 `installed-release.json`。
+当前事务只用于 internal/local 分发。
 
 ## 事务边界
 
-`CovioHelper` 是 `Covio.app` 的内嵌可执行文件。
-因此事务边界是整个 `Covio.app` bundle。
-安装器使用 `renamex_np(RENAME_SWAP)` 原子交换 app bundle。
-交换后，新 app 和新 helper 同时生效，不会留下混合版本。
+`Covio.app` 使用 `renamex_np(RENAME_SWAP)` 原子交换。
+`CovioHelper` 安装在 app bundle 外的固定路径。
+LaunchDaemon plist 安装在系统目录。
+因此事务同时管理四类对象：
+
+| 对象 | 事务位置 |
+| --- | --- |
+| app | `/Applications/Covio.app` |
+| helper 和元数据 | `/Library/Application Support/Covio/bin/CovioHelper` 与 root-owned helper 元数据 |
+| LaunchDaemon | `/Library/LaunchDaemons/com.wyz.covio.helper.plist` |
+| 安装记录 | `/Library/Application Support/Covio/installed-release.json` |
+
+安装器先备份全部旧对象。
+安装器最后提交全部新对象。
+首次握手失败时，安装器恢复全部旧对象。
 
 ## PKG 布局
 
@@ -34,8 +48,8 @@ PKG 先把新 bundle 和恢复工具写入 root-owned 暂存区：
 └── recover.sh
 ```
 
-`preinstall` 备份当前版本。
-`postinstall` 验证暂存版本，执行原子交换，再注册新 helper。
+`preinstall` 准备事务并备份旧对象。
+`postinstall` 验证暂存版本，交换 app，安装 helper，再完成握手。
 
 ## 提交条件
 
@@ -45,10 +59,10 @@ PKG 先把新 bundle 和恢复工具写入 root-owned 暂存区：
 2. helper 文件的 SHA-256 与 manifest 一致。
 3. app 和 helper 均为 arm64。
 4. app 与 helper 的代码签名有效。
-5. 正式渠道的 app 和 helper 使用 Developer ID Application 和 hardened runtime。
-6. 正式渠道的 app 通过 notarization staple 和 Gatekeeper。
-7. 新 build 不低于旧 build。不同 release 不允许复用同一 build。
-8. 新 helper 注册成功，并与新 app 完成精确握手。
+5. 新 build 不低于旧 build。不同 release 不允许复用同一 build。
+6. 新 helper 位于固定 root-owned 路径。
+7. LaunchDaemon plist 指向固定 helper 并声明 XPC Mach service。
+8. 新 helper 与新 app 完成精确握手。
 9. root-owned `installed-release.json` 写入成功。
 
 ## 前置恢复
@@ -67,12 +81,12 @@ PKG 先把新 bundle 和恢复工具写入 root-owned 暂存区：
 
 | 状态 | 含义 | 恢复动作 |
 | --- | --- | --- |
-| `prepared` | 旧版本已备份，新版本位于 PKG | 可回滚 |
+| `prepared` | 旧对象已备份，新版本位于 PKG | 可回滚 |
 | `prepared-new` | 干净安装，旧版本不存在 | 可删除新版本 |
 | `swapping` | 正在交换 bundle | 下次运行恢复旧版本 |
 | `app-installed` | 新 bundle 已到位 | 握手失败时恢复旧版本 |
 | `committed` | 新版本已提交 | 手动恢复使用上一份备份 |
-| `rolled-back` | 已恢复旧版本 | 无 |
+| `rolled-back` | 已恢复旧对象 | 无 |
 | `rollback-failed` | 回滚未完成 | 运行恢复命令并保留现场 |
 
 ## 安装记录
@@ -104,22 +118,24 @@ sudo "/Library/Application Support/Covio/Installer/recover.sh"
 sudo "/Library/Application Support/Covio/Installer/recover.sh" --manual-rollback
 ```
 
-恢复命令先停止 app，再原子恢复旧 bundle。
-恢复后，命令重新注册旧 helper，并要求精确握手通过。
+恢复命令先停止 app。
+恢复命令再恢复旧 app、旧 helper、旧 plist 和旧记录。
+恢复命令最后启动旧 helper，并要求精确握手通过。
 
 ## 失败行为
 
 | 失败 | 结果 |
 | --- | --- |
-| 前置签名或摘要校验失败 | app 不变，不交换 bundle |
+| 前置签名或摘要校验失败 | 所有对象不变，不交换 bundle |
 | 状态恢复失败 | app 和 helper 不变，升级停止 |
-| 降级或混合 release | app 不变，不交换 bundle |
-| helper 首次握手失败 | 原子恢复旧 app 和 helper |
-| 安装记录写入失败 | 原子恢复旧 app、helper 和旧记录 |
+| 降级或混合 release | 所有对象不变，不交换 bundle |
+| helper 首次握手失败 | 恢复旧 app、helper、plist 和记录 |
+| 安装记录写入失败 | 恢复旧 app、helper、plist 和记录 |
 | 交换后进程中断 | 恢复命令根据事务状态回滚 |
 
 ## 验证边界
 
 - 脚本测试使用真实 ad-hoc 签名和真实原子交换。
-- 脚本测试覆盖成功、回滚、恢复失败、降级、摘要错误、签名错误、中断和干净安装。
-- Developer ID、notarization、SMAppService 批准和跨版本真机升级由 #358 验证。
+- 脚本测试覆盖成功、回滚、恢复失败、降级、摘要错误、签名错误、中断、`SMAppService` 迁移和干净安装。
+- 当前分发不验证 Developer ID 或 notarization。
+- 跨版本真机升级、重启恢复和成对回滚由 #358 验证。

@@ -38,6 +38,9 @@ enum CovioMain {
         if arguments.contains(MaintenanceCommand.prepareInstallTransaction) {
             exit(prepareInstallTransaction())
         }
+        if arguments.contains(MaintenanceCommand.installLegacyHelperAsRoot) {
+            exit(installLegacyHelperAsRoot(arguments))
+        }
         if arguments.contains(MaintenanceCommand.registerInstallTransactionHelper) {
             exit(registerInstallTransactionHelper())
         }
@@ -114,6 +117,22 @@ enum CovioMain {
             log(message)
             return 1
         }
+    }
+
+    private static func installLegacyHelperAsRoot(_ arguments: [String]) -> Int32 {
+        guard getuid() == 0 else {
+            log("The Legacy helper install command requires root")
+            return 1
+        }
+        guard let index = arguments.firstIndex(of: MaintenanceCommand.installLegacyHelperAsRoot),
+              arguments.indices.contains(index + 1),
+              !arguments[index + 1].isEmpty
+        else {
+            log("The Legacy helper install command requires a uid")
+            return 1
+        }
+        let uid = arguments[index + 1]
+        return HelperInstaller.installForInstallTransactionAsRoot(uid: uid, logger: log) ? 0 : 1
     }
 
     private static func verifyInstallTransaction() -> Int32 {
@@ -262,6 +281,8 @@ enum MaintenanceCommand {
     static let printReleaseIdentity = "--print-release-identity"
     /// 升级前恢复风扇、充电上限和合盖租约。
     static let prepareInstallTransaction = "--prepare-install-transaction"
+    /// PKG postinstall 以 root 安装固定路径 Legacy helper。
+    static let installLegacyHelperAsRoot = "--install-legacy-helper-as-root"
     /// 事务交换 bundle 后替换 SMAppService 注册。
     static let registerInstallTransactionHelper = "--register-install-transaction-helper"
     /// 验证新 helper 与当前 app 的发布身份完全一致。

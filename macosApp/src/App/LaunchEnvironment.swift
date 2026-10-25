@@ -17,4 +17,16 @@ enum LaunchEnvironment {
     ) -> Bool {
         environment["XCTestConfigurationFilePath"] != nil || isClassLoaded("XCTestCase")
     }
+
+    static func isSlimInstallProfile(
+        arguments: [String] = ProcessInfo.processInfo.arguments
+    ) -> Bool {
+        if arguments.contains("--test-profile=slim-install") {
+            return true
+        }
+        guard let index = arguments.firstIndex(of: "--test-profile"),
+              arguments.indices.contains(index + 1)
+        else { return false }
+        return arguments[index + 1] == "slim-install"
+    }
 }

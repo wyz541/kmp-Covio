@@ -1,0 +1,27 @@
+{
+  "appVersion": "0.5.2",
+  "buildNumber": "3",
+  "corruption": {
+    "rejectedErrorCode": "checksumMismatch",
+    "restored": true
+  },
+  "modelID": "mlx-community/Qwen3-VL-2B-Instruct-4bit",
+  "ok": true,
+  "paused": {
+    "downloadedBytes": 1284301146,
+    "phase": "paused"
+  },
+  "registry": {
+    "registeredRevision": "9c4f5209e57b31f4b9dfba735de3fb983739c9cc",
+    "selectedTier": "2b"
+  },
+  "resume": {
+    "downloadedBytesBeforeResume": 1284301146,
+    "phaseBeforeResume": "paused",
+    "readyBytes": 1798021605,
+    "readyPhase": "ready"
+  },
+  "revision": "9c4f5209e57b31f4b9dfba735de3fb983739c9cc",
+  "tier": "2b",
+  "totalBytes": 1798021605
+}

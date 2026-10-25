@@ -130,15 +130,15 @@ Sparkle BinaryDelta 可以减少后续 app 更新流量。
 
 | 项目 | 状态 | 确认方法 |
 | --- | --- | --- |
-| 瘦包默认构建 | pending | 实现 Feature 后读取 DMG 字节数 |
-| 无模型启动 | pending | 执行研究验证 `V02` |
-| 下载暂停与恢复 | pending | 执行研究验证 `V03` |
-| 损坏模型拒绝 | pending | 执行研究验证 `V04` |
-| 模型就绪后离线推理 | pending | 执行研究验证 `V05` |
-| app 更新保留模型 | pending | 执行研究验证 `V06` |
-| 可选离线整包 | pending | 执行研究验证 `V07` |
-| Developer ID 与 notarization | pending | 接入正式发布签名链 |
-| Feature issue | pending | ADR 合并后创建 Feature 或 task issue |
+| 瘦包默认构建 | passed | `V01`；DMG 为 `13,218,304` bytes |
+| 无模型启动 | passed | `V02` |
+| 下载暂停与恢复 | passed | `V03` |
+| 损坏模型拒绝 | passed | `V04` |
+| 模型就绪后离线推理 | passed | `V05` |
+| app 更新保留模型 | passed | `V06` |
+| 可选离线整包 | passed | `V07` |
+| Developer ID 与 notarization | out of scope | ADR-0020 限定 internal/local 分发 |
+| Feature issue | delivered | #377 |
 
 ## 参考
 

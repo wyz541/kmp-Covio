@@ -714,21 +714,25 @@ The artifact manifest adds gitCommit, releaseId and helperSHA256.
 1. 模型外置只减少默认下载，不减少安装后的模型占用。
 2. 首次使用需要一次网络连接。
 3. `0.5.2` 全量下载受网络速度限制，详细拆分使用 `0.5.0` 发布 app。
-4. 瘦包探针只完成签名和体积验证，没有启动 app。
-5. `swift-transformers` 的后台能力没有在 Covio 内验证。
+4. 默认瘦包已经完成无模型启动和 UI 验证。
+5. `swift-transformers` 的真实下载、暂停和跨实例恢复已经验证。
 6. Hugging Face 在部分网络的可用性未知。
 7. 可选离线整包仍需承担约 `1.54 GB` 下载。
-8. 没有 Developer ID 和 notarization，最终发布验证仍待发布链完成。
+8. 没有 Developer ID 和 notarization。ADR-0020 把这两项划为当前 internal/local 渠道之外。
 
 ## 已知缺口
 
-| 缺口 | 原因 | 影响 |
+| 项目 | 状态 | 证据 |
 | --- | --- | --- |
-| `0.5.2` 未完成全量下载 | GitHub 资产下载速度约 `32 KB/s` | 使用同结构 `0.5.0` 产物拆分 |
-| 无模型启动未验证 | 产品代码未实现 | 不能提前声明通过 |
-| 真实下载恢复未验证 | 产品代码未实现 | 跨启动恢复仍是计划 |
-| 模型包最终压缩大小未测 | 模型源已量化，压缩收益有限 | 下载预算使用 manifest 大小 |
-| Developer ID 未配置 | 发布链未完成 | 最终签名和 notarization 待验证 |
+| 默认包和离线包拆分 | 完成 | 默认 `13,218,304` bytes；离线 `1,540,934,144` bytes |
+| 无模型启动 | 通过 | [case-slim-install.md](validation/case-slim-install.md) |
+| 真实下载恢复 | 通过 | [model-download.json](validation/evidence/2026-10-25-model-download.json) |
+| 损坏模型拒绝 | 通过 | 返回 `checksumMismatch` |
+| app 更新保留模型 | 通过 | registry SHA-256 不变 |
+| 离线推理 | 通过 | 文件命名和 Agent 都没有非 loopback 网络行 |
+| 默认包完整远程回读 | 通过 | 下载后的 SHA-256 一致 |
+| 离线包完整远程回读 | 未完成 | 网络速度不足；GitHub digest 与本地 SHA-256 一致 |
+| Developer ID 和 notarization | 范围外 | ADR-0020 |
 
 ## 复核方法
 
@@ -737,7 +741,8 @@ The artifact manifest adds gitCommit, releaseId and helperSHA256.
 3. 检查 manifest 的 `revision`、`totalBytes` 和 SHA-256。
 4. 检查 GitHub 参考仓库的固定 commit。
 5. 按 [validation/README.md](validation/README.md) 执行 `V01` 到 `V09`。
-6. 发布后记录默认包和离线整包的 SHA-256。
+6. 使用 `bash scripts/verify-model-download.sh` 和 `bash scripts/verify-model-disk-guard.sh` 复核模型下载与磁盘保护。
+7. 发布后记录默认包和离线整包的 SHA-256。
 
 ## 参考来源
 

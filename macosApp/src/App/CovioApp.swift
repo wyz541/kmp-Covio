@@ -14,7 +14,7 @@ import kmpDomain
 /// 这里不提供任何窗口。`Settings` 场景是让 `App` 协议有一个非空 `Scene` 的最小写法。
 @main
 enum CovioMain {
-    static func main() {
+    static func main() async {
         let arguments = CommandLine.arguments
 
         if arguments.contains(HelperProtocol.helperArgument) {
@@ -55,6 +55,19 @@ enum CovioMain {
             return
         }
 #endif
+        if arguments.contains(MaintenanceCommand.verifyModelDownload) {
+            guard let path = ProcessInfo.processInfo.environment["COVIO_MODEL_DOWNLOAD_ACCEPTANCE_PATH"],
+                  !path.isEmpty
+            else {
+                log("Set COVIO_MODEL_DOWNLOAD_ACCEPTANCE_PATH to a result file.")
+                exit(1)
+            }
+            exit(
+                await ModelDownloadAcceptanceVerifier.run(
+                    outputURL: URL(fileURLWithPath: path)
+                )
+            )
+        }
         CovioApp.main()
     }
 
@@ -361,6 +374,8 @@ enum MaintenanceCommand {
     static let registerInstallTransactionHelper = "--register-install-transaction-helper"
     /// 验证新 helper 与当前 app 的发布身份完全一致。
     static let verifyInstallTransaction = "--verify-install-transaction"
+    /// 从真实模型源下载、暂停、重启恢复并验证损坏拒绝。
+    static let verifyModelDownload = "--verify-model-download"
 }
 
 #if DEBUG

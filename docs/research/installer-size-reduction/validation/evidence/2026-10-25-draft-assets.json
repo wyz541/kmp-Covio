@@ -1,0 +1,53 @@
+{
+  "assets": [
+    {
+      "name": "Covio-0.5.2.app.zip",
+      "sha256": "3c7a138d6f7ee5d475be45aa316543125c1046771ee3ffd4ee2007342b220854",
+      "size": 13154444
+    },
+    {
+      "name": "Covio-0.5.2.dmg",
+      "sha256": "5eced02d91ca0eb9585cd028afb6ed5c63d24e06bd55e40e2730b073997aee99",
+      "size": 13218304
+    },
+    {
+      "name": "Covio-0.5.2.pkg",
+      "sha256": "093195148f6724682ac653e9a8a9e49e9246a3c7fd1796e8954bb8c79cbe6b5f",
+      "size": 13091222
+    },
+    {
+      "name": "Covio-Offline-0.5.2.dmg",
+      "sha256": "8bea35be7bd4c7dd7a439142153292f9672edaee63b3f1d2710eea92d6a754d7",
+      "size": 1540934144
+    },
+    {
+      "name": "checksums.txt",
+      "sha256": "bc273579d72db3f92e287005798254f9fd910cbc05e8fffbff658cbc1c483ab5",
+      "size": 428
+    },
+    {
+      "name": "release-evidence.json",
+      "sha256": "b72fe93a952efd5e0074337a51a1b62e7946041afea0c230d2f9712aec9c99d4",
+      "size": 2143
+    },
+    {
+      "name": "release-manifest.json",
+      "sha256": "632d967e8d5906574d12ac69d13ad54b6f990891d1ddc55fe114173e016af06c",
+      "size": 1062
+    },
+    {
+      "name": "release-notes.generated.md",
+      "sha256": "dde2e82172f0d2866bdac95b67efc8369c20262dfd0a14b5d9b9852461bc8042",
+      "size": 3932
+    },
+    {
+      "name": "release-operation.json",
+      "sha256": "0808d1d534299cc429f2b6d09a5c38cc6ffdbe324ddec7a0ab196abd10f65c02",
+      "size": 1196
+    }
+  ],
+  "isDraft": true,
+  "isPrerelease": true,
+  "tagName": "v0.5.2-internal.5",
+  "targetCommitish": "ca9d240bd2cce58e309b3715257c752220afab77"
+}

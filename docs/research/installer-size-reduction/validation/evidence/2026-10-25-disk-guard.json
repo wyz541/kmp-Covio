@@ -1,0 +1,10 @@
+{
+  "errorCode": "insufficientDisk",
+  "modelID": "mlx-community/Qwen3-VL-2B-Instruct-4bit",
+  "ok": true,
+  "registered": false,
+  "revision": "9c4f5209e57b31f4b9dfba735de3fb983739c9cc",
+  "tier": "2b",
+  "totalBytes": 1798021605,
+  "volumeSize": "64 MiB APFS sparse image"
+}

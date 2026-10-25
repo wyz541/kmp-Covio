@@ -18,7 +18,7 @@ enum FileNamingAcceptanceVerifier {
 
             guard let configuration = NamingModelConfiguration.bundled(
                 resourceDirectory: Bundle.main.resourceURL,
-                environment: [:]
+                environment: ProcessInfo.processInfo.environment
             ) else {
                 throw AcceptanceError("bundled model configuration is missing")
             }

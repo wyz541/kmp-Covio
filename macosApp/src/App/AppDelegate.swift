@@ -359,6 +359,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let statusItemController = StatusItemController(shell: shell, runtime: runtime)
         self.statusItemController = statusItemController
 
+        if LaunchEnvironment.isSlimInstallProfile() {
+            Task { @MainActor in
+                self.shell.show()
+            }
+        }
+
         #if DEBUG
         // Visual QA uses an isolated support directory and skips the global hotkey.
         if ProcessInfo.processInfo.environment["COVIO_HUB_PREVIEW"] == "1" {

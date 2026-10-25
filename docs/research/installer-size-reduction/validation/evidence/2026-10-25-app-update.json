@@ -1,0 +1,14 @@
+{
+  "after": {
+    "peakResidentBytes": 2267283456,
+    "renamed": 7,
+    "undoRestored": 7
+  },
+  "before": {
+    "peakResidentBytes": 2272133120,
+    "renamed": 7,
+    "undoRestored": 7
+  },
+  "ok": true,
+  "registrySHA256": "b8d24a3151601131425effa98e6682fe6eda82a38b4e9f71e29e5333336c10ef"
+}

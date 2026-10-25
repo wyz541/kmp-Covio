@@ -4,87 +4,76 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 状态 | 尚未执行 |
-| 日期 | `2026-10-24` |
+| 状态 | V06 通过；V06B 未执行 |
+| 日期 | `2026-10-25` 至 `2026-10-26` |
 | 关联测试 | `V06` |
+| 环境 | macOS `27.0.1`（`26A434`），Apple M1 Max，64 GB |
 
 ## 验证目标
 
-验证 app 更新不删除模型。
-验证 app 更新不重下相同 revision。
-验证模型 revision 不兼容时保留旧模型。
+验证 app 替换不删除模型。
+验证 app 替换后 registry 不变化。
+验证替换前后的本地模型推理都通过。
 
 ## 预检记录
 
 | 检查 | 期望 | 实际 |
 | --- | --- | --- |
-| 旧 app | 可使用当前模型 | 待填写 |
-| 新 app | 使用相同或兼容 manifest | 待填写 |
-| 模型目录 | 位于 Application Support | 待填写 |
-| registry | 指向已验证模型 | 待填写 |
+| 旧 app | 可使用当前模型 | 替换前文件命名通过 |
+| 新 app | 使用相同 manifest | 同 revision `9c4f5209e57b31f4b9dfba735de3fb983739c9cc` |
+| 模型目录 | 位于 Application Support | 位于独立 `COVIO_SUPPORT_DIR/Models/Packages` |
+| registry | 指向已验证模型 | `selectedTier=2b` |
 
-## 测试前采集
+## V06：覆盖更新 app
 
-```bash
-cat "<support-dir>/Models/imported-packages.json"
-find "<support-dir>/Models/packages" -type f -exec stat -f '%z %N' {} +
-```
-
-预期结果：记录模型 revision、路径和文件大小。
-
-## 步骤
-
-### V06：覆盖更新 app
-
-前置条件：旧 app 已安装，模型状态为 `ready`。
+前置条件：模型已完成校验并登记。
 
 操作：
 
-1. 用新 app 替换旧 app。
-2. 启动新 app。
-3. 检查模型状态。
-4. 执行一次推理。
+1. 从同一独立根目录启动旧 app。
+2. 在断网沙箱执行 12 个语料项的完整文件命名验收。
+3. 备份旧 app。
+4. 用新 app 替换旧 app。
+5. 使用同一 `COVIO_SUPPORT_DIR` 启动新 app。
+6. 再次执行同一文件命名验收。
+7. 比较 registry SHA-256。
 
-预期结果：模型仍为 `ready`，不下载相同模型，推理成功。
+实际结果：
 
-实际结果：待填写。
+| 项目 | 替换前 | 替换后 |
+| --- | --- | --- |
+| 重命名 | 7 | 7 |
+| 撤销恢复 | 7 | 7 |
+| 峰值常驻内存 | `2,272,133,120` bytes | `2,267,283,456` bytes |
+| registry SHA-256 | `b8d24a3151601131425effa98e6682fe6eda82a38b4e9f71e29e5333336c10ef` | 同左 |
 
-错误码：待填写。
+结果：通过。
+app 替换没有删除模型。
+同 revision 没有重新下载。
+替换前后都可在断网沙箱内推理。
 
-### V06B：revision 不兼容
+## V06B：revision 不兼容
 
-前置条件：新 app 要求不同 revision。
-
-操作：
-
-1. 用新 app 替换旧 app。
-2. 启动 app。
-
-预期结果：旧模型保留但不加载，app 显示兼容模型下载入口。
-
-实际结果：待填写。
-
-错误码：待填写。
+没有构造要求不同 revision 的真实双版本 app。
+自动化测试覆盖 `revisionMismatch` 状态。
+该项不作为 #381 的阻塞条件。
 
 ## 结果汇总
 
 | 测试 | 结果 | 证据 |
 | --- | --- | --- |
-| V06 | 待填写 | 待填写 |
-| V06B | 待填写 | 待填写 |
+| V06 | 通过 | [app-update.json](evidence/2026-10-25-app-update.json) |
+| V06B | 未执行 | 自动化状态测试覆盖 |
+
+## 错误码
+
+无。
 
 ## 清理记录
 
-1. 恢复旧 app 与旧模型。
-2. 删除测试 app。
-3. 删除隔离用户数据目录。
-4. 检查 helper 版本。
-
-## 更新规则
-
-1. 更新前记录 app 版本和模型 revision。
-2. 更新后再次记录相同字段。
-3. 下载日志中出现相同 revision 下载时判定失败。
+1. 删除旧 app 和替换 app 的测试副本。
+2. 删除隔离用户数据目录。
+3. 检查 helper 版本。
 
 ## 关联文档
 

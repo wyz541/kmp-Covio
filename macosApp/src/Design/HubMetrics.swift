@@ -296,12 +296,6 @@ enum HubMetrics {
     static let minHitTarget: CGFloat = 24
     static let preferredHitTarget: CGFloat = 44
 
-    /// 收起态胶囊的高度。合同 `component/tray-icon` 的 `swiftMapping.behavior`。
-    static let menuBarCapsuleHeight: CGFloat = 20
-
-    /// 胶囊四周留的悬停余量。窗口比胶囊大一圈，指针滑到边上也算进来了。
-    static let menuBarCapsuleHoverInset: CGFloat = 6
-
     /// 非刘海屏的热区尺寸。热区在菜单栏下方，所以做得又窄又薄。
     static let notchlessHotZoneWidth: CGFloat = 200
     static let notchlessHotZoneHeight: CGFloat = 6

@@ -49,40 +49,6 @@ struct ScreenGeometry: Equatable, Sendable {
         )
     }
 
-    /// 菜单栏那一条的高度。
-    ///
-    /// 菜单栏可见时是屏幕顶到 `visibleFrame` 顶的距离。全屏 Space 里两者一样高，
-    /// 那时回落到安全区高度，至少要放得下胶囊。
-    var menuBarHeight: CGFloat {
-        let measured = frame.maxY - visibleFrame.maxY
-        if measured > 0 { return measured }
-        return max(safeAreaTop, HubMetrics.menuBarCapsuleHeight)
-    }
-
-    /// 收起态胶囊的矩形（不含悬停余量）。
-    ///
-    /// 刘海屏贴在刘海右侧，非刘海屏居中。
-    /// 打样把胶囊放在正中偏右，那是为了让开它画的假刘海；
-    /// 真机的刘海宽度由系统给，所以这里按真实刘海排。
-    func menuBarCapsuleRect(capsuleWidth: CGFloat, capsuleHeight: CGFloat) -> CGRect {
-        let height = min(capsuleHeight, menuBarHeight)
-        let y = frame.maxY - (menuBarHeight + height) / 2
-        let width = min(capsuleWidth, frame.width)
-
-        guard let notch else {
-            return CGRect(x: frame.midX - width / 2, y: y, width: width, height: height)
-        }
-        // 刘海右边放不下时改放左边。两边都放不下时贴着屏幕右边缘。
-        let rightX = notch.maxX + Self.capsuleNotchGap
-        let x = rightX + width <= frame.maxX
-            ? rightX
-            : max(frame.minX, notch.minX - Self.capsuleNotchGap - width)
-        return CGRect(x: x, y: y, width: width, height: height)
-    }
-
-    /// 胶囊与刘海之间留的空隙。
-    static let capsuleNotchGap: CGFloat = 6
-
     /// 折叠态的面板尺寸。等于热区尺寸。
     var collapsedSize: CGSize {
         hotZoneRect.size

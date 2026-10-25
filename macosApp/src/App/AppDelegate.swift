@@ -345,18 +345,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         shell.start()
-        let statusItemController = StatusItemController(
-            shell: shell,
-            runtime: runtime,
-            capsuleVisible: shell.isMenuBarCapsuleVisible
-        )
+        let statusItemController = StatusItemController(shell: shell, runtime: runtime)
         self.statusItemController = statusItemController
-        shell.onMenuBarCapsuleVisibilityChanged = { [weak self] capsuleVisible in
-            self?.statusItemController?.sync(capsuleVisible: capsuleVisible)
-        }
-        shell.onMenuBarCapsuleSecondaryClick = { [weak self] in
-            self?.statusItemController?.showContextMenu()
-        }
 
         #if DEBUG
         // Visual QA uses an isolated support directory and skips the global hotkey.
@@ -381,8 +371,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         Self.current = nil
         hotKey?.unregister()
-        shell.onMenuBarCapsuleVisibilityChanged = nil
-        shell.onMenuBarCapsuleSecondaryClick = nil
         statusItemController?.tearDown()
         // Stop the lease before the helper expires it. The helper also restores
         // after a crash, but normal quit should not leave fan control running.

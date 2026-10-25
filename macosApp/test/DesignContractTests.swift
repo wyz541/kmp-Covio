@@ -115,8 +115,6 @@ final class DesignContractTests: XCTestCase {
         let (width, height) = try nativeSize("component/tray-icon", in: try contractJSON())
         XCTAssertEqual(HubMetrics.trayIconHitTarget, CGFloat(width))
         XCTAssertEqual(HubMetrics.trayIconHitTarget, CGFloat(height))
-        // 胶囊不是正方形，高度单独取自合同 `swiftMapping.behavior` 的 20 点。
-        XCTAssertLessThan(HubMetrics.menuBarCapsuleHeight, CGFloat(height))
     }
 
     /// 合同 `accessibilityRules` 的原文：不小于 24 点，主控件尽量 44 点。

@@ -2,22 +2,13 @@ import AppKit
 import XCTest
 @testable import Covio
 
-/// 备用状态项只在品牌胶囊不可见时显示。
+/// Covio 使用一个原生菜单栏状态项。
 @MainActor
 final class StatusItemControllerTests: XCTestCase {
-    func testTheFallbackStatusItemIsVisibleOnlyWithoutTheCapsule() {
-        let controller = StatusItemController(
-            shell: NotchShellController(),
-            capsuleVisible: true
-        )
+    func testTheNativeStatusItemIsVisible() {
+        let controller = StatusItemController(shell: NotchShellController())
         defer { controller.tearDown() }
 
-        XCTAssertFalse(controller.isVisible)
-
-        controller.sync(capsuleVisible: false)
         XCTAssertTrue(controller.isVisible)
-
-        controller.sync(capsuleVisible: true)
-        XCTAssertFalse(controller.isVisible)
     }
 }

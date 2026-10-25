@@ -1,6 +1,7 @@
 import CryptoKit
 import Darwin
 import Foundation
+import kmpDomain
 
 struct LocalModelPackageFile: Codable, Equatable, Sendable {
     let path: String
@@ -108,6 +109,7 @@ struct LocalModelPackageVerifier: Sendable {
         directory: URL,
         tier: LocalModelTier
     ) throws -> VerifiedLocalModelPackage {
+        try Task.checkCancellation()
         guard let expectation = expectations[tier] else {
             throw failure(.modelMismatch, "This model tier has no trusted package definition.")
         }
@@ -133,48 +135,29 @@ struct LocalModelPackageVerifier: Sendable {
         } catch {
             throw failure(.manifestUnreadable, "The package manifest cannot be read.")
         }
+        let metadataValidation = ModelPackageContract.shared.validateManifestText(
+            manifestText: String(decoding: manifestData, as: UTF8.self),
+            expectedTier: tier.rawValue,
+            expectedModelId: expectation.modelID,
+            expectedRevision: expectation.revision,
+            expectedRuntimeDirectory: "Models/\(tier.runtimeDirectoryName)",
+            expectedTotalBytes: expectation.totalBytes,
+            expectedLicense: expectation.license
+        )
+        guard metadataValidation.valid else {
+            let code = metadataValidation.errorCode
+                .flatMap(LocalModelPackageError.init(rawValue:))
+                ?? .manifestUnreadable
+            throw failure(code, metadataValidation.detail)
+        }
         let manifest: LocalModelPackageManifest
         do {
             manifest = try JSONDecoder().decode(LocalModelPackageManifest.self, from: manifestData)
         } catch {
             throw failure(.manifestUnreadable, "The package manifest is not valid.")
         }
-
-        guard manifest.schemaVersion == 1 else {
-            throw failure(.unsupportedSchema, "The package manifest schema is not supported.")
-        }
-        guard manifest.tier == tier,
-              manifest.runtimeDirectory == "Models/\(tier.runtimeDirectoryName)"
-        else {
-            throw failure(.tierMismatch, "The package does not match the selected model tier.")
-        }
-        guard manifest.modelID == expectation.modelID else {
-            throw failure(.modelMismatch, "The package model ID is not allowed for this tier.")
-        }
-        guard manifest.revision == expectation.revision,
-              isPinnedRevision(manifest.revision)
-        else {
-            throw failure(.revisionMismatch, "The package revision does not match the pinned revision.")
-        }
-        guard manifest.license == expectation.license,
-              manifest.license == "Apache-2.0"
-        else {
-            throw failure(.licenseRejected, "The package license is not accepted.")
-        }
-        guard manifest.totalBytes == expectation.totalBytes,
-              manifest.totalBytes == manifest.files.reduce(0, { $0 + $1.size })
-        else {
-            throw failure(.totalSizeMismatch, "The package size does not match its manifest.")
-        }
-        guard !manifest.files.isEmpty else {
-            throw failure(.fileMissing, "The package has no model files.")
-        }
-
-        var seen = Set<String>()
         for item in manifest.files {
-            guard isSafeRelativePath(item.path), seen.insert(item.path).inserted else {
-                throw failure(.invalidPath, "The package contains an invalid file path.")
-            }
+            try Task.checkCancellation()
             let fileURL = root.appendingPathComponent(item.path)
             try verifyFile(
                 fileURL,
@@ -183,10 +166,7 @@ struct LocalModelPackageVerifier: Sendable {
             )
         }
         for name in [manifest.licenseFile, manifest.noticeFile] {
-            guard isSafeRelativePath(name) else {
-                throw failure(.invalidPath, "The package contains an invalid attribution path.")
-            }
-            try requireRegularFile(
+            _ = try requireRegularFile(
                 root.appendingPathComponent(name),
                 code: .fileMissing,
                 detail: "The package is missing its license or notice file."
@@ -270,27 +250,15 @@ struct LocalModelPackageVerifier: Sendable {
         var hasher = SHA256()
         do {
             while let data = try handle.read(upToCount: 8 * 1_024 * 1_024), !data.isEmpty {
+                try Task.checkCancellation()
                 hasher.update(data: data)
             }
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             throw failure(.fileMissing, "A model file cannot be read.")
         }
         return hasher.finalize().map { String(format: "%02x", $0) }.joined()
-    }
-
-    private func isSafeRelativePath(_ path: String) -> Bool {
-        guard !path.isEmpty,
-              !path.hasPrefix("/"),
-              !path.contains("\\"),
-              !path.contains("/"),
-              path != ".",
-              path != ".."
-        else { return false }
-        return true
-    }
-
-    private func isPinnedRevision(_ revision: String) -> Bool {
-        revision.count == 40 && revision.allSatisfy(\.isHexDigit)
     }
 
     private func failure(

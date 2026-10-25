@@ -64,9 +64,23 @@ enum AppPaths {
 
     /// 用户导入的本地模型包注册表。
     static var localModelPackagesFile: URL {
-        supportDirectory
-            .appendingPathComponent("Models", isDirectory: true)
+        localModelsDirectory
             .appendingPathComponent("imported-packages.json")
+    }
+
+    /// 下载中和已安装模型共用的 Application Support 根目录。
+    static var localModelsDirectory: URL {
+        supportDirectory.appendingPathComponent("Models", isDirectory: true)
+    }
+
+    /// 模型下载状态和 Hub 暂存目录。
+    static var localModelDownloadsDirectory: URL {
+        localModelsDirectory.appendingPathComponent("Downloads", isDirectory: true)
+    }
+
+    /// 通过 app 内下载器安装的模型包目录。
+    static var localModelPackagesDirectory: URL {
+        localModelsDirectory.appendingPathComponent("Packages", isDirectory: true)
     }
 
     /// Agent 会话与工具审计的本地 SQLite 数据库。

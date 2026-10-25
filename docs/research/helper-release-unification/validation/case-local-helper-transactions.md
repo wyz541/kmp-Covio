@@ -4,10 +4,10 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 状态 | 主要场景通过，三项边界部分覆盖 |
+| 状态 | 全部矩阵通过；真实崩溃发现并修复恢复缺陷 |
 | 日期 | 2026-10-25 |
 | 执行人 | agent |
-| 复核人 | 待填写 |
+| 复核人 | `wyz` |
 | Issue | #358 |
 
 ## 2. 初始状态
@@ -186,13 +186,18 @@ bash scripts/test-all.sh
 最终内部 Release：
 
 ```text
-releaseId: 0.5.2+3+45d1beccc041346061286595c6c0693ec7cf2982
-buildNumber: 3
+releaseId: 0.5.2+4+8582c62c94a375e754b39b90c1e6fa95f12738f6
+productVersion: 0.5.2
+buildNumber: 4
 channel: internal
+helperProtocolVersion: 9
+helperSHA256: a8a7ed3e548cb4dc96a0071535ac92b349541d9d0763dc1bb5356601a5fd7301
 ```
 
-执行干净安装。
-安装结果：`installed`。
+干净安装结果：`installed`。
+`previousReleaseId` 为空。
+重复安装结果：`installed`。
+重复安装的 `previousReleaseId` 与当前 releaseId 相同。
 最终状态：
 
 - app、helper 和记录 releaseId 相同。
@@ -200,21 +205,130 @@ channel: internal
 - LaunchDaemon 使用固定 helper。
 - XPC 握手为 MATCH。
 - `SleepDisabled=0`。
-- 没有充电和租约状态残留。
+- 没有充电、风扇或租约状态残留。
 
-## 9. 限制
+Draft：
 
-1. 损坏 Mach-O 没有单独执行。
-2. LaunchDaemon 被系统策略拒绝没有单独执行。
-3. 真实安装进程崩溃没有执行。
-4. 合盖租约活动状态没有单独执行。
-5. 测试使用 ad-hoc 签名。
-6. 最终 Release 制品仍需发布负责人审阅。
+```text
+tag: v0.5.2-internal.4
+draft: true
+prerelease: true
+latest: false
+```
 
-## 10. 清理结果
+## 9. 真实边界场景
+
+### 9.1 损坏 Mach-O
+
+固定 helper 被截断为 4 KiB 零字节。
+LaunchDaemon 无法启动有效 helper。
+app 报告 `UNTRUSTED`。
+恢复原 helper 后重新达到 MATCH。
+
+### 9.2 无签名 helper
+
+固定 helper 移除代码签名。
+`codesign --verify --strict` 返回 `code object is not signed at all`。
+app 报告 `UNTRUSTED`。
+恢复原 helper 后重新达到 MATCH。
+
+### 9.3 LaunchDaemon 服务策略拒绝
+
+执行：
+
+```sh
+launchctl disable system/com.wyz.covio.helper
+launchctl bootstrap system /Library/LaunchDaemons/com.wyz.covio.helper.plist
+```
+
+bootstrap 返回：
+
+```text
+Bootstrap failed: 5: Input/output error
+```
+
+app 进入安全模式。
+重新 enable 并 bootstrap 后达到 MATCH。
+
+### 9.4 合盖租约活动时升级
+
+升级前：
+
+```text
+SleepDisabled=1
+activeLeaseCount=1
+sleep_owner=root:wheel
+```
+
+升级后：
+
+```text
+SleepDisabled=0
+sleep_owner=absent
+```
+
+app、helper 和安装记录保持 MATCH。
+最终 build 4 的重复安装也使用相同步骤通过。
+
+### 9.5 真实安装进程崩溃
+
+测试 PKG 在 `app-installed` 状态后向 `postinstall` 发送 SIGKILL。
+`installer` 返回失败。
+`current-transaction/state` 保持 `app-installed`。
+执行：
+
+```sh
+/Library/Application Support/Covio/Installer/recover.sh
+```
+
+恢复结果：
+
+```text
+Rollback completed
+status=MATCH
+SleepDisabled=0
+```
+
+### 9.6 崩溃测试发现的恢复缺陷
+
+首次真实崩溃测试发现 `recover.sh` 在加载事务环境前引用未定义的 `TRANSACTION_ID`。
+修复后，恢复入口先使用安全占位值配置路径，再从事务环境加载真实 ID。
+
+第二次测试发现两个问题：
+
+- 退出探测匹配了其他工作树中的 Covio 进程。
+- 未进入 `prepared` 状态的旧事务会永久阻塞下一次安装。
+
+最终实现：
+
+- 只匹配 `/Applications/Covio.app/Contents/MacOS/Covio`。
+- 将未开始事务移动到 `history` 目录。
+- `recover.sh` 可安全归档未开始事务。
+- 归档后可以继续新的安装事务。
+
+## 10. 全量验证
+
+```sh
+bash scripts/test-all.sh
+```
+
+结果：通过。
+
+- Kotlin 共享层测试通过。
+- macOS XCTest：866 个通过，3 个跳过。
+- 发布身份、合同、事务和图集检查通过。
+
+## 11. 限制
+
+1. 测试使用 ad-hoc 签名，不证明发布者真实性。
+2. 当前范围不包含 Apple Developer Program、Developer ID 或 notarization。
+3. 当前范围不包含公开 Release、自动静默安装或 App Store。
+
+## 12. 清理结果
 
 - 充电上限已恢复。
 - 风扇控制已恢复。
+- 合盖租约已恢复。
 - `SleepDisabled=0`。
-- 固定 helper 恢复且 app/helper 为 MATCH。
-- 测试备份保留到发布审阅结束。
+- 最终 app、helper 和记录为同一 releaseId。
+- 测试备份保留到合并和发布审阅完成。

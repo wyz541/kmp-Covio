@@ -4,7 +4,7 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 状态 | 最终内部 Release 已通过本机安装和 MATCH 验收 |
+| 状态 | 最终 build 4 和真实 internal Draft 已完成验收 |
 | 日期 | `2026-10-25` |
 | Issue | #358 |
 | 上游决策 | [ADR-0020](../../adr/adr-0020-local-only-helper-distribution.md) |
@@ -41,7 +41,7 @@ app 与 helper 曾来自不同发布身份。
 本主题再执行重复安装、N-1 升级、状态恢复和失败注入。
 失败现场来自真实 `installer`、`launchd`、`codesign` 和事务日志。
 
-真机过程发现并修复了五个发布阻断项。
+真机过程发现并修复了八个发布阻断项。
 失败原因、修复提交和证据见 [evidence.md](evidence.md)。
 
 ## 结果
@@ -56,7 +56,14 @@ app 与 helper 曾来自不同发布身份。
 - 风扇最低转速活动时升级。
 - helper 缺失时进入安全模式并拒绝写入。
 - helper 发布身份不匹配时进入安全模式并拒绝写入。
+- helper 损坏或无签名时进入安全模式并拒绝写入。
+- LaunchDaemon 被服务策略拒绝时进入安全模式。
 - helper 写入失败时成对回滚 app、helper、plist 和记录。
+- 安装进程在 app 交换后崩溃，`recover.sh` 完成成对回滚。
+- 合盖租约活动时升级并恢复。
+- 未开始事务归档后重试。
+- build 4 干净安装和重复安装。
+- 真实 Draft 已创建，全部 internal Release 不提供 latest。
 
 完整矩阵见 [validation/README.md](validation/README.md)。
 完整案例见 [validation/case-local-helper-transactions.md](validation/case-local-helper-transactions.md)。
@@ -73,7 +80,7 @@ app 与 helper 曾来自不同发布身份。
 6. 不需要 Developer ID 或 notarization。
 
 方案和发布流程见 [solution.md](solution.md)。
-限制和未执行项见 [conclusion.md](conclusion.md)。
+限制和后续动作见 [conclusion.md](conclusion.md)。
 
 ## 实现预期的手段
 

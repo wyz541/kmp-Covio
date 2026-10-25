@@ -48,6 +48,9 @@ PKG 先把新 bundle 和恢复工具写入 root-owned 暂存区：
 └── recover.sh
 ```
 
+PKG 使用空 component plist。
+Installer 把 staged app 当作普通 payload。
+Installer 不把 staged app 识别为可重定位 bundle。
 `preinstall` 准备事务并备份旧对象。
 `postinstall` 验证暂存版本，交换 app，安装 helper，再完成握手。
 

@@ -318,7 +318,9 @@ fi
 
 PKG_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/covio-pkg-root.XXXXXX")"
 PKG_SCRIPTS="$(mktemp -d "${TMPDIR:-/tmp}/covio-pkg-scripts.XXXXXX")"
-CLEANUP_PATHS+=("$PKG_ROOT" "$PKG_SCRIPTS")
+PKG_COMPONENT_PLIST="$(mktemp "${TMPDIR:-/tmp}/covio-pkg-components.XXXXXX")"
+PKG_INFO_DIR="$(mktemp -d "${TMPDIR:-/tmp}/covio-pkg-info.XXXXXX")"
+CLEANUP_PATHS+=("$PKG_ROOT" "$PKG_SCRIPTS" "$PKG_COMPONENT_PLIST" "$PKG_INFO_DIR")
 TRANSACTION_BINARY="$PKG_ROOT/Library/Application Support/Covio/Installer/bin/CovioTransaction"
 INSTALLER_PAYLOAD="$PKG_ROOT/Library/Application Support/Covio/Installer"
 mkdir -p \
@@ -363,6 +365,16 @@ EXPECTED_CHANNEL='$CHANNEL'
 STAGED_APP_PATH='$STAGED_APP_PATH'
 EOF
 
+# The app under Installer/staged is payload, not an installed bundle.
+# An empty component plist prevents pkgbuild from relocating it to /Applications.
+cat > "$PKG_COMPONENT_PLIST" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<array/>
+</plist>
+PLIST
+
 PKG_SIGN_ARGS=()
 if [[ -n "$INSTALLER_SIGN_IDENTITY" ]]; then
   PKG_SIGN_ARGS+=(--sign "$INSTALLER_SIGN_IDENTITY")
@@ -373,6 +385,7 @@ fi
 PKG_COMMAND=(
   /usr/bin/pkgbuild
   --root "$PKG_ROOT"
+  --component-plist "$PKG_COMPONENT_PLIST"
   --scripts "$PKG_SCRIPTS"
   --install-location "/"
   --identifier "$APP_ID.pkg"
@@ -383,6 +396,12 @@ if [[ ${#PKG_SIGN_ARGS[@]} -gt 0 ]]; then
 fi
 PKG_COMMAND+=("$PKG_PATH")
 "${PKG_COMMAND[@]}"
+
+/usr/sbin/pkgutil --expand "$PKG_PATH" "$PKG_INFO_DIR/Covio.pkg" >/dev/null
+if /usr/bin/grep -q '<bundle path=' "$PKG_INFO_DIR/Covio.pkg/PackageInfo"; then
+  printf 'PKG must treat the staged app as payload, not a relocatable bundle.\n' >&2
+  exit 1
+fi
 
 PKG_PAYLOAD_FILES="$(/usr/sbin/pkgutil --payload-files "$PKG_PATH")"
 if [[ "$PKG_PAYLOAD_FILES" != *"Library/Application Support/Covio/Installer/staged/$APP_NAME.app/Contents/MacOS/CovioHelper"* ]]; then

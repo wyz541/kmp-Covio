@@ -29,6 +29,7 @@
 | 离线本地服务 Agent | 第一版已落地，验收通过 | [README.md](local-agent/README.md) |
 | 特权能力架构与 helper 选择 | 初稿，可评审 | [README.md](privileged-helper-architecture/README.md) |
 | macOS 安装包体积缩减 | 可评审 | [README.md](installer-size-reduction/README.md) |
+| helper 发布统一真机验证 | 主要场景通过 | [README.md](helper-release-unification/README.md) |
 | 研发工作流的调研依据 | 单文件，不建主题目录 | [workflow-research.md](workflow-research.md) |
 
 ## 归档规则

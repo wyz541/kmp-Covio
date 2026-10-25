@@ -47,3 +47,17 @@ helper 只对 `curve` 和 `manual` 启动控制循环。
 - 同步配置可以持久化。
 - 现有配置可以迁移。
 - UI 亮色和深色截图齐全。
+
+## 6. 实现映射
+
+| 职责 | 文件 | 来源 |
+| --- | --- | --- |
+| SMC 设备读写 | `macosApp/src/Platform/SMC/SMCAccess.swift` | MacFanControl，MIT |
+| 风扇模式、目标转速和 reset | `macosApp/src/Platform/SMC/StatsFanControl.swift` | Stats `7d3f70d`，MIT |
+| 每风扇模式与同步设置 | `macosApp/src/Hub/Monitor/Fan/MonitorFanModels.swift` | Stats 行为，Covio 实现 |
+| 睡眠保存与唤醒恢复 | `macosApp/src/Hub/Monitor/Fan/FanControlSleepPolicy.swift` | Stats 行为，Covio app |
+| 曲线与租约 | `macosApp/src/Hub/Monitor/Fan/FanControlRuntime.swift` | Covio 扩展 |
+
+`SMCAccess` 只负责与 AppleSMC 通信。
+风扇控制语义由 Stats 移植层负责。
+曲线和 helper 租约位于 Stats 核心之上，不改变自动、手动和 reset 语义。

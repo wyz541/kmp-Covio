@@ -15,7 +15,7 @@ final class FanControlRuntime: @unchecked Sendable {
     private let log: HelperLog?
     private var access: SMCAccess?
     private var reader: SMCFanReader?
-    private var writer: SMCFanWriter?
+    private var writer: StatsFanControl?
     private var configuration: MonitorFanConfiguration?
     private var timer: DispatchSourceTimer?
     private var state: State = .system
@@ -70,7 +70,7 @@ final class FanControlRuntime: @unchecked Sendable {
             return restore(requestId: request.requestId, error: nil)
         }
 
-        let hardware: (SMCFanReader, SMCFanWriter)
+        let hardware: (SMCFanReader, StatsFanControl)
         do {
             hardware = try hardwareOrThrow()
         } catch {
@@ -108,7 +108,16 @@ final class FanControlRuntime: @unchecked Sendable {
         }
 
         if writer?.holdingCount ?? 0 > 0 {
-            writer?.releaseAll()
+            do {
+                try writer?.releaseAll()
+            } catch {
+                state = .error
+                lastError = String(describing: error)
+                return HelperWire.shared.failure(
+                    requestId: request.requestId,
+                    message: lastError ?? "Fan control could not be released"
+                )
+            }
         }
         stopTimer()
         configuration = normalized
@@ -125,7 +134,7 @@ final class FanControlRuntime: @unchecked Sendable {
                 try hardware.1.hold(fan.index)
             }
         } catch {
-            hardware.1.releaseAll()
+            try? hardware.1.releaseAll()
             configuration = nil
             state = .error
             lastError = String(describing: error)
@@ -158,15 +167,21 @@ final class FanControlRuntime: @unchecked Sendable {
 
     private func restore(requestId: String, error: String?) -> HelperReply {
         stopTimer()
-        writer?.releaseAll()
+        var restoreError = error
+        do {
+            try writer?.releaseAll()
+        } catch {
+            restoreError = String(describing: error)
+            log?.error("Fan control could not be restored", error)
+        }
         configuration = nil
-        state = error == nil ? .system : .error
+        state = restoreError == nil ? .system : .error
         leaseDeadline = .distantPast
         heldTemperature = nil
         controlTemperature = nil
         lastTargets.removeAll(keepingCapacity: true)
         consecutiveFailures = 0
-        lastError = error
+        lastError = restoreError
         return statusReply(requestId: requestId)
     }
 
@@ -222,14 +237,12 @@ final class FanControlRuntime: @unchecked Sendable {
             for fan in snapshot.fans {
                 if configuration.controlMode(for: fan.index) == .automatic {
                     if writer.isHolding(fan.index) {
-                        writer.release(fan.index)
+                        try writer.release(fan.index)
                     }
                     lastTargets.removeValue(forKey: fan.index)
                     continue
                 }
-                if !writer.isHolding(fan.index) {
-                    try writer.hold(fan.index)
-                }
+                try writer.ensureHeld(fan.index)
                 let target: Double
                 if configuration.mode == .manual {
                     target = configuration.manualRPM[String(fan.index)] ?? fan.minimumRPM
@@ -274,14 +287,14 @@ final class FanControlRuntime: @unchecked Sendable {
         }
     }
 
-    private func hardwareOrThrow() throws -> (SMCFanReader, SMCFanWriter) {
+    private func hardwareOrThrow() throws -> (SMCFanReader, StatsFanControl) {
         if let reader, let writer {
             return (reader, writer)
         }
         let access = try SMCAccess()
         let keys = access.allKeys()
         let newReader = SMCFanReader(access: access, allKeys: keys)
-        let newWriter = SMCFanWriter(access: access, allKeys: keys)
+        let newWriter = StatsFanControl(access: access, allKeys: keys)
         self.access = access
         reader = newReader
         writer = newWriter

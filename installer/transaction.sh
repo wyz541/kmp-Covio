@@ -183,23 +183,31 @@ covio_tx_load_helper_identity() {
     local app="$1"
     local prefix="$2"
     local helper="$app/Contents/MacOS/CovioHelper"
-    local output
-    output="$($helper --print-release-identity 2>/dev/null)" || return 1
-    local temporary
-    temporary="$(mktemp "${TMPDIR:-/tmp}/covio-helper-identity.XXXXXX")"
-    printf '%s\n' "$output" > "$temporary"
-    if ! "$COVIO_TX_PLUTIL" -extract releaseId raw -o - "$temporary" >/dev/null 2>&1; then
-        unlink "$temporary"
+    local output_file="$TX_TRANSACTION_ROOT/helper-identity-$prefix.json"
+    local error_file="$TX_TRANSACTION_ROOT/helper-identity-$prefix.stderr"
+    mkdir -p "$TX_TRANSACTION_ROOT"
+    if "$helper" --print-release-identity >"$output_file" 2>"$error_file"; then
+        :
+    else
+        local probe_status=$?
+        local error_text
+        error_text="$(tail -c 4096 "$error_file" 2>/dev/null || true)"
+        covio_tx_log "Helper identity probe failed for $prefix: exit=$probe_status stderr=${error_text:-<empty>}"
         return 1
     fi
-    printf -v "${prefix}_PRODUCT_VERSION" '%s' "$(covio_tx_plist_raw "$temporary" productVersion)"
-    printf -v "${prefix}_BUILD_NUMBER" '%s' "$(covio_tx_plist_raw "$temporary" buildNumber)"
-    printf -v "${prefix}_GIT_COMMIT" '%s' "$(covio_tx_plist_raw "$temporary" gitCommit)"
-    printf -v "${prefix}_RELEASE_ID" '%s' "$(covio_tx_plist_raw "$temporary" releaseId)"
-    printf -v "${prefix}_PROTOCOL_VERSION" '%s' "$(covio_tx_plist_raw "$temporary" protocolVersion)"
-    printf -v "${prefix}_CHANNEL" '%s' "$(covio_tx_plist_raw "$temporary" channel)"
-    printf -v "${prefix}_HELPER_SHA256" '%s' "$(covio_tx_plist_raw "$temporary" helperSHA256)"
-    unlink "$temporary"
+    if ! "$COVIO_TX_PLUTIL" -extract releaseId raw -o - "$output_file" >/dev/null 2>&1; then
+        local output_text
+        output_text="$(head -c 4096 "$output_file" 2>/dev/null || true)"
+        covio_tx_log "Helper identity output is invalid for $prefix: ${output_text:-<empty>}"
+        return 1
+    fi
+    printf -v "${prefix}_PRODUCT_VERSION" '%s' "$(covio_tx_plist_raw "$output_file" productVersion)"
+    printf -v "${prefix}_BUILD_NUMBER" '%s' "$(covio_tx_plist_raw "$output_file" buildNumber)"
+    printf -v "${prefix}_GIT_COMMIT" '%s' "$(covio_tx_plist_raw "$output_file" gitCommit)"
+    printf -v "${prefix}_RELEASE_ID" '%s' "$(covio_tx_plist_raw "$output_file" releaseId)"
+    printf -v "${prefix}_PROTOCOL_VERSION" '%s' "$(covio_tx_plist_raw "$output_file" protocolVersion)"
+    printf -v "${prefix}_CHANNEL" '%s' "$(covio_tx_plist_raw "$output_file" channel)"
+    printf -v "${prefix}_HELPER_SHA256" '%s' "$(covio_tx_plist_raw "$output_file" helperSHA256)"
 }
 
 covio_tx_validate_prefix() {

@@ -1,21 +1,27 @@
 # CovioHelper 服务生命周期
 
+结论：Covio 使用固定路径的 root helper 和 Legacy LaunchDaemon 提供特权能力。当前分发仅限 internal/local。
+
 ## 文档状态
 
 | 项目 | 内容 |
 | --- | --- |
-| 状态 | 待真机签名验收 |
-| 日期 | `2026-10-24` |
-| Issue | #355 |
-| 上游决策 | ADR-0018 |
+| 状态 | 已实现；真机安装、升级和回滚矩阵待 #358 |
+| 日期 | `2026-10-25` |
+| Issue | #390 |
+| 上游决策 | [ADR-0020](../adr/adr-0020-local-only-helper-distribution.md) |
 
 ## 目标
 
 `CovioHelper` 是独立的最小 root daemon。
-app 使用 `SMAppService.daemon` 注册、查询和注销服务。
-app 不再为新安装拼接自定义 LaunchDaemon shell 脚本。
+app 使用 XPC 调用 `CovioHelper`。
+app 使用一次管理员授权安装固定 helper、LaunchDaemon plist 和元数据。
+当前路径不使用 `SMAppService`。
+当前路径不要求 Developer ID、notarization 或 Gatekeeper 信任。
 
-## Bundle 布局
+## 安装布局
+
+app bundle 携带以下文件：
 
 ```text
 Covio.app/
@@ -28,8 +34,26 @@ Covio.app/
             └── com.wyz.covio.helper.plist
 ```
 
-daemon plist 使用 `BundleProgram` 指向 `Contents/MacOS/CovioHelper`。
-plist 声明 XPC Mach service `com.wyz.covio.helper.xpc`。
+安装事务产生以下系统文件：
+
+```text
+/Library/Application Support/Covio/
+├── bin/
+│   └── CovioHelper
+├── allowed_uid
+├── client-requirement
+├── version
+└── Covio.app
+
+/Library/LaunchDaemons/
+└── com.wyz.covio.helper.plist
+```
+
+`/Library/Application Support/Covio/bin/CovioHelper` 由 `root:wheel` 所有。
+LaunchDaemon plist 使用这个固定路径。
+LaunchDaemon plist 声明 Mach service `com.wyz.covio.helper.xpc`。
+helper 从 root-owned `client-requirement` 读取 app 的代码签名要求。
+helper 对每个 XPC 客户端检查代码签名要求。
 
 ## 自包含边界
 
@@ -37,76 +61,99 @@ plist 声明 XPC Mach service `com.wyz.covio.helper.xpc`。
 `CovioHelper` 不加载 app 内的 `kmpDomain.framework`。
 `CovioHelper` 不链接 SwiftUI、AppKit、Vision、AVFoundation 或模型运行库。
 
+## 身份握手
+
+app 比较以下值：
+
+- `releaseId`。
+- `productVersion`。
+- `buildNumber`。
+- `gitCommit`。
+- `helperProtocolVersion`。
+- `helperSHA256`。
+- `channel`。
+
+运行中的 helper 与 app 不一致时，app 进入只读安全模式。
+只读安全模式禁止睡眠、充电上限、主动放电和风扇写入。
+
 ## 状态
 
 | 状态 | 含义 | 用户动作 |
 | --- | --- | --- |
-| `ENABLED` | macOS 已启用 daemon | 无 |
-| `REQUIRES_APPROVAL` | 已注册，等待管理员批准 | 打开系统设置并批准 |
-| `NOT_REGISTERED` | 服务尚未注册 | 安装或修复 helper |
-| `NOT_FOUND` | app bundle 内缺少 daemon plist 或可执行文件 | 重新安装完整 app |
-| `LEGACY` | 检测到旧 LaunchDaemon | 执行一次迁移 |
-| `ERROR` | 注册、注销或签名失败 | 查看错误并修复签名或 app |
-
-发布身份握手状态继续使用 `MATCH`、`MISSING`、`OUTDATED`、`IDENTITY_MISMATCH` 和 `UNTRUSTED`。
+| `enabled` | LaunchDaemon plist 和固定 helper 都存在 | 无 |
+| `legacy` | 只检测到旧 socket 或没有固定 helper 的旧 plist | 执行一次迁移 |
+| `notRegistered` | 没有检测到 helper 服务 | 安装或修复 helper |
+| `error` | 安装、启动或签名检查失败 | 查看错误并修复 |
+| `MATCH` | app 与运行中的 helper 身份一致 | 无 |
+| `MISSING` | app 无法连接 helper | 安装或修复 helper |
+| `OUTDATED` | helper 不支持当前身份协议 | 成对升级 app 和 helper |
+| `IDENTITY_MISMATCH` | 发布身份或摘要不一致 | 进入只读；成对修复 |
+| `UNTRUSTED` | helper 或客户端签名不可信 | 进入只读；重新签名 |
 
 ## 首次安装
 
 1. 用户点击“安装或修复 Helper”。
-2. app 检查 `SMAppService.status`。
-3. app 调用 `register()`。
-4. macOS 将服务置为等待批准。
-5. app 打开“系统设置 > 通用 > 登录项与扩展”。
-6. 管理员批准 daemon。
-7. helper 启动 XPC listener。
-8. app 完成发布身份握手。
-9. 只有 `MATCH` 开放特权写入。
+2. app 恢复充电上限和风扇控制。
+3. app 请求一次管理员授权。
+4. 安装脚本把 `CovioHelper` 写到固定路径。
+5. 安装脚本写入 root-owned 元数据。
+6. 安装脚本把 LaunchDaemon plist 写到临时文件，再原子替换旧 plist。
+7. 安装脚本执行 `launchctl bootout`。
+8. 安装脚本执行 `launchctl bootstrap`。
+9. helper 启动 XPC listener。
+10. app 完成发布身份握手。
+11. 只有 `MATCH` 开放特权写入。
+
+第 2 步失败时禁止安装。
+第 4 至 8 步失败时，app 保持只读安全模式。
 
 ## 升级事务
 
-PKG 升级使用 app-helper 原子事务。
-安装器先把新 bundle 写入 root-owned 暂存区，再交换整个 app bundle。
-新 helper 与 app 完成精确握手以后，安装器才写入 `installed-release.json`。
-失败时安装器恢复上一版 app、helper 和安装记录。
+PKG 升级把 app、固定 helper、LaunchDaemon plist 和安装记录作为一个事务处理。
+安装器先恢复旧 helper 持有的系统状态。
+安装器再备份旧 app、旧 helper、旧 plist 和旧记录。
+安装器交换 app bundle，然后用新 app 安装成对的 helper 和 plist。
+首次握手失败时，安装器恢复全部四类文件。
 
 完整流程见 [本机升级事务](local-upgrade-transaction.md)。
 
-## Legacy 迁移
+## SMAppService 迁移
 
-1. app 检测 `/Library/LaunchDaemons/com.wyz.covio.helper.plist`。
-2. app 通过旧 helper 恢复风扇、充电上限和活动租约。
-3. app 注销旧 `SMAppService`（如果存在）。
-4. app 用一次管理员授权移除旧 LaunchDaemon 和临时文件。
-5. app 注册 bundle 内的新 daemon。
-6. 管理员批准后，app 重新握手。
-
-第 2 步失败时禁止迁移。
-第 2 步成功但第 4 或第 5 步失败时，app 保持只读安全模式。
+旧 build 可能安装了 `SMAppService` daemon。
+安装事务先恢复特权状态，再注销旧 `SMAppService`。
+安装事务随后安装固定路径 helper 和 Legacy LaunchDaemon。
+旧 service 的迁移不要求 Developer ID 或 notarization。
 
 ## 用户修复
 
 1. 打开 Covio 设置。
-2. 查看 Helper 和“服务”状态。
-3. 如果状态是 `REQUIRES_APPROVAL`，点击“打开系统设置”。
-4. 在系统设置中批准 `CovioHelper`。
-5. 如果状态是 `NOT_FOUND` 或签名错误，重新安装完整 app。
-6. 如果状态是 `LEGACY`，点击“安装或修复 Helper”执行迁移。
-7. 返回 Covio，等待发布身份变为 `MATCH`。
+2. 查看 Helper 和安全模式状态。
+3. 如果状态是 `MISSING`、`OUTDATED` 或 `LEGACY`，重新安装同一个内部 PKG。
+4. 如果状态是 `IDENTITY_MISMATCH`，确认 app 与 helper 来自同一 `releaseId`。
+5. 如果状态是 `UNTRUSTED`，重新签名 app 和 helper。
+6. 如果安装中断，运行恢复命令。
 
-## 故障说明
+```sh
+sudo "/Library/Application Support/Covio/Installer/recover.sh"
+```
 
-| 故障 | 结果 |
-| --- | --- |
-| 注册被拒绝 | 保持只读，显示系统错误 |
-| app 未公证 | 注册失败，保持只读 |
-| helper 签名错误 | 注册或握手失败，保持只读 |
-| daemon 崩溃 | macOS 重启 daemon；app 重试 XPC 握手 |
-| plist 缺失 | `NOT_FOUND`；要求重新安装完整 app |
-| 发布身份不一致 | 保持只读；要求修复 helper |
-| 状态恢复失败 | 禁止迁移或卸载 |
+## 验证命令
+
+```sh
+bash scripts/verify-helper-cutover.sh preflight
+bash scripts/verify-helper-cutover.sh selftest
+```
+
+完成安装后执行：
+
+```sh
+bash scripts/verify-helper-cutover.sh verify
+```
+
+`verify` 检查固定路径、所有权、plist、元数据、helper 摘要和运行中的 XPC 握手。
 
 ## 验证边界
 
-- 非签名测试验证 bundle 布局、静态链接、身份摘要、状态映射和 XPC 编译。
-- 当前机器没有 Developer ID 和 notarization 凭据。
-- 首次批准、真实注册、从 N-1 升级和回滚由 #358 在签名环境验证。
+- 非签名测试验证固定路径、plist、共享常量、事务、身份摘要和 XPC 编译。
+- 当前分发不验证 Developer ID、notarization 或 Gatekeeper 启动。
+- 首次安装、升级、回滚和重启恢复由 #358 在真机验证。

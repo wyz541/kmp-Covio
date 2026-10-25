@@ -83,7 +83,7 @@ installer -pkg Covio-<version>.pkg -target /
 ```
 
 The PKG validates the staged app and helper before changing `/Applications/Covio.app`.
-It atomically exchanges the app bundle and checks the new helper handshake before commit.
+It atomically exchanges the app bundle, installs the fixed helper and LaunchDaemon, and checks the handshake before commit.
 
 Recover an interrupted transaction:
 

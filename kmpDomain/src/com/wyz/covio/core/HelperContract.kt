@@ -15,7 +15,7 @@ package com.wyz.covio.core
  * 第二个平台需要自己的特权服务时，再把这组常量拆进平台实现。
  */
 
-/** 以 helper 身份启动的命令行参数。 */
+/** 以 legacy socket helper 身份启动的命令行参数。 */
 const val HELPER_ARGUMENT = "--helper"
 
 /** XPC daemon 的可执行文件名。 */
@@ -24,7 +24,7 @@ const val HELPER_EXECUTABLE_NAME = "CovioHelper"
 /** daemon 可执行文件相对 app bundle 根目录的位置。 */
 const val HELPER_EXECUTABLE_BUNDLE_PATH = "Contents/MacOS/$HELPER_EXECUTABLE_NAME"
 
-/** SMAppService.daemon 使用的 plist 文件名。 */
+/** 休眠 SMAppService.daemon 路径使用的 plist 文件名。 */
 const val HELPER_DAEMON_PLIST_NAME = "com.wyz.covio.helper.plist"
 
 /** XPC Mach service 名称。 */
@@ -33,11 +33,17 @@ const val HELPER_XPC_SERVICE_NAME = "com.wyz.covio.helper.xpc"
 /** 客户端与服务端协商的协议版本。改协议时必须同时改这里。 */
 const val HELPER_PROTOCOL_VERSION = "9"
 
-/** helper 监听的 Unix 域 socket。 */
+/** legacy helper 迁移路径监听的 Unix 域 socket。 */
 const val HELPER_SOCKET_PATH = "/Library/Application Support/Covio/helper.sock"
 
 /** helper 的安装目录。root 所有。 */
 const val HELPER_DIRECTORY = "/Library/Application Support/Covio"
+
+/** 固定 helper 二进制目录。root 所有。 */
+const val HELPER_BINARY_DIRECTORY = "$HELPER_DIRECTORY/bin"
+
+/** 本机 Legacy LaunchDaemon 使用的固定 helper 路径。 */
+const val HELPER_BINARY_PATH = "$HELPER_BINARY_DIRECTORY/$HELPER_EXECUTABLE_NAME"
 
 /** 充电上限状态目录。 */
 const val HELPER_CHARGE_LIMIT_DIRECTORY = "$HELPER_DIRECTORY/charge-limit"
@@ -81,7 +87,7 @@ const val HELPER_LEASE_MAX_ACTIVE = 16
 /** helper 的日志。 */
 const val HELPER_LOG_PATH = "$HELPER_DIRECTORY/helper.log"
 
-/** Legacy LaunchDaemon 的 plist。迁移完成后删除。 */
+/** 当前 Legacy LaunchDaemon 的 plist。 */
 const val HELPER_PLIST_PATH = "/Library/LaunchDaemons/com.wyz.covio.helper.plist"
 
 /** LaunchDaemon 的标签。 */

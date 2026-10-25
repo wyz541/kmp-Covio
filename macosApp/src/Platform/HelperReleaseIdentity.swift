@@ -24,6 +24,15 @@ enum HelperReleaseIdentitySource {
         return FileManager.default.fileExists(atPath: candidate) ? candidate : executable
     }
 
+    /// 新 Local LaunchDaemon 使用固定 helper 路径。旧安装先回退到当前 bundle。
+    static var installedHelperExecutablePath: String {
+        let local = HelperProtocol.helperBinaryPath
+        if FileManager.default.fileExists(atPath: local) {
+            return local
+        }
+        return bundledHelperExecutablePath ?? local
+    }
+
     private static var ownExecutablePath: String? {
         Bundle.main.executablePath
     }

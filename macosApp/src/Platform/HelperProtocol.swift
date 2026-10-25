@@ -17,6 +17,7 @@ enum HelperProtocol {
     static var helperArgument: String { HelperContractKt.HELPER_ARGUMENT }
     static var helperExecutableName: String { HelperContractKt.HELPER_EXECUTABLE_NAME }
     static var helperExecutableBundlePath: String { HelperContractKt.HELPER_EXECUTABLE_BUNDLE_PATH }
+    static var helperBinaryPath: String { HelperContractKt.HELPER_BINARY_PATH }
     static var daemonPlistName: String { HelperContractKt.HELPER_DAEMON_PLIST_NAME }
     static var xpcServiceName: String { HelperContractKt.HELPER_XPC_SERVICE_NAME }
 

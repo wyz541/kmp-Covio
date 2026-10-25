@@ -33,7 +33,7 @@ final class MacPrivilegedOps: NSObject, PrivilegedOps {
         executablePath: String = Bundle.main.executablePath ?? "",
         client: HelperClient = HelperClient(),
         expectedReleaseIdentity: HelperReleaseIdentity? = HelperReleaseIdentitySource.expectedAppIdentity,
-        expectedHelperExecutablePath: String? = HelperReleaseIdentitySource.bundledHelperExecutablePath,
+        expectedHelperExecutablePath: String? = HelperReleaseIdentitySource.installedHelperExecutablePath,
         isHelperTrusted: @escaping (pid_t?, String) -> Bool = {
             HelperCodeTrust.isTrusted(peerPID: $0, expectedExecutablePath: $1)
         },

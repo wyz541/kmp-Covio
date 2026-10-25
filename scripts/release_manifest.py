@@ -232,6 +232,7 @@ def project_errors(root: pathlib.Path = ROOT) -> list[str]:
         "CovioReleaseId",
         "CovioHelperProtocolVersion",
         "CovioInstallTransactionVersion",
+        "CovioHelperInstallMode",
     ):
         if f"<key>{key}</key>" not in plist:
             errors.append(f"Info.plist is missing {key}")
@@ -242,6 +243,11 @@ def project_errors(root: pathlib.Path = ROOT) -> list[str]:
         plist,
     ):
         errors.append("CovioInstallTransactionVersion must be 1")
+    if not re.search(
+        r"<key>CovioHelperInstallMode</key>\s*<string>legacy</string>",
+        plist,
+    ):
+        errors.append("CovioHelperInstallMode must be legacy")
     contract_protocol = _protocol_from_contract(root)
     if contract_protocol != spec.helper_protocol_version:
         errors.append(

@@ -7,7 +7,7 @@ import com.wyz.covio.core.HelperInstallScript
  * 安装与卸载特权 helper。
  *
  * 生成的 shell 脚本与 plist 来自共享模块的 `HelperInstallScript`。
- * SwiftUI 版调用同一份，所以 0.4.2 装上的 helper 可以被本版卸载，反之亦然。
+ * SwiftUI 版调用同一份，所以两端使用相同的路径和 plist 契约。
  *
  * **警告：** 安装会用 `osascript` 请求管理员权限。脚本以 root 运行，
  * 会写入 `/Library/LaunchDaemons`。调用前先确认用户已经同意。

@@ -83,6 +83,59 @@ static int result_file(const char *bundle, const char *argument) {
     return value == 1 ? 0 : 1;
 }
 
+static int install_legacy_helper(const char *executable) {
+    const char *helper = getenv("COVIO_TX_HELPER_PATH");
+    const char *plist = getenv("COVIO_TX_LAUNCHD_PATH");
+    if (helper == NULL || plist == NULL) return 1;
+    char bundle[4096];
+    char source[4096];
+    char helper_dir[4096];
+    char state_dir[4096];
+    char plist_dir[4096];
+    if (bundle_root(bundle, sizeof(bundle), executable) != 0) return 1;
+    snprintf(source, sizeof(source), "%s/Contents/MacOS/CovioHelper", bundle);
+    snprintf(helper_dir, sizeof(helper_dir), "%s", helper);
+    snprintf(state_dir, sizeof(state_dir), "%s", helper);
+    char *state_slash = strrchr(state_dir, '/');
+    if (state_slash == NULL) return 1;
+    *state_slash = '\0';
+    state_slash = strrchr(state_dir, '/');
+    if (state_slash == NULL) return 1;
+    *state_slash = '\0';
+    snprintf(plist_dir, sizeof(plist_dir), "%s", plist);
+    char *slash = strrchr(helper_dir, '/');
+    if (slash == NULL) return 1;
+    *slash = '\0';
+    slash = strrchr(plist_dir, '/');
+    if (slash == NULL) return 1;
+    *slash = '\0';
+    char command[16000];
+    snprintf(
+        command,
+        sizeof(command),
+        "mkdir -p '%s' '%s' '%s' && cp '%s' '%s' && chmod 0755 '%s' && "
+        "printf '%%s\n' 'test-requirement' > '%s/client-requirement' && "
+        "printf '%%s\n' 'old' > '%s/version' && "
+        "printf '%%s\n' '501' > '%s/allowed_uid' && "
+        "printf '%%s\n' '%s' > '%s/Covio.app' && "
+        "printf '%%s\n' '<plist><dict/></plist>' > '%s' && chmod 0644 '%s'",
+        helper_dir,
+        state_dir,
+        plist_dir,
+        source,
+        helper,
+        helper,
+        state_dir,
+        state_dir,
+        state_dir,
+        bundle,
+        state_dir,
+        plist,
+        plist
+    );
+    return system(command) == 0 ? 0 : 1;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) return 1;
     char bundle[4096];
@@ -99,6 +152,9 @@ int main(int argc, char **argv) {
     }
     if (strcmp(argv[1], "--uninstall-helper") == 0) return 0;
     if (strcmp(argv[1], "--register-install-transaction-helper") == 0) return 0;
+    if (strcmp(argv[1], "--install-legacy-helper-as-root") == 0) {
+        return install_legacy_helper(argv[0]);
+    }
     return result_file(bundle, argv[1]);
 }
 C
@@ -117,6 +173,7 @@ build_app() {
   local manifest_helper_sha="${8:-}"
   local transaction_version="${9:-1}"
   local prepare_result="${10:-1}"
+  local install_mode="${11-legacy}"
   local release_id helper helper_sha manifest_sha info
   mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" \
     "$app/Contents/Library/LaunchDaemons"
@@ -127,6 +184,7 @@ build_app() {
   printf '%s\n' "$verify_result" > "$app/Contents/Resources/verify-install-transaction.result"
   printf '%s\n' "$prepare_result" > "$app/Contents/Resources/prepare-install-transaction.result"
   printf '1\n' > "$app/Contents/Resources/install-helper.result"
+  printf '1\n' > "$app/Contents/Resources/install-legacy-helper-as-root.result"
   helper="$app/Contents/MacOS/CovioHelper"
   /usr/bin/codesign --force --sign - "$helper" >/dev/null 2>&1
   helper_sha="$(/usr/bin/shasum -a 256 "$helper" | awk '{print $1}')"
@@ -147,6 +205,9 @@ EOF
   /usr/bin/plutil -insert CovioHelperProtocolVersion -string "$protocol" "$info" >/dev/null
   /usr/bin/plutil -insert CovioReleaseChannel -string "$channel" "$info" >/dev/null
   /usr/bin/plutil -insert CovioInstallTransactionVersion -string "$transaction_version" "$info" >/dev/null
+  if [[ -n "$install_mode" ]]; then
+    /usr/bin/plutil -insert CovioHelperInstallMode -string "$install_mode" "$info" >/dev/null
+  fi
   /usr/bin/codesign --force --sign - "$app" >/dev/null 2>&1
   /usr/bin/codesign --verify --deep --strict "$app"
 }
@@ -159,6 +220,8 @@ setup_case() {
   export COVIO_TX_STATE_ROOT="$CASE_ROOT/state"
   export COVIO_TX_APPLICATIONS_ROOT="$CASE_ROOT/Applications"
   export COVIO_TX_ATOMIC_SWAP="$TEST_ROOT/CovioTransaction"
+  export COVIO_TX_HELPER_PATH="$COVIO_TX_STATE_ROOT/bin/CovioHelper"
+  export COVIO_TX_LAUNCHD_PATH="$CASE_ROOT/Library/LaunchDaemons/com.wyz.covio.helper.plist"
   export COVIO_TX_TEST_MODE=1
   export COVIO_TX_WAIT_ATTEMPTS=2
   mkdir -p "$COVIO_TX_APPLICATIONS_ROOT"
@@ -192,7 +255,7 @@ prepare_case() {
   OLD_APP="$COVIO_TX_APPLICATIONS_ROOT/Covio.app"
   NEW_APP="$CASE_ROOT/new/Covio.app"
   build_app "$NEW_APP" "$2" "$3" "$4" 9 internal "${5:-1}" "${6:-}" "${7:-1}"
-  build_app "$OLD_APP" 0.5.2 1 "$OLD_COMMIT" 8 internal 1 "" 1 "${8:-1}"
+  build_app "$OLD_APP" 0.5.2 1 "$OLD_COMMIT" 8 internal 1 "" 1 "${8:-1}" "${9-legacy}"
   write_environment "$NEW_APP"
   covio_tx_load_environment "$TX_ENVIRONMENT_SOURCE"
   covio_tx_configure
@@ -203,8 +266,17 @@ stage_new_app() {
   /usr/bin/ditto "$NEW_APP" "$TX_STAGED_APP"
 }
 
+seed_legacy_helper() {
+  mkdir -p "$(dirname "$TX_HELPER_PATH")" "$(dirname "$TX_LAUNCHD_PATH")"
+  printf 'old-helper\n' > "$TX_HELPER_PATH"
+  chmod 0755 "$TX_HELPER_PATH"
+  printf '<plist><dict><key>Version</key><string>old</string></dict></plist>\n' \
+    > "$TX_LAUNCHD_PATH"
+}
+
 printf 'case: successful upgrade commits app, helper and record\n'
 prepare_case success 0.5.2 2 "$NEW_COMMIT"
+seed_legacy_helper
 covio_tx_prepare
 stage_new_app
 covio_tx_commit
@@ -215,10 +287,15 @@ assert_json "$TX_REPORT_PATH" result installed
 assert_json "$TX_REPORT_PATH" source pkg
 assert_json "$TX_REPORT_PATH" previousReleaseId "0.5.2+1+$OLD_COMMIT"
 assert_eq "$(cat "$(cat "$TX_LAST_POINTER")/state")" committed "transaction was not committed"
+[[ -x "$TX_HELPER_PATH" && -f "$TX_LAUNCHD_PATH" ]] || fail "fixed helper paths were not installed"
+cmp -s "$TX_HELPER_PATH" "$TX_APP_PATH/Contents/MacOS/CovioHelper" || \
+  fail "installed helper differs from the committed app"
+assert_eq "$(cat "$TX_BACKUP_HELPER")" old-helper "previous helper was not backed up"
+[[ -f "$TX_BACKUP_LAUNCHD" ]] || fail "previous LaunchDaemon was not backed up"
 
 printf 'case: failed first handshake rolls back to the previous pair\n'
 prepare_case handler-failure 0.5.2 3 "$NEW_COMMIT" 0
-create_codesign_ok=1
+seed_legacy_helper
 covio_tx_prepare
 stage_new_app
 if covio_tx_commit; then
@@ -231,6 +308,9 @@ assert_json "$TX_REPORT_PATH" result rolled-back
 assert_eq "$(/usr/bin/plutil -extract source raw -o - "$TX_REPORT_PATH")" pkg "rollback report source"
 [[ -n "$(/usr/bin/plutil -extract rollbackReason raw -o - "$TX_REPORT_PATH")" ]] || \
   fail "rollback reason is empty"
+[[ -x "$TX_HELPER_PATH" && -f "$TX_LAUNCHD_PATH" ]] || fail "rollback removed the fixed helper paths"
+cmp -s "$TX_HELPER_PATH" "$TX_APP_PATH/Contents/MacOS/CovioHelper" || \
+  fail "rollback helper differs from the restored app"
 case "$(cat "$(cat "$TX_LAST_POINTER")/state")" in
   rolled-back|rollback-failed) ;;
   *) fail "rollback state was not recorded" ;;
@@ -288,6 +368,28 @@ covio_tx_recover
 assert_eq "$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$TX_APP_PATH/Contents/Info.plist")" 1 "interrupted transaction did not recover"
 assert_json "$TX_RECORD_PATH" releaseId "0.5.2+1+$OLD_COMMIT"
 
+printf 'case: an SMAppService rollback removes Legacy helper metadata\n'
+prepare_case sm-rollback 0.5.2 3 "$NEW_COMMIT" 0 "" 1 1 ""
+covio_tx_prepare
+stage_new_app
+if covio_tx_commit; then
+  fail "SMAppService rollback unexpectedly committed"
+fi
+assert_eq "$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$TX_APP_PATH/Contents/Info.plist")" 1 "app did not roll back to SMAppService"
+assert_json "$TX_RECORD_PATH" releaseId "0.5.2+1+$OLD_COMMIT"
+[[ ! -e "$TX_STATE_ROOT/client-requirement" && ! -e "$TX_STATE_ROOT/version" && \
+   ! -e "$TX_STATE_ROOT/allowed_uid" && ! -e "$TX_STATE_ROOT/Covio.app" ]] || \
+  fail "SMAppService rollback left Legacy helper metadata"
+
+printf 'case: an SMAppService installation migrates to the Legacy helper\n'
+prepare_case sm-migration 0.5.2 9 "$NEW_COMMIT" 1 "" 1 1 ""
+covio_tx_prepare
+stage_new_app
+covio_tx_commit
+assert_app_helper_record_match "$TX_APP_PATH" "0.5.2+9+$NEW_COMMIT"
+[[ -x "$TX_HELPER_PATH" && -f "$TX_LAUNCHD_PATH" ]] || \
+  fail "SMAppService migration did not create the Legacy helper"
+
 printf 'case: clean install commits a matching app and record\n'
 setup_case clean-install
 NEW_APP="$CASE_ROOT/new/Covio.app"
@@ -301,6 +403,7 @@ covio_tx_commit
 assert_eq "$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$TX_APP_PATH/Contents/Info.plist")" 8 "clean install did not commit"
 assert_json "$TX_RECORD_PATH" releaseId "0.5.2+8+$NEW_COMMIT"
 assert_app_helper_record_match "$TX_APP_PATH" "0.5.2+8+$NEW_COMMIT"
+[[ -x "$TX_HELPER_PATH" && -f "$TX_LAUNCHD_PATH" ]] || fail "clean install did not create fixed helper paths"
 assert_json "$TX_REPORT_PATH" result installed
 
 printf 'transactional installer tests passed\n'

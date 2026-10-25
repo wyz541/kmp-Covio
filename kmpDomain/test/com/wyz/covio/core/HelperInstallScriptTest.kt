@@ -8,14 +8,14 @@ import kotlin.test.assertTrue
 /**
  * 安装文本的钉子。
  *
- * 安装脚本与 plist 是 0.4.2 那份的逐行复制。新版应用要能卸掉旧版装上的 helper，
- * 也要能装成旧版认识的形状，所以这些字符串不能随手改。
+ * 安装脚本把独立 helper 放到固定路径，plist 必须指向同一路径。
+ * 这些字符串是运行契约，不能随手改。
  *
  * 这里同时钉住 Label 的来源：它必须取自 `HELPER_LAUNCH_DAEMON_LABEL`。
  * 曾经有一版把它写成字面量，改常量时 plist 不跟着变，launchd 就找不到守护进程。
  */
 class HelperInstallScriptTest {
-    private val executablePath = "/Applications/Covio.app/Contents/MacOS/Covio"
+    private val executablePath = "/Applications/Covio.app/Contents/MacOS/CovioHelper"
     private val uid = "501"
 
     /** `lines()` 会为末尾换行留一个空元素，这里去掉，方便按行断言。 */
@@ -23,7 +23,7 @@ class HelperInstallScriptTest {
         HelperInstallScript.installScript(executablePath, uid, APP_VERSION).trimEnd('\n').lines()
 
     @Test
-    fun `the plist is byte for byte the shipped one`() {
+    fun `the plist is byte for byte the current contract`() {
         assertEquals(
             listOf(
                 """<?xml version="1.0" encoding="UTF-8"?>""",
@@ -34,13 +34,21 @@ class HelperInstallScriptTest {
                 """    <string>$HELPER_LAUNCH_DAEMON_LABEL</string>""",
                 """    <key>ProgramArguments</key>""",
                 """    <array>""",
-                """        <string>$executablePath</string>""",
-                """        <string>$HELPER_ARGUMENT</string>""",
+                """        <string>$HELPER_BINARY_PATH</string>""",
                 """    </array>""",
+                """    <key>MachServices</key>""",
+                """    <dict>""",
+                """        <key>$HELPER_XPC_SERVICE_NAME</key>""",
+                """        <true/>""",
+                """    </dict>""",
                 """    <key>RunAtLoad</key>""",
                 """    <true/>""",
                 """    <key>KeepAlive</key>""",
                 """    <true/>""",
+                """    <key>ProcessType</key>""",
+                """    <string>Interactive</string>""",
+                """    <key>ThrottleInterval</key>""",
+                """    <integer>5</integer>""",
                 """    <key>StandardOutPath</key>""",
                 """    <string>$HELPER_LOG_PATH</string>""",
                 """    <key>StandardErrorPath</key>""",
@@ -48,7 +56,7 @@ class HelperInstallScriptTest {
                 """</dict>""",
                 """</plist>""",
             ).joinToString("\n"),
-            HelperInstallScript.plistText(executablePath),
+            HelperInstallScript.plistText(HELPER_BINARY_PATH),
         )
     }
 
@@ -68,13 +76,17 @@ class HelperInstallScriptTest {
     }
 
     @Test
-    fun `the install script writes the four files and loads the daemon`() {
+    fun `the install script copies the helper and loads the daemon`() {
         val lines = installLines()
 
         assertEquals("set -e", lines.first())
         assertTrue(lines.contains("install -d -m 0755 '$HELPER_DIRECTORY'"))
         assertTrue(lines.contains("chown root:wheel '$HELPER_DIRECTORY'"))
         assertTrue(lines.contains("chmod 0755 '$HELPER_DIRECTORY'"))
+        assertTrue(lines.contains("install -d -m 0755 '$HELPER_BINARY_DIRECTORY'"))
+        assertTrue(lines.contains("/usr/bin/ditto '$executablePath' '$HELPER_BINARY_PATH.new'"))
+        assertTrue(lines.contains("chown root:wheel '$HELPER_BINARY_PATH.new'"))
+        assertTrue(lines.contains("chmod 0755 '$HELPER_BINARY_PATH.new'"))
         assertTrue(lines.contains("""printf '%s\n' '$uid' > '$HELPER_ALLOWED_UID_PATH'"""))
         assertTrue(lines.contains("""printf '%s\n' '$APP_VERSION' > '$HELPER_VERSION_PATH'"""))
         assertTrue(lines.contains("""printf '%s\n' '$executablePath' > '$HELPER_APP_PATH_FILE'"""))
@@ -88,10 +100,12 @@ class HelperInstallScriptTest {
                 "chmod 0644 '$HELPER_ALLOWED_UID_PATH' '$HELPER_VERSION_PATH' '$HELPER_APP_PATH_FILE'",
             ),
         )
-        assertTrue(lines.contains("cat > '$HELPER_PLIST_PATH' <<'PLIST'"))
+        assertTrue(lines.contains("cat > '$HELPER_PLIST_PATH.new' <<'PLIST'"))
         assertTrue(lines.contains("PLIST"))
-        assertTrue(lines.contains("chown root:wheel '$HELPER_PLIST_PATH'"))
-        assertTrue(lines.contains("chmod 0644 '$HELPER_PLIST_PATH'"))
+        assertTrue(lines.contains("chown root:wheel '$HELPER_PLIST_PATH.new'"))
+        assertTrue(lines.contains("chmod 0644 '$HELPER_PLIST_PATH.new'"))
+        assertTrue(lines.contains("mv '$HELPER_BINARY_PATH.new' '$HELPER_BINARY_PATH'"))
+        assertTrue(lines.contains("mv '$HELPER_PLIST_PATH.new' '$HELPER_PLIST_PATH'"))
     }
 
     @Test
@@ -124,10 +138,12 @@ class HelperInstallScriptTest {
     fun `the install script boots the old daemon out before bootstrapping`() {
         val lines = installLines()
         val bootout = lines.indexOf("/bin/launchctl bootout system '$HELPER_PLIST_PATH' 2>/dev/null || true")
+        val installBinary = lines.indexOf("mv '$HELPER_BINARY_PATH.new' '$HELPER_BINARY_PATH'")
         val bootstrap = lines.indexOf("/bin/launchctl bootstrap system '$HELPER_PLIST_PATH'")
 
         assertTrue(bootout >= 0, "安装脚本没有 bootout：$lines")
-        assertTrue(bootstrap > bootout, "bootstrap 在 bootout 之前")
+        assertTrue(installBinary > bootout, "helper 在 bootout 之前替换")
+        assertTrue(bootstrap > installBinary, "bootstrap 在 helper 替换之前")
         assertEquals(lines[bootstrap], lines.last(), "bootstrap 之后不该还有指令")
     }
 
@@ -136,8 +152,8 @@ class HelperInstallScriptTest {
     fun `the install script embeds the whole plist`() {
         val script = HelperInstallScript.installScript(executablePath, uid, APP_VERSION)
 
-        assertTrue(script.contains(HelperInstallScript.plistText(executablePath)))
-        assertTrue(script.contains("<string>$HELPER_ARGUMENT</string>"))
+        assertTrue(script.contains(HelperInstallScript.plistText(HELPER_BINARY_PATH)))
+        assertTrue(script.contains("<key>$HELPER_XPC_SERVICE_NAME</key>"))
     }
 
     /** 充电状态仍存在时，卸载必须先停下，不能丢失恢复原策略所需的信息。 */
@@ -153,7 +169,8 @@ class HelperInstallScriptTest {
                 "/usr/bin/pmset -a disablesleep 0 || true",
                 "/bin/launchctl bootout system '$HELPER_PLIST_PATH' 2>/dev/null || true",
                 "rm -f '$HELPER_PLIST_PATH'",
-                "rm -rf '$HELPER_DIRECTORY'",
+                "rm -rf '$HELPER_BINARY_DIRECTORY'",
+                "rm -f '$HELPER_ALLOWED_UID_PATH' '$HELPER_CLIENT_REQUIREMENT_PATH' '$HELPER_VERSION_PATH' '$HELPER_APP_PATH_FILE' '$HELPER_SLEEP_OWNER_PATH' '$HELPER_SOCKET_PATH' '$HELPER_LOG_PATH'",
                 "",
             ).joinToString("\n"),
             HelperInstallScript.uninstallScript(),
@@ -165,7 +182,7 @@ class HelperInstallScriptTest {
         val lines = HelperInstallScript.uninstallScript().lines()
         val guard = lines.indexOfFirst { it.startsWith("if [ -e") }
         val sleepCleanup = lines.indexOf("/usr/bin/pmset -a disablesleep 0 || true")
-        val stateRemoval = lines.indexOf("rm -rf '$HELPER_DIRECTORY'")
+        val stateRemoval = lines.indexOf("rm -rf '$HELPER_BINARY_DIRECTORY'")
 
         assertTrue(guard >= 0, "卸载脚本没有充电状态检查：$lines")
         assertTrue(guard < sleepCleanup, "充电状态检查必须在睡眠清理之前")

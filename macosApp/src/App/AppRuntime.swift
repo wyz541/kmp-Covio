@@ -21,7 +21,7 @@ final class AppRuntime {
     private(set) var config: AppConfig
     /// 特权 helper 的状态。
     private(set) var helperStatus: HelperStatus = .missing
-    /// SMAppService 生命周期状态。
+    /// Helper 服务生命周期状态。
     private(set) var helperServiceState: HelperServiceState = .notRegistered
     /// helper 当前执行的充电上限状态。
     private(set) var chargeLimitStatus: ChargeLimitHelperStatus?

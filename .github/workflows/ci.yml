@@ -39,9 +39,8 @@ jobs:
       # schema 表达不了的跨段规则。放在这里是为了不装 Xcode 也能快速失败。
       - name: Design contract cross-section rules
         run: python3 -I scripts/validate-contract.py
-      # 割接脚本的断言需要管理员授权才能跑在真机上。
-      # selftest 在临时目录里跑同一批断言，不需要授权。
-      - name: Helper cutover assertions
+      # 固定 helper、LaunchDaemon 和身份断言的 selftest 不需要管理员授权。
+      - name: Local helper layout assertions
         run: bash scripts/verify-helper-cutover.sh selftest
       - name: File naming model manifest
         run: python3 -I scripts/file_naming_model.py verify-manifest

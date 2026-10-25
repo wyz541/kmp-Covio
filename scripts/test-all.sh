@@ -35,7 +35,7 @@ python3 -I "$ROOT/scripts/generate-contract-constants.py" --check
 step "设计合同跨段规则"
 python3 -I "$ROOT/scripts/validate-contract.py"
 
-step "helper 割接脚本"
+step "本机 helper 固定路径验证"
 bash "$ROOT/scripts/verify-helper-cutover.sh" selftest
 
 step "本机升级事务"

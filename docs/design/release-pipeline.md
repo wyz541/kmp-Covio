@@ -5,10 +5,10 @@
 | 项目 | 内容 |
 | --- | --- |
 | 文档版本 | `1.0` |
-| 状态 | 已实现；正式签名门槛待凭据 |
+| 状态 | 已实现；当前只创建 internal/local Draft |
 | 日期 | `2026-10-25` |
 | Issue | #356 |
-| 上游决策 | ADR-0018 |
+| 上游决策 | [ADR-0020](../adr/adr-0020-local-only-helper-distribution.md) |
 
 ## 目标
 
@@ -106,8 +106,9 @@ COVIO_NOTARY_PROFILE
 - helper 和 app 的 releaseId、commit、协议和摘要完全一致。
 - app 和 helper 都包含在 app zip 中。
 
-当前机器没有 Developer ID 和 notarization 凭据。
-正式发布命令会在构建前失败关闭。
+当前分发只允许 internal/local Draft。
+公开分发不在 ADR-0020 范围内。
+未来公开分发需要新的 ADR、Apple Developer Program、Developer ID 和 notarization。
 
 ## 失败行为
 

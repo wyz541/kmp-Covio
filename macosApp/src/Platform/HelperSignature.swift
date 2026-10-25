@@ -48,10 +48,18 @@ enum HelperSignature {
     }
 
     /// helper 所在的 app bundle 中，主 app 可执行文件的 requirement。
-    static func mainAppRequirement() -> String? {
+    static func mainAppRequirement(
+        requirementPath: String = HelperProtocol.clientRequirementPath
+    ) -> String? {
         if let override = ProcessInfo.processInfo.environment["COVIO_XPC_CLIENT_REQUIREMENT"],
            !override.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return override
+        }
+        if let stored = try? String(contentsOfFile: requirementPath, encoding: .utf8) {
+            let value = stored.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !value.isEmpty {
+                return value
+            }
         }
         guard let helperPath = Bundle.main.executablePath else { return nil }
         let helperURL = URL(fileURLWithPath: helperPath)

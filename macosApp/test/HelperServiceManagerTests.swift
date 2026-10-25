@@ -45,6 +45,7 @@ final class HelperServiceManagerTests: XCTestCase {
             backing: FakeSMAppServiceBacking(status: .requiresApproval),
             legacyPlistPath: legacyPlist,
             legacySocketPath: directory.appendingPathComponent("helper.sock").path,
+            localHelperPath: directory.appendingPathComponent("bin/CovioHelper").path,
             openSettings: { opened = true }
         )
 
@@ -59,7 +60,8 @@ final class HelperServiceManagerTests: XCTestCase {
         let manager = SMAppHelperServiceManager(
             backing: backing,
             legacyPlistPath: legacyPlist,
-            legacySocketPath: directory.appendingPathComponent("helper.sock").path
+            legacySocketPath: directory.appendingPathComponent("helper.sock").path,
+            localHelperPath: directory.appendingPathComponent("bin/CovioHelper").path
         )
 
         XCTAssertThrowsError(try manager.register()) { error in
@@ -103,11 +105,31 @@ final class HelperServiceManagerTests: XCTestCase {
         XCTAssertTrue(message.contains("Legacy helper"))
     }
 
+    func testLocalPlistAndFixedHelperReportEnabled() throws {
+        try Data().write(to: URL(fileURLWithPath: legacyPlist))
+        let helper = directory.appendingPathComponent("bin/CovioHelper")
+        try FileManager.default.createDirectory(
+            at: helper.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try Data().write(to: helper)
+
+        let manager = SMAppHelperServiceManager(
+            backing: FakeSMAppServiceBacking(status: .notRegistered),
+            legacyPlistPath: legacyPlist,
+            legacySocketPath: directory.appendingPathComponent("helper.sock").path,
+            localHelperPath: helper.path
+        )
+
+        XCTAssertEqual(manager.state, .enabled)
+    }
+
     private func manager(status: SMAppService.Status) -> SMAppHelperServiceManager {
         SMAppHelperServiceManager(
             backing: FakeSMAppServiceBacking(status: status),
             legacyPlistPath: legacyPlist,
-            legacySocketPath: directory.appendingPathComponent("helper.sock").path
+            legacySocketPath: directory.appendingPathComponent("helper.sock").path,
+            localHelperPath: directory.appendingPathComponent("bin/CovioHelper").path
         )
     }
 }

@@ -10,6 +10,7 @@ COVIO_TX_CODESIGN="${COVIO_TX_CODESIGN:-/usr/bin/codesign}"
 COVIO_TX_DITTO="${COVIO_TX_DITTO:-/usr/bin/ditto}"
 COVIO_TX_FIND="${COVIO_TX_FIND:-/usr/bin/find}"
 COVIO_TX_INSTALL="${COVIO_TX_INSTALL:-/usr/bin/install}"
+COVIO_TX_LAUNCHCTL="${COVIO_TX_LAUNCHCTL:-/bin/launchctl}"
 COVIO_TX_LIPO="${COVIO_TX_LIPO:-/usr/bin/lipo}"
 COVIO_TX_PGREP="${COVIO_TX_PGREP:-/usr/bin/pgrep}"
 COVIO_TX_PLUTIL="${COVIO_TX_PLUTIL:-/usr/bin/plutil}"
@@ -55,6 +56,11 @@ covio_tx_configure() {
     TX_TRANSACTION_ROOT="$TX_INSTALLER_ROOT/transactions/$TRANSACTION_ID"
     TX_BACKUP_APP="$TX_TRANSACTION_ROOT/previous/$COVIO_TX_APP_NAME"
     TX_CANDIDATE_APP="$TX_TRANSACTION_ROOT/candidate/$COVIO_TX_APP_NAME"
+    TX_HELPER_PATH="${COVIO_TX_HELPER_PATH:-$state_root/bin/CovioHelper}"
+    TX_LAUNCHD_PATH="${COVIO_TX_LAUNCHD_PATH:-/Library/LaunchDaemons/com.wyz.covio.helper.plist}"
+    TX_BACKUP_HELPER="$TX_TRANSACTION_ROOT/previous/CovioHelper"
+    TX_BACKUP_LAUNCHD="$TX_TRANSACTION_ROOT/previous/com.wyz.covio.helper.plist"
+    TX_BACKUP_HELPER_METADATA="$TX_TRANSACTION_ROOT/previous/helper-metadata"
     TX_PREVIOUS_RECORD="$TX_TRANSACTION_ROOT/previous/installed-release.json"
     TX_STATE_FILE="$TX_TRANSACTION_ROOT/state"
     TX_LOG_FILE="$TX_TRANSACTION_ROOT/transaction.log"
@@ -156,6 +162,8 @@ covio_tx_load_info_identity() {
     printf -v "${prefix}_HELPER_SHA256" '%s' "$(covio_tx_sha256 "$helper")"
     printf -v "${prefix}_TRANSACTION_VERSION" '%s' \
         "$("$COVIO_TX_PLUTIL" -extract CovioInstallTransactionVersion raw -o - "$info" 2>/dev/null || true)"
+    printf -v "${prefix}_INSTALL_MODE" '%s' \
+        "$("$COVIO_TX_PLUTIL" -extract CovioHelperInstallMode raw -o - "$info" 2>/dev/null || true)"
 }
 
 covio_tx_load_manifest_identity() {
@@ -471,16 +479,130 @@ covio_tx_cleanup_legacy_sleep() {
     fi
 }
 
+covio_tx_console_uid() {
+    if [[ "$TX_TEST_MODE" == "1" ]]; then
+        "$COVIO_TX_ID" -u
+        return
+    fi
+    local user
+    user="$(covio_tx_console_user)"
+    if [[ -z "$user" || "$user" == "root" || "$user" == "loginwindow" || "$user" == "_mbsetupuser" ]]; then
+        covio_tx_log "No logged-in console user is available for the helper service"
+        return 1
+    fi
+    "$COVIO_TX_ID" -u "$user"
+}
+
+covio_tx_bootout_local_helper() {
+    if [[ "$TX_TEST_MODE" == "1" || ! -f "$TX_LAUNCHD_PATH" ]]; then
+        return 0
+    fi
+    "$COVIO_TX_LAUNCHCTL" bootout system "$TX_LAUNCHD_PATH" >/dev/null 2>&1 || true
+}
+
+covio_tx_bootstrap_local_helper() {
+    if [[ "$TX_TEST_MODE" == "1" ]]; then
+        return 0
+    fi
+    "$COVIO_TX_LAUNCHCTL" bootstrap system "$TX_LAUNCHD_PATH"
+}
+
+covio_tx_remove_local_helper() {
+    covio_tx_bootout_local_helper
+    if [[ -e "$TX_HELPER_PATH" ]]; then
+        unlink "$TX_HELPER_PATH"
+    fi
+    if [[ -e "$TX_LAUNCHD_PATH" ]]; then
+        unlink "$TX_LAUNCHD_PATH"
+    fi
+    local name
+    for name in allowed_uid client-requirement version Covio.app; do
+        if [[ -e "$TX_STATE_ROOT/$name" ]]; then
+            unlink "$TX_STATE_ROOT/$name"
+        fi
+    done
+}
+
+covio_tx_backup_helper_metadata() {
+    local name
+    mkdir -p "$TX_BACKUP_HELPER_METADATA"
+    for name in allowed_uid client-requirement version Covio.app; do
+        if [[ -f "$TX_STATE_ROOT/$name" ]] &&
+           ! "$COVIO_TX_DITTO" "$TX_STATE_ROOT/$name" "$TX_BACKUP_HELPER_METADATA/$name"
+        then
+            return 1
+        fi
+    done
+}
+
+covio_tx_restore_helper_metadata() {
+    local name source destination
+    for name in allowed_uid client-requirement version Covio.app; do
+        source="$TX_BACKUP_HELPER_METADATA/$name"
+        destination="$TX_STATE_ROOT/$name"
+        if [[ -f "$source" ]]; then
+            "$COVIO_TX_DITTO" "$source" "$destination"
+            chmod 0644 "$destination"
+            if [[ "$TX_TEST_MODE" != "1" ]]; then
+                chown root:wheel "$destination"
+            fi
+        elif [[ -e "$destination" ]]; then
+            unlink "$destination"
+        fi
+    done
+}
+
+covio_tx_restore_helper_backup() {
+    covio_tx_bootout_local_helper
+    if [[ -f "$TX_BACKUP_HELPER" ]]; then
+        mkdir -p "$(dirname "$TX_HELPER_PATH")"
+        "$COVIO_TX_DITTO" "$TX_BACKUP_HELPER" "$TX_HELPER_PATH"
+        chmod 0755 "$TX_HELPER_PATH"
+        if [[ "$TX_TEST_MODE" != "1" ]]; then
+            chown root:wheel "$TX_HELPER_PATH"
+        fi
+    elif [[ -e "$TX_HELPER_PATH" ]]; then
+        unlink "$TX_HELPER_PATH"
+    fi
+    if [[ -f "$TX_BACKUP_LAUNCHD" ]]; then
+        mkdir -p "$(dirname "$TX_LAUNCHD_PATH")"
+        "$COVIO_TX_DITTO" "$TX_BACKUP_LAUNCHD" "$TX_LAUNCHD_PATH"
+        chmod 0644 "$TX_LAUNCHD_PATH"
+        if [[ "$TX_TEST_MODE" != "1" ]]; then
+            chown root:wheel "$TX_LAUNCHD_PATH"
+        fi
+        covio_tx_bootstrap_local_helper
+    elif [[ -e "$TX_LAUNCHD_PATH" ]]; then
+        unlink "$TX_LAUNCHD_PATH"
+    fi
+    covio_tx_restore_helper_metadata
+}
+
 covio_tx_prepare_privileged_state() {
     local app="$1"
     local binary="$app/Contents/MacOS/Covio"
-    local transaction_version
+    local transaction_version install_mode
     transaction_version="$(covio_tx_identity_value OLD TRANSACTION_VERSION)"
+    install_mode="$(covio_tx_identity_value OLD INSTALL_MODE)"
     if [[ "$transaction_version" == "1" ]]; then
         covio_tx_run_as_user "$binary" --prepare-install-transaction || {
             covio_tx_log "Privileged state restore failed; upgrade stopped"
             return 1
         }
+        if [[ "$install_mode" != "legacy" ]]; then
+            # build 2 及更早的事务版本使用 SMAppService。先注销旧服务，
+            # 交换 bundle 后由新 helper 安装固定路径 LaunchDaemon。
+            covio_tx_run_as_user "$binary" --uninstall-helper || {
+                covio_tx_register_and_verify_helper "$app" OLD >/dev/null 2>&1 || true
+                covio_tx_log "Cannot unregister the previous SMAppService helper"
+                return 1
+            }
+            if ! covio_tx_cleanup_legacy_sleep; then
+                covio_tx_register_and_verify_helper "$app" OLD >/dev/null 2>&1 || true
+                covio_tx_log "Cannot clear stale SleepDisabled after service migration"
+                return 1
+            fi
+        fi
     else
         covio_tx_run_as_user "$binary" --uninstall-helper || {
             covio_tx_register_and_verify_helper "$app" OLD >/dev/null 2>&1 || true
@@ -600,6 +722,24 @@ covio_tx_prepare() {
             "$(covio_tx_identity_value OLD RELEASE_ID)"
         return 1
     fi
+    if [[ -f "$TX_HELPER_PATH" ]] && ! "$COVIO_TX_DITTO" "$TX_HELPER_PATH" "$TX_BACKUP_HELPER"; then
+        covio_tx_register_and_verify_helper "$TX_APP_PATH" OLD >/dev/null 2>&1 || true
+        covio_tx_write_report failed "previous helper backup failed" \
+            "$(covio_tx_identity_value OLD RELEASE_ID)"
+        return 1
+    fi
+    if [[ -f "$TX_LAUNCHD_PATH" ]] && ! "$COVIO_TX_DITTO" "$TX_LAUNCHD_PATH" "$TX_BACKUP_LAUNCHD"; then
+        covio_tx_register_and_verify_helper "$TX_APP_PATH" OLD >/dev/null 2>&1 || true
+        covio_tx_write_report failed "previous LaunchDaemon backup failed" \
+            "$(covio_tx_identity_value OLD RELEASE_ID)"
+        return 1
+    fi
+    if ! covio_tx_backup_helper_metadata; then
+        covio_tx_register_and_verify_helper "$TX_APP_PATH" OLD >/dev/null 2>&1 || true
+        covio_tx_write_report failed "previous helper metadata backup failed" \
+            "$(covio_tx_identity_value OLD RELEASE_ID)"
+        return 1
+    fi
     if ! covio_tx_write_identity_record OLD "$TX_PREVIOUS_RECORD"; then
         covio_tx_register_and_verify_helper "$TX_APP_PATH" OLD >/dev/null 2>&1 || true
         covio_tx_write_report failed "previous release record backup failed" \
@@ -636,10 +776,18 @@ covio_tx_register_and_verify_helper() {
     local app="$1"
     local prefix="$2"
     local binary="$app/Contents/MacOS/Covio"
-    local transaction_version version
+    local transaction_version version install_mode uid
     transaction_version="$(covio_tx_identity_value "$prefix" TRANSACTION_VERSION)"
     version="$(covio_tx_identity_value "$prefix" PRODUCT_VERSION)"
-    if [[ "$transaction_version" == "1" ]]; then
+    install_mode="$(covio_tx_identity_value "$prefix" INSTALL_MODE)"
+    if [[ "$install_mode" == "legacy" ]]; then
+        uid="$(covio_tx_console_uid)" || return 1
+        "$binary" --install-legacy-helper-as-root "$uid" >/dev/null 2>&1 || return 1
+        if [[ ! -x "$TX_HELPER_PATH" || ! -f "$TX_LAUNCHD_PATH" ]]; then
+            covio_tx_log "Legacy helper installation did not create the fixed paths"
+            return 1
+        fi
+    elif [[ "$transaction_version" == "1" ]]; then
         covio_tx_run_as_user "$binary" --register-install-transaction-helper \
             >/dev/null 2>&1 || return 1
     else
@@ -698,10 +846,20 @@ covio_tx_rollback() {
         if [[ -f "$TX_PREVIOUS_RECORD" ]]; then
             covio_tx_install_record_file "$TX_PREVIOUS_RECORD" "$TX_RECORD_PATH"
         fi
+        if [[ "$(covio_tx_identity_value OLD INSTALL_MODE)" != "legacy" ]]; then
+            covio_tx_remove_local_helper
+        fi
         if ! covio_tx_register_and_verify_helper "$TX_APP_PATH" OLD; then
-            covio_tx_write_state rollback-failed
-            covio_tx_write_report rollback-failed "$reason; previous helper did not match" "$old_release_id"
-            return 1
+            covio_tx_restore_helper_backup || true
+            if ! covio_tx_wait_for_helper_match \
+                "$TX_APP_PATH" \
+                "$(covio_tx_identity_value OLD TRANSACTION_VERSION)" \
+                "$(covio_tx_identity_value OLD PRODUCT_VERSION)"
+            then
+                covio_tx_write_state rollback-failed
+                covio_tx_write_report rollback-failed "$reason; previous helper did not match" "$old_release_id"
+                return 1
+            fi
         fi
         covio_tx_remove_tree "$TX_STAGED_APP"
         covio_tx_write_state rolled-back
@@ -722,6 +880,7 @@ covio_tx_rollback() {
             >/dev/null 2>&1 || true
         covio_tx_remove_tree "$TX_APP_PATH"
     fi
+    covio_tx_remove_local_helper
     covio_tx_remove_tree "$TX_STAGED_APP"
     if [[ -e "$TX_RECORD_PATH" ]]; then
         unlink "$TX_RECORD_PATH"

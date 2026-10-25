@@ -5,12 +5,13 @@ import kmpDomain
 ///
 /// 对应 Compose 版的 `app/src/com/wyz/covio/app/helper/HelperInstaller.kt`。
 /// 生成的 shell 脚本与 plist 来自共享模块的 `HelperInstallScript`，
-/// 所以 0.4.2 装上的 helper 可以被本版卸载，反之亦然。
+/// 所以两个宿主使用相同的路径和 plist 契约。
 ///
-/// 新安装只使用 `SMAppService`。Legacy 安装脚本只用于移除旧 LaunchDaemon。
+/// 当前安装路径使用固定 root-owned helper 和 Legacy LaunchDaemon。
+/// `SMAppService` 代码保留为休眠迁移路径，不再作为当前安装门槛。
 ///
-/// **警告：** 移除 legacy helper 会用 `osascript` 请求管理员权限。
-/// 只有检测到旧 LaunchDaemon 时才会走这条路径。
+/// **警告：** 安装或移除 helper 会用 `osascript` 请求管理员权限。
+/// 当前安装路径会写入固定 helper 和 LaunchDaemon plist。
 enum HelperInstaller {
     enum InstallResult: Equatable {
         case enabled
@@ -83,9 +84,32 @@ enum HelperInstaller {
         }
     }
 
-    /// 保持旧的维护命令入口。新路径不再安装 legacy daemon。
+    /// 保持维护命令入口。先恢复特权状态，再安装固定路径 helper。
     static func install(executablePath _: String, logger: (String) -> Void = { _ in }) -> Bool {
-        migrateAndRegister(logger: logger).registered
+        let client = HelperClient()
+        // 修复路径必须能处理崩溃或损坏的 helper。只有 helper 实际回答探活时，
+        // 才要求先恢复它持有的状态；不可连接时由新 helper 启动后接管状态文件。
+        let expectsRunningHelper = client.versionProbe() != nil
+        guard restorePrivilegedState(
+            using: client,
+            expectRunningHelper: expectsRunningHelper,
+            logger: logger
+        ) else {
+            return false
+        }
+        return installLocalHelper(asRoot: false, uid: currentUid(), logger: logger)
+    }
+
+    /// PKG 事务已经取得管理员授权并恢复状态。这里只写 helper、plist 和元数据。
+    static func installForInstallTransactionAsRoot(
+        uid: String = currentUid(),
+        logger: (String) -> Void = { _ in }
+    ) -> Bool {
+        guard getuid() == 0 else {
+            logger("The install transaction helper command requires root")
+            return false
+        }
+        return installLocalHelper(asRoot: true, uid: uid, logger: logger)
     }
 
     /// 安装事务已经完成前置状态恢复。这里只替换 daemon 注册，不再访问旧 helper。
@@ -242,6 +266,38 @@ enum HelperInstaller {
 
     // MARK: - 私有
 
+    private static func installLocalHelper(
+        asRoot: Bool,
+        uid: String,
+        logger: (String) -> Void
+    ) -> Bool {
+        guard let source = HelperReleaseIdentitySource.bundledHelperExecutablePath,
+              FileManager.default.isExecutableFile(atPath: source)
+        else {
+            logger("Cannot find the bundled CovioHelper")
+            return false
+        }
+        guard let requirement = HelperSignature.currentRequirement() else {
+            logger("Cannot read the Covio app code-signing requirement")
+            return false
+        }
+        if SMAppHelperServiceManager.shared.hasRegisteredService {
+            do {
+                logger("Unregistering the dormant SMAppService helper")
+                try SMAppHelperServiceManager.shared.unregister()
+            } catch {
+                logger(error.localizedDescription)
+                return false
+            }
+        }
+        let script = installScript(
+            executablePath: source,
+            uid: uid,
+            clientRequirement: requirement
+        )
+        return asRoot ? runAsRoot(script, logger: logger) : runWithAdministrator(script)
+    }
+
     private static func removeLegacyInstallation(logger: (String) -> Void) -> Bool {
         logger("Removing legacy privileged helper")
         return runWithAdministrator(uninstallScript())
@@ -267,6 +323,30 @@ enum HelperInstaller {
         process.waitUntilExit()
         if process.terminationStatus != 0 {
             FileHandle.standardError.write(output)
+            return false
+        }
+        return true
+    }
+
+    private static func runAsRoot(_ shellScript: String, logger: (String) -> Void) -> Bool {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/bash")
+        process.arguments = ["-c", shellScript]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+        do {
+            try process.run()
+        } catch {
+            logger(error.localizedDescription)
+            return false
+        }
+        let output = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        if process.terminationStatus != 0 {
+            if let text = String(data: output, encoding: .utf8), !text.isEmpty {
+                logger(text.trimmingCharacters(in: .whitespacesAndNewlines))
+            }
             return false
         }
         return true

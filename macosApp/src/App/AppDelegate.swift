@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let shell = NotchShellController()
     private(set) var statusItemController: StatusItemController?
     private var hotKey: GlobalHotKey?
+    private var twoFingerSwipeMonitor: TwoFingerSwipeMonitor?
     private var instanceLock: SingleInstanceLock?
     #if DEBUG
     private var monitorPreview: MonitorPreviewWindowController?
@@ -356,6 +357,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         shell.start()
+
+        if !LaunchEnvironment.isRunningTests() {
+            let shell = self.shell
+            let monitor = TwoFingerSwipeMonitor { [weak shell] in
+                shell?.showFromGesture()
+            }
+            let result = monitor.start()
+            if case let .started(deviceCount) = result {
+                NSLog("双指下滑入口已启动，设备数：%d", deviceCount)
+            } else if let errorCode = result.errorCode {
+                NSLog("双指下滑入口不可用：%@", errorCode)
+            }
+            twoFingerSwipeMonitor = monitor
+        }
+
         let statusItemController = StatusItemController(shell: shell, runtime: runtime)
         self.statusItemController = statusItemController
 
@@ -394,6 +410,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         FanControlLeaseKeeper.shared.stopAndRestore()
         // 先停引擎。它会撤销 `pmset` 的改动，必须在进程退出前跑完。
         runtime?.stop()
+        twoFingerSwipeMonitor?.stop()
+        twoFingerSwipeMonitor = nil
         shell.stop()
         instanceLock?.release()
     }

@@ -197,6 +197,23 @@ final class NotchShellControllerTests: XCTestCase {
         waitUntil("收起后应该回到 HIDDEN") { controller.state == .hidden }
     }
 
+    /// 手势打开时指针通常不在面板里。工作台必须保持展开，等用户操作。
+    func testGesturePresentationStaysOpenWhilePointerIsOutside() throws {
+        let controller = try controllerWithPointerAway()
+        controller.start()
+        defer { controller.stop() }
+
+        controller.showFromGesture()
+        waitUntil("手势打开后应该进入 OPEN") { controller.state == .open }
+
+        RunLoop.current.run(until: Date().addingTimeInterval(0.7))
+        XCTAssertEqual(controller.state, .open)
+        XCTAssertTrue(controller.isHubPanelOnScreen)
+
+        controller.requestCollapse()
+        waitUntil("显式收起后应该回到 HIDDEN") { controller.state == .hidden }
+    }
+
     /// 面板出现时指针已经不在面板里，应该立刻收起，不留一个卡住的 Hub。
     func testHubCollapsesWhenThePointerIsOutside() throws {
         let controller = try controllerWithPointerAway()

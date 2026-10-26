@@ -47,6 +47,7 @@ final class NotchShellController {
     private var observers: [NSObjectProtocol] = []
     private let pointerLocation: @MainActor () -> CGPoint
     private var collapseAfterPopoversDismiss = false
+    private var keepOpenAfterGesturePresentation = false
 
     /// 运行时。Hub 的设置页读它。测试与预览里可以是 nil，那时设置页显示占位。
     var runtime: AppRuntime?
@@ -119,6 +120,21 @@ final class NotchShellController {
             return
         }
         collapseAfterPopoversDismiss = false
+        keepOpenAfterGesturePresentation = false
+        send(.pointerEnteredHotZone)
+    }
+
+    /// 手势入口打开工作台。
+    ///
+    /// 双指手势不移动指针。面板出现时指针通常不在工作台内，
+    /// 所以手势打开要等指针进入后再恢复普通的移出收起规则。
+    func showFromGesture() {
+        guard state == .hidden || state == .exit else {
+            if state != .exit { relocateIfNeeded() }
+            return
+        }
+        collapseAfterPopoversDismiss = false
+        keepOpenAfterGesturePresentation = true
         send(.pointerEnteredHotZone)
     }
 
@@ -181,6 +197,7 @@ final class NotchShellController {
         case .pointerEnteredHub:
             // 指针进入面板。取消待收起计时，内容区进入就绪。
             cancelCollapseTimer()
+            keepOpenAfterGesturePresentation = false
             if state == .active, outputState == .collapsed {
                 outputState = .ready
             }
@@ -207,6 +224,7 @@ final class NotchShellController {
         case .collapseRequested:
             // 只取消展开计时。收起计时是上面 beginCollapse() 刚启动的，不能动。
             cancelExpandTimer()
+            keepOpenAfterGesturePresentation = false
             outputState = .collapsed
 
         case .collapseFinished:
@@ -248,7 +266,8 @@ final class NotchShellController {
 
         // 面板出现时指针可能已经在外面。tracking area 的 mouseEntered 要等下一次鼠标移动，
         // 所以在建立面板后主动查一次真实指针位置，避免 Hub 卡在展开态。
-        if !pointerIsInsideHubPanel {
+        // 手势打开是例外：双指手势不移动指针，必须等工作台收到指针交互后再恢复自动收起。
+        if !pointerIsInsideHubPanel && !keepOpenAfterGesturePresentation {
             send(.pointerExitedHub)
         }
     }

@@ -153,28 +153,69 @@ final class WorkbenchModel {
         update(config.movePane(id: visible[from].id, toIndex: Int32(index)))
     }
 
-    /// 换两块组件的顺序。参数是配置里的下标。
-    func moveWidget(from: Int, to: Int) {
-        guard config.homeWidgets.indices.contains(from), from != to else { return }
-        var widgets = config.homeWidgets
-        let moved = widgets.remove(at: from)
-        widgets.insert(moved, at: to.clamped(to: 0...widgets.count))
-        update(replacingWidgets(widgets))
-    }
+    /// 把一块组件放到指定网格位置。位置冲突时保持原样。
+    func moveWidget(id: String, toColumn column: Int, toRow row: Int) {
+        let spots = BentoPacker.pack(config.homeWidgets, columns: HubMetrics.bentoColumns)
+        guard let spot = spots.first(where: { $0.id == id }) else { return }
+        guard BentoPacker.canPlace(
+            id: id,
+            size: spot.size,
+            column: column,
+            row: row,
+            among: spots,
+            columns: HubMetrics.bentoColumns,
+            maximumRows: BentoPacker.rows(spots)
+        ) else { return }
 
-    /// 改一块组件的档位。
-    func resizeWidget(id: String, to size: WidgetSize) {
-        let widgets = config.homeWidgets.map { widget in
-            widget.id == id
-                ? widget.doCopy(id: widget.id, kind: widget.kind, size: size, settings: widget.settings)
-                : widget
+        let widgets = BentoPacker.materialized(
+            config.homeWidgets,
+            columns: HubMetrics.bentoColumns
+        ).map { widget in
+            guard widget.id == id else { return widget }
+            return widget.withGridFrame(
+                size: widget.size,
+                column: Int32(column),
+                row: Int32(row)
+            )
         }
         update(replacingWidgets(widgets))
     }
 
-    /// 删一块组件。
+    /// 改一块组件的档位。尺寸会碰到别的卡片时保持原样。
+    func resizeWidget(id: String, to size: WidgetSize) {
+        let spots = BentoPacker.pack(config.homeWidgets, columns: HubMetrics.bentoColumns)
+        guard let spot = spots.first(where: { $0.id == id }), spot.size.key != size.key else { return }
+        guard BentoPacker.canPlace(
+            id: id,
+            size: size,
+            column: spot.column,
+            row: spot.row,
+            among: spots,
+            columns: HubMetrics.bentoColumns,
+            maximumRows: BentoPacker.rows(spots)
+        ) else { return }
+
+        let widgets = BentoPacker.materialized(
+            config.homeWidgets,
+            columns: HubMetrics.bentoColumns
+        ).map { widget in
+            guard widget.id == id else { return widget }
+            return widget.withGridFrame(
+                size: size,
+                column: widget.column,
+                row: widget.row
+            )
+        }
+        update(replacingWidgets(widgets))
+    }
+
+    /// 删一块组件。其余组件保持当前坐标，不自动回流。
     func removeWidget(id: String) {
-        update(replacingWidgets(config.homeWidgets.filter { $0.id != id }))
+        let widgets = BentoPacker.materialized(
+            config.homeWidgets,
+            columns: HubMetrics.bentoColumns
+        ).filter { $0.id != id }
+        update(replacingWidgets(widgets))
     }
 
     // MARK: - 指针切换页签

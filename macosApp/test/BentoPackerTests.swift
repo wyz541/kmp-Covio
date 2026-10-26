@@ -4,11 +4,22 @@ import kmpDomain
 
 /// bento 网格的装箱算法。
 ///
-/// 位置不落盘，由组件列表的顺序推出来，所以这个纯函数是首页布局的唯一权威。
-/// 它错了的后果是卡片重叠或位置乱跳。
+/// 显式位置来自配置，自动位置按组件顺序算出来。
+/// 它错了的后果是卡片重叠、位置乱跳或旧配置无法迁移。
 final class BentoPackerTests: XCTestCase {
     private func widget(_ id: String, _ size: WidgetSize) -> WidgetInstance {
-        WidgetInstance(id: id, kind: id, size: size, settings: [:])
+        WidgetInstance(id: id, kind: id, size: size, settings: [:], column: -1, row: -1)
+    }
+
+    private func widget(_ id: String, _ size: WidgetSize, column: Int32, row: Int32) -> WidgetInstance {
+        WidgetInstance(
+            id: id,
+            kind: id,
+            size: size,
+            settings: [:],
+            column: column,
+            row: row
+        )
     }
 
     // MARK: - 基本摆放
@@ -62,6 +73,108 @@ final class BentoPackerTests: XCTestCase {
         let spots = BentoPacker.pack([widget("big", .large)], columns: 4)
         XCTAssertEqual(spots.count, 1)
         XCTAssertEqual(BentoPacker.rows(spots), 2)
+    }
+
+    /// 显式位置保留下方与中间的空格，不按列表顺序重排。
+    func testExplicitPositionsKeepEmptyCells() {
+        let spots = BentoPacker.pack(
+            [
+                widget("top", .small),
+                widget("lower", .small, column: 2, row: 3),
+            ],
+            columns: 4
+        )
+
+        XCTAssertEqual(spots[0].column, 0)
+        XCTAssertEqual(spots[0].row, 0)
+        XCTAssertEqual(spots[1].column, 2)
+        XCTAssertEqual(spots[1].row, 3)
+        XCTAssertEqual(BentoPacker.rows(spots), 4)
+    }
+
+    /// 自动摆放会避开先保留的显式位置。
+    func testAutomaticWidgetsPackAroundExplicitPositions() {
+        let spots = BentoPacker.pack(
+            [
+                widget("fixed", .small, column: 2, row: 0),
+                widget("automatic", .small),
+            ],
+            columns: 4
+        )
+
+        XCTAssertEqual(spots[0].column, 2)
+        XCTAssertEqual(spots[0].row, 0)
+        XCTAssertEqual(spots[1].column, 0)
+        XCTAssertEqual(spots[1].row, 0)
+    }
+
+    /// 两块卡片写了同一格时，先出现的一块保留位置，后一块自动落位。
+    func testOverlappingExplicitPositionsFallBackToAutomaticPacking() {
+        let spots = BentoPacker.pack(
+            [
+                widget("first", .small, column: 0, row: 0),
+                widget("second", .small, column: 0, row: 0),
+            ],
+            columns: 4
+        )
+
+        XCTAssertEqual(spots[0].column, 0)
+        XCTAssertEqual(spots[0].row, 0)
+        XCTAssertEqual(spots[1].column, 1)
+        XCTAssertEqual(spots[1].row, 0)
+    }
+
+    /// 显式布局落盘前会把自动位置一起写出来。
+    func testMaterializingAssignsEveryPosition() {
+        let widgets = [widget("fixed", .small, column: 2, row: 1), widget("automatic", .small)]
+        let materialized = BentoPacker.materialized(widgets, columns: 4)
+
+        XCTAssertEqual(materialized[0].column, 2)
+        XCTAssertEqual(materialized[0].row, 1)
+        XCTAssertEqual(materialized[1].column, 0)
+        XCTAssertEqual(materialized[1].row, 0)
+    }
+
+    /// 目标位置必须可放、在边界内，并且不压到别的卡片。
+    func testCanPlaceRejectsCollisionsAndOutOfBounds() {
+        let spots = BentoPacker.pack(
+            [
+                widget("left", .small, column: 0, row: 0),
+                widget("right", .small, column: 3, row: 0),
+            ],
+            columns: 4
+        )
+
+        XCTAssertTrue(
+            BentoPacker.canPlace(
+                id: "new", size: .small, column: 1, row: 0,
+                among: spots, columns: 4, maximumRows: 1
+            )
+        )
+        XCTAssertFalse(
+            BentoPacker.canPlace(
+                id: "new", size: .small, column: 0, row: 0,
+                among: spots, columns: 4, maximumRows: 1
+            )
+        )
+        XCTAssertFalse(
+            BentoPacker.canPlace(
+                id: "new", size: .small, column: 4, row: 0,
+                among: spots, columns: 4, maximumRows: 1
+            )
+        )
+        XCTAssertFalse(
+            BentoPacker.canPlace(
+                id: "new", size: .small, column: 1, row: 1,
+                among: spots, columns: 4, maximumRows: 1
+            )
+        )
+        XCTAssertTrue(
+            BentoPacker.canPlace(
+                id: "left", size: .small, column: 0, row: 0,
+                among: spots, columns: 4, maximumRows: 1
+            )
+        )
     }
 
     // MARK: - 不重叠

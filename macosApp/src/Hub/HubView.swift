@@ -240,7 +240,9 @@ struct HubView: View {
                 isEditing: workbench.isEditing,
                 language: language,
                 runtime: runtime,
-                onMove: { workbench.moveWidget(from: $0, to: $1) },
+                onMove: { id, column, row in
+                    workbench.moveWidget(id: id, toColumn: column, toRow: row)
+                },
                 onResize: { id, size in workbench.resizeWidget(id: id, to: size) },
                 onDelete: { workbench.removeWidget(id: $0) }
             )

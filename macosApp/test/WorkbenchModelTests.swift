@@ -12,6 +12,11 @@ final class WorkbenchModelTests: XCTestCase {
         WorkbenchModel()
     }
 
+    private func spot(_ id: String, in model: WorkbenchModel) -> BentoSpot? {
+        BentoPacker.pack(model.homeWidgets, columns: HubMetrics.bentoColumns)
+            .first { $0.id == id }
+    }
+
     // MARK: - 初始状态
 
     /// 初始停在首页，不在编辑模式。
@@ -165,59 +170,54 @@ final class WorkbenchModelTests: XCTestCase {
 
     // MARK: - 编辑首页
 
-    /// 换位把一块挪到目标位置，其余顺序不变。
-    func testMovingAWidgetReordersTheList() {
+    /// 拖动把卡片放到指定空格，并留下原来的空格。
+    func testMovingAWidgetStoresItsExplicitPosition() {
         let model = model()
-        let before = model.homeWidgets.map(\.id)
-        model.moveWidget(from: 0, to: 2)
-        var expected = before
-        let moved = expected.remove(at: 0)
-        expected.insert(moved, at: 2)
-        XCTAssertEqual(model.homeWidgets.map(\.id), expected)
+        model.moveWidget(id: "w-clock", toColumn: 2, toRow: 2)
+
+        let moved = spot("w-clock", in: model)
+        XCTAssertEqual(moved?.column, 2)
+        XCTAssertEqual(moved?.row, 2)
+        XCTAssertEqual(spot("w-battery", in: model)?.column, 2)
+        XCTAssertEqual(spot("w-battery", in: model)?.row, 0)
     }
 
-    /// 越界的换位按打样的做法夹到两端，不崩也不丢组件。
-    ///
-    /// 打样 `WorkbenchPreview.kt` 的写法是 `list.add(to.coerceIn(0, list.size), moved)`，
-    /// 所以拖过头是「放到最后」，不是「忽略」。
-    func testMovingAWidgetOutOfRangeClampsToTheEnds() {
+    /// 占用区与越界位置都不改布局。
+    func testInvalidWidgetMovesKeepTheLayout() {
         let model = model()
-        let count = model.homeWidgets.count
+        model.moveWidget(id: "w-battery", toColumn: 0, toRow: 0)
+        XCTAssertEqual(spot("w-battery", in: model)?.column, 2)
+        XCTAssertEqual(spot("w-battery", in: model)?.row, 0)
 
-        model.moveWidget(from: 0, to: 99)
-        XCTAssertEqual(model.homeWidgets.map(\.id).last, "w-clock")
-        XCTAssertEqual(model.homeWidgets.count, count)
-
-        model.moveWidget(from: count - 1, to: -5)
-        XCTAssertEqual(model.homeWidgets.map(\.id).first, "w-clock")
-        XCTAssertEqual(model.homeWidgets.count, count)
+        model.moveWidget(id: "w-battery", toColumn: 4, toRow: 0)
+        XCTAssertEqual(spot("w-battery", in: model)?.column, 2)
+        XCTAssertEqual(spot("w-battery", in: model)?.row, 0)
     }
 
-    /// 起点越界时不动。起点越界说明调用方算错了，夹到两端反而会挪错一块。
-    func testMovingAWidgetFromOutOfRangeIsIgnored() {
+    /// 缩放保留左上角；空间不足时保持原尺寸。
+    func testResizingAWidgetKeepsItsPositionOrRevertsOnConflict() {
         let model = model()
-        let before = model.homeWidgets.map(\.id)
-        model.moveWidget(from: 99, to: 0)
-        XCTAssertEqual(model.homeWidgets.map(\.id), before)
+        model.resizeWidget(id: "w-devices", to: .tall)
+        XCTAssertEqual(spot("w-devices", in: model)?.size.key, "tall")
+        XCTAssertEqual(spot("w-devices", in: model)?.column, 2)
+        XCTAssertEqual(spot("w-devices", in: model)?.row, 1)
+
+        model.resizeWidget(id: "w-clock", to: .large)
+        XCTAssertEqual(spot("w-clock", in: model)?.size.key, "wide")
+        XCTAssertEqual(spot("w-clock", in: model)?.column, 0)
+        XCTAssertEqual(spot("w-clock", in: model)?.row, 0)
     }
 
-    /// 缩放只改那一块的档位，别的字段照旧。
-    func testResizingAWidgetKeepsItsOtherFields() {
-        let model = model()
-        let target = model.homeWidgets[0]
-        model.resizeWidget(id: target.id, to: .large)
-        let after = model.homeWidgets.first { $0.id == target.id }
-        XCTAssertEqual(after?.size.key, "large")
-        XCTAssertEqual(after?.kind, target.kind)
-    }
-
-    /// 删除只删那一块。
+    /// 删除只删那一块，其余卡片保持坐标。
     func testRemovingAWidgetDropsOnlyThatOne() {
         let model = model()
+        model.moveWidget(id: "w-clock", toColumn: 2, toRow: 2)
         let target = model.homeWidgets[1]
         model.removeWidget(id: target.id)
         XCTAssertEqual(model.homeWidgets.count, 5)
         XCTAssertFalse(model.homeWidgets.contains { $0.id == target.id })
+        XCTAssertEqual(spot("w-clock", in: model)?.column, 2)
+        XCTAssertEqual(spot("w-clock", in: model)?.row, 2)
     }
 
     /// 删空之后首页是空态，行数为零。
@@ -469,8 +469,9 @@ final class WorkbenchModelTests: XCTestCase {
         let path = directory.appendingPathComponent("workbench.json").path
         let model = model()
         model.attach(store: WorkbenchStore.companion.create(path: path))
-        let removed = model.homeWidgets[0].id
+        let removed = "w-battery"
         model.removeWidget(id: removed)
+        model.moveWidget(id: "w-clock", toColumn: 2, toRow: 2)
         model.movePane(from: 0, to: 1)
         let expectedOrder = model.panes.map(\.id)
 
@@ -478,5 +479,7 @@ final class WorkbenchModelTests: XCTestCase {
         reloaded.attach(store: WorkbenchStore.companion.create(path: path))
         XCTAssertFalse(reloaded.homeWidgets.contains { $0.id == removed }, "删除没有落盘")
         XCTAssertEqual(reloaded.panes.map(\.id), expectedOrder, "页签顺序没有落盘")
+        XCTAssertEqual(spot("w-clock", in: reloaded)?.column, 2, "卡片列没有落盘")
+        XCTAssertEqual(spot("w-clock", in: reloaded)?.row, 2, "卡片行没有落盘")
     }
 }

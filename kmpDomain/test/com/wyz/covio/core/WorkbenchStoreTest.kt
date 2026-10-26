@@ -28,7 +28,17 @@ class WorkbenchStoreTest {
                 .renamePane("now", "此刻")
                 .movePane("settings", 0)
                 .setPaneHidden("devices", true)
-                .copy(homeWidgets = listOf(WidgetInstance(id = "w1", kind = "clock", size = WidgetSize.WIDE)))
+                .copy(
+                    homeWidgets = listOf(
+                        WidgetInstance(
+                            id = "w1",
+                            kind = "clock",
+                            size = WidgetSize.WIDE,
+                            column = 2,
+                            row = 3,
+                        ),
+                    ),
+                )
 
             store.save(config)
 
@@ -77,13 +87,13 @@ class WorkbenchStoreTest {
 
             val config = WorkbenchStore(path.toString()).load()
 
-            assertEquals(2, config.schemaVersion)
+            assertEquals(WORKBENCH_SCHEMA_VERSION, config.schemaVersion)
             assertEquals(
                 listOf("now", "files", "mine", "settings", "agent", "clipboard", "devices"),
                 config.panes.map { it.id },
             )
             assertEquals("资料", config.pane("files")?.title, "文件工作区的自定义名称要保留")
-            assertNull(config.pane("screenshots"), "schema 2 不再保留截图工作区")
+            assertNull(config.pane("screenshots"), "当前 schema 不再保留截图工作区")
         }
 
     @Test
@@ -251,6 +261,46 @@ class WorkbenchStoreTest {
             val config = WorkbenchStore(path.toString()).load()
 
             assertEquals(WidgetSize.FALLBACK, config.homeWidgets.single().size)
+            assertEquals(-1, config.homeWidgets.single().column)
+            assertEquals(-1, config.homeWidgets.single().row)
+            assertEquals(WORKBENCH_SCHEMA_VERSION, config.schemaVersion)
+        }
+
+    @Test
+    fun `a partial widget position becomes automatic`() =
+        withTemporaryDirectory("workbench") { directory ->
+            val path = directory.resolve("workbench.json")
+            path.writeText(
+                """{"schemaVersion":2,"panes":[],"homeWidgets":[{"id":"w1","kind":"clock","column":2}]}""",
+            )
+
+            val widget = WorkbenchStore(path.toString()).load().homeWidgets.single()
+
+            assertEquals(WIDGET_AUTOMATIC_POSITION, widget.column)
+            assertEquals(WIDGET_AUTOMATIC_POSITION, widget.row)
+        }
+
+    @Test
+    fun `widget positions use stable json field names`() =
+        withTemporaryDirectory("workbench") { directory ->
+            val path = directory.resolve("workbench.json")
+            val store = WorkbenchStore(path.toString())
+            store.save(
+                WorkbenchConfig.defaults().copy(
+                    homeWidgets = listOf(
+                        WidgetInstance(
+                            id = "w1",
+                            kind = "clock",
+                            column = 2,
+                            row = 3,
+                        ),
+                    ),
+                ),
+            )
+
+            val json = path.readText()
+            assertTrue(json.contains("\"column\": 2"), json)
+            assertTrue(json.contains("\"row\": 3"), json)
         }
 
     @Test

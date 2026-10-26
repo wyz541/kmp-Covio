@@ -360,7 +360,7 @@ enum ContractCopy {
     /// `copy/hub/action/settings`
     static let copyHubActionSettings = LocalizedCopy(key: "copy/hub/action/settings", en: "Settings", zhHans: "设置")
     /// `copy/hub/edit/banner`
-    static let copyHubEditBanner = LocalizedCopy(key: "copy/hub/edit/banner", en: "Edit mode: drag tabs to reorder, drag cards to move, drag the corner to resize, click the cross to remove.", zhHans: "编辑模式：拖动页签排序，拖动卡片移动，拖右下角缩放，点叉删除。")
+    static let copyHubEditBanner = LocalizedCopy(key: "copy/hub/edit/banner", en: "Edit mode: drag tabs or cards to move them, use arrow keys to nudge, drag the corner to resize, click the cross to remove.", zhHans: "编辑模式：拖动页签或卡片移动，方向键微调，拖右下角缩放，点叉删除。")
     /// `copy/hub/edit/reorder`
     static let copyHubEditReorder = LocalizedCopy(key: "copy/hub/edit/reorder", en: "Reorder", zhHans: "排序")
     /// `copy/hub/edit/widget-count`
@@ -539,6 +539,14 @@ enum ContractCopy {
     static let copyHubWidgetClockTitle = LocalizedCopy(key: "copy/hub/widget/clock/title", en: "Now", zhHans: "现在")
     /// `copy/hub/widget/devices/title`
     static let copyHubWidgetDevicesTitle = LocalizedCopy(key: "copy/hub/widget/devices/title", en: "Monitor", zhHans: "监控")
+    /// `copy/hub/widget/move-down`
+    static let copyHubWidgetMoveDown = LocalizedCopy(key: "copy/hub/widget/move-down", en: "Move down", zhHans: "向下移动")
+    /// `copy/hub/widget/move-left`
+    static let copyHubWidgetMoveLeft = LocalizedCopy(key: "copy/hub/widget/move-left", en: "Move left", zhHans: "向左移动")
+    /// `copy/hub/widget/move-right`
+    static let copyHubWidgetMoveRight = LocalizedCopy(key: "copy/hub/widget/move-right", en: "Move right", zhHans: "向右移动")
+    /// `copy/hub/widget/move-up`
+    static let copyHubWidgetMoveUp = LocalizedCopy(key: "copy/hub/widget/move-up", en: "Move up", zhHans: "向上移动")
     /// `copy/hub/widget/remove`
     static let copyHubWidgetRemove = LocalizedCopy(key: "copy/hub/widget/remove", en: "Remove", zhHans: "删除")
     /// `copy/hub/widget/resize`
@@ -1769,6 +1777,10 @@ enum ContractCopy {
         copyHubWidgetBatteryTitle,
         copyHubWidgetClockTitle,
         copyHubWidgetDevicesTitle,
+        copyHubWidgetMoveDown,
+        copyHubWidgetMoveLeft,
+        copyHubWidgetMoveRight,
+        copyHubWidgetMoveUp,
         copyHubWidgetRemove,
         copyHubWidgetResize,
         copyHubWidgetShotsTitle,

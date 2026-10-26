@@ -1,4 +1,3 @@
 modules:
   - app
-  - designPreview
   - kmpDomain

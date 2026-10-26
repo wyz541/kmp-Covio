@@ -138,7 +138,7 @@ stateDiagram-v2
 13. 历史文件最多保留 200 条事件和 7 天。
 14. 合盖黑屏在写入零亮度前后都会验证显示状态。验证失败时恢复原亮度并回退公开关屏。
 
-## 预览
+## 历史预览
 
 ### 浅色
 
@@ -148,27 +148,7 @@ stateDiagram-v2
 
 ![Power management dark](previews/150-power-management-dark.png)
 
-## 预览锚点
-
-| 锚点 | 画面 |
-| --- | --- |
-| `#150-power` | 默认运行中，接通电源 |
-| `#150-battery` | 电池供电 |
-| `#150-dark` | 深色模式 |
-| `#150-helper` | helper 缺失 |
-| `#150-conflict` | 外部睡眠设置冲突 |
-| `#150-no-battery` | 无内置电池 |
-| `#150-thermal` | 热保护警告 |
-| `#150-empty` | 无会话，无历史 |
-| `#150-overview` | 概览页签 |
-
-启动：
-
-```bash
-./kotlin run -m designPreview --port=8081 --no-open-browser
-```
-
-## 评审检查
+## 视觉验收
 
 1. 四个区域在 960 点面板内完整显示。
 2. `概览 / 电源` 可点击切换。

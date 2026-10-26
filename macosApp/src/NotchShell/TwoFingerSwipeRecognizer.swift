@@ -2,7 +2,7 @@ import Foundation
 
 /// 一帧触控板接触数据。
 ///
-/// 坐标来自私有框架的归一化坐标。纵坐标向下增大。
+/// 坐标来自私有框架的归一化坐标。\n/// 真机标定显示，从触控板上边缘滑到下边缘时，纵坐标减少。
 struct TouchFrame: Equatable, Sendable {
     let fingerCount: Int
     let meanNormalizedX: Double
@@ -77,6 +77,14 @@ struct TwoFingerSwipeConfiguration: Equatable, Sendable {
     var cooldown: TimeInterval = 0.60
 }
 
+/// 一次有效下滑的触发指标。用于真机标定日志。
+struct TwoFingerSwipeMatch: Equatable, Sendable {
+    let downwardTravel: Double
+    let horizontalDeviation: Double
+    let duration: TimeInterval
+    let velocity: Double
+}
+
 /// 双指下滑识别器。
 ///
 /// 识别器是纯值类型。接触回调线程只在锁内调用 `process`。
@@ -92,6 +100,7 @@ struct TwoFingerSwipeRecognizer: Sendable {
     private var isRejected = false
     private var didTrigger = false
     private var lastTriggerTimestamp = -Double.infinity
+    private(set) var lastMatch: TwoFingerSwipeMatch?
 
     init(configuration: TwoFingerSwipeConfiguration = .init()) {
         self.configuration = configuration
@@ -129,9 +138,9 @@ struct TwoFingerSwipeRecognizer: Sendable {
             return false
         }
 
-        let verticalTravel = frame.meanNormalizedY - startY
+        let downwardTravel = startY - frame.meanNormalizedY
         guard elapsed >= configuration.minimumDuration,
-              verticalTravel >= configuration.minimumVerticalTravel,
+              downwardTravel >= configuration.minimumVerticalTravel,
               !isRejected,
               !didTrigger
         else {
@@ -144,13 +153,19 @@ struct TwoFingerSwipeRecognizer: Sendable {
             return false
         }
 
-        let velocity = verticalTravel / elapsed
+        let velocity = downwardTravel / elapsed
         guard velocity >= configuration.minimumVelocity else {
             return false
         }
 
         didTrigger = true
         lastTriggerTimestamp = frame.timestamp
+        lastMatch = TwoFingerSwipeMatch(
+            downwardTravel: downwardTravel,
+            horizontalDeviation: maximumHorizontalDeviation,
+            duration: elapsed,
+            velocity: velocity
+        )
         return true
     }
 

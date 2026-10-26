@@ -6,7 +6,7 @@ import kmpDomain
 /// 顶栏与编辑模式的形态。
 ///
 /// 顶栏是打样里替代左栏导航条的那一条，编辑模式是打样里的 S6。
-/// 这里守的是「页签上的字与把手、编辑提示条上的计数、四个动作词的落点」。
+/// 这里守的是「页签上的字与把手、编辑提示条上的计数、动作词和搜索清空的落点」。
 @MainActor
 final class WorkbenchTabBarTests: XCTestCase {
     private func panes() -> [PaneItem] {
@@ -14,18 +14,17 @@ final class WorkbenchTabBarTests: XCTestCase {
         return model.panes
     }
 
-    /// 每条页签都带自己的图标，图标与种类一一对应。
-    func testEveryPaneCarriesItsOwnGlyph() {
+    /// 每条页签都有文字标题。导航不靠图标区分目的地。
+    func testEveryPaneCarriesAReadableTitle() {
         for pane in panes() {
-            XCTAssertEqual(pane.glyph, pane.tab.glyph)
-            XCTAssertFalse(pane.glyph.isEmpty, "\(pane.id) 没有图标")
+            XCTAssertFalse(pane.title.isEmpty, "\(pane.id) 没有标题")
         }
     }
 
-    /// 页签的图标各不相同。两个页签长一样，用户分不出哪个是哪个。
-    func testPaneGlyphsAreDistinct() {
-        let glyphs = panes().map(\.glyph)
-        XCTAssertEqual(Set(glyphs).count, glyphs.count, "有两个页签用了同一个图标")
+    /// 默认页签的标题各不相同。只显示文字时，重复标题会让用户分不清目的地。
+    func testDefaultPaneTitlesAreDistinct() {
+        let titles = panes().map(\.title)
+        XCTAssertEqual(Set(titles).count, titles.count, "有两个默认页签用了同一个标题")
     }
 
     /// 页签数量不超过模型的上限。
@@ -41,14 +40,13 @@ final class WorkbenchTabBarTests: XCTestCase {
         XCTAssertEqual(model.homeWidgets.count, 6)
     }
 
-    /// 四个动作词都在合同里，且中英都有。
-    func testThePageActionWordsComeFromTheContract() {
+    /// 动作词和搜索清空文案都在合同里，且中英都有。
+    func testTheNavigationCopyComesFromTheContract() {
         for copy in [
             ContractCopy.copyHubActionHome,
             ContractCopy.copyHubActionEdit,
             ContractCopy.copyHubActionDone,
-            ContractCopy.copyHubActionSettings,
-            ContractCopy.copyHubActionBack,
+            ContractCopy.copyHubSearchClear,
         ] {
             XCTAssertFalse(copy.en.isEmpty, "\(copy.key ?? "?") 缺英文")
             XCTAssertFalse(copy.zhHans.isEmpty, "\(copy.key ?? "?") 缺中文")

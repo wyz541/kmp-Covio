@@ -84,11 +84,11 @@ enum HubMetrics {
     static let tabBarItemGap: CGFloat = MacTheme.space2
 
     /// 首页入口按钮。合同 `component/button` 的命中区下限是 24 点。
-    static let homeEntryWidth: CGFloat = 36
+    static let homeEntryWidth: CGFloat = 52
     static let homeEntryHeight: CGFloat = 30
 
     /// 搜索框。
-    static let searchFieldWidth: CGFloat = 170
+    static let searchFieldWidth: CGFloat = 190
     static let searchFieldHeight: CGFloat = 30
 
     /// 一条页签的高度。选中滑块也用它。

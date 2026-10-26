@@ -36,7 +36,6 @@ final class WorkbenchModelTests: XCTestCase {
         )
         for pane in model.panes {
             XCTAssertFalse(pane.title.isEmpty, "\(pane.id) 没有标题")
-            XCTAssertFalse(pane.glyph.isEmpty, "\(pane.id) 没有图标")
         }
     }
 
@@ -113,20 +112,20 @@ final class WorkbenchModelTests: XCTestCase {
 
     // MARK: - 顶栏右端的动作
 
-    /// 首页上是「编辑」，设置页上是「返回」，其余是「设置」，编辑中是「完成」。
+    /// 首页上是「编辑」，编辑中是「完成」，其余工作区没有右侧动作。
     func testThePageActionFollowsTheDestination() {
         let model = model()
-        XCTAssertEqual(model.pageAction.text(for: .simplifiedChinese), ContractCopy.copyHubActionEdit.text(for: .simplifiedChinese))
+        XCTAssertEqual(model.pageAction?.text(for: .simplifiedChinese), ContractCopy.copyHubActionEdit.text(for: .simplifiedChinese))
 
         model.isEditing = true
-        XCTAssertEqual(model.pageAction.text(for: .simplifiedChinese), ContractCopy.copyHubActionDone.text(for: .simplifiedChinese))
+        XCTAssertEqual(model.pageAction?.text(for: .simplifiedChinese), ContractCopy.copyHubActionDone.text(for: .simplifiedChinese))
 
         model.isEditing = false
         model.destination = .pane(id: PaneKind.settings.defaultId)
-        XCTAssertEqual(model.pageAction.text(for: .simplifiedChinese), ContractCopy.copyHubActionBack.text(for: .simplifiedChinese))
+        XCTAssertNil(model.pageAction)
 
         model.destination = .pane(id: PaneKind.files.defaultId)
-        XCTAssertEqual(model.pageAction.text(for: .simplifiedChinese), ContractCopy.copyHubActionSettings.text(for: .simplifiedChinese))
+        XCTAssertNil(model.pageAction)
     }
 
     /// 首页上按一次进编辑模式，再按一次出来。
@@ -138,14 +137,12 @@ final class WorkbenchModelTests: XCTestCase {
         XCTAssertFalse(model.isEditing)
     }
 
-    /// 别处按一次进设置页，设置页上按一次回首页。
-    func testThePageActionGoesToSettingsAndBack() {
+    /// 非首页没有动作按钮。误调动作方法也不改目的地。
+    func testThePageActionDoesNothingOutsideTheHomePage() {
         let model = model()
         model.destination = .pane(id: PaneKind.files.defaultId)
         model.performPageAction()
-        XCTAssertEqual(model.destination, .pane(id: PaneKind.settings.defaultId))
-        model.performPageAction()
-        XCTAssertEqual(model.destination, .home)
+        XCTAssertEqual(model.destination, .pane(id: PaneKind.files.defaultId))
     }
 
     // MARK: - 页标题行

@@ -471,6 +471,8 @@ enum ContractCopy {
     static let copyHubPowerSummary = LocalizedCopy(key: "copy/hub/power/summary", en: "Manage sleep, display, lid, battery, and adapter behavior.", zhHans: "管理睡眠、屏幕、合盖、电池和适配器行为。")
     /// `copy/hub/power/title`
     static let copyHubPowerTitle = LocalizedCopy(key: "copy/hub/power/title", en: "Power management", zhHans: "电源管理")
+    /// `copy/hub/search/clear`
+    static let copyHubSearchClear = LocalizedCopy(key: "copy/hub/search/clear", en: "Clear search", zhHans: "清除搜索")
     /// `copy/hub/tab/agent`
     static let copyHubTabAgent = LocalizedCopy(key: "copy/hub/tab/agent", en: "Agent", zhHans: "助手")
     /// `copy/hub/tab/agent/summary`
@@ -1705,6 +1707,7 @@ enum ContractCopy {
         copyHubPowerSegmentPower,
         copyHubPowerSummary,
         copyHubPowerTitle,
+        copyHubSearchClear,
         copyHubTabAgent,
         copyHubTabAgentSummary,
         copyHubTabBoard,

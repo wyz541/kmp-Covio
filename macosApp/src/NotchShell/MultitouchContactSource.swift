@@ -185,7 +185,9 @@ private final class MultitouchCallbackRouter: @unchecked Sendable {
     }
 
     func deliver(_ frame: TouchFrame) {
-        let handler = lock.withLock { handler }
-        handler?(frame)
+        let currentHandler: (@Sendable (TouchFrame) -> Void)? = lock.withLock {
+            self.handler
+        }
+        currentHandler?(frame)
     }
 }

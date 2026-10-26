@@ -1699,13 +1699,15 @@ struct MonitorCardShell<Content: View>: View {
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(MacTheme.textPrimary)
                 Spacer(minLength: MacTheme.space1)
-                Text(statusText ?? ContractCopy.copyMonitorLive.text(for: language).uppercased())
-                    .font(.system(size: 8, weight: .bold))
-                    .tracking(0.7)
-                    .foregroundStyle(accent)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(accent.opacity(0.12), in: Capsule())
+                if let statusText {
+                    Text(statusText.uppercased())
+                        .font(.system(size: 8, weight: .bold))
+                        .tracking(0.7)
+                        .foregroundStyle(accent)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(accent.opacity(0.12), in: Capsule())
+                }
             }
 
             content

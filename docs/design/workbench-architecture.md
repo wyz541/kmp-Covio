@@ -116,6 +116,10 @@ R7 不做主屏手势。系统不向第三方应用开放 iOS 主屏手势入口
 内部键 `devices` 保留为 `Monitor` 工作区的稳定标识。旧配置不需要迁移。
 
 `Monitor` 使用 `MonitorTabView` 显示 CPU、GPU、内存、磁盘、网络、电源和风扇。
+普通指标卡的标题只显示图标和标题。
+页面状态行显示采样状态。
+电源卡片在自己的内容区显示供电状态。
+风扇卡片提供真实控制状态时，才显示状态胶囊。
 风扇卡片使用 AppleSMC 读取温度与转速。风扇写入走现有 root helper。
 指标口径见 [硬件信息监听能力研究](../research/hardware-monitoring-capability/README.md)；
 风扇卡片规范和故障边界见 [monitor-fan-card.md](monitor-fan-card.md)。

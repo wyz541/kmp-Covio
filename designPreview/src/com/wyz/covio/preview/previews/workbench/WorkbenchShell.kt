@@ -238,7 +238,7 @@ internal fun TabBar(
     selectedId: String?,
     query: String,
     editing: Boolean,
-    pageAction: String,
+    pageAction: String?,
     searchPlaceholder: String = "搜索工作区与设置",
     onQueryChange: (String) -> Unit,
     onHome: () -> Unit,
@@ -283,7 +283,7 @@ internal fun TabBar(
                                 .height(Tokens.tabHeight.dp)
                                 .width(w)
                                 .clip(RoundedCornerShape(Tokens.pillRadius.dp))
-                                .background(Tokens.actionFill),
+                                .background(Tokens.actionFill.copy(alpha = 0.26f)),
                         )
                     }
 
@@ -313,7 +313,9 @@ internal fun TabBar(
             }
         }
 
-        PageAction(label = pageAction, onClick = onPageAction)
+        if (pageAction != null) {
+            PageAction(label = pageAction, onClick = onPageAction)
+        }
     }
 }
 
@@ -323,13 +325,13 @@ private fun HomeEntry(selected: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .height(Tokens.tabHeight.dp)
-            .width(36.dp)
-            .clip(RoundedCornerShape(Tokens.controlRadius.dp))
-            .background(if (selected) Tokens.actionFill else Color(0x14000000))
+            .width(52.dp)
+            .clip(RoundedCornerShape(Tokens.pillRadius.dp))
+            .background(if (selected) Tokens.actionFill.copy(alpha = 0.26f) else Color.Transparent)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text("▦", color = if (selected) Tokens.textOnAccent else Tokens.textPrimary, fontSize = 14.sp)
+        Text("首页", color = Tokens.textPrimary, fontSize = 12.sp)
     }
 }
 
@@ -344,10 +346,15 @@ private fun SearchField(
     Box(
         modifier = Modifier
             .height(Tokens.tabHeight.dp)
-            .width(170.dp)
-            .clip(RoundedCornerShape(Tokens.controlRadius.dp))
-            .background(if (enabled) Tokens.controlFill else Color(0x0F000000))
-            .border(1.dp, Tokens.divider, RoundedCornerShape(Tokens.controlRadius.dp)),
+            .width(190.dp)
+            .clip(RoundedCornerShape(Tokens.pillRadius.dp))
+            // Compose Web 没有系统 Liquid Glass。这里用半透明高光近似。
+            // 生产界面由 SwiftUI 的原生 glassEffect 提供材质。
+            .background(
+                Brush.linearGradient(
+                    listOf(Color(0x42FFFFFF), Color(0x18FFFFFF)),
+                ),
+            ),
         contentAlignment = Alignment.CenterStart,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -371,7 +378,19 @@ private fun SearchField(
                     Text(query, color = Tokens.textPrimary, fontSize = 12.sp)
                 }
             }
-            Spacer(Modifier.width(8.dp))
+            if (query.isNotEmpty() && enabled) {
+                Box(
+                    modifier = Modifier
+                        .width(24.dp)
+                        .height(Tokens.tabHeight.dp)
+                        .clickable { onQueryChange("") },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("×", color = Tokens.textSecondary, fontSize = 13.sp)
+                }
+            } else {
+                Spacer(Modifier.width(8.dp))
+            }
         }
     }
 }
@@ -440,12 +459,11 @@ private fun Tab(
             if (editing) {
                 Text("⣿", color = Tokens.textSecondary, fontSize = 11.sp)
             }
-            Text(pane.displayIcon, color = if (selected) Tokens.textOnAccent else Tokens.textSecondary, fontSize = 11.sp)
             Text(
                 pane.displayTitle,
-                color = if (selected) Tokens.textOnAccent else Tokens.textPrimary,
+                color = if (selected) Tokens.textPrimary else Tokens.textSecondary,
                 fontSize = 12.sp,
-                fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
+                fontWeight = FontWeight.Normal,
             )
         }
     }

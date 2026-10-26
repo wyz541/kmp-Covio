@@ -91,15 +91,12 @@ final class WorkbenchModel {
         return (title, tab.summary.text(for: language))
     }
 
-    /// 顶栏右端的动作。四个状态各一个词。
-    var pageAction: LocalizedCopy {
+    /// 顶栏右端的动作。首页提供编辑动作，其余工作区不重复提供设置入口。
+    var pageAction: LocalizedCopy? {
         if isEditing { return ContractCopy.copyHubActionDone }
         switch destination {
         case .home: return ContractCopy.copyHubActionEdit
-        case .pane(let id):
-            return config.pane(id: id)?.kind.key == HubTab.settings.rawValue
-                ? ContractCopy.copyHubActionBack
-                : ContractCopy.copyHubActionSettings
+        case .pane: return nil
         }
     }
 
@@ -111,14 +108,8 @@ final class WorkbenchModel {
             isEditing = false
             return
         }
-        switch destination {
-        case .home:
-            isEditing = true
-        case .pane(let id) where config.pane(id: id)?.kind.key == HubTab.settings.rawValue:
-            destination = .home
-        default:
-            destination = .pane(id: PaneKind.settings.defaultId)
-        }
+        guard destination == .home else { return }
+        isEditing = true
     }
 
     /// 打开文件区，并可附带一次筛选请求。截图入口使用截图筛选。

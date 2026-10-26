@@ -91,7 +91,7 @@
 | [app-update.json](evidence/2026-10-25-app-update.json) | app 替换前后的推理和 registry 摘要 |
 | [disk-guard.json](evidence/2026-10-25-disk-guard.json) | 64 MiB 卷的磁盘保护结果 |
 | [release-final.json](evidence/2026-10-25-release-final.json) | 最终 DMG 大小、SHA-256、manifest、签名和 Gatekeeper 结果 |
-| [draft-assets.json](evidence/2026-10-25-draft-assets.json) | Draft 的 9 个资产、远端 digest 和本地 SHA-256 对比 |
+| [release-assets.json](evidence/2026-10-25-release-assets.json) | 已发布 Release 的 9 个资产、远端 digest 和本地 SHA-256 对比 |
 | [file-naming-final.json](evidence/2026-10-25-file-naming-final.json) | 最终离线 DMG 的断网文件命名结果 |
 | [agent-final.json](evidence/2026-10-25-agent-final.json) | 最终离线 DMG 的断网 Agent 结果 |
 
@@ -101,7 +101,7 @@
 2. V06B 的 revision 不兼容更新没有真实双版本构建。自动化测试覆盖 `revisionMismatch` 状态。
 3. V07 使用隔离的 Applications 目录模拟拖放安装，没有改动用户真实 `/Applications/Covio.app`。
 4. 8 GB 内存边界没有单独的真机设备。
-5. 当前已发布的 `v0.5.2` 仍是旧整包。新的 slim/offline Draft 需要负责人审阅后才能发布。
+5. 稳定标签 `v0.5.2` 仍是旧整包。新的 slim/offline 构建已作为 `v0.5.2-internal.5` internal prerelease 发布。
 6. 离线 DMG 的完整远程回读因网络速度中止。远端 digest 和 `checksums.txt` 已一致；完整回读需要更快的网络窗口。
 
 ## 清理步骤
@@ -110,5 +110,5 @@
 2. 删除隔离用户数据目录。
 3. 删除磁盘保护测试卷。
 4. 删除测试 app 副本。
-5. 保留脱敏结果、SHA-256 和 Draft 资产。
+5. 保留脱敏结果、SHA-256 和已发布资产记录。
 6. 检查没有测试 app 或 helper 在运行。

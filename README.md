@@ -41,23 +41,25 @@ Progress is read from GitHub. The repository does not hold issue definitions.
 ## Download (internal test)
 
 Covio is under internal test.
-Covio 0.5.2 is the current build.
+Covio 0.5.2-internal.5 is the current internal build.
 It requires macOS 26 or later on Apple Silicon.
-The published `v0.5.2` asset predates the slim/offline split.
-The slim and offline assets are in the Draft `v0.5.2-internal.5` pending review.
+The older `v0.5.2` release contains the full model.
+The current release separates the default slim package and the optional offline package.
 Validation results are in `docs/research/installer-size-reduction/validation/`.
 
-- [Covio-0.5.2.dmg](https://github.com/wyz541/kmp-Covio/releases/download/v0.5.2/Covio-0.5.2.dmg)
-- [Release page](https://github.com/wyz541/kmp-Covio/releases/tag/v0.5.2)
-- [SHA-256](https://github.com/wyz541/kmp-Covio/releases/download/v0.5.2/Covio-0.5.2.dmg.sha256)
-- [Covio 0.5.1](https://github.com/wyz541/kmp-Covio/releases/tag/v0.5.1) is the previous internal test.
+- [Default DMG](https://github.com/wyz541/kmp-Covio/releases/download/v0.5.2-internal.5/Covio-0.5.2.dmg)
+- [Offline DMG](https://github.com/wyz541/kmp-Covio/releases/download/v0.5.2-internal.5/Covio-Offline-0.5.2.dmg)
+- [Release page](https://github.com/wyz541/kmp-Covio/releases/tag/v0.5.2-internal.5)
+- [Checksums](https://github.com/wyz541/kmp-Covio/releases/download/v0.5.2-internal.5/checksums.txt)
+- [Covio 0.5.1](https://github.com/wyz541/kmp-Covio/releases/tag/v0.5.1) is an older internal test.
 - [Covio 0.4.2](https://github.com/wyz541/kmp-Covio/releases/tag/v0.4.2) is an older internal test.
 
 Install steps:
 
-1. Open `Covio-0.5.2.dmg`.
+1. Open `Covio-0.5.2.dmg` for online installation, or open `Covio-Offline-0.5.2.dmg` for offline installation.
 2. Drag `Covio.app` to `Applications`.
 3. Open `Covio.app`.
+4. Open an AI feature and confirm the model download when using the default DMG.
 
 Covio uses a clean install.
 Covio does not copy settings from older internal-test builds.
@@ -70,14 +72,19 @@ Allow the app in Privacy & Security, or clear the quarantine flag:
 xattr -dr com.apple.quarantine /Applications/Covio.app
 ```
 
-The DMG SHA-256 value is:
+The DMG SHA-256 values are:
 
 ```text
-8fba01f6eacba17921fbd1bd337bac68bcc59f6aae9571faeeab3dc11da2d6d4  Covio-0.5.2.dmg
+5eced02d91ca0eb9585cd028afb6ed5c63d24e06bd55e40e2730b073997aee99  Covio-0.5.2.dmg
+8bea35be7bd4c7dd7a439142153292f9672edaee63b3f1d2710eea92d6a754d7  Covio-Offline-0.5.2.dmg
 ```
 
 ## What is new in 0.5.2
 
+- The default installer no longer carries model weights.
+- The optional offline installer carries the verified Qwen3-VL 2B model.
+- The app downloads the fixed model revision after user confirmation.
+- The downloader resumes after restart and verifies every file before registration.
 - Charge-limit target repair continues while the battery is charging.
 - Target repair retries are rate-limited and no longer remain blocked in `applying`.
 - The current-target field reports the target that macOS actually registered.

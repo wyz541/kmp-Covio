@@ -46,8 +46,9 @@
       "size": 1196
     }
   ],
-  "isDraft": true,
+  "isDraft": false,
   "isPrerelease": true,
+  "publishedAt": "2026-10-26T01:40:21Z",
   "tagName": "v0.5.2-internal.5",
   "targetCommitish": "ca9d240bd2cce58e309b3715257c752220afab77"
 }

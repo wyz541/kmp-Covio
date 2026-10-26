@@ -17,7 +17,7 @@
 | 编号 | 案例 | 状态 | 记录 |
 | --- | --- | --- | --- |
 | Case 1 | 内建触控板四指下滑采集与标定 | 尚未执行 | [case-macos-trackpad-gesture.md](case-macos-trackpad-gesture.md) |
-| Case 2 | 双指下滑工作台入口验证 | 内建触控板通过，外接触控板待验证 | [case-macos-two-finger-entry.md](case-macos-two-finger-entry.md) |
+| Case 2 | 双指下滑工作台入口验证 | 通过 | [case-macos-two-finger-entry.md](case-macos-two-finger-entry.md) |
 
 ## 2. 目标
 
@@ -66,7 +66,7 @@
 7. `V07` 双指下滑初测记录方向和位移。
 8. `V08` 双指下滑连续 10 次全部识别。
 9. `V09` 普通双指滚动、上滑和横滑零误触发。
-10. `V10` 外接触控板支持双指下滑。
+10. `V10` 外接触控板不在双指入口验收范围。
 
 ## 6. 前置条件
 
@@ -102,7 +102,7 @@
 | V07 | 双指下滑方向与位移初测 | 通过 | `case-macos-two-finger-entry.md` |
 | V08 | 双指下滑连续 10 次识别 | 通过，应用层 `10/10` | `case-macos-two-finger-entry.md` |
 | V09 | 双指滚动、上滑与横滑误触发 | 通过，滚动 `0/10`，上滑与横滑各 `0/1` | `case-macos-two-finger-entry.md` |
-| V10 | 外接触控板双指下滑 | 待执行 | `case-macos-two-finger-entry.md` |
+| V10 | 外接触控板双指下滑 | 不在范围 | `case-macos-two-finger-entry.md` |
 
 ## 9. 证据要求
 

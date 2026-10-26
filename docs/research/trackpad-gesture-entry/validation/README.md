@@ -10,13 +10,14 @@
 | 问题类别 | 系统保留手势的再获取 |
 | 主方案 | [主题索引](../README.md) |
 | 证据附录 | [证据附录](../evidence.md) |
-| 验证记录 | [Case 1](case-macos-trackpad-gesture.md) |
+| 验证记录 | [Case 1](case-macos-trackpad-gesture.md)、[Case 2](case-macos-two-finger-entry.md) |
 
 ## 1. 案例索引
 
 | 编号 | 案例 | 状态 | 记录 |
 | --- | --- | --- | --- |
 | Case 1 | 内建触控板四指下滑采集与标定 | 尚未执行 | [case-macos-trackpad-gesture.md](case-macos-trackpad-gesture.md) |
+| Case 2 | 双指下滑工作台入口初测 | 初测完成，验收待完成 | [case-macos-two-finger-entry.md](case-macos-two-finger-entry.md) |
 
 ## 2. 目标
 
@@ -26,6 +27,7 @@
 2. 四指下滑的识别阈值取多少。
 3. 私有路径是否需要输入监控权限。
 4. 私有路径失效时降级是否正常。
+5. 双指下滑能否与普通滚动可靠区分。
 
 ## 3. 范围
 
@@ -33,6 +35,7 @@
 
 - 内建触控板的接触帧采集。
 - 四指下滑、三指下滑、两指滚动的区分。
+- 双指下滑、双指滚动、上滑和横滑的区分。
 - 未授权进程下的私有路径行为。
 - 符号缺失时的降级行为。
 - 外接触控板的枚举。
@@ -60,6 +63,10 @@
 4. `V04` 符号缺失时应用正常启动，其余入口可用。
 5. `V05` 在未授予输入监控权限的进程里，私有路径的行为被记录。
 6. `V06` 外接触控板被枚举，并且能注册回调。
+7. `V07` 双指下滑初测记录方向和位移。
+8. `V08` 双指下滑连续 10 次全部识别。
+9. `V09` 普通双指滚动、上滑和横滑零误触发。
+10. `V10` 外接触控板支持双指下滑。
 
 ## 6. 前置条件
 
@@ -92,6 +99,10 @@
 | V04 | 私有符号缺失时的降级 | 待执行 | `case-macos-trackpad-gesture.md` |
 | V05 | 未授权进程下的私有路径 | 待执行 | `case-macos-trackpad-gesture.md` |
 | V06 | 外接触控板枚举 | 待执行 | `case-macos-trackpad-gesture.md` |
+| V07 | 双指下滑方向与位移初测 | 初测完成 | `case-macos-two-finger-entry.md` |
+| V08 | 双指下滑连续 10 次识别 | 待执行 | `case-macos-two-finger-entry.md` |
+| V09 | 双指滚动、上滑与横滑误触发 | 待执行 | `case-macos-two-finger-entry.md` |
+| V10 | 外接触控板双指下滑 | 待执行 | `case-macos-two-finger-entry.md` |
 
 ## 9. 证据要求
 

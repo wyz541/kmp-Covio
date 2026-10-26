@@ -7,7 +7,11 @@
 Covio 是 macOS 菜单栏应用。界面是 SwiftUI 宿主，放在 `macosApp/`。
 共享领域逻辑是 KMP 模块，放在 `kmpDomain/`。
 构建系统是 Amper 0.12.1，不是 Gradle。
-改完跑 `bash scripts/test-all.sh`。改了 UI 的还要在真机验收，并按 `docs/process/workflow.md` 的「Visual verification」补截图。截图缺失时，不得关闭 issue。
+测试按 `docs/process/workflow.md` 的「测试门禁」分层执行。
+日常迭代运行需求相关的测试。
+提交 PR 前运行受影响模块的测试。
+跨模块、配置合同、helper 协议、持久化、发布或大范围改动运行 `bash scripts/test-all.sh`。
+改了 UI 的还要在真机验收，并按「Visual verification」补截图。截图缺失时，不得关闭 issue。
 主干是 `main`。
 
 ## 2. 流程

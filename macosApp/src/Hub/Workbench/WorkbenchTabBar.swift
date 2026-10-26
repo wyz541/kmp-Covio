@@ -50,6 +50,7 @@ struct WorkbenchTabBar: View {
     let panes: [PaneItem]
     let destination: HubDestination
     let isEditing: Bool
+    let searchPlaceholder: LocalizedCopy
     @Binding var searchText: String
     let language: AppLanguage
     let pageAction: LocalizedCopy?
@@ -150,6 +151,16 @@ struct WorkbenchTabBar: View {
         .overlay { searchFocusRing }
         .opacity(isEditing ? 0.6 : 1)
         .accessibilityLabel(placeholder)
+        .background {
+            Button("") {
+                searchFocused = true
+            }
+            .keyboardShortcut("f", modifiers: .command)
+            .opacity(0)
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
+            .disabled(isEditing)
+        }
     }
 
     @ViewBuilder
@@ -162,7 +173,7 @@ struct WorkbenchTabBar: View {
     }
 
     private var placeholder: String {
-        ContractCopy.copyNavSearchPlaceholder.text(for: language)
+        searchPlaceholder.text(for: language)
     }
 
     // MARK: - 页签

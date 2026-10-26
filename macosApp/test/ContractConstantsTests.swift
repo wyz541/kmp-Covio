@@ -376,9 +376,12 @@ final class SettingsSectionTests: XCTestCase {
                 HubMetrics.plateTopInset + HubMetrics.plateStackHeight(for: page),
                 "\(tab.rawValue) 的面板高度不等于内容层加上顶部的缝"
             )
+            let expectedPageHeight = tab == .clipboard
+                ? HubMetrics.bodyHeight(for: page)
+                : HubMetrics.pageHeadingHeight + HubMetrics.pageHeadingGap + HubMetrics.bodyHeight(for: page)
             XCTAssertEqual(
                 HubMetrics.pageContentHeight(for: page),
-                HubMetrics.pageHeadingHeight + HubMetrics.pageHeadingGap + HubMetrics.bodyHeight(for: page),
+                expectedPageHeight,
                 "\(tab.rawValue) 的页内容高度不等于标题行加主体"
             )
         }

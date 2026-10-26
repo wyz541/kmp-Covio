@@ -258,8 +258,13 @@ enum HubMetrics {
     /// 首页没有页标题行：打样的首页直接从网格开始。
     static func pageContentHeight(for page: HubPage) -> CGFloat {
         switch page {
-        case .home: bodyHeight(for: page)
-        case .pane: pageHeadingHeight + pageHeadingGap + bodyHeight(for: page)
+        case .home:
+            bodyHeight(for: page)
+        case .pane(.clipboard):
+            // 顶部页签已经标出页面身份，不再重复标题行。
+            bodyHeight(for: page)
+        case .pane:
+            pageHeadingHeight + pageHeadingGap + bodyHeight(for: page)
         }
     }
 

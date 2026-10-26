@@ -96,14 +96,15 @@ final class HubMetricsTests: XCTestCase {
         }
     }
 
-    /// 有页标题行的页，页内容高度比主体多一行标题加一段间距。
-    func testAPanePageAddsTheHeadingRow() {
+    /// 除剪切板外，有页标题行的页比主体多一行标题加一段间距。
+    /// 剪切板页的标题与顶部选中页签重复，所以只保留主体高度。
+    func testAPanePageAddsTheHeadingRowExceptForClipboard() {
         for tab in HubTab.allCases {
             let page = HubPage.pane(tab)
-            XCTAssertEqual(
-                HubMetrics.pageContentHeight(for: page),
-                HubMetrics.pageHeadingHeight + HubMetrics.pageHeadingGap + HubMetrics.bodyHeight(for: page)
-            )
+            let expected = tab == .clipboard
+                ? HubMetrics.bodyHeight(for: page)
+                : HubMetrics.pageHeadingHeight + HubMetrics.pageHeadingGap + HubMetrics.bodyHeight(for: page)
+            XCTAssertEqual(HubMetrics.pageContentHeight(for: page), expected)
         }
     }
 

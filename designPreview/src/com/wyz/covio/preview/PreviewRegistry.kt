@@ -1,6 +1,7 @@
 package com.wyz.covio.preview
 
 import androidx.compose.runtime.Composable
+import com.wyz.covio.preview.previews.monitor.MonitorLiveBadgePreview
 import com.wyz.covio.preview.previews.power.PowerManagementPreview
 import com.wyz.covio.preview.previews.workbench.GlassWorkbenchPreview
 import com.wyz.covio.preview.previews.files.UnifiedFilesPreview
@@ -31,6 +32,12 @@ data class Preview(
  * **注意：** 只加画得完的。首页上点进去是空壳，就是死路，违反设计闸门的 R7。
  */
 val previews: List<Preview> = listOf(
+    Preview(
+        title = "Monitor 卡片标题行",
+        covers = "去掉普通指标卡上重复的 Live 胶囊，同时保留状态行和真实状态文案。",
+        issue = 405,
+        content = { MonitorLiveBadgePreview() },
+    ),
     Preview(
         title = "Monitor 电源管理",
         covers = "Monitor 内的概览 / 电源切换、状态、保持唤醒会话、安全规则和历史。",

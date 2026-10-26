@@ -97,8 +97,8 @@
       },
       {
         "area": "Hub navigation rail",
-        "difference": "Figma component set 121:12394 is a horizontal six-item tab bar at 960 x 52. An earlier macOS build put those six tabs in a vertical floating rail at 200 x 370 with the page title in a separate top capsule. The Compose web preview (#107) restored the horizontal bar, and the macOS host follows it: tab bar 960 x 46 at the top of the panel, page heading in its own row under it. The six items, their order, and their copy are unchanged.",
-        "status": "resolved-by-preview"
+        "difference": "Figma component set 121:12394 is a horizontal six-item tab bar at 960 x 52. An earlier macOS build put those six tabs in a vertical floating rail at 200 x 370 with the page title in a separate top capsule. The retired Compose web preview (#107) restored the horizontal bar at the time, and the macOS host follows it: tab bar 960 x 46 at the top of the panel, page heading in its own row under it. The six items, their order, and their copy are unchanged.",
+        "status": "resolved-by-native-host"
       },
       {
         "area": "Sleep mode option labels",
@@ -1764,7 +1764,7 @@
         "Dark"
       ],
       "figmaComponentSetIds": [],
-      "sourceAuthority": "Compose web preview (designPreview, #107)",
+      "sourceAuthority": "Covio macOS host (SwiftUI)",
       "swiftMapping": {
         "target": "BentoGrid",
         "behavior": "四列网格，行高 96 点，间距 12 点，列宽 (912 − 12 × 3) / 4 = 219 点。位置由装箱算法从组件列表顺序推出，不存坐标。编辑模式里卡片可拖动、缩放、删除。"
@@ -1809,7 +1809,7 @@
         "Dark"
       ],
       "figmaComponentSetIds": [],
-      "sourceAuthority": "Compose web preview (designPreview, #107)",
+      "sourceAuthority": "Covio macOS host (SwiftUI)",
       "swiftMapping": {
         "target": "BentoWidgetCard",
         "behavior": "圆角 16 点，底色取各自的 token/color/widget-tint-*，内边距 14 点，标题 13 点半粗，下面一行 11 点次要色。四档尺寸：小 1×1、宽 2×1、高 1×2、大 2×2。"
@@ -2902,7 +2902,7 @@
         "Dark"
       ],
       "figmaComponentSetIds": [],
-      "sourceAuthority": "Compose web preview (designPreview, #201)",
+      "sourceAuthority": "Covio macOS host (SwiftUI)",
       "swiftMapping": {
         "target": "FilesTabView",
         "behavior": "唯一焦点位加四列安静网格。顶部只有筛选菜单、数量、实时状态和加入按钮。空状态与无匹配隐藏顶部工具行。"
@@ -2954,7 +2954,7 @@
         "Dark"
       ],
       "figmaComponentSetIds": [],
-      "sourceAuthority": "Compose web preview (designPreview, #201)",
+      "sourceAuthority": "Covio macOS host (SwiftUI)",
       "swiftMapping": {
         "target": "FileFocusCardView",
         "behavior": "全宽 176 点焦点卡。左侧显示内容，右侧显示名称、来源、状态、最多三个动作和键盘提示。"
@@ -3006,7 +3006,7 @@
         "Dark"
       ],
       "figmaComponentSetIds": [],
-      "sourceAuthority": "Compose web preview (designPreview, #201)",
+      "sourceAuthority": "Covio macOS host (SwiftUI)",
       "swiftMapping": {
         "target": "FileQuietTileView",
         "behavior": "安静条目只显示预览、名称和一行状态。悬停显示一个主快捷动作和菜单按钮。点击后进入焦点位。"
@@ -3052,7 +3052,7 @@
         "Dark"
       ],
       "figmaComponentSetIds": [],
-      "sourceAuthority": "Compose web preview (designPreview, #201)",
+      "sourceAuthority": "Covio macOS host (SwiftUI)",
       "swiftMapping": {
         "target": "FileFilterMenuView",
         "behavior": "28 点触发按钮，菜单项高 30 点。显示当前筛选、各项数量和选中勾号。"
@@ -3096,7 +3096,7 @@
         "Dark"
       ],
       "figmaComponentSetIds": [],
-      "sourceAuthority": "Compose web preview (designPreview, #201)",
+      "sourceAuthority": "Covio macOS host (SwiftUI)",
       "swiftMapping": {
         "target": "FileEmptyStateView",
         "behavior": "空状态显示加入入口和快捷键。无匹配只显示提示与清除筛选。"
@@ -3142,7 +3142,7 @@
         "Dark"
       ],
       "figmaComponentSetIds": [],
-      "sourceAuthority": "Compose web preview (designPreview, #201)",
+      "sourceAuthority": "Covio macOS host (SwiftUI)",
       "swiftMapping": {
         "target": "FileContextMenuView",
         "behavior": "使用原生菜单语义。行高 30 点，删除动作放在最后，并在删除前加分隔线。"

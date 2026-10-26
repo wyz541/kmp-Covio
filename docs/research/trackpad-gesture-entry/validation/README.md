@@ -17,7 +17,7 @@
 | 编号 | 案例 | 状态 | 记录 |
 | --- | --- | --- | --- |
 | Case 1 | 内建触控板四指下滑采集与标定 | 尚未执行 | [case-macos-trackpad-gesture.md](case-macos-trackpad-gesture.md) |
-| Case 2 | 双指下滑工作台入口初测 | 初测完成，验收待完成 | [case-macos-two-finger-entry.md](case-macos-two-finger-entry.md) |
+| Case 2 | 双指下滑工作台入口验证 | 内建触控板通过，外接触控板待验证 | [case-macos-two-finger-entry.md](case-macos-two-finger-entry.md) |
 
 ## 2. 目标
 
@@ -99,9 +99,9 @@
 | V04 | 私有符号缺失时的降级 | 待执行 | `case-macos-trackpad-gesture.md` |
 | V05 | 未授权进程下的私有路径 | 待执行 | `case-macos-trackpad-gesture.md` |
 | V06 | 外接触控板枚举 | 待执行 | `case-macos-trackpad-gesture.md` |
-| V07 | 双指下滑方向与位移初测 | 初测完成 | `case-macos-two-finger-entry.md` |
-| V08 | 双指下滑连续 10 次识别 | 待执行 | `case-macos-two-finger-entry.md` |
-| V09 | 双指滚动、上滑与横滑误触发 | 待执行 | `case-macos-two-finger-entry.md` |
+| V07 | 双指下滑方向与位移初测 | 通过 | `case-macos-two-finger-entry.md` |
+| V08 | 双指下滑连续 10 次识别 | 通过，应用层 `10/10` | `case-macos-two-finger-entry.md` |
+| V09 | 双指滚动、上滑与横滑误触发 | 通过，滚动 `0/10`，上滑与横滑各 `0/1` | `case-macos-two-finger-entry.md` |
 | V10 | 外接触控板双指下滑 | 待执行 | `case-macos-two-finger-entry.md` |
 
 ## 9. 证据要求

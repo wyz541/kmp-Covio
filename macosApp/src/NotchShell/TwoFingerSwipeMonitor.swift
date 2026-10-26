@@ -27,8 +27,14 @@ final class TwoFingerSwipeMonitor {
         let recognizer = recognizer
         let onSwipe = onSwipe
         let result = source.start { frame in
-            guard recognizer.process(frame) else { return }
-            NSLog("双指下滑识别成功。")
+            guard let match = recognizer.process(frame) else { return }
+            NSLog(
+                "双指下滑识别成功：distance=%.3f horizontal=%.3f duration=%.3f velocity=%.3f",
+                match.downwardTravel,
+                match.horizontalDeviation,
+                match.duration,
+                match.velocity
+            )
             Task { @MainActor in
                 onSwipe()
             }
@@ -52,9 +58,10 @@ private final class SwipeRecognizerBox: @unchecked Sendable {
         recognizer = TwoFingerSwipeRecognizer(configuration: configuration)
     }
 
-    func process(_ frame: TouchFrame) -> Bool {
+    func process(_ frame: TouchFrame) -> TwoFingerSwipeMatch? {
         lock.withLock {
-            recognizer.process(frame)
+            guard recognizer.process(frame) else { return nil }
+            return recognizer.lastMatch
         }
     }
 }

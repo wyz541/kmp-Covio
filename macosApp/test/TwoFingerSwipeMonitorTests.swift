@@ -22,8 +22,8 @@ final class TwoFingerSwipeMonitorTests: XCTestCase {
         }
 
         XCTAssertEqual(monitor.start(), .started(deviceCount: 1))
-        source.emit(frame(y: 0.20, at: 1.00))
-        source.emit(frame(y: 0.45, at: 1.15))
+        source.emit(frame(y: 0.45, at: 1.00))
+        source.emit(frame(y: 0.20, at: 1.15))
 
         await fulfillment(of: [triggered], timeout: 1)
         XCTAssertEqual(triggerCount, 1)

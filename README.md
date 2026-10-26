@@ -471,3 +471,7 @@ Exact 8 GB hardware validation is tracked by [#185](https://github.com/wyz541/km
 19. Quit the app. Confirm the LaunchAgent does not restart it.
 20. Force-quit the app. Confirm the LaunchAgent restarts it.
 21. Remove the helper. Confirm `SleepDisabled` is `0`.
+22. Set the macOS preferred language to Simplified Chinese. Start Covio. Confirm the interface is Chinese.
+23. Set the macOS preferred language to English. Start Covio. Confirm the interface is English.
+24. Select **Follow System** in Covio. Change the macOS preferred language to one other than Chinese or English. Restart Covio. Confirm the interface is English.
+25. Select **English** manually. Change the macOS preferred language to Simplified Chinese. Restart Covio. Confirm the interface remains English.

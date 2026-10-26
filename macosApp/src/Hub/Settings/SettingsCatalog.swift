@@ -200,7 +200,10 @@ enum SettingsCatalog {
             section: .general,
             title: ContractCopy.copyGeneralLanguage,
             summary: nil,
-            keywords: ["language", "locale", "english", "chinese", "语言", "英文", "中文"]
+            keywords: [
+                "language", "locale", "system", "english", "chinese",
+                "语言", "系统语言", "跟随系统", "英文", "中文",
+            ]
         ),
         SettingsCatalogEntry(
             rowID: SettingsRowID.generalLocalModel,

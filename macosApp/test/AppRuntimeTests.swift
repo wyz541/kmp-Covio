@@ -200,16 +200,15 @@ final class AppRuntimeTests: XCTestCase {
 
     // MARK: - 首次启动
 
-    /// 配置文件不存在时写出一份默认配置，并补上系统语言。
-    ///
-    /// 语言留空会让 Compose 版也读到空值，所以构造时就补齐并落盘。
-    func testFirstLaunchFillsInTheSystemLanguage() throws {
+    /// 首次启动保留空语言码，空语言码表示跟随系统。
+    func testFirstLaunchKeepsFollowingTheSystemLanguage() throws {
         XCTAssertFalse(FileManager.default.fileExists(atPath: configFile.path))
         let created = makeRuntime()
 
-        XCTAssertEqual(created.config.language, CopyLocale.language.rawValue)
-        XCTAssertFalse(created.config.language.isEmpty)
-        XCTAssertEqual(try savedJSON()["language"] as? String, CopyLocale.language.rawValue)
+        XCTAssertEqual(created.languagePreference, .system)
+        XCTAssertEqual(created.language, CopyLocale.language)
+        XCTAssertEqual(created.config.language, "")
+        XCTAssertEqual(try savedJSON()["language"] as? String, "")
     }
 
     /// 首次启动显示欢迎页。用户关掉之后写回 `firstRun`。
@@ -291,19 +290,27 @@ final class AppRuntimeTests: XCTestCase {
 
     // MARK: - 语言
 
-    /// 换语言立刻落盘，界面文案跟着换。
+    /// 换语言立刻落盘，界面文案跟着换。跟随系统写回空字符串。
     func testLanguageChangeIsPersisted() throws {
         let created = makeRuntime()
 
-        created.changeLanguage(.simplifiedChinese)
+        created.setLanguagePreference(.simplifiedChinese)
 
         XCTAssertEqual(created.language, .simplifiedChinese)
+        XCTAssertEqual(created.languagePreference, .simplifiedChinese)
         XCTAssertEqual(created.config.language, "zh-CN")
         XCTAssertEqual(try savedJSON()["language"] as? String, "zh-CN")
 
-        created.changeLanguage(.english)
+        created.setLanguagePreference(.english)
         XCTAssertEqual(created.language, .english)
+        XCTAssertEqual(created.languagePreference, .english)
         XCTAssertEqual(try savedJSON()["language"] as? String, "en")
+
+        created.setLanguagePreference(.system)
+        XCTAssertEqual(created.language, CopyLocale.language)
+        XCTAssertEqual(created.languagePreference, .system)
+        XCTAssertEqual(created.config.language, "")
+        XCTAssertEqual(try savedJSON()["language"] as? String, "")
     }
 
     // MARK: - 休眠模式

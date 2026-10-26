@@ -279,6 +279,8 @@ enum ContractCopy {
     static let copyGeneralLanguageChinese = LocalizedCopy(key: "copy/general/language/chinese", en: "Simplified Chinese", zhHans: "简体中文")
     /// `copy/general/language/english`
     static let copyGeneralLanguageEnglish = LocalizedCopy(key: "copy/general/language/english", en: "English", zhHans: "English")
+    /// `copy/general/language/system`
+    static let copyGeneralLanguageSystem = LocalizedCopy(key: "copy/general/language/system", en: "Follow System", zhHans: "跟随系统")
     /// `copy/general/launch-at-login`
     static let copyGeneralLaunchAtLogin = LocalizedCopy(key: "copy/general/launch-at-login", en: "Launch at login", zhHans: "登录时启动")
     /// `copy/general/local-model/active`
@@ -1611,6 +1613,7 @@ enum ContractCopy {
         copyGeneralLanguage,
         copyGeneralLanguageChinese,
         copyGeneralLanguageEnglish,
+        copyGeneralLanguageSystem,
         copyGeneralLaunchAtLogin,
         copyGeneralLocalModelActive,
         copyGeneralLocalModelAgentDisabled,

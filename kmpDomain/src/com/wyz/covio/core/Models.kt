@@ -10,6 +10,7 @@ val SUPPORTED_HIBERNATE_MODES = setOf(0, 3, 25)
 @Serializable
 data class AppConfig(
     @SerialName("schemaVersion") val schemaVersion: Int = 3,
+    // 空字符串表示跟随系统；en 与 zh-CN 表示手动覆盖。
     @SerialName("language") val language: String = "",
     @SerialName("enabled") val enabled: Boolean = true,
     @SerialName("launchAtLogin") val launchAtLogin: Boolean = false,

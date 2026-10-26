@@ -476,13 +476,33 @@ final class SettingsFormatTests: XCTestCase {
         XCTAssertEqual(text.filter { $0 == ":" }.count, 2)
     }
 
-    /// 语言码与 Kotlin 的 `AppLanguage` 一致，空码回落系统语言。
+    /// 实际语言码与 Kotlin 的 `AppLanguage` 一致，空偏好回落到系统语言。
     func testLanguageCodesMatchKotlin() {
         XCTAssertEqual(AppLanguage.english.rawValue, "en")
         XCTAssertEqual(AppLanguage.simplifiedChinese.rawValue, "zh-CN")
+        XCTAssertEqual(AppLanguagePreference.system.rawValue, "")
+        XCTAssertEqual(AppLanguagePreference.english.rawValue, "en")
+        XCTAssertEqual(AppLanguagePreference.simplifiedChinese.rawValue, "zh-CN")
+        XCTAssertEqual(AppLanguagePreference.fromCode(nil), .system)
+        XCTAssertEqual(AppLanguagePreference.fromCode(""), .system)
+        XCTAssertEqual(AppLanguagePreference.fromCode("system"), .system)
+        XCTAssertEqual(AppLanguagePreference.fromCode("zh"), .simplifiedChinese)
+        XCTAssertEqual(AppLanguagePreference.fromCode("zh-Hans-CN"), .simplifiedChinese)
+        XCTAssertEqual(AppLanguagePreference.fromCode("en-US"), .english)
         XCTAssertEqual(AppLanguage.fromCode("en"), .english)
         XCTAssertEqual(AppLanguage.fromCode("zh-CN"), .simplifiedChinese)
         XCTAssertEqual(AppLanguage.fromCode(nil), CopyLocale.language)
         XCTAssertEqual(AppLanguage.fromCode("fr"), CopyLocale.language)
+    }
+
+    /// 首期只支持中英文，其他系统语言显示英文。
+    func testSystemLanguageFallsBackToEnglish() {
+        XCTAssertEqual(
+            CopyLocale.language(preferredLanguages: ["zh-Hans-CN", "en-US"]),
+            .simplifiedChinese
+        )
+        XCTAssertEqual(CopyLocale.language(preferredLanguages: ["en-US"]), .english)
+        XCTAssertEqual(CopyLocale.language(preferredLanguages: ["fr-FR"]), .english)
+        XCTAssertEqual(CopyLocale.language(preferredLanguages: []), .english)
     }
 }

@@ -33,8 +33,8 @@ data class Preview(
  */
 val previews: List<Preview> = listOf(
     Preview(
-        title = "Monitor 卡片标题行",
-        covers = "去掉普通指标卡上重复的 Live 胶囊，同时保留状态行和真实状态文案。",
+        title = "Monitor 状态栏",
+        covers = "保留状态栏高度，暂时隐藏状态栏内容；普通指标卡不显示 Live 胶囊。",
         issue = 405,
         content = { MonitorLiveBadgePreview() },
     ),

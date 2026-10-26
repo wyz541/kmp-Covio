@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,7 +26,7 @@ import androidx.compose.ui.unit.sp
 import com.wyz.covio.preview.DeepLink
 
 /**
- * Monitor 普通指标卡的标题行。对应 #405。
+ * Monitor 状态栏。对应 #405。
  *
  * 地址栏锚点：
  * - `#405-light`：亮色。
@@ -52,40 +53,38 @@ internal fun MonitorLiveBadgePreview() {
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
-                    text = "Monitor 卡片标题行",
+                    text = "Monitor 状态栏",
                     color = palette.textPrimary,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = "页面状态行显示实时采样状态。普通指标卡不再重复显示 Live 标记。",
+                    text = "状态栏保留原高度，内容暂时留空。普通指标卡保持无 Live 胶囊。",
                     color = palette.textSecondary,
                     fontSize = 12.sp,
                 )
             }
 
-            MonitorPreviewStatusRow(palette)
-
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 PreviewColumn(
                     title = "当前",
-                    note = "六张普通卡片都显示重复的胶囊。",
-                    showBadge = true,
+                    note = "状态栏显示实时、采样周期、热状态和样本数。",
+                    showStatusContent = true,
                     palette = palette,
                     modifier = Modifier.weight(1f),
                 )
                 PreviewColumn(
                     title = "建议",
-                    note = "标题行只保留卡片类型与标题。",
-                    showBadge = false,
+                    note = "状态栏保留高度，内容为空。",
+                    showStatusContent = false,
                     palette = palette,
                     modifier = Modifier.weight(1f),
                 )
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                PreviewNote("状态行继续显示实时状态", palette.successText, palette.successBg)
-                PreviewNote("电源与风扇保留真实状态", palette.accent, palette.accentBg)
+                PreviewNote("状态栏高度不变", palette.successText, palette.successBg)
+                PreviewNote("卡片标题不显示 Live", palette.accent, palette.accentBg)
             }
         }
     }
@@ -95,7 +94,7 @@ internal fun MonitorLiveBadgePreview() {
 private fun PreviewColumn(
     title: String,
     note: String,
-    showBadge: Boolean,
+    showStatusContent: Boolean,
     palette: MonitorLiveBadgePalette,
     modifier: Modifier = Modifier,
 ) {
@@ -109,12 +108,21 @@ private fun PreviewColumn(
     ) {
         Text(title, color = palette.textPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
         Text(note, color = palette.textSecondary, fontSize = 10.sp)
-        MonitorCards(showBadge = showBadge, palette = palette)
+        MonitorPreviewStatusRow(showContent = showStatusContent, palette = palette)
+        MonitorCards(palette = palette)
     }
 }
 
 @Composable
-private fun MonitorPreviewStatusRow(palette: MonitorLiveBadgePalette) {
+private fun MonitorPreviewStatusRow(
+    showContent: Boolean,
+    palette: MonitorLiveBadgePalette,
+) {
+    if (!showContent) {
+        Box(Modifier.fillMaxWidth().height(18.dp))
+        return
+    }
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -130,19 +138,19 @@ private fun MonitorPreviewStatusRow(palette: MonitorLiveBadgePalette) {
 }
 
 @Composable
-private fun MonitorCards(showBadge: Boolean, palette: MonitorLiveBadgePalette) {
+private fun MonitorCards(palette: MonitorLiveBadgePalette) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MonitorMiniCard("CPU", "56%", showBadge, palette, Modifier.weight(1f))
-            MonitorMiniCard("GPU", "28%", showBadge, palette, Modifier.weight(1f))
+            MonitorMiniCard("CPU", "56%", palette, Modifier.weight(1f))
+            MonitorMiniCard("GPU", "28%", palette, Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MonitorMiniCard("内存", "56%", showBadge, palette, Modifier.weight(1f))
-            MonitorMiniCard("磁盘", "67%", showBadge, palette, Modifier.weight(1f))
+            MonitorMiniCard("内存", "56%", palette, Modifier.weight(1f))
+            MonitorMiniCard("磁盘", "67%", palette, Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MonitorMiniCard("网络", "10.2 MB/s", showBadge, palette, Modifier.weight(1f))
-            MonitorMiniCard("电池", "84%", showBadge, palette, Modifier.weight(1f))
+            MonitorMiniCard("网络", "10.2 MB/s", palette, Modifier.weight(1f))
+            MonitorMiniCard("电池", "84%", palette, Modifier.weight(1f))
         }
     }
 }
@@ -151,7 +159,6 @@ private fun MonitorCards(showBadge: Boolean, palette: MonitorLiveBadgePalette) {
 private fun MonitorMiniCard(
     title: String,
     value: String,
-    showBadge: Boolean,
     palette: MonitorLiveBadgePalette,
     modifier: Modifier = Modifier,
 ) {
@@ -165,19 +172,6 @@ private fun MonitorMiniCard(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(title, color = palette.textPrimary, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.weight(1f))
-            if (showBadge) {
-                Text(
-                    text = "LIVE",
-                    color = palette.accent,
-                    fontSize = 7.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(palette.accentBg)
-                        .padding(horizontal = 6.dp, vertical = 3.dp),
-                )
-            }
         }
         Text(value, color = palette.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
         Text("最近 60 个采样点", color = palette.textSecondary, fontSize = 8.sp)

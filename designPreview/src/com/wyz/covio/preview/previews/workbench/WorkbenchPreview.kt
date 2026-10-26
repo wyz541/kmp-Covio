@@ -162,7 +162,6 @@ internal fun WorkbenchPreview() {
                                     settingsOpen -> settingsOpen = false
                                     editing -> editing = false
                                     homeSelected -> editing = true
-                                    else -> settingsOpen = true
                                 }
                             },
                             onReorder = { from, to ->
@@ -298,11 +297,11 @@ internal fun WorkbenchPreview() {
 }
 
 /** 右端那个动作按钮上的字。 */
-private fun pageAction(settingsOpen: Boolean, editing: Boolean, homeSelected: Boolean): String = when {
+private fun pageAction(settingsOpen: Boolean, editing: Boolean, homeSelected: Boolean): String? = when {
     settingsOpen -> "返回"
     editing -> "完成"
     homeSelected -> "编辑"
-    else -> "设置"
+    else -> null
 }
 
 /**

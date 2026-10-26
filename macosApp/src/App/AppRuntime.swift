@@ -798,7 +798,7 @@ final class AppRuntime {
     ///
     /// **警告：** 会删掉用户全部设置。界面必须先确认。
     func clearConfig() {
-        if config.chargeLimitEnabled, !restoreChargeLimit() {
+        if config.chargeLimitEnabled, helperStatus == .match, !restoreChargeLimit() {
             return
         }
         let defaults = ConfigStore.companion.defaults()
@@ -807,6 +807,7 @@ final class AppRuntime {
         clipboardBridge.config = defaults
         _ = engine.updateConfig(newConfig: defaults)
         powerRuntime.updateConfig(defaults.power)
+        reconcileChargeLimit()
         syncState()
         statusMessage = ContractCopy.copyDialogResetTitle.text(for: language)
     }

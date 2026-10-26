@@ -16,7 +16,7 @@ const val CHARGE_LIMIT_HYSTERESIS_PERCENT = 5
 const val CHARGE_LIMIT_MIN_RESUME_PERCENT = 35
 
 /** 首次启用时的默认上限。 */
-const val DEFAULT_CHARGE_LIMIT_PERCENT = 80
+const val DEFAULT_CHARGE_LIMIT_PERCENT = 70
 
 /** MCL 能力探测结果。 */
 enum class ChargeLimitSupport {
@@ -110,7 +110,7 @@ object ChargeLimitPolicy {
     /**
      * 规范化保存的上限。
      *
-     * 旧配置没有这个键，或磁盘里出现非法值时，回到 80%。不把非法值静默夹到
+     * 旧配置没有这个键，或磁盘里出现非法值时，回到 70%。不把非法值静默夹到
      * 最近档位，避免用户看到一个未主动选择的策略。
      */
     fun normalizeUpperLimit(percent: Int): Int =

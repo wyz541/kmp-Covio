@@ -26,8 +26,8 @@ class VersionAndConfigTest {
             assertEquals(6, defaults.lowBatteryCapacity)
             assertEquals(10, defaults.lowTimeRemainingMinutes)
             assertEquals(null, defaults.hibernateMode)
-            assertFalse(defaults.chargeLimitEnabled)
-            assertEquals(80, defaults.chargeLimitPercent)
+            assertTrue(defaults.chargeLimitEnabled)
+            assertEquals(70, defaults.chargeLimitPercent)
             assertTrue(path.exists)
         }
 
@@ -112,11 +112,26 @@ class VersionAndConfigTest {
         }
 
     @Test
-    fun `an invalid charge limit falls back to eighty`() {
-        assertEquals(80, AppConfig(chargeLimitPercent = 79).normalized().chargeLimitPercent)
-        assertEquals(80, AppConfig(chargeLimitPercent = 15).normalized().chargeLimitPercent)
+    fun `an invalid charge limit falls back to seventy`() {
+        assertEquals(70, AppConfig(chargeLimitPercent = 79).normalized().chargeLimitPercent)
+        assertEquals(70, AppConfig(chargeLimitPercent = 15).normalized().chargeLimitPercent)
         assertEquals(100, AppConfig(chargeLimitPercent = 100).normalized().chargeLimitPercent)
     }
+
+    @Test
+    fun `explicit disabled charge limit survives loading`() =
+        withTemporaryDirectory("config") { directory ->
+            val path = directory.resolve("config.json")
+            path.writeText(
+                """{"chargeLimitEnabled":false,"chargeLimitPercent":75,"chargeLimitActiveDischarge":false}""",
+            )
+
+            val loaded = ConfigStore(path.toString()).load()
+
+            assertFalse(loaded.chargeLimitEnabled)
+            assertEquals(75, loaded.chargeLimitPercent)
+            assertFalse(loaded.chargeLimitActiveDischarge)
+        }
 
     @Test
     fun `an older config gains the charge limit defaults`() =
@@ -126,8 +141,8 @@ class VersionAndConfigTest {
 
             val loaded = ConfigStore(path.toString()).load()
 
-            assertFalse(loaded.chargeLimitEnabled)
-            assertEquals(80, loaded.chargeLimitPercent)
+            assertTrue(loaded.chargeLimitEnabled)
+            assertEquals(70, loaded.chargeLimitPercent)
             assertFalse(loaded.chargeLimitActiveDischarge)
         }
 

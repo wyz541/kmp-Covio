@@ -454,8 +454,18 @@ final class AppRuntimeTests: XCTestCase {
 
     // MARK: - 充电上限
 
+    func testDefaultConfigAppliesSeventyAtStartup() {
+        let created = makeRuntime(engineStarted: true, helperInstalled: true)
+
+        XCTAssertTrue(created.config.chargeLimitEnabled)
+        XCTAssertEqual(created.config.chargeLimitPercent, 70)
+        XCTAssertEqual(chargeLimitClient.setValues, [70])
+        XCTAssertEqual(chargeLimitClient.setActiveValues, [false])
+    }
+
     func testApplyChargeLimitPersistsOnlyAfterHelperAccepts() throws {
         let created = makeRuntime(engineStarted: true, helperInstalled: true)
+        chargeLimitClient.resetCalls()
 
         XCTAssertTrue(created.applyChargeLimit(85))
 
@@ -472,11 +482,13 @@ final class AppRuntimeTests: XCTestCase {
         XCTAssertEqual(created.helperStatus, .identityMismatch)
         XCTAssertFalse(created.applyChargeLimit(85))
         XCTAssertTrue(chargeLimitClient.setValues.isEmpty)
-        XCTAssertFalse(created.config.chargeLimitEnabled)
+        XCTAssertTrue(created.config.chargeLimitEnabled)
+        XCTAssertEqual(created.config.chargeLimitPercent, 70)
     }
 
     func testApplyChargeLimitPersistsActiveDischarge() throws {
         let created = makeRuntime(engineStarted: true, helperInstalled: true)
+        chargeLimitClient.resetCalls()
 
         XCTAssertTrue(created.applyChargeLimit(70, activeDischarge: true))
 
@@ -488,6 +500,7 @@ final class AppRuntimeTests: XCTestCase {
 
     func testRestoreChargeLimitClearsTheSavedIntent() throws {
         let created = makeRuntime(engineStarted: true, helperInstalled: true)
+        chargeLimitClient.resetCalls()
         XCTAssertTrue(created.applyChargeLimit(70, activeDischarge: true))
 
         XCTAssertTrue(created.restoreChargeLimit())
@@ -499,6 +512,7 @@ final class AppRuntimeTests: XCTestCase {
 
     func testFailedChargeLimitApplyDoesNotPersistTheIntent() throws {
         let created = makeRuntime(engineStarted: true, helperInstalled: true)
+        chargeLimitClient.resetCalls()
         chargeLimitClient.setResult = false
 
         XCTAssertFalse(created.applyChargeLimit(85))
@@ -509,6 +523,7 @@ final class AppRuntimeTests: XCTestCase {
 
     func testFailedChargeLimitChangeDisablesThePreviousIntent() throws {
         let created = makeRuntime(engineStarted: true, helperInstalled: true)
+        chargeLimitClient.resetCalls()
         XCTAssertTrue(created.applyChargeLimit(70, activeDischarge: true))
         chargeLimitClient.setResult = false
 
@@ -578,21 +593,27 @@ final class AppRuntimeTests: XCTestCase {
         XCTAssertEqual(created.config.lowBatteryCapacity, defaults.lowBatteryCapacity)
         XCTAssertEqual(created.config.hibernateMode?.int32Value, defaults.hibernateMode?.int32Value)
         XCTAssertEqual(created.config.firstRun, defaults.firstRun)
+        XCTAssertTrue(created.config.chargeLimitEnabled)
+        XCTAssertEqual(created.config.chargeLimitPercent, 70)
         XCTAssertNotNil(created.statusMessage)
     }
 
     func testClearConfigRestoresAnActiveChargeLimitFirst() throws {
         let created = makeRuntime(engineStarted: true, helperInstalled: true)
+        chargeLimitClient.resetCalls()
         XCTAssertTrue(created.applyChargeLimit(85))
 
         created.clearConfig()
 
         XCTAssertEqual(chargeLimitClient.restoreCalls, 1)
-        XCTAssertFalse(created.config.chargeLimitEnabled)
+        XCTAssertEqual(chargeLimitClient.setValues, [85, 70])
+        XCTAssertTrue(created.config.chargeLimitEnabled)
+        XCTAssertEqual(created.config.chargeLimitPercent, 70)
     }
 
     func testFailedChargeLimitRestorePreventsClearingConfig() throws {
         let created = makeRuntime(engineStarted: true, helperInstalled: true)
+        chargeLimitClient.resetCalls()
         XCTAssertTrue(created.applyChargeLimit(85))
         chargeLimitClient.restoreResult = false
 
@@ -693,6 +714,12 @@ private final class FakeChargeLimitClient: ChargeLimitClientProtocol, @unchecked
     func restoreChargeLimit() -> Bool {
         restoreCalls += 1
         return restoreResult
+    }
+
+    func resetCalls() {
+        setValues.removeAll()
+        setActiveValues.removeAll()
+        restoreCalls = 0
     }
 }
 

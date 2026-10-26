@@ -35,7 +35,7 @@ data class AppConfig(
     @SerialName("clipboardPasteStackHotKey") val clipboardPasteStackHotKey: String = DEFAULT_PASTE_STACK_HOT_KEY,
     @SerialName("clipboardCaptureHotKey") val clipboardCaptureHotKey: String = DEFAULT_CAPTURE_HOT_KEY,
     @SerialName("power") val power: PowerConfig = PowerConfig(),
-    @SerialName("chargeLimitEnabled") val chargeLimitEnabled: Boolean = false,
+    @SerialName("chargeLimitEnabled") val chargeLimitEnabled: Boolean = true,
     @SerialName("chargeLimitPercent") val chargeLimitPercent: Int = DEFAULT_CHARGE_LIMIT_PERCENT,
     @SerialName("chargeLimitActiveDischarge") val chargeLimitActiveDischarge: Boolean = false,
     @SerialName("fileNaming") val fileNaming: FileNamingPolicy = FileNamingPolicy(),

@@ -746,7 +746,8 @@ The artifact manifest adds gitCommit, releaseId and helperSHA256.
 
 ## 参考来源
 
-- [Covio v0.5.2 release](https://github.com/wyz541/kmp-Covio/releases/tag/v0.5.2)
+- [Covio v0.5.2-internal.5 release](https://github.com/wyz541/kmp-Covio/releases/tag/v0.5.2-internal.5)
+- [Covio v0.5.2 legacy full-model release](https://github.com/wyz541/kmp-Covio/releases/tag/v0.5.2)
 - [ADR-0007](../../adr/adr-0007-offline-file-naming-model-package.md)
 - [ADR-0013](../../adr/adr-0013-local-model-tiers.md)
 - [WhisperKit model acquisition](https://github.com/argmaxinc/argmax-oss-swift/blob/9f99b5cb6a907730543823ad271b82532782a899/README.md)

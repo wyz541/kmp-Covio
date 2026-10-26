@@ -4,12 +4,12 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 状态 | 通过 internal/local 检查 |
+| 状态 | 通过；已发布 internal prerelease |
 | 日期 | `2026-10-25` 至 `2026-10-26` |
 | 关联测试 | `V09` |
 | 渠道 | internal/local |
 | 签名 | ad-hoc |
-| Draft | `v0.5.2-internal.5` |
+| Release | `v0.5.2-internal.5` |
 
 ## 验证目标
 
@@ -17,7 +17,7 @@
 验证默认 DMG 不含模型。
 验证离线 DMG 含固定 revision 的模型。
 验证 app bundle 签名。
-验证 Draft 资产可重新下载并复核。
+验证 Release 资产可重新下载并复核。
 
 ## 预检记录
 
@@ -53,9 +53,9 @@
 Gatekeeper 拒绝是 ADR-0020 的已知结果。
 当前渠道不要求 Developer ID 或 notarization。
 
-### Draft 资产
+### Release 资产
 
-Draft 包含：
+Release 包含：
 
 - `Covio-0.5.2.app.zip`
 - `Covio-0.5.2.pkg`
@@ -70,7 +70,7 @@ Draft 包含：
 远程复核命令：
 
 ```sh
-bash scripts/publish-release.sh v0.5.2-internal.5 --dry-run
+gh release view v0.5.2-internal.5 --json isDraft,isPrerelease,assets,url
 ```
 
 实际复核：
@@ -88,7 +88,7 @@ bash scripts/publish-release.sh v0.5.2-internal.5 --dry-run
 
 | 测试 | 结果 | 证据 |
 | --- | --- | --- |
-| V09 | 通过 internal/local 检查 | [release-final.json](evidence/2026-10-25-release-final.json)、[draft-assets.json](evidence/2026-10-25-draft-assets.json) |
+| V09 | 通过 internal/local 检查 | [release-final.json](evidence/2026-10-25-release-final.json)、[release-assets.json](evidence/2026-10-25-release-assets.json) |
 
 ## 错误码
 
@@ -99,7 +99,7 @@ bash scripts/publish-release.sh v0.5.2-internal.5 --dry-run
 1. 卸载两个 DMG。
 2. 删除本地测试副本。
 3. 保留脱敏发布记录。
-4. 保留 Draft，等待发布负责人审阅。
+4. 保留已发布的 internal prerelease。
 
 ## 关联文档
 

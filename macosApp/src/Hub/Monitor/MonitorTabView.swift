@@ -160,48 +160,10 @@ struct MonitorTabView: View {
     // MARK: - 状态行
 
     private var statusRow: some View {
-        HStack(spacing: MacTheme.space1) {
-            Circle()
-                .fill(snapshot.sampledAt == .distantPast ? MacTheme.textSecondary : thermalAccent)
-                .frame(width: 6, height: 6)
-            Text(ContractCopy.copyMonitorLive.text(for: language))
-            Text("·")
-            Text(cadenceText)
-            Spacer(minLength: MacTheme.space2)
-            Text(ContractCopy.copyMonitorThermal.text(for: language))
-            Text("·")
-            Text(thermalText)
-            Text("·")
-            Text("\(history.cpu.count)/60")
-        }
-        .font(.system(size: 10, weight: .medium))
-        .foregroundStyle(MacTheme.textSecondary)
-        .frame(height: 18)
-        .accessibilityElement(children: .combine)
-    }
-
-    private var cadenceText: String {
-        let copy = snapshot.isOnBattery
-            ? ContractCopy.copyMonitorSamplingSlow
-            : ContractCopy.copyMonitorSamplingFast
-        return copy.text(for: language)
-    }
-
-    private var thermalText: String {
-        switch snapshot.thermal {
-        case .nominal: ContractCopy.copyMonitorThermalNominal.text(for: language)
-        case .fair: ContractCopy.copyMonitorThermalFair.text(for: language)
-        case .serious: ContractCopy.copyMonitorThermalSerious.text(for: language)
-        case .critical: ContractCopy.copyMonitorThermalCritical.text(for: language)
-        }
-    }
-
-    private var thermalAccent: Color {
-        switch snapshot.thermal {
-        case .nominal: MacTheme.successText
-        case .fair: MacTheme.warningText
-        case .serious, .critical: MacTheme.errorText
-        }
+        Color.clear
+            .frame(maxWidth: .infinity)
+            .frame(height: 18)
+            .accessibilityHidden(true)
     }
 
     // MARK: - 卡片
@@ -1681,13 +1643,15 @@ struct MonitorCardShell<Content: View>: View {
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(MacTheme.textPrimary)
                 Spacer(minLength: MacTheme.space1)
-                Text(statusText ?? ContractCopy.copyMonitorLive.text(for: language).uppercased())
-                    .font(.system(size: 8, weight: .bold))
-                    .tracking(0.7)
-                    .foregroundStyle(accent)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(accent.opacity(0.12), in: Capsule())
+                if let statusText {
+                    Text(statusText.uppercased())
+                        .font(.system(size: 8, weight: .bold))
+                        .tracking(0.7)
+                        .foregroundStyle(accent)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(accent.opacity(0.12), in: Capsule())
+                }
             }
 
             content

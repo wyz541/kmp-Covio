@@ -178,7 +178,13 @@ final class AppRuntime {
         self.updateChecker = updateChecker
 
         // 空语言表示跟随系统。不要把解析出的语言写回配置，否则系统语言以后变化时不再生效。
-        let loaded = resolvedStore.load()
+        var loaded = resolvedStore.load()
+        if loaded.power.enabled != loaded.enabled {
+            let draft = ConfigDraft(loaded)
+            draft.power = Self.powerWithEnabled(loaded.power, enabled: loaded.enabled)
+            loaded = draft.build()
+            resolvedStore.save(config: loaded)
+        }
         self.config = loaded
         self.appState = AppRuntime.initialState(enabled: loaded.enabled)
         self.welcomeVisible = loaded.firstRun
@@ -337,6 +343,7 @@ final class AppRuntime {
             observationSource: resolvedPowerObservation,
             historyStore: resolvedPowerHistory,
             config: loaded.power,
+            sleepProtectionEnabled: loaded.enabled,
             closedLidBrightnessBackend: closedLidBrightnessBackend,
             closedLidBrightnessStore: closedLidBrightnessStore
         )
@@ -599,7 +606,10 @@ final class AppRuntime {
     // MARK: - 设置动作。逐个对应 Compose 版 `AppRuntime` 的同名方法。
 
     func setEnabled(_ enabled: Bool) {
-        if !updateConfigDraft({ $0.enabled = enabled }) {
+        if !updateConfigDraft({
+            $0.enabled = enabled
+            $0.power = Self.powerWithEnabled($0.power, enabled: enabled)
+        }) {
             statusMessage = ContractCopy.copyToastError.text(for: language)
         }
     }
@@ -667,7 +677,7 @@ final class AppRuntime {
     }
 
     func setPowerEnabled(_ enabled: Bool) {
-        updatePower { copyPower($0, enabled: enabled) }
+        setEnabled(enabled)
     }
 
     func setPowerKeepAwakeOnAdapter(_ enabled: Bool) {
@@ -763,7 +773,7 @@ final class AppRuntime {
 
     /// 合盖后是否阻止睡眠。开关状态来自引擎，不是配置。
     func toggleLidSleep() {
-        engine.setLidSleepAvailable(available: appState.lidSleepAvailable)
+        engine.setLidSleepAvailable(available: !appState.lidSleepAvailable)
         syncState()
     }
 
@@ -808,7 +818,7 @@ final class AppRuntime {
         config = defaults
         clipboardBridge.config = defaults
         _ = engine.updateConfig(newConfig: defaults)
-        powerRuntime.updateConfig(defaults.power)
+        powerRuntime.updateConfig(defaults.power, sleepProtectionEnabled: defaults.enabled)
         syncState()
         statusMessage = ContractCopy.copyDialogResetTitle.text(for: language)
     }
@@ -1104,7 +1114,10 @@ final class AppRuntime {
     @discardableResult
     private func updateConfig(_ newConfig: AppConfig) -> Bool {
         let previous = config
-        let normalized = newConfig.normalized()
+        let candidate = newConfig.normalized()
+        let draft = ConfigDraft(candidate)
+        draft.power = Self.powerWithEnabled(candidate.power, enabled: candidate.enabled)
+        let normalized = draft.build().normalized()
         config = normalized
         clipboardBridge.config = normalized
         configStore.save(config: normalized)
@@ -1115,13 +1128,31 @@ final class AppRuntime {
             configStore.save(config: previous)
             _ = engine.updateConfig(newConfig: previous)
         }
-        powerRuntime.updateConfig(config.power)
+        powerRuntime.updateConfig(config.power, sleepProtectionEnabled: config.enabled)
         syncState()
         return success
     }
 
     private func updatePower(_ change: (PowerConfig) -> PowerConfig) {
-        write { $0.power = change($0.power).normalized() }
+        write {
+            $0.power = Self.powerWithEnabled(change($0.power).normalized(), enabled: $0.enabled)
+        }
+    }
+
+    private static func powerWithEnabled(_ value: PowerConfig, enabled: Bool) -> PowerConfig {
+        PowerConfig(
+            enabled: enabled,
+            keepAwakeOnAdapter: value.keepAwakeOnAdapter,
+            keepAwakeOnBattery: value.keepAwakeOnBattery,
+            allowClosedLid: value.allowClosedLid,
+            pauseClosedLidWithExternalDisplay: value.pauseClosedLidWithExternalDisplay,
+            batteryFloorPercent: value.batteryFloorPercent,
+            batteryFloorRecoveryPercent: value.batteryFloorRecoveryPercent,
+            yieldOnLowPowerMode: value.yieldOnLowPowerMode,
+            heatGuardEnabled: value.heatGuardEnabled,
+            closedLidTimeCapMinutes: value.closedLidTimeCapMinutes,
+            closedLidZeroBrightness: value.closedLidZeroBrightness
+        )
     }
 
     private func copyPower(

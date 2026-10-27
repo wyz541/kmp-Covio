@@ -495,6 +495,41 @@ final class EngineContractTests: XCTestCase {
         XCTAssertFalse(fixture.engine.currentState.lidSleepAvailable)
     }
 
+    func testPowerLidHoldFailsWhenSleepProtectionIsOff() {
+        let fixture = Fixture(config: AppConfigs.make(enabled: false))
+        fixture.privileged.match = true
+        fixture.engine.start()
+
+        XCTAssertFalse(fixture.engine.setPowerLidHold(required: true))
+        XCTAssertTrue(fixture.engine.currentState.lidSleepAvailable)
+        XCTAssertFalse(fixture.privileged.sleepDisabled)
+    }
+
+    func testPowerLidHoldFailsWhenTheHelperDoesNotApplyTheSystemState() {
+        let fixture = Fixture()
+        fixture.privileged.match = true
+        fixture.privileged.appliesDisableSleepState = false
+        fixture.engine.start()
+
+        XCTAssertFalse(fixture.engine.setPowerLidHold(required: true))
+        XCTAssertTrue(fixture.engine.currentState.lidSleepAvailable)
+        XCTAssertFalse(fixture.privileged.sleepDisabled)
+    }
+
+    func testPowerLidHoldReverifiesAnExistingClaim() {
+        let fixture = Fixture()
+        fixture.privileged.match = true
+        fixture.engine.start()
+        XCTAssertTrue(fixture.engine.setPowerLidHold(required: true))
+        XCTAssertFalse(fixture.engine.currentState.lidSleepAvailable)
+
+        fixture.privileged.sleepDisabled = false
+        fixture.privileged.covioOwned = false
+
+        XCTAssertFalse(fixture.engine.setPowerLidHold(required: true))
+        XCTAssertTrue(fixture.engine.currentState.lidSleepAvailable)
+    }
+
     /// 对应 `helper lease expiry updates lid availability`。
     func testHelperLeaseExpiryUpdatesLidAvailability() {
         var now: Int64 = 1_000

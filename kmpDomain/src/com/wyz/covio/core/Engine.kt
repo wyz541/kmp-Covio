@@ -318,8 +318,12 @@ class Engine(
         if (result.released && currentState.lid == LidState.CLOSED && currentConfig.lidSleepImmediateOnClose) {
             requestSleep(restoreAfterWake = true)
         }
+        if (result.success && required) refreshLidLeaseStatus()
         publish()
-        return result.success
+        if (!result.success || !required) return result.success
+        val leaseStatus = currentState.lidLeaseStatus
+        return leaseStatus.sleepDisabled == true &&
+            leaseStatus.covioOwned == true
     }
 
     /**

@@ -74,9 +74,6 @@ struct WorkbenchTabBar: View {
     @FocusState private var focusedTarget: NavigationGlassTarget?
     /// 搜索框的键盘焦点。搜索框不是目的地，所以单独保存焦点状态。
     @FocusState private var searchFocused: Bool
-    /// 选中玻璃的身份。切换页签时让同一个玻璃形状完成 transition。
-    @Namespace private var selectionNamespace
-
     var body: some View {
         HStack(spacing: HubMetrics.tabBarItemGap) {
             homeEntry
@@ -102,12 +99,10 @@ struct WorkbenchTabBar: View {
         return Button(action: onHome) {
             homeLabel
                 .contentShape(Rectangle())
+                .background { navigationBackground(for: .home, isSelected: isSelected) }
         }
         .buttonStyle(.plain)
         .focused($focusedTarget, equals: .home)
-        .glassEffect(navigationGlass(for: .home, isSelected: isSelected), in: .capsule)
-        .glassEffectID(isSelected ? Self.selectionGlassID : nil, in: selectionNamespace)
-        .glassEffectTransition(.matchedGeometry)
         .overlay { navigationFocusRing(for: .home) }
         .accessibilityLabel(ContractCopy.copyHubActionHome.text(for: language))
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
@@ -178,17 +173,26 @@ struct WorkbenchTabBar: View {
 
     // MARK: - 页签
 
+    @ViewBuilder
     private var tabStrip: some View {
-        ScrollView(.horizontal) {
-            HStack(spacing: HubMetrics.tabGap) {
-                ForEach(Array(panes.enumerated()), id: \.element.id) { _, pane in
-                    tab(pane)
-                }
+        if HubMetrics.tabsWidth(count: panes.count) <= HubMetrics.tabStripWidth {
+            tabRow
+        } else {
+            ScrollView(.horizontal) {
+                tabRow
             }
-            .padding(.vertical, 1)
+            .scrollIndicators(.never)
         }
-        .scrollIndicators(.never)
-        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var tabRow: some View {
+        HStack(spacing: HubMetrics.tabGap) {
+            ForEach(Array(panes.enumerated()), id: \.element.id) { _, pane in
+                tab(pane)
+            }
+        }
+        .padding(.vertical, 1)
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     private func tab(_ pane: PaneItem) -> some View {
@@ -199,12 +203,12 @@ struct WorkbenchTabBar: View {
         } label: {
             tabLabel(pane, isSelected: isSelected)
                 .contentShape(Rectangle())
+                .background {
+                    navigationBackground(for: .pane(pane.id), isSelected: isSelected)
+                }
         }
         .buttonStyle(.plain)
         .focused($focusedTarget, equals: .pane(pane.id))
-        .glassEffect(navigationGlass(for: .pane(pane.id), isSelected: isSelected), in: .capsule)
-        .glassEffectID(isSelected ? Self.selectionGlassID : nil, in: selectionNamespace)
-        .glassEffectTransition(.matchedGeometry)
         .overlay { navigationFocusRing(for: .pane(pane.id)) }
         .accessibilityLabel(pane.title)
         .accessibilityHint(pane.tab.summary.text(for: language))
@@ -246,17 +250,28 @@ struct WorkbenchTabBar: View {
                 .lineLimit(1)
         }
         .padding(.horizontal, HubMetrics.tabHPadding)
-        .frame(height: HubMetrics.tabHeight)
+        .frame(width: HubMetrics.tabWidth, height: HubMetrics.tabHeight)
     }
 
-    private func navigationGlass(for target: NavigationGlassTarget, isSelected: Bool) -> Glass {
+    /// 导航高亮使用固定尺寸的颜色胶囊，不参与外层 Liquid Glass 合并。
+    @ViewBuilder
+    private func navigationBackground(
+        for target: NavigationGlassTarget,
+        isSelected: Bool
+    ) -> some View {
         if isSelected {
-            return .regular.tint(MacTheme.accent.opacity(0.24)).interactive()
+            Capsule(style: .continuous).fill(MacTheme.accent.opacity(0.24))
+        } else if hoveredTarget == target || focusedTarget == target {
+            Capsule(style: .continuous).fill(MacTheme.accent.opacity(0.12))
+        } else {
+            Color.clear
         }
-        if hoveredTarget == target || focusedTarget == target {
-            return .regular.tint(MacTheme.accent.opacity(0.12)).interactive()
-        }
-        return .identity
+    }
+
+    private func actionGlass(for target: NavigationGlassTarget) -> Glass {
+        hoveredTarget == target || focusedTarget == target
+            ? .regular.tint(MacTheme.accent.opacity(0.12)).interactive()
+            : .identity
     }
 
     @ViewBuilder
@@ -316,7 +331,7 @@ struct WorkbenchTabBar: View {
         }
         .buttonStyle(.plain)
         .focused($focusedTarget, equals: .pageAction)
-        .glassEffect(navigationGlass(for: .pageAction, isSelected: false), in: .capsule)
+        .glassEffect(actionGlass(for: .pageAction), in: .capsule)
         .overlay { navigationFocusRing(for: .pageAction) }
         .accessibilityLabel(action.text(for: language))
         .onHover { hoveredTarget = $0 ? .pageAction : nil }
@@ -330,8 +345,6 @@ struct WorkbenchTabBar: View {
             .padding(.horizontal, HubMetrics.actionHPadding)
             .frame(minWidth: HubMetrics.actionButtonMinWidth, minHeight: HubMetrics.tabHeight)
     }
-
-    private static let selectionGlassID = "workbench-navigation-selection"
 
 }
 

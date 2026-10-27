@@ -27,6 +27,18 @@ final class WorkbenchTabBarTests: XCTestCase {
         XCTAssertEqual(Set(titles).count, titles.count, "有两个默认页签用了同一个标题")
     }
 
+    /// 页签宽度固定。默认六个页签必须一次显示完，不能因标题宽度改变选中背景。
+    func testDefaultTabsUseAFixedWidthThatFitsTheBar() {
+        let count = panes().count
+
+        XCTAssertEqual(HubMetrics.tabReorderStep, HubMetrics.tabWidth + HubMetrics.tabGap)
+        XCTAssertLessThanOrEqual(
+            HubMetrics.tabsWidth(count: count),
+            HubMetrics.tabStripWidth,
+            "默认页签不应该触发横向滚动"
+        )
+    }
+
     /// 页签数量不超过模型的上限。
     func testTheTabCountStaysWithinTheModelLimit() {
         XCTAssertLessThanOrEqual(panes().count, Int(WorkbenchConfig.companion.MAX_PANES))

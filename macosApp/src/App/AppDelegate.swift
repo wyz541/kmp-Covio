@@ -34,6 +34,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // LSUIElement 已经让进程成为代理应用。这里显式再设一次，防止从 Xcode 直接运行时不一致。
         NSApp.setActivationPolicy(.accessory)
 
+        #if DEBUG
+        switch ProcessInfo.processInfo.environment["COVIO_FORCE_APPEARANCE"]?.lowercased() {
+        case "dark":
+            NSApp.appearance = NSAppearance(named: .darkAqua)
+        case "light":
+            NSApp.appearance = NSAppearance(named: .aqua)
+        default:
+            break
+        }
+        #endif
+
         if let path = ProcessInfo.processInfo.environment["COVIO_FILE_NAMING_ACCEPTANCE_PATH"],
            !path.isEmpty
         {

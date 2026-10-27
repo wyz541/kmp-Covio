@@ -28,6 +28,10 @@ struct ClipboardTabView: View {
         guard ProcessInfo.processInfo.environment["COVIO_CLIPBOARD_LIVE_PREVIEW"] == "1" else {
             return nil
         }
+        if let selectedID = ProcessInfo.processInfo.environment["COVIO_CLIPBOARD_LIVE_PREVIEW_SELECTION"],
+           !selectedID.isEmpty {
+            return "clip:\(selectedID)"
+        }
         return clipboard.items
             .first { $0.kind == .text }
             .map { "clip:\($0.id)" }

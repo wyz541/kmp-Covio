@@ -6100,6 +6100,14 @@
       "en": "Recent activity",
       "zh-Hans": "最近活动"
     },
+    "copy/power/error/lid-not-applied": {
+      "en": "The helper did not apply closed-lid protection. Check Helper status and try again.",
+      "zh-Hans": "Helper 没有应用合盖保护。检查 Helper 状态后重试。"
+    },
+    "copy/power/error/master-off": {
+      "en": "Turn on Sleep Protection before starting a session.",
+      "zh-Hans": "启动会话前，请先打开“睡眠保护”。"
+    },
     "copy/power/status/adapter": {
       "en": "Adapter",
       "zh-Hans": "适配器"

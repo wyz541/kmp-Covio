@@ -206,6 +206,9 @@ final class PowerRuntimeTests: XCTestCase {
 
         XCTAssertTrue(runtime.startSession(mode: .lid, duration: .oneHour))
         XCTAssertTrue(fixture.privileged.sleepDisabled)
+        XCTAssertEqual(runtime.executionError, nil)
+        XCTAssertTrue(runtime.snapshot.sleepDisabled?.boolValue == true)
+        XCTAssertTrue(runtime.snapshot.covioOwnsSleepDisabled?.boolValue == true)
 
         fixture.lid.emit(.closed)
 
@@ -221,6 +224,49 @@ final class PowerRuntimeTests: XCTestCase {
         XCTAssertFalse(runtime.startSession(mode: .lid, duration: .oneHour))
         XCTAssertEqual(runtime.executionError, "helper-unavailable")
         XCTAssertFalse(runtime.hasManualSession)
+    }
+
+    func testClosedLidSessionRefusesWhenSleepProtectionIsOff() {
+        fixture.privileged.match = true
+        observation.value = makeObservation(powerState: .acPower, batteryPercent: 80, hasBattery: true)
+        runtime = makeRuntime(
+            config: makeConfig(enabled: true),
+            sleepProtectionEnabled: false
+        )
+        runtime.start()
+
+        XCTAssertFalse(runtime.startSession(mode: .lid, duration: .oneHour))
+        XCTAssertEqual(runtime.executionError, "sleep-protection-disabled")
+        XCTAssertFalse(runtime.hasManualSession)
+        XCTAssertFalse(fixture.privileged.sleepDisabled)
+    }
+
+    func testClosedLidSessionFailsWhenTheHelperDoesNotApplySleepDisabled() {
+        fixture.privileged.match = true
+        fixture.privileged.appliesDisableSleepState = false
+        observation.value = makeObservation(powerState: .acPower, batteryPercent: 80, hasBattery: true)
+        runtime = makeRuntime(config: makeConfig())
+        runtime.start()
+
+        XCTAssertFalse(runtime.startSession(mode: .lid, duration: .oneHour))
+        XCTAssertEqual(runtime.executionError, "lid-hold-not-applied")
+        XCTAssertFalse(runtime.hasManualSession)
+        XCTAssertFalse(fixture.privileged.sleepDisabled)
+    }
+
+    func testClosedLidSessionRetriesAfterAHelperFailure() {
+        fixture.privileged.match = true
+        fixture.privileged.disableSleepResults = [false, true]
+        observation.value = makeObservation(powerState: .acPower, batteryPercent: 80, hasBattery: true)
+        runtime = makeRuntime(config: makeConfig())
+        runtime.start()
+
+        XCTAssertFalse(runtime.startSession(mode: .lid, duration: .oneHour))
+        XCTAssertFalse(runtime.hasManualSession)
+
+        XCTAssertTrue(runtime.startSession(mode: .lid, duration: .oneHour))
+        XCTAssertTrue(runtime.hasManualSession)
+        XCTAssertTrue(fixture.privileged.sleepDisabled)
     }
 
     func testExperimentalClosedLidPathOwnsBrightnessAndSuppressesPublicDisplayOff() {
@@ -318,6 +364,7 @@ final class PowerRuntimeTests: XCTestCase {
         observationSource: FakePowerObservationSource? = nil,
         brightnessBackend: FakeClosedLidBrightnessBackend? = nil,
         brightnessStore: FakeClosedLidBrightnessRecoveryStore? = nil,
+        sleepProtectionEnabled: Bool = true,
         nowEpochSeconds: @escaping () -> Int64 = { 1_000 }
     ) -> PowerRuntime {
         PowerRuntime(
@@ -326,6 +373,7 @@ final class PowerRuntimeTests: XCTestCase {
             observationSource: observationSource ?? observation,
             historyStore: historyStore,
             config: config,
+            sleepProtectionEnabled: sleepProtectionEnabled,
             closedLidBrightnessBackend: brightnessBackend ?? self.brightnessBackend,
             closedLidBrightnessStore: brightnessStore ?? self.brightnessStore,
             nowEpochSeconds: nowEpochSeconds

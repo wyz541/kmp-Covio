@@ -459,6 +459,53 @@ final class AppRuntimeTests: XCTestCase {
         XCTAssertEqual(created.powerRuntime.config.closedLidTimeCapMinutes, 90)
     }
 
+    func testPowerEnableStateStaysAlignedWithSleepProtection() throws {
+        let created = makeRuntime()
+
+        created.setPowerEnabled(false)
+
+        XCTAssertFalse(created.config.enabled)
+        XCTAssertFalse(created.config.power.enabled)
+        XCTAssertFalse(created.powerRuntime.sleepProtectionEnabled)
+        var saved = try XCTUnwrap(savedJSON()["power"] as? [String: Any])
+        XCTAssertEqual(try savedJSON()["enabled"] as? Bool, false)
+        XCTAssertEqual(saved["enabled"] as? Bool, false)
+
+        created.setEnabled(true)
+
+        XCTAssertTrue(created.config.enabled)
+        XCTAssertTrue(created.config.power.enabled)
+        XCTAssertTrue(created.powerRuntime.sleepProtectionEnabled)
+        saved = try XCTUnwrap(savedJSON()["power"] as? [String: Any])
+        XCTAssertEqual(try savedJSON()["enabled"] as? Bool, true)
+        XCTAssertEqual(saved["enabled"] as? Bool, true)
+    }
+
+    func testStartupAlignsLegacyPowerEnablementWithSleepProtection() throws {
+        let draft = ConfigDraft(AppConfigs.defaults)
+        draft.enabled = false
+        ConfigStore.companion.create(path: configFile.path).save(config: draft.build())
+
+        let created = makeRuntime()
+
+        XCTAssertFalse(created.config.enabled)
+        XCTAssertFalse(created.config.power.enabled)
+        XCTAssertFalse(created.powerRuntime.sleepProtectionEnabled)
+        let saved = try XCTUnwrap(savedJSON()["power"] as? [String: Any])
+        XCTAssertEqual(saved["enabled"] as? Bool, false)
+    }
+
+    func testLidToggleUsesActualAvailability() {
+        let created = makeRuntime(engineStarted: true, helperInstalled: true)
+        XCTAssertTrue(created.appState.lidSleepAvailable)
+
+        created.toggleLidSleep()
+        XCTAssertFalse(created.appState.lidSleepAvailable)
+
+        created.toggleLidSleep()
+        XCTAssertTrue(created.appState.lidSleepAvailable)
+    }
+
     // MARK: - 充电上限
 
     func testApplyChargeLimitPersistsOnlyAfterHelperAccepts() throws {

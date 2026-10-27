@@ -307,6 +307,8 @@ final class FakePrivilegedOps: NSObject, PrivilegedOps {
         set { statusValue = newValue ? .match : .missing }
     }
     var disableSleepResult = true
+    var disableSleepResults: [Bool] = []
+    var appliesDisableSleepState = true
     var installResult = true
     var sleepDisabled = false
     var covioOwned: Bool?
@@ -328,8 +330,13 @@ final class FakePrivilegedOps: NSObject, PrivilegedOps {
 
     func setDisableSleep(disabled: Bool) -> Bool {
         disableSleepValues.append(disabled)
-        if disableSleepResult { sleepDisabled = disabled }
-        return disableSleepResult
+        let accepted = disableSleepResults.isEmpty
+            ? disableSleepResult
+            : disableSleepResults.removeFirst()
+        if accepted, appliesDisableSleepState {
+            sleepDisabled = disabled
+        }
+        return accepted
     }
 
     func lidLeaseStatus() -> LidLeaseStatus {

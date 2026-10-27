@@ -47,6 +47,7 @@ final class PowerRuntime {
     }
 
     private(set) var config: PowerConfig
+    private(set) var sleepProtectionEnabled: Bool
     private(set) var observation: PowerObservation
     private(set) var snapshot: PowerSnapshot
     private(set) var decision: PowerDecision
@@ -82,6 +83,7 @@ final class PowerRuntime {
     private var lastSleepAt: Int64?
     private var wakeFallbackTask: Task<Void, Never>?
     private var appliedPowerLidDisplayOff = true
+    private var applicationError: String?
 
     init(
         engine: Engine,
@@ -89,6 +91,7 @@ final class PowerRuntime {
         observationSource: PowerObservationSource,
         historyStore: PowerHistoryStore,
         config: PowerConfig,
+        sleepProtectionEnabled: Bool = true,
         closedLidBrightnessBackend: ClosedLidBrightnessBackend? = nil,
         closedLidBrightnessStore: ClosedLidBrightnessRecoveryStoring? = nil,
         nowEpochSeconds: @escaping () -> Int64 = {
@@ -108,6 +111,7 @@ final class PowerRuntime {
         )
         self.closedLidBrightnessController = brightnessController
         closedLidZeroBrightnessAvailability = brightnessController.availability
+        self.sleepProtectionEnabled = sleepProtectionEnabled
         self.config = config.normalized()
         self.nowEpochSeconds = nowEpochSeconds
         let emptyObservation = PowerObservation(
@@ -216,6 +220,7 @@ final class PowerRuntime {
         appliedSystem = false
         appliedDisplay = false
         appliedLid = false
+        applicationError = nil
     }
 
     func refreshHelperStatusNow() {
@@ -223,18 +228,30 @@ final class PowerRuntime {
         refresh()
     }
 
-    func updateConfig(_ next: PowerConfig) {
+    func updateConfig(_ next: PowerConfig, sleepProtectionEnabled: Bool? = nil) {
+        if let sleepProtectionEnabled {
+            self.sleepProtectionEnabled = sleepProtectionEnabled
+        }
         config = next.normalized()
-        if !config.enabled {
+        if !self.sleepProtectionEnabled || !config.enabled {
             leases.removeAll(keepingCapacity: true)
+            applicationError = nil
         }
         refresh()
     }
 
     @discardableResult
     func startSession(mode: SessionMode, duration: SessionDuration) -> Bool {
+        guard sleepProtectionEnabled else {
+            executionError = Self.masterOffError
+            return false
+        }
+        guard config.enabled else {
+            executionError = Self.powerDisabledError
+            return false
+        }
         if mode == .lid, helperStatus != .match {
-            executionError = "helper-unavailable"
+            executionError = Self.helperUnavailableError
             return false
         }
         let now = nowEpochSeconds()
@@ -250,12 +267,30 @@ final class PowerRuntime {
         leases.append(lease)
         lastHelperRefreshEpochSeconds = 0
         refresh()
+        adoptEngineLidStatus()
         let acted = switch mode {
         case .system: decision.preventUserIdleSystemSleep
         case .display: decision.preventUserIdleDisplaySleep
         case .lid: decision.preventLidSleep
         }
-        let success = executionError == nil && acted
+        let lidVerified = mode != .lid || (
+            decision.preventLidSleep &&
+                latestLidStatus.sleepDisabled?.boolValue == true &&
+                latestLidStatus.covioOwned?.boolValue == true
+        )
+        let failureReason = mode == .lid && acted && !lidVerified
+            ? Self.lidNotAppliedError
+            : executionError
+        let success = executionError == nil && acted && lidVerified
+        guard success else {
+            leases.removeAll { $0.source == .manual && $0.reason == Self.sessionReason }
+            lastHelperRefreshEpochSeconds = 0
+            refresh()
+            executionError = failureReason
+            return false
+        }
+        applicationError = nil
+        executionError = nil
         if success {
             recordHistory(.holdStarted, detail: sessionModeHistoryDetail(mode), at: now)
         }
@@ -308,7 +343,7 @@ final class PowerRuntime {
             snapshot: snapshot,
             leases: leases,
             nowEpochSeconds: now,
-            paused: false,
+            paused: !sleepProtectionEnabled,
             batteryGuardLatched: batteryGuardLatched
         )
         recordGuardHistory(nextDecision, at: now)
@@ -319,7 +354,7 @@ final class PowerRuntime {
                 snapshot: snapshot,
                 leases: [],
                 nowEpochSeconds: now,
-                paused: false,
+                paused: !sleepProtectionEnabled,
                 batteryGuardLatched: batteryGuardLatched
             )
         }
@@ -329,15 +364,23 @@ final class PowerRuntime {
         previousDecision = nextDecision
         decision = nextDecision
 
+        applicationError = nil
         apply(decision)
         applyClosedLidZeroBrightness(decision: nextDecision)
         recordWakeHistory(at: now)
         if let lidError = latestLidStatus.error, !lidError.isEmpty {
             executionError = lidError
-        } else if engine.currentState.lastError == nil {
-            executionError = nil
+        } else if let engineError = engine.currentState.lastError {
+            executionError = engineError
+        } else if let applicationError {
+            executionError = applicationError
+        } else if decision.preventLidSleep,
+                  appliedLid,
+                  (latestLidStatus.sleepDisabled?.boolValue != true ||
+                    latestLidStatus.covioOwned?.boolValue != true) {
+            executionError = Self.lidNotAppliedError
         } else {
-            executionError = engine.currentState.lastError
+            executionError = nil
         }
         if config.closedLidZeroBrightness,
            closedLidZeroBrightnessPhase == .failed,
@@ -559,17 +602,32 @@ final class PowerRuntime {
                 )]
             } ?? []
             if !engine.replacePowerLeases(leases: nextLeases) {
-                executionError = engine.currentState.lastError
+                applicationError = engine.currentState.lastError ?? "power-idle-not-applied"
+            } else {
+                appliedSystem = decision.preventUserIdleSystemSleep
+                appliedDisplay = decision.preventUserIdleDisplaySleep
             }
-            appliedSystem = decision.preventUserIdleSystemSleep
-            appliedDisplay = decision.preventUserIdleDisplaySleep
         }
         if appliedLid != decision.preventLidSleep {
-            if !engine.setPowerLidHold(required: decision.preventLidSleep) {
-                executionError = "helper-unavailable"
+            if engine.setPowerLidHold(required: decision.preventLidSleep) {
+                appliedLid = decision.preventLidSleep
+            } else {
+                applicationError = helperStatus == .match
+                    ? Self.lidNotAppliedError
+                    : Self.helperUnavailableError
             }
-            appliedLid = decision.preventLidSleep
+            adoptEngineLidStatus()
         }
+    }
+
+    private func adoptEngineLidStatus() {
+        latestLidStatus = engine.currentState.lidLeaseStatus
+        snapshot = PowerSnapshot(
+            observation: observation,
+            helperStatus: helperStatus,
+            sleepDisabled: latestLidStatus.sleepDisabled,
+            covioOwnsSleepDisabled: latestLidStatus.covioOwned
+        )
     }
 
     private func containsReleaseVeto(_ vetoes: [SafetyVeto]) -> Bool {
@@ -582,4 +640,8 @@ final class PowerRuntime {
     }
 
     private static let sessionReason = "power-session"
+    private static let helperUnavailableError = "helper-unavailable"
+    private static let masterOffError = "sleep-protection-disabled"
+    private static let powerDisabledError = "power-disabled"
+    private static let lidNotAppliedError = "lid-hold-not-applied"
 }

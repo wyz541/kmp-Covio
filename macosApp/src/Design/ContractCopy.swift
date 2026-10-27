@@ -1243,6 +1243,10 @@ enum ContractCopy {
     static let copyPowerAlertHelperMissing = LocalizedCopy(key: "copy/power/alert/helper-missing", en: "Install the helper before using closed-lid hold.", zhHans: "使用合盖保持唤醒前请安装助手。")
     /// `copy/power/alert/thermal`
     static let copyPowerAlertThermal = LocalizedCopy(key: "copy/power/alert/thermal", en: "The heat guard will release every hold.", zhHans: "温度保护会释放全部保持唤醒。")
+    /// `copy/power/error/lid-not-applied`
+    static let copyPowerErrorLidNotApplied = LocalizedCopy(key: "copy/power/error/lid-not-applied", en: "The helper did not apply closed-lid protection. Check Helper status and try again.", zhHans: "Helper 没有应用合盖保护。检查 Helper 状态后重试。")
+    /// `copy/power/error/master-off`
+    static let copyPowerErrorMasterOff = LocalizedCopy(key: "copy/power/error/master-off", en: "Turn on Sleep Protection before starting a session.", zhHans: "启动会话前，请先打开“睡眠保护”。")
     /// `copy/power/history/adapter-connected`
     static let copyPowerHistoryAdapterConnected = LocalizedCopy(key: "copy/power/history/adapter-connected", en: "Power adapter connected", zhHans: "已接通电源")
     /// `copy/power/history/adapter-disconnected`
@@ -2117,6 +2121,8 @@ enum ContractCopy {
         copyPowerAlertExternalConflict,
         copyPowerAlertHelperMissing,
         copyPowerAlertThermal,
+        copyPowerErrorLidNotApplied,
+        copyPowerErrorMasterOff,
         copyPowerHistoryAdapterConnected,
         copyPowerHistoryAdapterDisconnected,
         copyPowerHistoryExternalConflictCleared,

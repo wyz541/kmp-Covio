@@ -45,9 +45,9 @@ struct PowerManagementView: View {
                 symbol: "bolt.batteryblock.fill"
             )
 
-            MacSettingRow(title: ContractCopy.copyHubPowerTitle.text(for: language)) {
+            MacSettingRow(title: ContractCopy.copyOverviewRulesMaster.text(for: language)) {
                 MacSwitch(
-                    label: ContractCopy.copyHubPowerTitle.text(for: language),
+                    label: ContractCopy.copyOverviewRulesMaster.text(for: language),
                     isOn: Binding(
                         get: { model.powerConfig.enabled },
                         set: { model.setPowerEnabled($0) }
@@ -169,6 +169,13 @@ struct PowerManagementView: View {
                 symbol: "cup.and.saucer.fill"
             )
 
+            if !model.sleepProtectionEnabled {
+                MacAlert(
+                    message: ContractCopy.copyPowerErrorMasterOff.text(for: language),
+                    kind: .warning
+                )
+            }
+
             Picker(
                 ContractCopy.copyPowerSectionSession.text(for: language),
                 selection: $sessionMode
@@ -257,7 +264,7 @@ struct PowerManagementView: View {
                 MacAlert(message: outcome.message, kind: outcome.kind)
             }
             if let error = model.executionError {
-                MacAlert(message: error, kind: .error)
+                MacAlert(message: executionErrorText(error), kind: .error)
             }
             if let message = model.statusMessage, !message.isEmpty {
                 MacAlert(message: message, kind: .info)
@@ -267,9 +274,23 @@ struct PowerManagementView: View {
     }
 
     private var canStartSession: Bool {
-        model.powerConfig.enabled &&
+        model.sleepProtectionEnabled &&
+            model.powerConfig.enabled &&
             (!model.hasManualSession || model.sessionMode != sessionMode) &&
             (sessionMode != .lid || model.helperStatus == .match)
+    }
+
+    private func executionErrorText(_ error: String) -> String {
+        switch error {
+        case "sleep-protection-disabled":
+            ContractCopy.copyPowerErrorMasterOff.text(for: language)
+        case "lid-hold-not-applied":
+            ContractCopy.copyPowerErrorLidNotApplied.text(for: language)
+        case "helper-unavailable":
+            ContractCopy.copyPowerAlertHelperMissing.text(for: language)
+        default:
+            error
+        }
     }
 
     private var reasons: [PowerReason] {
@@ -766,6 +787,7 @@ private struct PowerOutcome {
 @MainActor
 protocol PowerManagementModel: AnyObject {
     var language: AppLanguage { get }
+    var sleepProtectionEnabled: Bool { get }
     var powerConfig: PowerConfig { get }
     var observation: PowerObservation { get }
     var snapshot: PowerSnapshot { get }
@@ -801,6 +823,7 @@ protocol PowerManagementModel: AnyObject {
 }
 
 extension AppRuntime: PowerManagementModel {
+    var sleepProtectionEnabled: Bool { config.enabled }
     var powerConfig: PowerConfig { config.power }
     var observation: PowerObservation { powerRuntime.observation }
     var snapshot: PowerSnapshot { powerRuntime.snapshot }

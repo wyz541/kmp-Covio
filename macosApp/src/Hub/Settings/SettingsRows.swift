@@ -261,21 +261,30 @@ struct SleepModeOptions: View {
     }
 }
 
-/// 界面语言。取值与 Kotlin 的 `AppLanguage` 一致。
+/// 界面语言。整组第三项是手动覆盖，第一项重新跟随系统。
 struct LanguageOptions: View {
     let runtime: AppRuntime
 
-    private static let languages: [AppLanguage] = [.english, .simplifiedChinese]
+    private static let preferences: [AppLanguagePreference] = [
+        .system,
+        .english,
+        .simplifiedChinese,
+    ]
 
     var body: some View {
         MacSegmented(
-            options: [
-                ContractCopy.copyGeneralLanguageEnglish.text(for: runtime.language),
-                ContractCopy.copyGeneralLanguageChinese.text(for: runtime.language),
-            ],
-            selectedIndex: Self.languages.firstIndex(of: runtime.language) ?? 0
+            options: Self.preferences.map(title),
+            selectedIndex: Self.preferences.firstIndex(of: runtime.languagePreference) ?? 0
         ) { index in
-            runtime.changeLanguage(Self.languages[index])
+            runtime.setLanguagePreference(Self.preferences[index])
+        }
+    }
+
+    private func title(_ preference: AppLanguagePreference) -> String {
+        switch preference {
+        case .system: ContractCopy.copyGeneralLanguageSystem.text(for: runtime.language)
+        case .english: ContractCopy.copyGeneralLanguageEnglish.text(for: runtime.language)
+        case .simplifiedChinese: ContractCopy.copyGeneralLanguageChinese.text(for: runtime.language)
         }
     }
 }

@@ -4388,6 +4388,10 @@
       "en": "English",
       "zh-Hans": "English"
     },
+    "copy/general/language/system": {
+      "en": "Follow System",
+      "zh-Hans": "跟随系统"
+    },
     "copy/general/launch-at-login": {
       "en": "Launch at login",
       "zh-Hans": "登录时启动"

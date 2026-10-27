@@ -554,6 +554,8 @@ private struct ClipboardDetailPane: View {
     private var textPreview: some View {
         if item.detailText.isEmpty {
             fallbackPreview
+        } else if item.clipItem?.kind == .text {
+            ClipboardMarkdownView(source: item.detailText)
         } else {
             Text(item.detailText)
                 .font(

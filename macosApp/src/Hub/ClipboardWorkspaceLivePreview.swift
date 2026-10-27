@@ -138,7 +138,22 @@ private enum ClipboardWorkspacePreviewFixtures {
             ClipItem(
                 id: "text-figma",
                 kind: .text,
-                text: "把预览发给设计组，确认四类内容的分行结构。",
+                text: """
+                剪切板 Markdown 预览
+
+                ## 详情样例
+
+                把 **重点内容** 和 *补充说明* 发给设计组。
+
+                - 支持 `行内代码`
+                - 支持 [设计链接](https://example.com)
+
+                > 原始文本保持不变。
+
+                ```swift
+                let ready = true
+                ```
+                """,
                 filePath: "",
                 byteSize: 0,
                 createdAtEpochSeconds: now - 60,
@@ -171,7 +186,7 @@ private enum ClipboardWorkspacePreviewFixtures {
                 text: "明天检查深色模式与键盘操作。",
                 filePath: "",
                 byteSize: 0,
-                createdAtEpochSeconds: now - 420,
+                createdAtEpochSeconds: now - 55,
                 pinned: false,
                 sourceBundleId: "com.apple.TextEdit"
             ),

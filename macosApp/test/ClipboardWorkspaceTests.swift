@@ -58,6 +58,105 @@ final class ClipboardWorkspaceTests: XCTestCase {
         )
     }
 
+    func testMarkdownParsesSupportedBlocks() throws {
+        let source = """
+        # 标题
+
+        段落包含 **粗体**、*斜体* 和 `代码`。
+
+        - 第一项
+        - 第二项
+
+        > 引用
+
+        ```swift
+        let value = 1
+        ```
+
+        ---
+        """
+
+        let document = ClipboardMarkdownDocument(source: source)
+
+        XCTAssertTrue(document.usesMarkdown)
+        XCTAssertEqual(
+            blockKinds(document.blocks),
+            ["heading1", "paragraph", "list.unordered", "blockQuote", "codeBlock", "thematicBreak"]
+        )
+
+        let code = try XCTUnwrap(document.blocks.first { block in
+            if case .codeBlock = block { return true }
+            return false
+        })
+        guard case .codeBlock(let language, let content) = code else {
+            return XCTFail("缺少代码块")
+        }
+        XCTAssertEqual(language, "swift")
+        XCTAssertEqual(content, "let value = 1")
+    }
+
+    func testMarkdownKeepsOnlyHTTPAndHTTPSLinks() throws {
+        let source = """
+        [HTTP](http://example.com) [HTTPS](https://example.com) [Mail](mailto:test@example.com)
+        [File](file:///tmp/covio) [Relative](/local) [Script](javascript:alert(1))
+        """
+        let document = ClipboardMarkdownDocument(source: source)
+        let content = try XCTUnwrap(attributedContent(of: document.blocks.first))
+        let links = content.runs.compactMap { $0.link?.absoluteString }
+
+        XCTAssertTrue(document.usesMarkdown)
+        XCTAssertEqual(links, ["http://example.com", "https://example.com"])
+        XCTAssertEqual(
+            String(content.characters).split(whereSeparator: \.isWhitespace),
+            ["HTTP", "HTTPS", "Mail", "File", "Relative", "Script"]
+        )
+    }
+
+    func testPlainAndIncompleteMarkdownKeepTheRawSource() {
+        let plain = "第一行\n第二行"
+        let incomplete = "**未闭合"
+        let html = "<script>alert(1)</script>"
+
+        XCTAssertFalse(ClipboardMarkdownDocument(source: plain).usesMarkdown)
+        XCTAssertFalse(ClipboardMarkdownDocument(source: incomplete).usesMarkdown)
+        XCTAssertFalse(ClipboardMarkdownDocument(source: html).usesMarkdown)
+        XCTAssertEqual(ClipboardMarkdownDocument(source: plain).source, plain)
+        XCTAssertEqual(ClipboardMarkdownDocument(source: incomplete).source, incomplete)
+        XCTAssertEqual(ClipboardMarkdownDocument(source: html).source, html)
+    }
+
+    func testMarkdownImageKeepsAltTextWithoutKeepingTheRemoteURL() throws {
+        let document = ClipboardMarkdownDocument(source: "![Covio](https://example.com/a.png)")
+        let content = try XCTUnwrap(attributedContent(of: document.blocks.first))
+
+        XCTAssertTrue(document.usesMarkdown)
+        XCTAssertEqual(String(content.characters), "Covio")
+        XCTAssertTrue(content.runs.allSatisfy { $0.imageURL == nil })
+    }
+
+    func testNestedListsKeepTheirOrdinals() throws {
+        let source = """
+        1. 第一层
+           1. 第二层
+        2. 下一项
+        """
+        let document = ClipboardMarkdownDocument(source: source)
+        let list = try XCTUnwrap(document.blocks.first)
+        guard case .list(.ordered, let items) = list else {
+            return XCTFail("缺少有序列表")
+        }
+
+        XCTAssertEqual(items.map(\.ordinal), [1, 2])
+        let nested = try XCTUnwrap(items.first?.blocks.first { block in
+            if case .list = block { return true }
+            return false
+        })
+        guard case .list(.ordered, let nestedItems) = nested else {
+            return XCTFail("缺少嵌套列表")
+        }
+        XCTAssertEqual(nestedItems.map(\.ordinal), [1])
+    }
+
     func testPinnedItemsComeBeforeTodayAndOlderSections() {
         let now = Int64(Date().timeIntervalSince1970)
         let data = ClipboardWorkspaceData(
@@ -180,5 +279,44 @@ final class ClipboardWorkspaceTests: XCTestCase {
             pinned: pinned,
             sourceBundleId: source
         )
+    }
+
+    private func blockKinds(_ blocks: [ClipboardMarkdownBlock]) -> [String] {
+        blocks.map { block in
+            switch block {
+            case .paragraph:
+                "paragraph"
+            case .heading(let level, _):
+                "heading\(level)"
+            case .codeBlock:
+                "codeBlock"
+            case .list(.ordered, _):
+                "list.ordered"
+            case .list(.unordered, _):
+                "list.unordered"
+            case .blockQuote:
+                "blockQuote"
+            case .thematicBreak:
+                "thematicBreak"
+            case .unsupported:
+                "unsupported"
+            }
+        }
+    }
+
+    private func attributedContent(of block: ClipboardMarkdownBlock?) -> AttributedString? {
+        guard let block else { return nil }
+        switch block {
+        case .paragraph(let content), .heading(_, let content), .unsupported(let content):
+            return content
+        case .codeBlock:
+            return nil
+        case .list(_, let items):
+            return attributedContent(of: items.first?.blocks.first)
+        case .blockQuote(let blocks):
+            return attributedContent(of: blocks.first)
+        case .thematicBreak:
+            return nil
+        }
     }
 }

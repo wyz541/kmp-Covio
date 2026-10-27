@@ -5,12 +5,12 @@ import XCTest
 ///
 /// 外壳的几何由 `HubMetricsTests` 与 `ScreenGeometryTests` 覆盖，搜索的匹配
 /// 由 `SettingsSearchIndexTests` 覆盖。这里覆盖把两者接起来的那一层：
-/// Escape 的两段行为，以及搜索跳转改动的状态。
+/// Escape 的分段行为，以及搜索跳转改动的状态。
 ///
 /// 不构建视图。面板收到 Escape 的那一段在 `ShellPanelTests`。
 @MainActor
 final class HubChromeModelTests: XCTestCase {
-    // MARK: - Escape 的两段行为
+    // MARK: - Escape 的分段行为
 
     /// 第一次 Escape 只清搜索。
     func testEscapeClearsTheSearchFirst() {
@@ -36,6 +36,31 @@ final class HubChromeModelTests: XCTestCase {
 
         XCTAssertTrue(chrome.handleEscape(), "第一次应该清查询")
         XCTAssertFalse(chrome.handleEscape(), "第二次应该收起面板")
+    }
+
+    /// 剪切板有选中项时，空查询下的 Escape 先清选中态。
+    func testEscapeClearsTheClipboardSelectionBeforeCollapse() {
+        let chrome = HubChromeModel()
+        chrome.clipboardSelectionID = "clip:1"
+
+        XCTAssertTrue(chrome.handleEscape(), "有选中项时这一步应该已经处理完")
+        XCTAssertNil(chrome.clipboardSelectionID)
+        XCTAssertFalse(chrome.handleEscape(), "选中态清空后才收起面板")
+    }
+
+    /// 剪切板搜索和选中态同时存在时，两次 Escape 依次清掉它们。
+    func testEscapeClearsSearchThenClipboardSelection() {
+        let chrome = HubChromeModel()
+        chrome.searchText = "Safari"
+        chrome.clipboardSelectionID = "clip:1"
+
+        XCTAssertTrue(chrome.handleEscape())
+        XCTAssertEqual(chrome.searchText, "")
+        XCTAssertEqual(chrome.clipboardSelectionID, "clip:1")
+
+        XCTAssertTrue(chrome.handleEscape())
+        XCTAssertNil(chrome.clipboardSelectionID)
+        XCTAssertFalse(chrome.handleEscape(), "两步清完后才收起面板")
     }
 
     // MARK: - 搜索跳转

@@ -54,6 +54,9 @@ struct HubView: View {
         .animation(curtainAnimation, value: isExpanded)
         .onChange(of: workbench.destination) { _, _ in
             chrome.clearSearch()
+            if !isClipboardDestination {
+                chrome.clearClipboardSelection()
+            }
         }
     }
 
@@ -287,7 +290,7 @@ struct HubTabContent: View {
     let tab: HubTab
     let paneID: String
     let workbench: WorkbenchModel
-    let chrome: HubChromeModel
+    @Bindable var chrome: HubChromeModel
     let hubState: HubState
     let outputState: HubOutputState
     let language: AppLanguage
@@ -340,7 +343,9 @@ struct HubTabContent: View {
             ClipboardTabView(
                 clipboard: runtime.clipboard,
                 runtime: runtime,
-                searchText: searchText
+                searchText: searchText,
+                selection: $chrome.clipboardSelectionID,
+                onClearSearch: { chrome.clearSearch() }
             )
         } else if let runtime, tab == .files {
             FilesTabView(

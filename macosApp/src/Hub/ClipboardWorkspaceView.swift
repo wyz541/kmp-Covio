@@ -26,18 +26,22 @@ struct ClipboardWorkspaceBoard<TrailingControl: View>: View {
     let language: AppLanguage
     let searchText: String
     let initiallySelectedID: String?
+    @Binding var selectedID: String?
+    let onClearSearch: () -> Void
     let onPrimary: (ClipboardWorkspaceItem) -> Void
     let onAction: (ClipboardWorkspaceItem, ClipboardWorkspaceAction) -> Void
     let trailingControl: TrailingControl
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var filter: ClipboardWorkspaceFilter = .all
-    @State private var selectedID: String?
 
     init(
         data: ClipboardWorkspaceData,
         language: AppLanguage,
         searchText: String,
         initiallySelectedID: String? = nil,
+        selectedID: Binding<String?>,
+        onClearSearch: @escaping () -> Void,
         onPrimary: @escaping (ClipboardWorkspaceItem) -> Void,
         onAction: @escaping (ClipboardWorkspaceItem, ClipboardWorkspaceAction) -> Void,
         @ViewBuilder trailingControl: () -> TrailingControl
@@ -46,10 +50,11 @@ struct ClipboardWorkspaceBoard<TrailingControl: View>: View {
         self.language = language
         self.searchText = searchText
         self.initiallySelectedID = initiallySelectedID
+        self._selectedID = selectedID
+        self.onClearSearch = onClearSearch
         self.onPrimary = onPrimary
         self.onAction = onAction
         self.trailingControl = trailingControl()
-        _selectedID = State(initialValue: initiallySelectedID)
     }
 
     private var visibleItems: [ClipboardWorkspaceItem] {
@@ -58,6 +63,10 @@ struct ClipboardWorkspaceBoard<TrailingControl: View>: View {
 
     private var visibleSections: [ClipboardWorkspaceSection] {
         data.sections(query: searchText, filter: filter, language: language)
+    }
+
+    private var visibleItemIDs: [String] {
+        visibleItems.map(\.id)
     }
 
     private var selectedItem: ClipboardWorkspaceItem? {
@@ -90,8 +99,7 @@ struct ClipboardWorkspaceBoard<TrailingControl: View>: View {
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .frame(height: ClipboardWorkspaceMetrics.boardHeight, alignment: .topLeading)
         .onAppear { reconcileSelection(preferInitial: true) }
-        .onChange(of: filter) { _, _ in reconcileSelection(preferInitial: false) }
-        .onChange(of: searchText) { _, _ in reconcileSelection(preferInitial: false) }
+        .onChange(of: visibleItemIDs) { _, _ in reconcileSelection(preferInitial: false) }
     }
 
     private var controlBar: some View {
@@ -158,7 +166,12 @@ struct ClipboardWorkspaceBoard<TrailingControl: View>: View {
                     ForEach(visibleSections) { section in
                         Section {
                             ForEach(section.items) { item in
-                                ClipboardListRow(item: item, language: language)
+                                ClipboardListRow(
+                                    item: item,
+                                    language: language,
+                                    onPrimary: { onPrimary(item) },
+                                    onAction: { onAction(item, $0) }
+                                )
                                     .tag(item.id)
                                     .contextMenu {
                                         ClipboardActionMenuItems(
@@ -207,6 +220,8 @@ struct ClipboardWorkspaceBoard<TrailingControl: View>: View {
                     onPrimary: { onPrimary(selectedItem) },
                     onAction: { action in onAction(selectedItem, action) }
                 )
+                .id(selectedItem.id)
+                .transition(detailTransition)
             } else {
                 VStack(spacing: MacTheme.space2) {
                     Image(systemName: "rectangle.on.rectangle")
@@ -218,6 +233,7 @@ struct ClipboardWorkspaceBoard<TrailingControl: View>: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(MacTheme.surface.opacity(0.4))
+                .transition(detailTransition)
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: MacTheme.mediumRadius, style: .continuous))
@@ -225,6 +241,7 @@ struct ClipboardWorkspaceBoard<TrailingControl: View>: View {
             RoundedRectangle(cornerRadius: MacTheme.mediumRadius, style: .continuous)
                 .strokeBorder(MacTheme.divider.opacity(0.8), lineWidth: 1)
         )
+        .animation(detailAnimation, value: selectedID)
     }
 
     private var emptyState: some View {
@@ -254,6 +271,13 @@ struct ClipboardWorkspaceBoard<TrailingControl: View>: View {
             Text(filter.title(for: language))
                 .font(.system(size: 10))
                 .foregroundStyle(.tertiary)
+            if !searchText.isEmpty {
+                Button(ContractCopy.copyClipboardActionClearSearch.text(for: language)) {
+                    onClearSearch()
+                }
+                .buttonStyle(.link)
+                .font(.system(size: 10))
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(MacTheme.surface.opacity(0.6))
@@ -270,12 +294,27 @@ struct ClipboardWorkspaceBoard<TrailingControl: View>: View {
         }
         selectedID = ids.first
     }
+
+    private var detailTransition: AnyTransition {
+        reduceMotion
+            ? .opacity
+            : .opacity.combined(with: .offset(y: 4))
+    }
+
+    private var detailAnimation: Animation {
+        .easeOut(duration: reduceMotion ? 0.12 : 0.16)
+    }
 }
 
 /// 时间列表里的一行。
 private struct ClipboardListRow: View {
     let item: ClipboardWorkspaceItem
     let language: AppLanguage
+    let onPrimary: () -> Void
+    let onAction: (ClipboardWorkspaceAction) -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var hovered = false
 
     var body: some View {
         HStack(spacing: MacTheme.space2) {
@@ -297,12 +336,35 @@ private struct ClipboardListRow: View {
                 Image(systemName: "pin.fill")
                     .font(.system(size: 9))
                     .foregroundStyle(MacTheme.brand)
-                    .accessibilityLabel(ContractCopy.copyClipboardActionPin.text(for: language))
+                    .accessibilityHidden(true)
             }
         }
         .padding(.vertical, 3)
         .contentShape(Rectangle())
-        .accessibilityLabel(accessibilityLabel)
+        .background(
+            hovered ? MacTheme.brand.opacity(0.08) : Color.clear,
+            in: RoundedRectangle(cornerRadius: MacTheme.smallRadius, style: .continuous)
+        )
+        .onHover { hovered = $0 }
+        .animation(
+            reduceMotion ? .linear(duration: 0.12) : .easeOut(duration: 0.12),
+            value: hovered
+        )
+        .onTapGesture(count: 2, perform: onPrimary)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(item.title(for: language))
+        .accessibilityValue(item.accessibilityValue(for: language))
+        .accessibilityHint(item.accessibilityHint(for: language))
+        .accessibilityAction(named: Text(item.primaryTitle(for: language))) {
+            onPrimary()
+        }
+        .accessibilityActions {
+            ForEach(item.secondaryActions, id: \.self) { action in
+                Button(item.actionTitle(action, language: language)) {
+                    onAction(action)
+                }
+            }
+        }
     }
 
     private var listSubtitle: String {
@@ -310,17 +372,6 @@ private struct ClipboardListRow: View {
         return "\(item.metadata(for: language)) · \(time)"
     }
 
-    private var accessibilityLabel: String {
-        var values = [
-            item.kind.title(for: language),
-            item.title(for: language),
-            item.metadata(for: language),
-        ]
-        if item.pinned {
-            values.append(ContractCopy.copyClipboardActionPin.text(for: language))
-        }
-        return values.joined(separator: "，")
-    }
 }
 
 /// 选中条目的详情。
@@ -548,12 +599,7 @@ private struct ClipboardDetailPane: View {
     }
 
     private var primaryTitle: String {
-        switch item {
-        case .clip:
-            ContractCopy.copyClipboardActionPaste.text(for: language)
-        case .screenshot:
-            ContractCopy.copyTopShelfActionCopy.text(for: language)
-        }
+        item.primaryTitle(for: language)
     }
 }
 
@@ -635,54 +681,43 @@ private struct ClipboardActionMenuItems: View {
     let onAction: (ClipboardWorkspaceItem, ClipboardWorkspaceAction) -> Void
 
     var body: some View {
-        Button {
-            onAction(item, .copy)
-        } label: {
-            Label(ContractCopy.copyTopShelfActionCopy.text(for: language), systemImage: "doc.on.doc")
+        ForEach(item.secondaryActions, id: \.self) { action in
+            if action == .remove {
+                Divider()
+            }
+            actionButton(action)
         }
+    }
 
-        if item.kind != .screenshots {
-            Button {
-                onAction(item, .togglePin)
+    @ViewBuilder
+    private func actionButton(_ action: ClipboardWorkspaceAction) -> some View {
+        if action == .remove {
+            Button(role: .destructive) {
+                onAction(item, action)
             } label: {
-                Label(
-                    item.pinned
-                        ? ContractCopy.copyClipboardActionUnpin.text(for: language)
-                        : ContractCopy.copyClipboardActionPin.text(for: language),
-                    systemImage: item.pinned ? "pin.slash" : "pin"
-                )
+                actionLabel(action)
+            }
+        } else {
+            Button {
+                onAction(item, action)
+            } label: {
+                actionLabel(action)
             }
         }
+    }
 
-        Button {
-            onAction(item, .saveToWorkspace)
-        } label: {
-            Label(
-                ContractCopy.copyClipboardActionWorkspace.text(for: language),
-                systemImage: "tray.and.arrow.down"
-            )
+    private func actionLabel(_ action: ClipboardWorkspaceAction) -> some View {
+        Label(
+            item.actionTitle(action, language: language),
+            systemImage: actionSymbol(action)
+        )
+    }
+
+    private func actionSymbol(_ action: ClipboardWorkspaceAction) -> String {
+        if action == .togglePin, item.pinned {
+            return "pin.slash"
         }
-
-        if item.kind == .screenshots {
-            Button {
-                onAction(item, .preview)
-            } label: {
-                Label(ContractCopy.copyTopShelfActionPreview.text(for: language), systemImage: "eye")
-            }
-            Button {
-                onAction(item, .markup)
-            } label: {
-                Label(ContractCopy.copyTopShelfActionMarkup.text(for: language), systemImage: "pencil.tip.crop.circle")
-            }
-        }
-
-        Divider()
-
-        Button(role: .destructive) {
-            onAction(item, .remove)
-        } label: {
-            Label(ContractCopy.copyClipboardActionRemove.text(for: language), systemImage: "trash")
-        }
+        return action.symbol
     }
 }
 

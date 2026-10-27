@@ -4,12 +4,14 @@ import kmpDomain
 
 /// 剪切板页签。
 ///
-/// 内容按文件、文本、图片、截图四行排列。每行只显示最近的三个条目，
-/// 选中条目后在该行显示主操作与更多菜单。截图的复制、预览与标记复用截图库行为。
+/// 内容按时间合并为列表，详情区固定显示选中条目。
+/// 截图的复制、预览与标记复用截图库行为。
 struct ClipboardTabView: View {
     let clipboard: ClipboardRuntime
     let runtime: AppRuntime
     let searchText: String
+    @Binding var selection: String?
+    let onClearSearch: () -> Void
 
     private var language: AppLanguage { runtime.language }
 
@@ -41,6 +43,8 @@ struct ClipboardTabView: View {
                 language: language,
                 searchText: searchText,
                 initiallySelectedID: previewSelectionID,
+                selectedID: $selection,
+                onClearSearch: onClearSearch,
                 onPrimary: primary,
                 onAction: perform
             ) {
@@ -99,7 +103,7 @@ struct ClipboardTabView: View {
         return nil
     }
 
-    /// 工作区主体的高度。搜索框、四行与行间距都算在里面。
+    /// 工作区主体的高度。筛选栏、列表与详情区都算在里面。
     nonisolated static let listHeight: CGFloat = ClipboardWorkspaceMetrics.boardHeight
 
     /// 提示条的高度：`MacAlert` 的上下内边距加一行 11 点文字。
@@ -111,7 +115,7 @@ struct ClipboardTabView: View {
 
 /// 剪切板页的胶囊动作：暂停记录、全部清除、条数。
 ///
-/// 这三个动作放在页标题行右端，列表区只承载内容。
+/// 这三个动作放在筛选栏右端，列表区只承载内容。
 struct ClipboardHeadingActions: View {
     let clipboard: ClipboardRuntime
     let language: AppLanguage

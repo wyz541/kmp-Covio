@@ -48,6 +48,16 @@ final class ClipboardWorkspaceTests: XCTestCase {
         XCTAssertTrue(items.allSatisfy { $0.kind == .screenshots })
     }
 
+    func testEmptySearchReturnsNoItemsOrSections() {
+        let data = makeData()
+        let query = "没有这一条"
+
+        XCTAssertTrue(data.items(query: query, filter: .all, language: .simplifiedChinese).isEmpty)
+        XCTAssertTrue(
+            data.sections(query: query, filter: .all, language: .simplifiedChinese).isEmpty
+        )
+    }
+
     func testPinnedItemsComeBeforeTodayAndOlderSections() {
         let now = Int64(Date().timeIntervalSince1970)
         let data = ClipboardWorkspaceData(
@@ -89,6 +99,42 @@ final class ClipboardWorkspaceTests: XCTestCase {
 
         XCTAssertEqual(item.filePaths, [first, second])
         XCTAssertEqual(item.title(for: .simplifiedChinese), "one.pdf +1")
+    }
+
+    func testActionMenusMatchClipAndScreenshotCapabilities() throws {
+        let items = makeData().allItems(language: .simplifiedChinese)
+        let clip = try XCTUnwrap(items.first { $0.kind == .text })
+        let screenshot = try XCTUnwrap(items.first { $0.kind == .screenshots })
+
+        XCTAssertEqual(
+            clip.secondaryActions,
+            [.copy, .togglePin, .saveToWorkspace, .remove]
+        )
+        XCTAssertEqual(
+            screenshot.secondaryActions,
+            [.copy, .saveToWorkspace, .preview, .markup, .remove]
+        )
+        XCTAssertEqual(clip.primaryTitle(for: .simplifiedChinese), "粘贴")
+        XCTAssertEqual(screenshot.primaryTitle(for: .simplifiedChinese), "复制")
+    }
+
+    func testPinnedClipUsesTheUnpinActionTitle() throws {
+        let pinned = ClipItem(
+            id: "pinned",
+            kind: .text,
+            text: "Pinned",
+            filePath: "",
+            byteSize: 0,
+            createdAtEpochSeconds: 1,
+            pinned: true,
+            sourceBundleId: "com.apple.Safari"
+        )
+        let item = ClipboardWorkspaceItem.clip(pinned)
+
+        XCTAssertEqual(
+            item.actionTitle(.togglePin, language: .simplifiedChinese),
+            "取消置顶"
+        )
     }
 
     private func makeData() -> ClipboardWorkspaceData {

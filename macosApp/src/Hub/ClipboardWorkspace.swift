@@ -148,6 +148,68 @@ enum ClipboardWorkspaceItem: Identifiable {
         return item
     }
 
+    /// 详情区的主操作名称。剪切板内容粘贴，截图复制。
+    func primaryTitle(for language: AppLanguage) -> String {
+        switch self {
+        case .clip:
+            ContractCopy.copyClipboardActionPaste.text(for: language)
+        case .screenshot:
+            ContractCopy.copyTopShelfActionCopy.text(for: language)
+        }
+    }
+
+    /// 更多菜单和右键菜单共用的次要动作顺序。
+    var secondaryActions: [ClipboardWorkspaceAction] {
+        switch self {
+        case .clip:
+            [.copy, .togglePin, .saveToWorkspace, .remove]
+        case .screenshot:
+            [.copy, .saveToWorkspace, .preview, .markup, .remove]
+        }
+    }
+
+    func actionTitle(_ action: ClipboardWorkspaceAction, language: AppLanguage) -> String {
+        switch action {
+        case .copy:
+            ContractCopy.copyTopShelfActionCopy.text(for: language)
+        case .togglePin:
+            pinned
+                ? ContractCopy.copyClipboardActionUnpin.text(for: language)
+                : ContractCopy.copyClipboardActionPin.text(for: language)
+        case .saveToWorkspace:
+            ContractCopy.copyClipboardActionWorkspace.text(for: language)
+        case .remove:
+            ContractCopy.copyClipboardActionRemove.text(for: language)
+        case .preview:
+            ContractCopy.copyTopShelfActionPreview.text(for: language)
+        case .markup:
+            ContractCopy.copyTopShelfActionMarkup.text(for: language)
+        }
+    }
+
+    /// VoiceOver 读出的补充信息。标题单独作为标签，这里只放属性和状态。
+    func accessibilityValue(for language: AppLanguage) -> String {
+        var values = [
+            kind.title(for: language),
+            metadata(for: language),
+            ClipboardWorkspaceTime.text(createdAtEpochSeconds, language: language),
+        ]
+        if pinned {
+            values.append(ContractCopy.copyClipboardActionPin.text(for: language))
+        }
+        return values.joined(separator: "，")
+    }
+
+    /// VoiceOver 读出主操作和全部次要动作。
+    func accessibilityHint(for language: AppLanguage) -> String {
+        let primary = primaryTitle(for: language)
+        let more = ContractCopy.copyHubFilesActionMore.text(for: language)
+        let secondary = secondaryActions
+            .map { actionTitle($0, language: language) }
+            .joined(separator: "、")
+        return "\(primary)；\(more)：\(secondary)"
+    }
+
     /// 详情正文。文件使用完整路径列表，图片使用 OCR 文本，其余使用原正文。
     var detailText: String {
         guard let clipItem else { return "" }
@@ -305,17 +367,22 @@ struct ClipboardWorkspaceData {
         let pinned = visible.filter(\.pinned)
         let unpinned = visible.filter { !$0.pinned }
         let calendar = Calendar.current
+        let todayStart = calendar.startOfDay(for: now)
 
-        let today = unpinned.filter {
-            calendar.isDateInToday(Date(timeIntervalSince1970: TimeInterval($0.createdAtEpochSeconds)))
+        func sectionKind(for item: ClipboardWorkspaceItem) -> ClipboardWorkspaceSectionKind {
+            let date = Date(timeIntervalSince1970: TimeInterval(item.createdAtEpochSeconds))
+            let itemStart = calendar.startOfDay(for: date)
+            let dayOffset = calendar.dateComponents([.day], from: itemStart, to: todayStart).day ?? 0
+            switch dayOffset {
+            case 0: return .today
+            case 1: return .yesterday
+            default: return .earlier
+            }
         }
-        let yesterday = unpinned.filter {
-            calendar.isDateInYesterday(Date(timeIntervalSince1970: TimeInterval($0.createdAtEpochSeconds)))
-        }
-        let earlier = unpinned.filter {
-            let date = Date(timeIntervalSince1970: TimeInterval($0.createdAtEpochSeconds))
-            return !calendar.isDateInToday(date) && !calendar.isDateInYesterday(date)
-        }
+
+        let today = unpinned.filter { sectionKind(for: $0) == .today }
+        let yesterday = unpinned.filter { sectionKind(for: $0) == .yesterday }
+        let earlier = unpinned.filter { sectionKind(for: $0) == .earlier }
 
         var sections: [ClipboardWorkspaceSection] = []
         if !pinned.isEmpty {

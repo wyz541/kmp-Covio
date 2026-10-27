@@ -1,93 +1,95 @@
-import AppKit
+import Foundation
 import SwiftUI
 import kmpDomain
 
 /// 剪切板页签。
 ///
-/// 一行一条记录。左边是类型图标与内容摘要，右边是这一条的动作。
-/// 模块级动作（暂停记录、全部清除）在页标题行右端，见 `ClipboardHeadingActions`。
-/// 权限与快捷键冲突的提示留在页内，因为它属于内容。
-///
-/// 图片条的摘要用 OCR 结果。识别还没回来时显示文件名。
+/// 内容按时间合并为列表，详情区固定显示选中条目。
+/// 截图的复制、预览与标记复用截图库行为。
 struct ClipboardTabView: View {
     let clipboard: ClipboardRuntime
     let runtime: AppRuntime
+    let searchText: String
+    @Binding var selection: String?
+    let onClearSearch: () -> Void
 
     private var language: AppLanguage { runtime.language }
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: MacTheme.space3) {
-            content
+    private var data: ClipboardWorkspaceData {
+        ClipboardWorkspaceData(
+            clips: clipboard.items,
+            screenshots: runtime.shelf.items
+        )
+    }
 
-            // 权限被拒或快捷键冲突时给一条可见的说明。计划把这两条列为 M4 的完成判据。
+    /// 真实窗口验收时预先选中第一条文本，截图能同时显示选中行与主操作。
+    private var previewSelectionID: String? {
+        #if DEBUG
+        guard ProcessInfo.processInfo.environment["COVIO_CLIPBOARD_LIVE_PREVIEW"] == "1" else {
+            return nil
+        }
+        return clipboard.items
+            .first { $0.kind == .text }
+            .map { "clip:\($0.id)" }
+        #else
+        return nil
+        #endif
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Self.noticeGap) {
+            ClipboardWorkspaceBoard(
+                data: data,
+                language: language,
+                searchText: searchText,
+                initiallySelectedID: previewSelectionID,
+                selectedID: $selection,
+                onClearSearch: onClearSearch,
+                onPrimary: primary,
+                onAction: perform
+            ) {
+                ClipboardHeadingActions(clipboard: clipboard, language: language)
+            }
+
             if let notice {
                 MacAlert(message: notice, kind: .warning)
             }
         }
-        // 内边距由内容列给，这里不再加一层。
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    @ViewBuilder
-    private var content: some View {
-        if clipboard.items.isEmpty {
-            emptyState
-        } else {
-            list
+    private func primary(_ item: ClipboardWorkspaceItem) {
+        switch item {
+        case .clip(let clip):
+            clipboard.paste(clip.id)
+        case .screenshot(let screenshot):
+            runtime.shelf.copyItem(screenshot)
         }
     }
 
-    private var emptyState: some View {
-        VStack(spacing: MacTheme.space2) {
-            Image(systemName: "doc.on.clipboard")
-                .font(.system(size: 22))
-                .foregroundStyle(.tertiary)
-            Text(ContractCopy.copyClipboardEmpty.text(for: language))
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
+    private func perform(_ item: ClipboardWorkspaceItem, _ action: ClipboardWorkspaceAction) {
+        switch (item, action) {
+        case (.clip(let clip), .copy):
+            clipboard.copyToPasteboard(clip.id)
+        case (.clip(let clip), .togglePin):
+            clipboard.togglePin(clip.id)
+        case (.clip(let clip), .saveToWorkspace):
+            _ = runtime.workspace.save(clipItem: clip)
+        case (.clip(let clip), .remove):
+            clipboard.remove(clip.id)
+        case (.screenshot(let screenshot), .copy):
+            runtime.shelf.copyItem(screenshot)
+        case (.screenshot(let screenshot), .saveToWorkspace):
+            _ = runtime.workspace.intake(urls: [URL(fileURLWithPath: screenshot.path)])
+        case (.screenshot(let screenshot), .remove):
+            runtime.shelf.removeItem(screenshot)
+        case (.screenshot(let screenshot), .preview):
+            runtime.shelf.openItem(screenshot)
+        case (.screenshot(let screenshot), .markup):
+            runtime.shelf.markupItem(screenshot)
+        case (.clip, .preview), (.clip, .markup), (.screenshot, .togglePin):
+            break
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: MacTheme.mediumRadius, style: .continuous)
-                .fill(MacTheme.surface)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: MacTheme.mediumRadius, style: .continuous)
-                .strokeBorder(MacTheme.divider, lineWidth: 1)
-        )
-    }
-
-    private var list: some View {
-        ScrollView {
-            LazyVStack(spacing: MacTheme.space2) {
-                ForEach(clipboard.items, id: \.id) { item in
-                    ClipboardRow(
-                        item: item,
-                        language: language,
-                        onCopy: { clipboard.copyToPasteboard(item.id) },
-                        onPaste: { clipboard.paste(item.id) },
-                        onPin: { clipboard.togglePin(item.id) },
-                        onSave: { _ = runtime.workspace.save(clipItem: item) },
-                        onRemove: { clipboard.remove(item.id) }
-                    )
-                }
-            }
-            .padding(MacTheme.space2)
-        }
-        .frame(height: Self.listHeight)
-        .background(
-            RoundedRectangle(cornerRadius: MacTheme.mediumRadius, style: .continuous)
-                .fill(MacTheme.surface)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: MacTheme.mediumRadius, style: .continuous)
-                .strokeBorder(MacTheme.divider, lineWidth: 1)
-        )
-    }
-
-    private var statusText: String {
-        let unpinned = clipboard.items.filter { !$0.pinned }.count
-        return "\(unpinned) / \(Int(clipboard.policy.maxItems))"
     }
 
     /// 当前要提示的那一条。错误优先于权限提示。
@@ -101,19 +103,19 @@ struct ClipboardTabView: View {
         return nil
     }
 
-    /// 列表高度。`HubMetrics.clipboardPageContentHeight` 按它相加。
-    nonisolated static let listHeight: CGFloat = 268
+    /// 工作区主体的高度。筛选栏、列表与详情区都算在里面。
+    nonisolated static let listHeight: CGFloat = ClipboardWorkspaceMetrics.boardHeight
 
     /// 提示条的高度：`MacAlert` 的上下内边距加一行 11 点文字。
     nonisolated static let noticeHeight: CGFloat = 40
 
-    /// 列表与提示条之间的间距。`HubMetrics` 按它相加。
+    /// 主体与提示条之间的间距。`HubMetrics` 按它相加。
     nonisolated static let noticeGap: CGFloat = MacTheme.space3
 }
 
 /// 剪切板页的胶囊动作：暂停记录、全部清除、条数。
 ///
-/// 这三个动作原先在页内容底部。搬到胶囊后列表可以更高。
+/// 这三个动作放在筛选栏右端，列表区只承载内容。
 struct ClipboardHeadingActions: View {
     let clipboard: ClipboardRuntime
     let language: AppLanguage
@@ -141,105 +143,4 @@ struct ClipboardHeadingActions: View {
         let unpinned = clipboard.items.filter { !$0.pinned }.count
         return "\(unpinned) / \(Int(clipboard.policy.maxItems))"
     }
-}
-
-/// 一条剪切板记录。
-private struct ClipboardRow: View {
-    let item: ClipItem
-    let language: AppLanguage
-    let onCopy: () -> Void
-    let onPaste: () -> Void
-    let onPin: () -> Void
-    /// 把这一条存入工作区。图片与文件存它们的文件，其余存正文。
-    let onSave: () -> Void
-    let onRemove: () -> Void
-
-    var body: some View {
-        HStack(alignment: .top, spacing: MacTheme.space3) {
-            thumbnail
-            details
-            Spacer(minLength: 0)
-            controls
-        }
-        .padding(MacTheme.space2)
-        .background(
-            RoundedRectangle(cornerRadius: MacTheme.smallRadius, style: .continuous)
-                .fill(MacTheme.elevated)
-        )
-        .contentShape(Rectangle())
-        .onTapGesture(count: 2, perform: onPaste)
-    }
-
-    /// 类型图标。图片条显示缩略图，缩略图读不出来时退回图标。
-    @ViewBuilder
-    private var thumbnail: some View {
-        if item.kind == ClipKind.image, let image = NSImage(contentsOfFile: item.filePath) {
-            Image(nsImage: image)
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(width: Self.thumb, height: Self.thumb)
-                .clipShape(RoundedRectangle(cornerRadius: MacTheme.compactRadius, style: .continuous))
-        } else {
-            Image(systemName: symbol)
-                .font(.system(size: 14))
-                .foregroundStyle(.secondary)
-                .frame(width: Self.thumb, height: Self.thumb)
-        }
-    }
-
-    private var details: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(summary)
-                .font(.system(size: 12))
-                .lineLimit(2)
-                .foregroundStyle(MacTheme.textPrimary)
-            HStack(spacing: MacTheme.space1) {
-                if item.pinned {
-                    Image(systemName: "pin.fill")
-                        .font(.system(size: 9))
-                        .foregroundStyle(MacTheme.brand)
-                }
-                Text(ClipboardRow.subtitle(for: item, language: language))
-                    .font(.system(size: 10))
-                    .foregroundStyle(.tertiary)
-            }
-        }
-    }
-
-    private var controls: some View {
-        HStack(spacing: MacTheme.space1) {
-            MacButton(title: ContractCopy.copyTopShelfActionCopy.text(for: language), kind: .plain, action: onCopy)
-            MacButton(title: ContractCopy.copyClipboardActionPaste.text(for: language), kind: .plain, action: onPaste)
-            MacButton(
-                title: (item.pinned ? ContractCopy.copyClipboardActionUnpin : ContractCopy.copyClipboardActionPin).text(for: language),
-                kind: .plain,
-                action: onPin
-            )
-            MacButton(title: ContractCopy.copyClipboardActionWorkspace.text(for: language), kind: .plain, action: onSave)
-            MacButton(title: ContractCopy.copyClipboardActionRemove.text(for: language), kind: .plain, action: onRemove)
-        }
-    }
-
-    /// 一行摘要。图片用 OCR 出的字，其余用内容本身。多行只留第一行。
-    private var summary: String {
-        let body = item.text.isEmpty ? (item.filePath as NSString).lastPathComponent : item.text
-        let firstLine = body.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? body
-        return firstLine.isEmpty ? ContractCopy.copyClipboardEmpty.text(for: language) : firstLine
-    }
-
-    private var symbol: String {
-        if item.kind == ClipKind.link { return "link" }
-        if item.kind == ClipKind.color { return "paintpalette" }
-        if item.kind == ClipKind.files { return "folder" }
-        if item.kind == ClipKind.image { return "photo" }
-        return "text.alignleft"
-    }
-
-    private static func subtitle(for item: ClipItem, language: AppLanguage) -> String {
-        let size = ByteCountFormatter.string(fromByteCount: item.byteSize, countStyle: .file)
-        let bundle = item.sourceBundleId.isEmpty ? "-" : item.sourceBundleId
-        return "\(bundle) · \(size)"
-    }
-
-    private static let thumb: CGFloat = 30
 }

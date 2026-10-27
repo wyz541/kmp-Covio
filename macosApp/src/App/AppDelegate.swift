@@ -336,6 +336,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         AppPaths.ensureSupportDirectory()
 
+        #if DEBUG
+        let liveClipboardPreview =
+            ProcessInfo.processInfo.environment["COVIO_CLIPBOARD_LIVE_PREVIEW"] == "1"
+        if liveClipboardPreview, !ClipboardWorkspaceLivePreview.prepare() {
+            NSLog("剪切板原生预览数据未准备成功。")
+            return
+        }
+        #endif
+
         let runtime = AppRuntime()
         self.runtime = runtime
         shell.runtime = runtime
@@ -357,6 +366,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         shell.start()
+
+        #if DEBUG
+        if liveClipboardPreview {
+            Task { @MainActor in
+                shell.workbench.select(paneID: PaneKind.clipboard.defaultId)
+                try? await Task.sleep(for: .milliseconds(120))
+                shell.showFromGesture()
+            }
+        }
+        #endif
 
         if !LaunchEnvironment.isRunningTests() {
             let shell = self.shell

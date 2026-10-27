@@ -52,6 +52,12 @@ struct HubView: View {
             alignment: .top
         )
         .animation(curtainAnimation, value: isExpanded)
+        .onChange(of: workbench.destination) { _, _ in
+            chrome.clearSearch()
+            if !isClipboardDestination {
+                chrome.clearClipboardSelection()
+            }
+        }
     }
 
     /// 导航层与内容层共用的高度。
@@ -124,6 +130,9 @@ struct HubView: View {
             panes: workbench.panes,
             destination: workbench.destination,
             isEditing: workbench.isEditing,
+            searchPlaceholder: isClipboardDestination
+                ? ContractCopy.copyClipboardSearchPlaceholder
+                : ContractCopy.copyNavSearchPlaceholder,
             searchText: $chrome.searchText,
             language: language,
             pageAction: workbench.pageAction,
@@ -168,7 +177,7 @@ struct HubView: View {
                     ) { workbench.isEditing = false }
                 }
 
-                if isSearching {
+                if isSettingsSearch {
                     SettingsSearchResults(chrome: chrome, language: language) { hit in
                         workbench.destination = .pane(id: PaneKind.settings.defaultId)
                         chrome.reveal(hit)
@@ -186,9 +195,16 @@ struct HubView: View {
         .frame(maxHeight: .infinity, alignment: .top)
     }
 
-    /// 搜索框有字的时候整列换成结果，与打样一致。
-    private var isSearching: Bool {
-        !chrome.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    /// 顶部搜索框在非剪切板页签里显示工作区与设置结果。
+    /// 剪切板页签直接过滤当前列表，所以不切换到设置搜索结果。
+    private var isSettingsSearch: Bool {
+        !isClipboardDestination &&
+            !chrome.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var isClipboardDestination: Bool {
+        guard case .pane(let id) = workbench.destination else { return false }
+        return workbench.config.pane(id: id)?.kind == PaneKind.clipboard
     }
 
     // MARK: - 页内容
@@ -208,7 +224,8 @@ struct HubView: View {
                 outputState: outputState,
                 language: language,
                 runtime: runtime,
-                popoverCoordinator: popoverCoordinator
+                popoverCoordinator: popoverCoordinator,
+                searchText: chrome.searchText
             )
         }
     }
@@ -273,16 +290,18 @@ struct HubTabContent: View {
     let tab: HubTab
     let paneID: String
     let workbench: WorkbenchModel
-    let chrome: HubChromeModel
+    @Bindable var chrome: HubChromeModel
     let hubState: HubState
     let outputState: HubOutputState
     let language: AppLanguage
     let runtime: AppRuntime?
     let popoverCoordinator: HubPopoverCoordinator?
+    let searchText: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: HubMetrics.pageGap) {
-            if let heading = workbench.heading(for: .pane(id: paneID)) {
+            if tab != .clipboard,
+               let heading = workbench.heading(for: .pane(id: paneID)) {
                 PaneHeading(title: heading.title, summary: heading.summary) {
                     headingActions
                 }
@@ -302,8 +321,6 @@ struct HubTabContent: View {
     private var headingActions: some View {
         if let runtime {
             switch tab {
-            case .clipboard:
-                ClipboardHeadingActions(clipboard: runtime.clipboard, language: language)
             case .agent:
                 AgentHeadingActions(agent: runtime.agent, language: language)
             default:
@@ -323,7 +340,13 @@ struct HubTabContent: View {
         } else if let runtime, tab == .settings {
             SettingsTabView(runtime: runtime, section: chrome.settingsSection, chrome: chrome)
         } else if let runtime, tab == .clipboard {
-            ClipboardTabView(clipboard: runtime.clipboard, runtime: runtime)
+            ClipboardTabView(
+                clipboard: runtime.clipboard,
+                runtime: runtime,
+                searchText: searchText,
+                selection: $chrome.clipboardSelectionID,
+                onClearSearch: { chrome.clearSearch() }
+            )
         } else if let runtime, tab == .files {
             FilesTabView(
                 shelf: runtime.shelf,

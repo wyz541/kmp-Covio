@@ -1,84 +1,106 @@
-# Covio 0.5.2 (internal test)
+# Covio 0.6.0（内测 build 6）
 
-Covio 0.5.2 is an internal test build.
-It is not a public release.
+Covio 0.6.0 是内测版。
+此版本不用于公开分发。
 
-## Requirements
+## 系统要求
 
-- macOS 26 or later.
-- Apple Silicon Mac (arm64).
+- macOS 26 或更高版本。
+- Apple Silicon Mac（arm64）。
 
-## Installers
+## 安装包
 
-| Installer | Size | Model |
-| --- | --- | --- |
-| `Covio-0.5.2.dmg` | `13,218,304` bytes | Not included |
-| `Covio-Offline-0.5.2.dmg` | `1,540,934,144` bytes | Qwen3-VL 2B, revision `9c4f5209e57b31f4b9dfba735de3fb983739c9cc` |
+本版提供默认瘦身 DMG。
+默认包不包含模型权重。
+模型在用户确认后下载、校验并登记。
+本版不构建离线模型 DMG。
 
-Use the default DMG for online installation.
-Use the offline DMG when the target Mac cannot download the model.
+## 从 0.5.2 build 4 到 0.6.0 的变化
 
-## What is new
+### 工作台
 
-- The default installer no longer carries model weights.
-- The app shows model size, license, network need, progress, failures and removal controls.
-- Agent and file naming use one model setup panel.
-- The downloader pauses, survives app restart and resumes the same revision.
-- A completed package is verified before registry activation.
-- App replacement preserves the model registry and model files.
-- The optional offline DMG includes the verified 2B model and attribution files.
+- 内置触控板支持双指下滑打开工作台。
+- 双指方向已按真实设备样本修正。
+- 页签改为纯文字导航。
+- 搜索框改为一个原生 Liquid Glass 控件，并保留清楚的清除动作和焦点环。
+- 页面动作槽使用固定宽度，动作显示或隐藏时不再推动页签。
+- 设置入口只在顶部页签保留一份。
+- 应用未设置语言时跟随 macOS 系统语言。
+- 补充提高对比度、降低透明度和减弱动态效果检查。
 
-## Verification
+### 剪切板
 
-- Kotlin shared tests: `467` passed.
-- macOS XCTest: `869` passed and `3` skipped.
-- Default DMG: no `model.safetensors` file.
-- Offline DMG: one `model.safetensors` file and `14` manifest files.
-- Real download: paused at `1,284,301,146` registered bytes and resumed to `1,798,021,605` bytes.
-- Corrupt model: rejected with `checksumMismatch`.
-- Restricted 64 MiB volume: rejected with `insufficientDisk` and no registry entry.
-- App replacement: registry SHA-256 stayed `b8d24a3151601131425effa98e6682fe6eda82a38b4e9f71e29e5333336c10ef`.
-- Network-denied file naming: `7` files renamed and `7` undo operations restored.
-- Network-denied Agent: `6` steps passed with zero non-loopback network rows.
+- 剪切板改为按时间排列的统一列表。
+- 置顶、今天、昨天和更早的内容分组显示。
+- 类型筛选提供全部、文件、文本、图片和截图。
+- 顶部搜索框直接过滤当前剪切板列表。
+- 右侧固定详情区显示完整内容。
+- 主操作固定在详情区。次要动作进入“更多”菜单和右键菜单。
+- 支持悬停、方向键、`Return`、`Delete`、`Command-F` 和双击粘贴。
+- `Escape` 依次清空搜索、清除选中项、收起工作台。
+- 文本详情按 Markdown 显示标题、强调、列表、引用、代码块和链接。
+- 普通文本保持原样。复制、粘贴、搜索和保存继续使用原始文本。
+- HTML、脚本和远程图片不会执行或加载。
 
-The full result set is in `docs/research/installer-size-reduction/validation/`.
+### Monitor
 
-## Install
+- 电池和电源卡统一使用同一套仪表与详情布局。
+- 删除重复的卡片状态标记。
+- 页面状态行留空并保留原高度。
 
-1. Open `Covio-0.5.2.dmg` for online installation.
-2. Drag `Covio.app` to `Applications`.
-3. Open `Covio.app`.
-4. Open an AI feature and confirm the model download.
+### 睡眠保护
 
-For offline installation, use `Covio-Offline-0.5.2.dmg` in step 1.
+- Power 总开关和合盖保护开关保持一致。
+- 合盖保护只有在 `SleepDisabled=1` 且 helper 持有租约时才报告成功。
+- 写入失败时显示原因，不再显示成功。
+- 修复旧合盖开关的反向写入。
 
-**Warning:** This build uses an ad-hoc signature.
-macOS Gatekeeper rejects this build.
-Allow the app in Privacy & Security, or clear the quarantine flag:
+### 安装与模型
+
+- 默认安装包不再携带模型权重。
+- Agent 与文件自动命名共用模型设置流程。
+- 模型下载支持暂停、应用重启后恢复和固定 revision 校验。
+- 完整模型通过校验后才登记。
+- 应用升级保留配置、历史、工作区和模型文件。
+
+## 验证
+
+- Kotlin 共享测试：`950` 项通过。
+- macOS XCTest：`917` 项通过，`3` 项跳过。
+- 重设计后的剪切板通过亮色和深色真机截图检查。
+- Markdown 与普通文本详情通过亮色和深色真机截图检查。
+- 工作台通过提高对比度、降低透明度和减弱动态效果检查。
+- 双指下滑通过内置触控板真机验收。
+
+## 安装
+
+1. 打开 `Covio-0.6.0.dmg`。
+2. 将 `Covio.app` 拖入 `Applications`。
+3. 打开 `Covio.app`。
+4. 打开 AI 功能并确认模型下载。
+
+**警告：** 此构建使用 ad-hoc 签名。
+macOS Gatekeeper 会阻止此构建。
+请到“隐私与安全性”允许应用，或清除隔离属性：
 
 ```sh
 xattr -dr com.apple.quarantine /Applications/Covio.app
 ```
 
-## Checksums
+## 内测说明
 
-```text
-5eced02d91ca0eb9585cd028afb6ed5c63d24e06bd55e40e2730b073997aee99  Covio-0.5.2.dmg
-8bea35be7bd4c7dd7a439142153292f9672edaee63b3f1d2710eea92d6a754d7  Covio-Offline-0.5.2.dmg
-```
+- 使用测试 Mac。
+- 风扇控制会写入 SMC 值，并需要特权 helper。
+- 电池合盖保持会增加电池消耗。
+- 更新检查读取 GitHub Releases 页面。
+- 更新检查忽略 pre-release。
 
-## Internal test notes
+## 本版不包含
 
-- Use a test Mac.
-- Fan control writes SMC values and requires the privileged helper.
-- The battery lid-hold option increases battery drain.
-- The update checker reads the GitHub Releases page and ignores pre-release tags.
-
-## Not in this build
-
-- Developer ID signature.
-- Apple notarization.
-- Public distribution.
-- Automatic update install.
-- Intel or Universal 2 build.
-- App Store build.
+- 离线模型 DMG。
+- Developer ID 签名。
+- Apple 公证。
+- 公开分发。
+- 自动安装更新。
+- Intel 或 Universal 2 构建。
+- App Store 构建。

@@ -17,6 +17,7 @@ struct MonitorPreviewRoot: View {
     let runsSampling: Bool
     let startsInPower: Bool
     let powerModel: (any PowerManagementModel)?
+    let height: CGFloat?
 
     init(
         snapshot: MonitorSnapshot = .empty,
@@ -24,7 +25,8 @@ struct MonitorPreviewRoot: View {
         powerHistory: MonitorPowerHistory = MonitorPowerHistory(),
         runsSampling: Bool = true,
         startsInPower: Bool = false,
-        powerModel: (any PowerManagementModel)? = nil
+        powerModel: (any PowerManagementModel)? = nil,
+        height: CGFloat? = nil
     ) {
         self.snapshot = snapshot
         self.history = history
@@ -32,9 +34,12 @@ struct MonitorPreviewRoot: View {
         self.runsSampling = runsSampling
         self.startsInPower = startsInPower
         self.powerModel = powerModel
+        self.height = height
     }
 
     var body: some View {
+        let totalHeight = height ?? HubMetrics.monitorBodyHeight + 92
+        let bodyHeight = max(HubMetrics.monitorBodyHeight, totalHeight - 92)
         VStack(alignment: .leading, spacing: HubMetrics.pageHeadingGap) {
             PaneHeading(
                 title: ContractCopy.copyHubTabDevices.text(for: language),
@@ -49,10 +54,10 @@ struct MonitorPreviewRoot: View {
                 runsSampling: runsSampling,
                 startsInPower: startsInPower
             )
-            .frame(height: HubMetrics.monitorBodyHeight)
+            .frame(height: bodyHeight)
         }
         .padding(HubMetrics.panelPadding)
-        .frame(width: HubMetrics.panelWidth, height: HubMetrics.monitorBodyHeight + 92)
+        .frame(width: HubMetrics.panelWidth, height: totalHeight, alignment: .topLeading)
         .background(MacTheme.canvas)
     }
 }
@@ -61,7 +66,7 @@ struct MonitorPreviewRoot: View {
 @MainActor
 @Observable
 final class PowerPreviewModel: PowerManagementModel {
-    let language = AppLanguage.simplifiedChinese
+    let language: AppLanguage
     var sleepProtectionEnabled = true
     var powerConfig: PowerConfig
     var observation: PowerObservation
@@ -73,15 +78,18 @@ final class PowerPreviewModel: PowerManagementModel {
     var closedLidZeroBrightnessPhase: ClosedLidZeroBrightnessPhase = .ready
     var closedLidZeroBrightnessAvailability: ClosedLidBrightnessAvailability = .available
     var closedLidZeroBrightnessError: String?
-    var hasManualSession = true
-    var sessionMode: PowerRuntime.SessionMode? = .lid
-    var remainingSeconds: Int64? = 2_700
+    var hasManualSession = false
+    var sessionMode: PowerRuntime.SessionMode?
+    var remainingSeconds: Int64?
     var recentHistory: [PowerHistoryEvent] = []
     var appState: AppState = AppRuntime.initialState(enabled: true)
     var statusMessage: String?
     var busy = false
 
     init() {
+        language = AppLanguage(
+            rawValue: ProcessInfo.processInfo.environment["COVIO_POWER_PREVIEW_LANGUAGE"] ?? ""
+        ) ?? .simplifiedChinese
         powerConfig = PowerConfig(
             enabled: true,
             keepAwakeOnAdapter: true,
@@ -112,11 +120,11 @@ final class PowerPreviewModel: PowerManagementModel {
             covioOwnsSleepDisabled: KotlinBoolean(bool: false)
         )
         decision = PowerDecision(
-            preventUserIdleSystemSleep: true,
+            preventUserIdleSystemSleep: false,
             preventUserIdleDisplaySleep: false,
-            preventLidSleep: true,
-            appliedLeaseLevel: .closedLid,
-            activeLeaseIds: ["power/session/preview"],
+            preventLidSleep: false,
+            appliedLeaseLevel: nil,
+            activeLeaseIds: [],
             automaticRuleApplied: false,
             safetyVetoes: [],
             batteryGuardLatched: false
@@ -334,6 +342,32 @@ enum MonitorPowerDetailRenderer {
         } catch {
             return false
         }
+    }
+}
+
+@MainActor
+enum PowerPreviewRenderer {
+    static func render(to path: String) async -> Bool {
+        let appearance = ProcessInfo.processInfo.environment["COVIO_FORCE_APPEARANCE"]?
+            .lowercased()
+        let dark = appearance == "dark" ||
+            ProcessInfo.processInfo.environment["AppleInterfaceStyle"]?.lowercased() == "dark"
+        let colorScheme: ColorScheme = dark ? .dark : .light
+        let height = Double(
+            ProcessInfo.processInfo.environment["COVIO_POWER_RENDER_HEIGHT"] ?? ""
+        ) ?? HubMetrics.monitorBodyHeight + 92
+        return await MonitorFanPreviewSnapshot.write(
+            MonitorPreviewRoot(
+                runsSampling: false,
+                startsInPower: true,
+                powerModel: PowerPreviewModel(),
+                height: height
+            )
+            .environment(\.colorScheme, colorScheme),
+            size: CGSize(width: HubMetrics.panelWidth, height: height),
+            path: path,
+            dark: dark
+        )
     }
 }
 

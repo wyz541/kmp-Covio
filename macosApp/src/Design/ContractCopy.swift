@@ -1251,6 +1251,8 @@ enum ContractCopy {
     static let copyPowerAlertHelperMissing = LocalizedCopy(key: "copy/power/alert/helper-missing", en: "Install the helper before using closed-lid hold.", zhHans: "使用合盖保持唤醒前请安装助手。")
     /// `copy/power/alert/thermal`
     static let copyPowerAlertThermal = LocalizedCopy(key: "copy/power/alert/thermal", en: "The heat guard will release every hold.", zhHans: "温度保护会释放全部保持唤醒。")
+    /// `copy/power/description/master`
+    static let copyPowerDescriptionMaster = LocalizedCopy(key: "copy/power/description/master", en: "Use Covio to keep this Mac awake. Turning this off releases every rule and session.", zhHans: "使用 Covio 保持 Mac 唤醒。关闭后会释放全部规则和会话。")
     /// `copy/power/error/lid-not-applied`
     static let copyPowerErrorLidNotApplied = LocalizedCopy(key: "copy/power/error/lid-not-applied", en: "The helper did not apply closed-lid protection. Check Helper status and try again.", zhHans: "Helper 没有应用合盖保护。检查 Helper 状态后重试。")
     /// `copy/power/error/master-off`
@@ -1263,6 +1265,8 @@ enum ContractCopy {
     static let copyPowerHistoryExternalConflictCleared = LocalizedCopy(key: "copy/power/history/external-conflict-cleared", en: "External sleep setting recovered", zhHans: "外部睡眠设置已恢复")
     /// `copy/power/history/guard-released`
     static let copyPowerHistoryGuardReleased = LocalizedCopy(key: "copy/power/history/guard-released", en: "Heat guard released the hold", zhHans: "温度保护已释放保持唤醒")
+    /// `copy/power/history/hint`
+    static let copyPowerHistoryHint = LocalizedCopy(key: "copy/power/history/hint", en: "Shows power and sleep events from the last 24 hours.", zhHans: "显示最近 24 小时的电源和睡眠事件。")
     /// `copy/power/history/hold-started`
     static let copyPowerHistoryHoldStarted = LocalizedCopy(key: "copy/power/history/hold-started", en: "Closed-lid hold started", zhHans: "合盖保持唤醒已开始")
     /// `copy/power/history/no-events`
@@ -1281,6 +1285,10 @@ enum ContractCopy {
     static let copyPowerRulesBattery = LocalizedCopy(key: "copy/power/rules/battery", en: "Keep awake on battery", zhHans: "使用电池时保持唤醒")
     /// `copy/power/rules/battery-floor`
     static let copyPowerRulesBatteryFloor = LocalizedCopy(key: "copy/power/rules/battery-floor", en: "Battery floor", zhHans: "电池下限")
+    /// `copy/power/rules/battery-floor-hint`
+    static let copyPowerRulesBatteryFloorHint = LocalizedCopy(key: "copy/power/rules/battery-floor-hint", en: "Release protection when the battery reaches this level.", zhHans: "电量降到该值时释放保护。")
+    /// `copy/power/rules/battery-hint`
+    static let copyPowerRulesBatteryHint = LocalizedCopy(key: "copy/power/rules/battery-hint", en: "This can drain the battery faster.", zhHans: "这会加快电池耗电。")
     /// `copy/power/rules/closed-lid-zero-brightness`
     static let copyPowerRulesClosedLidZeroBrightness = LocalizedCopy(key: "copy/power/rules/closed-lid-zero-brightness", en: "Experimental closed-lid black screen", zhHans: "实验性合盖黑屏")
     /// `copy/power/rules/closed-lid-zero-brightness-failed`
@@ -1291,20 +1299,38 @@ enum ContractCopy {
     static let copyPowerRulesClosedLidZeroBrightnessUnavailable = LocalizedCopy(key: "copy/power/rules/closed-lid-zero-brightness-unavailable", en: "Unavailable on this macOS version or hardware.", zhHans: "当前 macOS 版本或硬件不支持。")
     /// `copy/power/rules/external-display`
     static let copyPowerRulesExternalDisplay = LocalizedCopy(key: "copy/power/rules/external-display", en: "Pause lid hold with external display", zhHans: "有外接屏时暂停合盖保持唤醒")
+    /// `copy/power/rules/external-display-hint`
+    static let copyPowerRulesExternalDisplayHint = LocalizedCopy(key: "copy/power/rules/external-display-hint", en: "Pause a closed-lid session when an external display is connected.", zhHans: "连接外接屏时暂停合盖会话。")
     /// `copy/power/rules/heat-guard`
     static let copyPowerRulesHeatGuard = LocalizedCopy(key: "copy/power/rules/heat-guard", en: "Heat guard", zhHans: "温度保护")
+    /// `copy/power/rules/heat-guard-hint`
+    static let copyPowerRulesHeatGuardHint = LocalizedCopy(key: "copy/power/rules/heat-guard-hint", en: "Release protection when macOS reports serious heat.", zhHans: "macOS 报告高温时释放保护。")
     /// `copy/power/rules/lid`
     static let copyPowerRulesLid = LocalizedCopy(key: "copy/power/rules/lid", en: "Allow closed-lid hold", zhHans: "允许合盖保持唤醒")
+    /// `copy/power/rules/lid-hint`
+    static let copyPowerRulesLidHint = LocalizedCopy(key: "copy/power/rules/lid-hint", en: "Requires the closed-lid helper and a successful safety check.", zhHans: "需要合盖 Helper，并通过安全检查。")
+    /// `copy/power/rules/low-power-hint`
+    static let copyPowerRulesLowPowerHint = LocalizedCopy(key: "copy/power/rules/low-power-hint", en: "Release protection when Low Power Mode is on.", zhHans: "启用低电量模式时释放保护。")
     /// `copy/power/rules/off`
     static let copyPowerRulesOff = LocalizedCopy(key: "copy/power/rules/off", en: "Off", zhHans: "关闭")
     /// `copy/power/rules/on`
     static let copyPowerRulesOn = LocalizedCopy(key: "copy/power/rules/on", en: "On", zhHans: "开启")
     /// `copy/power/rules/time-cap`
     static let copyPowerRulesTimeCap = LocalizedCopy(key: "copy/power/rules/time-cap", en: "Closed-lid time cap", zhHans: "合盖时长上限")
+    /// `copy/power/rules/time-cap-hint`
+    static let copyPowerRulesTimeCapHint = LocalizedCopy(key: "copy/power/rules/time-cap-hint", en: "End closed-lid sessions after this limit.", zhHans: "达到此时限后结束合盖会话。")
+    /// `copy/power/section/advanced`
+    static let copyPowerSectionAdvanced = LocalizedCopy(key: "copy/power/section/advanced", en: "Closed-lid and safety", zhHans: "合盖与安全")
+    /// `copy/power/section/automatic`
+    static let copyPowerSectionAutomatic = LocalizedCopy(key: "copy/power/section/automatic", en: "Automatically keep awake", zhHans: "自动保持唤醒")
+    /// `copy/power/section/closed-lid`
+    static let copyPowerSectionClosedLid = LocalizedCopy(key: "copy/power/section/closed-lid", en: "Closed-lid sessions", zhHans: "合盖会话")
     /// `copy/power/section/history`
     static let copyPowerSectionHistory = LocalizedCopy(key: "copy/power/section/history", en: "Recent activity", zhHans: "最近活动")
     /// `copy/power/section/rules`
     static let copyPowerSectionRules = LocalizedCopy(key: "copy/power/section/rules", en: "Safety and automation", zhHans: "安全与自动规则")
+    /// `copy/power/section/safety`
+    static let copyPowerSectionSafety = LocalizedCopy(key: "copy/power/section/safety", en: "Safety guards", zhHans: "安全护栏")
     /// `copy/power/section/session`
     static let copyPowerSectionSession = LocalizedCopy(key: "copy/power/section/session", en: "Keep awake", zhHans: "保持唤醒")
     /// `copy/power/section/status`
@@ -1313,6 +1339,8 @@ enum ContractCopy {
     static let copyPowerSessionActive = LocalizedCopy(key: "copy/power/session/active", en: "Active", zhHans: "运行中")
     /// `copy/power/session/display`
     static let copyPowerSessionDisplay = LocalizedCopy(key: "copy/power/session/display", en: "System + display", zhHans: "系统与屏幕")
+    /// `copy/power/session/duration`
+    static let copyPowerSessionDuration = LocalizedCopy(key: "copy/power/session/duration", en: "Duration", zhHans: "时长")
     /// `copy/power/session/duration-15m`
     static let copyPowerSessionDuration15m = LocalizedCopy(key: "copy/power/session/duration-15m", en: "15 min", zhHans: "15 分钟")
     /// `copy/power/session/duration-1h`
@@ -1337,6 +1365,8 @@ enum ContractCopy {
     static let copyPowerSessionLidDisplayOffHint = LocalizedCopy(key: "copy/power/session/lid-display-off-hint", en: "The Mac stays awake. Covio turns the display off after the lid closes.", zhHans: "Mac 保持运行，Covio 在合盖后关闭屏幕。")
     /// `copy/power/session/lid-zero-brightness`
     static let copyPowerSessionLidZeroBrightness = LocalizedCopy(key: "copy/power/session/lid-zero-brightness", en: "Closed lid, black screen (display active)", zhHans: "合盖黑屏（显示链路保持）")
+    /// `copy/power/session/mode`
+    static let copyPowerSessionMode = LocalizedCopy(key: "copy/power/session/mode", en: "Session type", zhHans: "会话类型")
     /// `copy/power/session/none`
     static let copyPowerSessionNone = LocalizedCopy(key: "copy/power/session/none", en: "No keep-awake session is active.", zhHans: "当前没有保持唤醒会话。")
     /// `copy/power/session/reason-adapter`
@@ -1345,6 +1375,8 @@ enum ContractCopy {
     static let copyPowerSessionReasonLid = LocalizedCopy(key: "copy/power/session/reason-lid", en: "Lid held only while safety checks pass", zhHans: "安全条件通过时才保持合盖运行")
     /// `copy/power/session/start`
     static let copyPowerSessionStart = LocalizedCopy(key: "copy/power/session/start", en: "Start", zhHans: "开始")
+    /// `copy/power/session/start-hint`
+    static let copyPowerSessionStartHint = LocalizedCopy(key: "copy/power/session/start-hint", en: "Start a session before closing the lid.", zhHans: "合盖前先启动会话。")
     /// `copy/power/session/system`
     static let copyPowerSessionSystem = LocalizedCopy(key: "copy/power/session/system", en: "System", zhHans: "仅系统")
     /// `copy/power/status/adapter`
@@ -1357,6 +1389,10 @@ enum ContractCopy {
     static let copyPowerStatusGuardMissing = LocalizedCopy(key: "copy/power/status/guard-missing", en: "Safety guard unavailable", zhHans: "安全护栏不可用")
     /// `copy/power/status/guard-ready`
     static let copyPowerStatusGuardReady = LocalizedCopy(key: "copy/power/status/guard-ready", en: "Safety guard ready", zhHans: "安全护栏就绪")
+    /// `copy/power/status/helper`
+    static let copyPowerStatusHelper = LocalizedCopy(key: "copy/power/status/helper", en: "Closed-lid helper", zhHans: "合盖 Helper")
+    /// `copy/power/status/helper-hint`
+    static let copyPowerStatusHelperHint = LocalizedCopy(key: "copy/power/status/helper-hint", en: "The privileged helper applies closed-lid holds.", zhHans: "特权 Helper 负责应用合盖保持唤醒。")
     /// `copy/power/status/low-power-mode`
     static let copyPowerStatusLowPowerMode = LocalizedCopy(key: "copy/power/status/low-power-mode", en: "Low Power Mode", zhHans: "低电量模式")
     /// `copy/power/status/no-external-display`
@@ -2133,12 +2169,14 @@ enum ContractCopy {
         copyPowerAlertExternalConflict,
         copyPowerAlertHelperMissing,
         copyPowerAlertThermal,
+        copyPowerDescriptionMaster,
         copyPowerErrorLidNotApplied,
         copyPowerErrorMasterOff,
         copyPowerHistoryAdapterConnected,
         copyPowerHistoryAdapterDisconnected,
         copyPowerHistoryExternalConflictCleared,
         copyPowerHistoryGuardReleased,
+        copyPowerHistoryHint,
         copyPowerHistoryHoldStarted,
         copyPowerHistoryNoEvents,
         copyPowerHistorySlept,
@@ -2148,22 +2186,34 @@ enum ContractCopy {
         copyPowerRulesAdapter,
         copyPowerRulesBattery,
         copyPowerRulesBatteryFloor,
+        copyPowerRulesBatteryFloorHint,
+        copyPowerRulesBatteryHint,
         copyPowerRulesClosedLidZeroBrightness,
         copyPowerRulesClosedLidZeroBrightnessFailed,
         copyPowerRulesClosedLidZeroBrightnessHint,
         copyPowerRulesClosedLidZeroBrightnessUnavailable,
         copyPowerRulesExternalDisplay,
+        copyPowerRulesExternalDisplayHint,
         copyPowerRulesHeatGuard,
+        copyPowerRulesHeatGuardHint,
         copyPowerRulesLid,
+        copyPowerRulesLidHint,
+        copyPowerRulesLowPowerHint,
         copyPowerRulesOff,
         copyPowerRulesOn,
         copyPowerRulesTimeCap,
+        copyPowerRulesTimeCapHint,
+        copyPowerSectionAdvanced,
+        copyPowerSectionAutomatic,
+        copyPowerSectionClosedLid,
         copyPowerSectionHistory,
         copyPowerSectionRules,
+        copyPowerSectionSafety,
         copyPowerSectionSession,
         copyPowerSectionStatus,
         copyPowerSessionActive,
         copyPowerSessionDisplay,
+        copyPowerSessionDuration,
         copyPowerSessionDuration15m,
         copyPowerSessionDuration1h,
         copyPowerSessionDuration2h,
@@ -2176,16 +2226,20 @@ enum ContractCopy {
         copyPowerSessionLidDisplayOff,
         copyPowerSessionLidDisplayOffHint,
         copyPowerSessionLidZeroBrightness,
+        copyPowerSessionMode,
         copyPowerSessionNone,
         copyPowerSessionReasonAdapter,
         copyPowerSessionReasonLid,
         copyPowerSessionStart,
+        copyPowerSessionStartHint,
         copyPowerSessionSystem,
         copyPowerStatusAdapter,
         copyPowerStatusConnected,
         copyPowerStatusExternalDisplay,
         copyPowerStatusGuardMissing,
         copyPowerStatusGuardReady,
+        copyPowerStatusHelper,
+        copyPowerStatusHelperHint,
         copyPowerStatusLowPowerMode,
         copyPowerStatusNoExternalDisplay,
         copyPowerStatusNotConnected,

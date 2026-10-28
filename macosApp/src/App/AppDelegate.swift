@@ -147,6 +147,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             return
         }
+        if let path = ProcessInfo.processInfo.environment["COVIO_POWER_RENDER"], !path.isEmpty {
+            Task { @MainActor in
+                exit(await PowerPreviewRenderer.render(to: path) ? 0 : 1)
+            }
+            return
+        }
         if let path = ProcessInfo.processInfo.environment["COVIO_MONITOR_FAN_DETAIL_RENDER"], !path.isEmpty {
             Task { @MainActor in
                 exit(await MonitorFanDetailRenderer.render(to: path) ? 0 : 1)

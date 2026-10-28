@@ -3,33 +3,45 @@ import kmpDomain
 
 /// `Monitor` 页签中的电源管理面。
 ///
-/// 所有值都来自 `AppRuntime.powerRuntime`。这里不保存状态值，
-/// 只保存当前选择、按钮结果和最近一次动作提示。
+/// 所有值都来自 `AppRuntime.powerRuntime`。布局按 macOS 设置页的阅读顺序组织：
+/// 当前状态、当前会话、规则、历史。状态块不参与设置动作，规则只在自己的分组内解释。
 struct PowerManagementView: View {
     let model: any PowerManagementModel
 
     @State private var sessionMode: PowerRuntime.SessionMode = .system
     @State private var sessionDuration: PowerRuntime.SessionDuration = .oneHour
     @State private var outcome: PowerOutcome?
+    @State private var advancedRulesExpanded = false
+    @State private var historyExpanded = false
 
     private var language: AppLanguage { model.language }
 
     init(model: any PowerManagementModel) {
         self.model = model
         _sessionMode = State(initialValue: model.sessionMode ?? .system)
+        #if DEBUG
+        let previewExpanded = ProcessInfo.processInfo.environment["COVIO_POWER_PREVIEW_ADVANCED"] == "1"
+        #else
+        let previewExpanded = false
+        #endif
+        _advancedRulesExpanded = State(initialValue:
+            previewExpanded ||
+                model.powerConfig.closedLidZeroBrightness ||
+                model.helperStatus != .match ||
+                model.helperServiceState != .enabled
+        )
     }
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: MacTheme.space3) {
+            LazyVStack(alignment: .leading, spacing: MacTheme.space4) {
                 statusCard
-                HStack(alignment: .top, spacing: MacTheme.space3) {
-                    sessionCard
-                    rulesCard
-                }
+                sessionCard
+                rulesCard
                 historyCard
             }
             .frame(maxWidth: .infinity, alignment: .topLeading)
+            .padding(.bottom, MacTheme.space5)
         }
         .scrollIndicators(.automatic)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -40,12 +52,15 @@ struct PowerManagementView: View {
 
     private var statusCard: some View {
         MacCard {
-            sectionHeader(
-                title: ContractCopy.copyPowerSectionStatus.text(for: language),
-                symbol: "bolt.batteryblock.fill"
-            )
-
-            MacSettingRow(title: ContractCopy.copyOverviewRulesMaster.text(for: language)) {
+            HStack(alignment: .center, spacing: MacTheme.space3) {
+                sectionHeader(
+                    title: ContractCopy.copyPowerSectionStatus.text(for: language),
+                    symbol: "bolt.batteryblock.fill"
+                )
+                Spacer(minLength: MacTheme.space3)
+                Text(ContractCopy.copyOverviewRulesMaster.text(for: language))
+                    .font(.callout)
+                    .foregroundStyle(MacTheme.textSecondary)
                 MacSwitch(
                     label: ContractCopy.copyOverviewRulesMaster.text(for: language),
                     isOn: Binding(
@@ -55,69 +70,19 @@ struct PowerManagementView: View {
                 )
             }
 
-            LazyVGrid(columns: statusColumns, alignment: .leading, spacing: MacTheme.space2) {
-                statusTile(
-                    title: ContractCopy.copyMonitorTitleBattery.text(for: language),
-                    value: batteryValue,
-                    symbol: "battery.50percent"
-                )
-                statusTile(
-                    title: ContractCopy.copyPowerStatusAdapter.text(for: language),
-                    value: adapterValue,
-                    symbol: "powerplug.fill"
-                )
-                statusTile(
-                    title: ContractCopy.copyPowerStatusExternalDisplay.text(for: language),
-                    value: externalDisplayValue,
-                    symbol: "display"
-                )
-                statusTile(
-                    title: ContractCopy.copyMonitorThermal.text(for: language),
-                    value: thermalValue,
-                    symbol: "thermometer.medium"
-                )
-                statusTile(
-                    title: ContractCopy.copyPowerStatusLowPowerMode.text(for: language),
-                    value: boolValue(model.observation.lowPowerModeEnabled?.boolValue),
-                    symbol: "leaf.fill"
-                )
-                statusTile(
-                    title: helperTitle,
-                    value: helperValue,
-                    symbol: "wrench.and.screwdriver.fill"
-                )
-            }
+            Text(ContractCopy.copyPowerDescriptionMaster.text(for: language))
+                .font(.caption)
+                .foregroundStyle(MacTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
 
-            if let reason = HelperStatusPresentation.readOnlyReason(
-                model.helperStatus,
-                language: language
-            ) {
-                let requiresApproval = model.helperServiceState == .requiresApproval
-                let serviceReason = HelperServicePresentation.value(
-                    model.helperServiceState,
-                    language: language
-                )
-                statusAlert(
-                    message: requiresApproval
-                        ? serviceReason
-                        : "\(serviceReason). \(reason)",
+            powerSummary
+                .padding(.top, MacTheme.space1)
+
+            if !model.powerConfig.enabled {
+                MacAlert(
+                    message: ContractCopy.copyPowerErrorMasterOff.text(for: language),
                     kind: .warning
-                ) {
-                    MacButton(
-                        title: HelperServicePresentation.actionTitle(
-                            model.helperServiceState,
-                            language: language
-                        ) ?? HelperStatusPresentation.repairTitle.text(for: language),
-                        kind: .primary,
-                        isEnabled: !model.busy
-                    ) {
-                        if requiresApproval {
-                            model.openHelperApproval()
-                        } else {
-                            model.installHelper()
-                        }
-                    }
-                }
+                )
             }
             if hasExternalSleepConflict {
                 MacAlert(
@@ -132,110 +97,189 @@ struct PowerManagementView: View {
                 )
             }
         }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
-    private var statusColumns: [GridItem] {
-        Array(repeating: GridItem(.flexible(minimum: 110), spacing: MacTheme.space2), count: 3)
-    }
+    private var powerSummary: some View {
+        VStack(alignment: .leading, spacing: MacTheme.space3) {
+            HStack(alignment: .center, spacing: MacTheme.space3) {
+                ZStack {
+                    Circle()
+                        .fill(batteryTint.opacity(0.12))
+                    Image(systemName: batterySymbol)
+                        .font(.system(size: 22, weight: .medium))
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(batteryTint)
+                }
+                .frame(width: 48, height: 48)
 
-    private func statusTile(title: String, value: String, symbol: String) -> some View {
-        HStack(spacing: MacTheme.space2) {
-            Image(systemName: symbol)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(MacTheme.textSecondary)
-                .frame(width: 20)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(MacTheme.textSecondary)
-                Text(value)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(MacTheme.textPrimary)
-                    .lineLimit(1)
+                VStack(alignment: .leading, spacing: MacTheme.space1) {
+                    Text(powerHeadline)
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(MacTheme.textPrimary)
+                    Text(powerSubtitle)
+                        .font(.callout)
+                        .foregroundStyle(MacTheme.textSecondary)
+                }
+
+                Spacer(minLength: MacTheme.space3)
+
+                PowerStatusPill(
+                    label: powerStatusPillLabel,
+                    symbol: powerStatusPillSymbol,
+                    tint: powerStatusPillTint
+                )
             }
-            Spacer(minLength: 0)
+            .accessibilityElement(children: .combine)
+
+            rowDivider()
+
+            HStack(alignment: .top, spacing: MacTheme.space5) {
+                PowerStatusMetric(
+                    title: ContractCopy.copyPowerStatusExternalDisplay.text(for: language),
+                    value: externalDisplayValue
+                )
+                PowerStatusMetric(
+                    title: ContractCopy.copyMonitorThermal.text(for: language),
+                    value: thermalValue
+                )
+                PowerStatusMetric(
+                    title: ContractCopy.copyPowerStatusLowPowerMode.text(for: language),
+                    value: boolValue(model.observation.lowPowerModeEnabled?.boolValue)
+                )
+            }
         }
-        .padding(MacTheme.space2)
-        .background(MacTheme.elevated, in: RoundedRectangle(cornerRadius: MacTheme.compactRadius, style: .continuous))
-        .accessibilityElement(children: .combine)
     }
 
     // MARK: - 保持唤醒
 
     private var sessionCard: some View {
         MacCard {
-            sectionHeader(
-                title: ContractCopy.copyPowerSectionSession.text(for: language),
-                symbol: "cup.and.saucer.fill"
-            )
-
-            if !model.sleepProtectionEnabled {
-                MacAlert(
-                    message: ContractCopy.copyPowerErrorMasterOff.text(for: language),
-                    kind: .warning
+            HStack(alignment: .center, spacing: MacTheme.space3) {
+                sectionHeader(
+                    title: ContractCopy.copyPowerSectionSession.text(for: language),
+                    symbol: "cup.and.saucer.fill"
+                )
+                Spacer(minLength: MacTheme.space3)
+                PowerStatusPill(
+                    label: sessionPillLabel,
+                    symbol: sessionPillSymbol,
+                    tint: sessionPillTint
                 )
             }
 
-            Picker(
-                ContractCopy.copyPowerSectionSession.text(for: language),
-                selection: $sessionMode
-            ) {
-                ForEach(PowerRuntime.SessionMode.allCases) { mode in
-                    Text(sessionModeTitle(mode)).tag(mode)
+            if model.hasManualSession {
+                activeSessionSummary
+            } else {
+                sessionSetup
+            }
+
+            if !supportingReasons.isEmpty {
+                VStack(alignment: .leading, spacing: MacTheme.space1) {
+                    ForEach(supportingReasons) { reason in
+                        sessionReasonRow(reason)
+                    }
                 }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .accessibilityLabel(ContractCopy.copyPowerSectionSession.text(for: language))
-
-            if sessionMode == .lid {
-                MacStatusLine(text: lidSessionHint)
+                .padding(.top, MacTheme.space1)
             }
 
-            HStack(spacing: MacTheme.space2) {
-                Text(ContractCopy.copyPowerSessionExpires.text(for: language))
-                    .font(.system(size: 11))
+            if let message = safetyVetoMessage {
+                MacAlert(message: message, kind: .warning)
+            }
+            if let error = model.executionError {
+                MacAlert(message: executionErrorText(error), kind: .error)
+            } else if let outcome {
+                MacAlert(message: outcome.message, kind: outcome.kind)
+            } else if let message = model.statusMessage, !message.isEmpty {
+                MacAlert(message: message, kind: .info)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+
+    private var activeSessionSummary: some View {
+        HStack(alignment: .center, spacing: MacTheme.space3) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(MacTheme.successText)
+
+            VStack(alignment: .leading, spacing: MacTheme.space1) {
+                Text(model.sessionMode.map(sessionModeTitle) ?? ContractCopy.copyPowerSessionActive.text(for: language))
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(MacTheme.textPrimary)
+                Text(sessionRemainingText)
+                    .font(.callout)
                     .foregroundStyle(MacTheme.textSecondary)
+            }
+
+            Spacer(minLength: MacTheme.space3)
+
+            MacButton(title: ContractCopy.copyPowerSessionEnd.text(for: language)) {
+                model.endSession()
+                outcome = PowerOutcome(
+                    message: ContractCopy.copyStateSuccess.text(for: language),
+                    kind: .success
+                )
+            }
+        }
+        .padding(MacTheme.space3)
+        .background(
+            MacTheme.successBackground,
+            in: RoundedRectangle(cornerRadius: MacTheme.compactRadius, style: .continuous)
+        )
+        .accessibilityElement(children: .combine)
+    }
+
+    private var sessionSetup: some View {
+        VStack(alignment: .leading, spacing: MacTheme.space2) {
+            MacSettingRow(title: ContractCopy.copyPowerSessionMode.text(for: language)) {
                 Picker(
-                    ContractCopy.copyPowerSessionExpires.text(for: language),
+                    ContractCopy.copyPowerSessionMode.text(for: language),
+                    selection: $sessionMode
+                ) {
+                    ForEach(PowerRuntime.SessionMode.allCases) { mode in
+                        Text(sessionModeTitle(mode)).tag(mode)
+                    }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .frame(minWidth: 230, alignment: .trailing)
+            }
+
+            rowDivider()
+
+            MacSettingRow(title: ContractCopy.copyPowerSessionDuration.text(for: language)) {
+                Picker(
+                    ContractCopy.copyPowerSessionDuration.text(for: language),
                     selection: $sessionDuration
                 ) {
                     ForEach(PowerRuntime.SessionDuration.allCases) { duration in
                         Text(durationTitle(duration)).tag(duration)
                     }
                 }
+                .pickerStyle(.menu)
                 .labelsHidden()
-                .frame(maxWidth: 180)
-                Spacer(minLength: 0)
+                .frame(minWidth: 160, alignment: .trailing)
             }
 
-            VStack(alignment: .leading, spacing: MacTheme.space1) {
-                ForEach(reasons) { reason in
-                    HStack(alignment: .firstTextBaseline, spacing: MacTheme.space2) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 11))
-                            .foregroundStyle(MacTheme.successText)
-                        Text(reason.title)
-                            .font(.system(size: 12, weight: .medium))
-                        Spacer(minLength: MacTheme.space2)
-                        if let detail = reason.detail {
-                            Text(detail)
-                                .font(.system(size: 11))
-                                .foregroundStyle(MacTheme.textSecondary)
-                        }
-                    }
-                    .accessibilityElement(children: .combine)
+            if sessionMode == .lid {
+                Text(lidSessionHint)
+                    .font(.caption)
+                    .foregroundStyle(MacTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, MacTheme.space1)
+            }
+
+            HStack(alignment: .center, spacing: MacTheme.space3) {
+                VStack(alignment: .leading, spacing: MacTheme.space1) {
+                    Text(ContractCopy.copyPowerSessionNone.text(for: language))
+                        .font(.callout)
+                        .foregroundStyle(MacTheme.textSecondary)
+                    Text(ContractCopy.copyPowerSessionStartHint.text(for: language))
+                        .font(.caption)
+                        .foregroundStyle(MacTheme.textSecondary)
                 }
-                if reasons.isEmpty {
-                    MacStatusLine(text: ContractCopy.copyPowerSessionNone.text(for: language))
-                }
-            }
-
-            ForEach(Array(model.decision.safetyVetoes.enumerated()), id: \.offset) { _, veto in
-                MacAlert(message: vetoText(veto), kind: .warning)
-            }
-
-            HStack(spacing: MacTheme.space2) {
+                Spacer(minLength: MacTheme.space3)
                 MacButton(
                     title: ContractCopy.copyPowerSessionStart.text(for: language),
                     kind: .primary,
@@ -248,30 +292,316 @@ struct PowerManagementView: View {
                         kind: started ? .success : .error
                     )
                 }
-                if model.hasManualSession {
-                    MacButton(title: ContractCopy.copyPowerSessionEnd.text(for: language)) {
-                        model.endSession()
-                        outcome = PowerOutcome(
-                            message: ContractCopy.copyStateSuccess.text(for: language),
-                            kind: .success
+            }
+            .padding(.top, MacTheme.space1)
+        }
+    }
+
+    private func sessionReasonRow(_ reason: PowerReason) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: MacTheme.space2) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.caption)
+                .foregroundStyle(MacTheme.successText)
+            Text(reason.title)
+                .font(.callout)
+                .foregroundStyle(MacTheme.textPrimary)
+            Spacer(minLength: MacTheme.space2)
+            if let detail = reason.detail {
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(MacTheme.textSecondary)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    // MARK: - 安全与自动规则
+
+    private var rulesCard: some View {
+        MacCard {
+            sectionHeader(
+                title: ContractCopy.copyPowerSectionRules.text(for: language),
+                symbol: "shield.lefthalf.filled"
+            )
+
+            ruleGroupTitle(ContractCopy.copyPowerSectionAutomatic.text(for: language))
+            settingToggleRow(
+                title: ContractCopy.copyPowerRulesAdapter.text(for: language),
+                isOn: Binding(
+                    get: { model.powerConfig.keepAwakeOnAdapter },
+                    set: { model.setPowerKeepAwakeOnAdapter($0) }
+                )
+            )
+            rowDivider()
+            settingToggleRow(
+                title: ContractCopy.copyPowerRulesBattery.text(for: language),
+                description: ContractCopy.copyPowerRulesBatteryHint.text(for: language),
+                isOn: Binding(
+                    get: { model.powerConfig.keepAwakeOnBattery },
+                    set: { model.setPowerKeepAwakeOnBattery($0) }
+                )
+            )
+
+            rowDivider()
+            DisclosureGroup(isExpanded: $advancedRulesExpanded) {
+                advancedRulesContent
+                    .padding(.top, MacTheme.space1)
+            } label: {
+                HStack(alignment: .center, spacing: MacTheme.space3) {
+                    Text(ContractCopy.copyPowerSectionAdvanced.text(for: language))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(MacTheme.textPrimary)
+                    Spacer(minLength: MacTheme.space3)
+                    if helperNeedsAction {
+                        PowerStatusPill(
+                            label: ContractCopy.copyPowerStatusGuardMissing.text(for: language),
+                            symbol: "exclamationmark.shield.fill",
+                            tint: MacTheme.warningText
                         )
                     }
                 }
-                Spacer(minLength: 0)
-            }
-
-            if let outcome {
-                MacAlert(message: outcome.message, kind: outcome.kind)
-            }
-            if let error = model.executionError {
-                MacAlert(message: executionErrorText(error), kind: .error)
-            }
-            if let message = model.statusMessage, !message.isEmpty {
-                MacAlert(message: message, kind: .info)
             }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
+
+    private var helperSettingRow: some View {
+        MacSettingRow(
+            title: ContractCopy.copyPowerStatusHelper.text(for: language),
+            description: helperDescription
+        ) {
+            HStack(spacing: MacTheme.space2) {
+                Text(helperValue)
+                    .font(.callout)
+                    .foregroundStyle(helperNeedsAction ? MacTheme.warningText : MacTheme.textSecondary)
+                    .lineLimit(1)
+                if helperNeedsAction {
+                    MacButton(
+                        title: helperActionTitle,
+                        kind: .primary,
+                        isEnabled: !model.busy
+                    ) {
+                        if model.helperServiceState == .requiresApproval {
+                            model.openHelperApproval()
+                        } else {
+                            model.installHelper()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
+    private var advancedRulesContent: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ruleGroupTitle(ContractCopy.copyPowerSectionClosedLid.text(for: language))
+            helperSettingRow
+            rowDivider()
+            settingToggleRow(
+                title: ContractCopy.copyPowerRulesLid.text(for: language),
+                description: ContractCopy.copyPowerRulesLidHint.text(for: language),
+                isOn: Binding(
+                    get: { model.powerConfig.allowClosedLid },
+                    set: { model.setPowerAllowClosedLid($0) }
+                ),
+                isEnabled: model.helperStatus == .match || !model.powerConfig.allowClosedLid
+            )
+            rowDivider()
+            settingToggleRow(
+                title: ContractCopy.copyPowerRulesClosedLidZeroBrightness.text(for: language),
+                description: closedLidZeroBrightnessDescription,
+                isOn: Binding(
+                    get: { model.powerConfig.closedLidZeroBrightness },
+                    set: { model.setPowerClosedLidZeroBrightness($0) }
+                ),
+                isEnabled: model.powerConfig.closedLidZeroBrightness ||
+                    (model.powerConfig.allowClosedLid &&
+                        model.helperStatus == .match &&
+                        model.closedLidZeroBrightnessAvailability.isAvailable)
+            )
+            if model.powerConfig.closedLidZeroBrightness,
+               model.closedLidZeroBrightnessPhase == .failed,
+               let error = model.closedLidZeroBrightnessError {
+                MacAlert(
+                    message: "\(ContractCopy.copyPowerRulesClosedLidZeroBrightnessFailed.text(for: language)) \(error)",
+                    kind: .warning
+                )
+            }
+            rowDivider()
+            settingToggleRow(
+                title: ContractCopy.copyPowerRulesExternalDisplay.text(for: language),
+                description: ContractCopy.copyPowerRulesExternalDisplayHint.text(for: language),
+                isOn: Binding(
+                    get: { model.powerConfig.pauseClosedLidWithExternalDisplay },
+                    set: { model.setPowerPauseClosedLidWithExternalDisplay($0) }
+                ),
+                isEnabled: model.powerConfig.allowClosedLid
+            )
+            rowDivider()
+            MacSettingRow(
+                title: ContractCopy.copyPowerRulesTimeCap.text(for: language),
+                description: ContractCopy.copyPowerRulesTimeCapHint.text(for: language)
+            ) {
+                Picker(
+                    ContractCopy.copyPowerRulesTimeCap.text(for: language),
+                    selection: Binding(
+                        get: { Int(model.powerConfig.closedLidTimeCapMinutes) },
+                        set: { model.setPowerClosedLidTimeCapMinutes($0) }
+                    )
+                ) {
+                    ForEach(Self.timeCapOptions, id: \.self) { minutes in
+                        Text(SettingsFormat.duration(seconds: Int64(minutes) * 60, language: language))
+                            .tag(minutes)
+                    }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .frame(minWidth: 140, alignment: .trailing)
+                .disabled(!model.powerConfig.allowClosedLid)
+            }
+
+            rowDivider()
+            ruleGroupTitle(ContractCopy.copyPowerSectionSafety.text(for: language))
+            MacSettingRow(
+                title: ContractCopy.copyPowerRulesBatteryFloor.text(for: language),
+                description: ContractCopy.copyPowerRulesBatteryFloorHint.text(for: language)
+            ) {
+                Stepper(
+                    value: Binding(
+                        get: { Int(model.powerConfig.batteryFloorPercent) },
+                        set: { model.setPowerBatteryFloor($0) }
+                    ),
+                    in: 5...50,
+                    step: 5
+                ) {
+                    Text("\(model.powerConfig.batteryFloorPercent)%")
+                        .font(.callout.weight(.medium))
+                        .monospacedDigit()
+                        .frame(minWidth: 42, alignment: .trailing)
+                }
+                .accessibilityLabel(ContractCopy.copyPowerRulesBatteryFloor.text(for: language))
+            }
+            rowDivider()
+            settingToggleRow(
+                title: ContractCopy.copyPowerStatusLowPowerMode.text(for: language),
+                description: ContractCopy.copyPowerRulesLowPowerHint.text(for: language),
+                isOn: Binding(
+                    get: { model.powerConfig.yieldOnLowPowerMode },
+                    set: { model.setPowerYieldOnLowPowerMode($0) }
+                )
+            )
+            rowDivider()
+            settingToggleRow(
+                title: ContractCopy.copyPowerRulesHeatGuard.text(for: language),
+                description: ContractCopy.copyPowerRulesHeatGuardHint.text(for: language),
+                isOn: Binding(
+                    get: { model.powerConfig.heatGuardEnabled },
+                    set: { model.setPowerHeatGuard($0) }
+                )
+            )
+        }
+    }
+
+    private func settingToggleRow(
+        title: String,
+        description: String? = nil,
+        isOn: Binding<Bool>,
+        isEnabled: Bool = true
+    ) -> some View {
+        MacSettingRow(title: title, description: description) {
+            MacSwitch(label: title, isOn: isOn, isEnabled: isEnabled)
+        }
+    }
+
+    private func ruleGroupTitle(_ title: String) -> some View {
+        Text(title)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(MacTheme.textSecondary)
+            .padding(.top, MacTheme.space2)
+            .padding(.bottom, MacTheme.space1)
+            .accessibilityAddTraits(.isHeader)
+    }
+
+    // MARK: - 最近活动
+
+    private var historyCard: some View {
+        MacCard {
+            DisclosureGroup(isExpanded: $historyExpanded) {
+                VStack(alignment: .leading, spacing: MacTheme.space2) {
+                    Text(ContractCopy.copyPowerHistoryHint.text(for: language))
+                        .font(.caption)
+                        .foregroundStyle(MacTheme.textSecondary)
+
+                    if model.recentHistory.isEmpty {
+                        HStack(spacing: MacTheme.space2) {
+                            Image(systemName: "tray")
+                                .font(.callout)
+                                .foregroundStyle(MacTheme.disabledText)
+                            Text(ContractCopy.copyPowerHistoryNoEvents.text(for: language))
+                                .font(.callout)
+                                .foregroundStyle(MacTheme.textSecondary)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
+                        .accessibilityElement(children: .combine)
+                    } else {
+                        VStack(spacing: 0) {
+                            ForEach(Array(model.recentHistory.enumerated()), id: \.element.id) { index, event in
+                                historyRow(event)
+                                if index < model.recentHistory.count - 1 {
+                                    rowDivider()
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(.top, MacTheme.space2)
+            } label: {
+                HStack(alignment: .center, spacing: MacTheme.space3) {
+                    sectionHeader(
+                        title: ContractCopy.copyPowerSectionHistory.text(for: language),
+                        symbol: "clock.arrow.circlepath"
+                    )
+                    Spacer(minLength: MacTheme.space3)
+                    Text(ContractCopy.copyPowerHistoryWindow.text(for: language))
+                        .font(.caption)
+                        .foregroundStyle(MacTheme.textSecondary)
+                }
+            }
+            .accessibilityHint(ContractCopy.copyPowerHistoryHint.text(for: language))
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+
+    private func historyRow(_ event: PowerHistoryEvent) -> some View {
+        HStack(alignment: .center, spacing: MacTheme.space2) {
+            Text(Self.historyTime.string(
+                from: Date(timeIntervalSince1970: TimeInterval(event.atEpochSeconds))
+            ))
+            .font(.caption)
+            .monospacedDigit()
+            .foregroundStyle(MacTheme.textSecondary)
+            .frame(width: 42, alignment: .leading)
+            Image(systemName: historySymbol(event.kind))
+                .font(.caption)
+                .foregroundStyle(historyColor(event.kind))
+                .frame(width: 16)
+            Text(historyTitle(event.kind))
+                .font(.callout.weight(.medium))
+                .foregroundStyle(MacTheme.textPrimary)
+            Spacer(minLength: MacTheme.space2)
+            if let detail = historyDetail(event) {
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(MacTheme.textSecondary)
+                    .lineLimit(1)
+            }
+        }
+        .frame(minHeight: 32)
+        .accessibilityElement(children: .combine)
+    }
+
+    // MARK: - 状态与动作
 
     private var canStartSession: Bool {
         model.sleepProtectionEnabled &&
@@ -280,17 +610,10 @@ struct PowerManagementView: View {
             (sessionMode != .lid || model.helperStatus == .match)
     }
 
-    private func executionErrorText(_ error: String) -> String {
-        switch error {
-        case "sleep-protection-disabled":
-            ContractCopy.copyPowerErrorMasterOff.text(for: language)
-        case "lid-hold-not-applied":
-            ContractCopy.copyPowerErrorLidNotApplied.text(for: language)
-        case "helper-unavailable":
-            ContractCopy.copyPowerAlertHelperMissing.text(for: language)
-        default:
-            error
-        }
+    private var supportingReasons: [PowerReason] {
+        let reasons = reasons
+        guard model.hasManualSession else { return reasons }
+        return reasons.filter { $0.id != "session" }
     }
 
     private var reasons: [PowerReason] {
@@ -350,282 +673,153 @@ struct PowerManagementView: View {
         return result
     }
 
-    // MARK: - 安全与自动规则
-
-    private var rulesCard: some View {
-        MacCard {
-            sectionHeader(
-                title: ContractCopy.copyPowerSectionRules.text(for: language),
-                symbol: "shield.lefthalf.filled"
-            )
-
-            ruleRow(
-                title: ContractCopy.copyPowerRulesAdapter.text(for: language),
-                isOn: Binding(
-                    get: { model.powerConfig.keepAwakeOnAdapter },
-                    set: { model.setPowerKeepAwakeOnAdapter($0) }
-                )
-            )
-            ruleRow(
-                title: ContractCopy.copyPowerRulesBattery.text(for: language),
-                isOn: Binding(
-                    get: { model.powerConfig.keepAwakeOnBattery },
-                    set: { model.setPowerKeepAwakeOnBattery($0) }
-                )
-            )
-            ruleRow(
-                title: ContractCopy.copyPowerRulesLid.text(for: language),
-                isOn: Binding(
-                    get: { model.powerConfig.allowClosedLid },
-                    set: { model.setPowerAllowClosedLid($0) }
-                ),
-                isEnabled: model.helperStatus == .match || !model.powerConfig.allowClosedLid
-            )
-            ruleRow(
-                title: ContractCopy.copyPowerRulesClosedLidZeroBrightness.text(for: language),
-                isOn: Binding(
-                    get: { model.powerConfig.closedLidZeroBrightness },
-                    set: { model.setPowerClosedLidZeroBrightness($0) }
-                ),
-                isEnabled: model.powerConfig.closedLidZeroBrightness ||
-                    (model.helperStatus == .match &&
-                        model.closedLidZeroBrightnessAvailability.isAvailable)
-            )
-            Text(
-                model.closedLidZeroBrightnessAvailability.isAvailable
-                    ? ContractCopy.copyPowerRulesClosedLidZeroBrightnessHint.text(for: language)
-                    : ContractCopy.copyPowerRulesClosedLidZeroBrightnessUnavailable.text(for: language)
-            )
-            .font(.system(size: 10))
-            .foregroundStyle(MacTheme.textSecondary)
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.leading, MacTheme.space2)
-            if model.powerConfig.closedLidZeroBrightness,
-               model.closedLidZeroBrightnessPhase == .failed,
-               let error = model.closedLidZeroBrightnessError {
-                MacAlert(
-                    message: "\(ContractCopy.copyPowerRulesClosedLidZeroBrightnessFailed.text(for: language)) \(error)",
-                    kind: .warning
-                )
-            }
-            ruleRow(
-                title: ContractCopy.copyPowerRulesExternalDisplay.text(for: language),
-                isOn: Binding(
-                    get: { model.powerConfig.pauseClosedLidWithExternalDisplay },
-                    set: { model.setPowerPauseClosedLidWithExternalDisplay($0) }
-                )
-            )
-            ruleRow(
-                title: ContractCopy.copyPowerStatusLowPowerMode.text(for: language),
-                isOn: Binding(
-                    get: { model.powerConfig.yieldOnLowPowerMode },
-                    set: { model.setPowerYieldOnLowPowerMode($0) }
-                )
-            )
-            ruleRow(
-                title: ContractCopy.copyPowerRulesHeatGuard.text(for: language),
-                isOn: Binding(
-                    get: { model.powerConfig.heatGuardEnabled },
-                    set: { model.setPowerHeatGuard($0) }
-                )
-            )
-
-            Divider().overlay(MacTheme.divider)
-
-            MacSettingRow(title: ContractCopy.copyPowerRulesBatteryFloor.text(for: language)) {
-                Stepper(
-                    value: Binding(
-                        get: { Int(model.powerConfig.batteryFloorPercent) },
-                        set: { model.setPowerBatteryFloor($0) }
-                    ),
-                    in: 5...50,
-                    step: 5
-                ) {
-                    Text("\(model.powerConfig.batteryFloorPercent)%")
-                        .font(.system(size: 12, weight: .medium))
-                        .monospacedDigit()
-                        .frame(minWidth: 42, alignment: .trailing)
-                }
-                .accessibilityLabel(ContractCopy.copyPowerRulesBatteryFloor.text(for: language))
-            }
-
-            MacSettingRow(title: ContractCopy.copyPowerRulesTimeCap.text(for: language)) {
-                Picker(
-                    ContractCopy.copyPowerRulesTimeCap.text(for: language),
-                    selection: Binding(
-                        get: { Int(model.powerConfig.closedLidTimeCapMinutes) },
-                        set: { model.setPowerClosedLidTimeCapMinutes($0) }
-                    )
-                ) {
-                    ForEach(Self.timeCapOptions, id: \.self) { minutes in
-                        Text(SettingsFormat.duration(seconds: Int64(minutes) * 60, language: language))
-                            .tag(minutes)
-                    }
-                }
-                .labelsHidden()
-                .frame(width: 140)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .topLeading)
+    private var sessionIsActive: Bool {
+        model.hasManualSession ||
+            model.decision.preventUserIdleSystemSleep ||
+            model.decision.preventUserIdleDisplaySleep ||
+            model.decision.preventLidSleep
     }
 
-    private func ruleRow(title: String, isOn: Binding<Bool>, isEnabled: Bool = true) -> some View {
-        MacSettingRow(title: title) {
-            MacSwitch(label: title, isOn: isOn, isEnabled: isEnabled)
-        }
+    private var sessionPillLabel: String {
+        (sessionIsActive ? ContractCopy.copyPowerSessionActive : ContractCopy.copyPowerSessionInactive)
+            .text(for: language)
     }
 
-    // MARK: - 最近活动
-
-    private var historyCard: some View {
-        MacCard {
-            HStack {
-                sectionHeader(
-                    title: ContractCopy.copyPowerSectionHistory.text(for: language),
-                    symbol: "clock.arrow.circlepath"
-                )
-                Spacer(minLength: MacTheme.space2)
-                Text(ContractCopy.copyPowerHistoryWindow.text(for: language))
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(MacTheme.textSecondary)
-            }
-
-            if model.recentHistory.isEmpty {
-                HStack(spacing: MacTheme.space2) {
-                    Image(systemName: "tray")
-                        .font(.system(size: 15))
-                        .foregroundStyle(.tertiary)
-                    Text(ContractCopy.copyPowerHistoryNoEvents.text(for: language))
-                        .font(.system(size: 12))
-                        .foregroundStyle(MacTheme.textSecondary)
-                }
-                .frame(maxWidth: .infinity, minHeight: 44, alignment: .center)
-                .background(
-                    MacTheme.elevated,
-                    in: RoundedRectangle(cornerRadius: MacTheme.compactRadius, style: .continuous)
-                )
-                .accessibilityElement(children: .combine)
-            } else {
-                LazyVStack(spacing: MacTheme.space1) {
-                    ForEach(model.recentHistory, id: \.id) { event in
-                        historyRow(event)
-                    }
-                }
-            }
-        }
+    private var sessionPillSymbol: String {
+        sessionIsActive ? "checkmark.circle.fill" : "pause.circle"
     }
 
-    private func historyRow(_ event: PowerHistoryEvent) -> some View {
-        HStack(alignment: .center, spacing: MacTheme.space2) {
-            Text(Self.historyTime.string(
-                from: Date(timeIntervalSince1970: TimeInterval(event.atEpochSeconds))
-            ))
-            .font(.system(size: 10, weight: .medium, design: .monospaced))
-            .foregroundStyle(MacTheme.textSecondary)
-            .frame(width: 42, alignment: .leading)
-            Image(systemName: historySymbol(event.kind))
-                .font(.system(size: 11))
-                .foregroundStyle(historyColor(event.kind))
-                .frame(width: 16)
-            Text(historyTitle(event.kind))
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(MacTheme.textPrimary)
-            Spacer(minLength: MacTheme.space2)
-            if let detail = historyDetail(event) {
-                Text(detail)
-                    .font(.system(size: 10))
-                    .foregroundStyle(MacTheme.textSecondary)
-                    .lineLimit(1)
-            }
-        }
-        .padding(.horizontal, MacTheme.space2)
-        .frame(minHeight: 30)
-        .background(
-            MacTheme.elevated,
-            in: RoundedRectangle(cornerRadius: MacTheme.smallRadius, style: .continuous)
-        )
-        .accessibilityElement(children: .combine)
+    private var sessionPillTint: Color {
+        sessionIsActive ? MacTheme.successText : MacTheme.textSecondary
     }
 
-    private func historyTitle(_ kind: PowerHistoryKind) -> String {
-        switch kind {
-        case .adapterConnected:
-            ContractCopy.copyPowerHistoryAdapterConnected.text(for: language)
-        case .adapterDisconnected:
-            ContractCopy.copyPowerHistoryAdapterDisconnected.text(for: language)
-        case .slept:
-            ContractCopy.copyPowerHistorySlept.text(for: language)
-        case .darkWake, .fullWake:
-            ContractCopy.copyPowerHistoryWoke.text(for: language)
-        case .holdStarted:
-            ContractCopy.copyPowerHistoryHoldStarted.text(for: language)
-        case .guardReleased:
-            ContractCopy.copyPowerHistoryGuardReleased.text(for: language)
-        case .externalConflict:
-            ContractCopy.copyPowerAlertExternalConflict.text(for: language)
-        case .externalConflictCleared:
-            ContractCopy.copyPowerHistoryExternalConflictCleared.text(for: language)
+    private var sessionRemainingText: String {
+        guard let remaining = model.remainingSeconds else {
+            return ContractCopy.copyPowerSessionDurationOpen.text(for: language)
+        }
+        return "\(ContractCopy.copyPowerSessionExpires.text(for: language)) \(SettingsFormat.duration(seconds: remaining, language: language))"
+    }
+
+    private var safetyVetoMessage: String? {
+        var seen = Set<String>()
+        let messages = model.decision.safetyVetoes.compactMap { veto -> String? in
+            let text = vetoText(veto)
+            guard seen.insert(text).inserted else { return nil }
+            return text
+        }
+        return messages.isEmpty ? nil : messages.joined(separator: "\n")
+    }
+
+    private var powerHeadline: String {
+        switch model.observation.powerState {
+        case .charging, .charged, .acPower:
+            return ContractCopy.copyPowerStatusAdapter.text(for: language)
+        case .discharging:
+            return ContractCopy.copyMonitorPowerStateBattery.text(for: language)
+        case .unknown:
+            return ContractCopy.copyPowerSectionStatus.text(for: language)
         default:
-            ContractCopy.copyStateWarning.text(for: language)
+            return ContractCopy.copyPowerSectionStatus.text(for: language)
         }
     }
 
-    private func historyDetail(_ event: PowerHistoryEvent) -> String? {
-        let type: String? = switch event.kind {
-        case .darkWake: "DarkWake"
-        case .fullWake: "Full wake"
-        default: nil
+    private var powerSubtitle: String {
+        guard model.observation.hasBattery?.boolValue != false else {
+            return adapterValue
         }
-        let detail = event.detail.trimmingCharacters(in: .whitespacesAndNewlines)
-        return switch (type, detail.isEmpty) {
-        case let (type?, false): "\(type) · \(detail)"
-        case let (type?, true): type
-        case (nil, false): detail
-        case (nil, true): nil
+        return "\(batteryValue) · \(adapterValue)"
+    }
+
+    private var batteryPercent: Int? {
+        model.observation.batteryPercent?.intValue
+    }
+
+    private var batterySymbol: String {
+        guard let percent = batteryPercent else { return "battery.0percent" }
+        return switch percent {
+        case 88...: "battery.100percent"
+        case 63...: "battery.75percent"
+        case 38...: "battery.50percent"
+        case 13...: "battery.25percent"
+        default: "battery.0percent"
         }
     }
 
-    private func historySymbol(_ kind: PowerHistoryKind) -> String {
-        switch kind {
-        case .adapterConnected, .adapterDisconnected: "powerplug.fill"
-        case .slept: "moon.fill"
-        case .darkWake: "moon.haze.fill"
-        case .fullWake: "sun.max.fill"
-        case .holdStarted: "cup.and.saucer.fill"
-        case .guardReleased: "shield.slash.fill"
-        case .externalConflict: "exclamationmark.triangle.fill"
-        case .externalConflictCleared: "checkmark.shield.fill"
-        default: "circle.fill"
+    private var batteryTint: Color {
+        if let percent = batteryPercent, percent <= 20 {
+            return MacTheme.warningText
+        }
+        switch model.observation.powerState {
+        case .charging, .charged:
+            return MacTheme.successText
+        default:
+            return MacTheme.accent
         }
     }
 
-    private func historyColor(_ kind: PowerHistoryKind) -> Color {
-        switch kind {
-        case .guardReleased, .externalConflict: MacTheme.warningText
-        case .fullWake, .externalConflictCleared: MacTheme.successText
-        default: MacTheme.textSecondary
+    private var powerStatusPillLabel: String {
+        if !model.powerConfig.enabled {
+            return ContractCopy.copyPowerRulesOff.text(for: language)
         }
+        if model.helperStatus == .match && model.helperServiceState == .enabled {
+            return ContractCopy.copyPowerStatusGuardReady.text(for: language)
+        }
+        return ContractCopy.copyPowerStatusGuardMissing.text(for: language)
     }
 
-    // MARK: - 文案与格式
-
-    private func sectionHeader(title: String, symbol: String) -> some View {
-        HStack(spacing: MacTheme.space2) {
-            Image(systemName: symbol)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(MacTheme.accent)
-            MacSectionTitle(text: title)
+    private var powerStatusPillSymbol: String {
+        if !model.powerConfig.enabled {
+            return "power"
         }
+        return model.helperStatus == .match && model.helperServiceState == .enabled
+            ? "checkmark.shield.fill"
+            : "exclamationmark.shield.fill"
     }
 
-    private func statusAlert<Actions: View>(
-        message: String,
-        kind: MacAlertKind,
-        @ViewBuilder actions: () -> Actions
-    ) -> some View {
-        HStack(alignment: .center, spacing: MacTheme.space2) {
-            MacAlert(message: message, kind: kind)
-            actions()
+    private var powerStatusPillTint: Color {
+        if !model.powerConfig.enabled {
+            return MacTheme.textSecondary
+        }
+        return model.helperStatus == .match && model.helperServiceState == .enabled
+            ? MacTheme.successText
+            : MacTheme.warningText
+    }
+
+    private var helperNeedsAction: Bool {
+        model.helperStatus != .match || model.helperServiceState != .enabled
+    }
+
+    private var helperActionTitle: String {
+        HelperServicePresentation.actionTitle(model.helperServiceState, language: language)
+            ?? HelperStatusPresentation.repairTitle.text(for: language)
+    }
+
+    private var helperDescription: String {
+        if let reason = HelperStatusPresentation.readOnlyReason(model.helperStatus, language: language) {
+            return reason
+        }
+        if model.helperServiceState != .enabled {
+            return HelperServicePresentation.value(model.helperServiceState, language: language)
+        }
+        return ContractCopy.copyPowerStatusHelperHint.text(for: language)
+    }
+
+    private var closedLidZeroBrightnessDescription: String {
+        model.closedLidZeroBrightnessAvailability.isAvailable
+            ? ContractCopy.copyPowerRulesClosedLidZeroBrightnessHint.text(for: language)
+            : ContractCopy.copyPowerRulesClosedLidZeroBrightnessUnavailable.text(for: language)
+    }
+
+    private func executionErrorText(_ error: String) -> String {
+        switch error {
+        case "sleep-protection-disabled":
+            ContractCopy.copyPowerErrorMasterOff.text(for: language)
+        case "lid-hold-not-applied":
+            ContractCopy.copyPowerErrorLidNotApplied.text(for: language)
+        case "helper-unavailable":
+            ContractCopy.copyPowerAlertHelperMissing.text(for: language)
+        default:
+            error
         }
     }
 
@@ -671,10 +865,6 @@ struct PowerManagementView: View {
         case .unknown: ContractCopy.copyMonitorStateUnknown.text(for: language)
         default: ContractCopy.copyMonitorStateUnknown.text(for: language)
         }
-    }
-
-    private var helperTitle: String {
-        ContractCopy.copyOverviewHelperVersion.text(for: language)
     }
 
     private var helperValue: String {
@@ -759,6 +949,85 @@ struct PowerManagementView: View {
         }
     }
 
+    private func historyTitle(_ kind: PowerHistoryKind) -> String {
+        switch kind {
+        case .adapterConnected:
+            ContractCopy.copyPowerHistoryAdapterConnected.text(for: language)
+        case .adapterDisconnected:
+            ContractCopy.copyPowerHistoryAdapterDisconnected.text(for: language)
+        case .slept:
+            ContractCopy.copyPowerHistorySlept.text(for: language)
+        case .darkWake, .fullWake:
+            ContractCopy.copyPowerHistoryWoke.text(for: language)
+        case .holdStarted:
+            ContractCopy.copyPowerHistoryHoldStarted.text(for: language)
+        case .guardReleased:
+            ContractCopy.copyPowerHistoryGuardReleased.text(for: language)
+        case .externalConflict:
+            ContractCopy.copyPowerAlertExternalConflict.text(for: language)
+        case .externalConflictCleared:
+            ContractCopy.copyPowerHistoryExternalConflictCleared.text(for: language)
+        default:
+            ContractCopy.copyStateWarning.text(for: language)
+        }
+    }
+
+    private func historyDetail(_ event: PowerHistoryEvent) -> String? {
+        let type: String? = switch event.kind {
+        case .darkWake: "DarkWake"
+        case .fullWake: "Full wake"
+        default: nil
+        }
+        let detail = event.detail.trimmingCharacters(in: .whitespacesAndNewlines)
+        return switch (type, detail.isEmpty) {
+        case let (type?, false): "\(type) · \(detail)"
+        case let (type?, true): type
+        case (nil, false): detail
+        case (nil, true): nil
+        }
+    }
+
+    private func historySymbol(_ kind: PowerHistoryKind) -> String {
+        switch kind {
+        case .adapterConnected, .adapterDisconnected: "powerplug.fill"
+        case .slept: "moon.fill"
+        case .darkWake: "moon.haze.fill"
+        case .fullWake: "sun.max.fill"
+        case .holdStarted: "cup.and.saucer.fill"
+        case .guardReleased: "shield.slash.fill"
+        case .externalConflict: "exclamationmark.triangle.fill"
+        case .externalConflictCleared: "checkmark.shield.fill"
+        default: "circle.fill"
+        }
+    }
+
+    private func historyColor(_ kind: PowerHistoryKind) -> Color {
+        switch kind {
+        case .guardReleased, .externalConflict: MacTheme.warningText
+        case .fullWake, .externalConflictCleared: MacTheme.successText
+        default: MacTheme.textSecondary
+        }
+    }
+
+    private func sectionHeader(title: String, symbol: String) -> some View {
+        Label {
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(MacTheme.textPrimary)
+        } icon: {
+            Image(systemName: symbol)
+                .font(.callout.weight(.semibold))
+                .foregroundStyle(MacTheme.accent)
+        }
+        .accessibilityAddTraits(.isHeader)
+    }
+
+    private func rowDivider() -> some View {
+        Divider()
+            .overlay(MacTheme.divider)
+            .padding(.vertical, MacTheme.space1)
+    }
+
     private static let timeCapOptions = [30, 60, 120, 240, 480, 1_440]
 
     private static let historyTime: DateFormatter = {
@@ -766,6 +1035,41 @@ struct PowerManagementView: View {
         formatter.dateFormat = "HH:mm"
         return formatter
     }()
+}
+
+private struct PowerStatusMetric: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(MacTheme.textSecondary)
+            Text(value)
+                .font(.callout.weight(.medium))
+                .foregroundStyle(MacTheme.textPrimary)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+private struct PowerStatusPill: View {
+    let label: String
+    let symbol: String
+    let tint: Color
+
+    var body: some View {
+        Label(label, systemImage: symbol)
+            .font(.caption.weight(.medium))
+            .foregroundStyle(tint)
+            .padding(.horizontal, MacTheme.space2)
+            .padding(.vertical, MacTheme.space1)
+            .background(tint.opacity(0.12), in: Capsule())
+            .accessibilityElement(children: .combine)
+    }
 }
 
 private struct PowerReason: Identifiable {

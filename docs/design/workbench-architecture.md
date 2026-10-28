@@ -129,13 +129,19 @@ R7 不做主屏手势。系统不向第三方应用开放 iOS 主屏手势入口
 
 内部键 `devices` 保留为 `Monitor` 工作区的稳定标识。旧配置不需要迁移。
 
-`Monitor` 使用 `MonitorTabView` 显示 CPU、GPU、内存、磁盘、网络、电源和风扇。
+`Monitor` 使用 `MonitorTabView` 显示七张实时指标卡片。
+卡片顺序是 CPU、GPU、内存、磁盘、网络、电源和风扇。
+七张卡片遵循主数值、趋势和详情三层阅读顺序。
+普通指标卡使用内联摘要。
+电源卡和风扇卡使用卡片专属详情浮层。
 普通指标卡的标题只显示图标和标题。
 页面状态行暂时留空，并保留原高度。
 电源卡片在自己的内容区显示供电状态。
 风扇卡片提供真实控制状态时，才显示状态胶囊。
 风扇卡片使用 AppleSMC 读取温度与转速。风扇写入走现有 root helper。
-指标口径见 [硬件信息监听能力研究](../research/hardware-monitoring-capability/README.md)；
+通用卡片规则见 [monitor-card-design.md](monitor-card-design.md)。
+指标口径见 [硬件信息监听能力研究](../research/hardware-monitoring-capability/README.md)。
+电源卡片规范见 [monitor-power-card.md](monitor-power-card.md)。
 风扇卡片规范和故障边界见 [monitor-fan-card.md](monitor-fan-card.md)。
 
 标记「合同暂无条目」的画面，实现前先在合同里加条目。

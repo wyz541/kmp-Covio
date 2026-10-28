@@ -72,11 +72,12 @@ Power 设置放在 `Monitor` 页签 Power card 的第三段浮层中。
 卡片内边距使用 `token/space/4`。
 `电源` 页只保留一个主要阅读列。
 任何设置卡都不与其他设置卡并排。
-内容卡使用 `regularMaterial`，不使用 Liquid Glass。
+popover 外层使用 regular Liquid Glass。
+内容卡使用 `regularMaterial`，不重复叠加 Liquid Glass。
 减少透明度或增强对比时，内容卡改用不透明 `surface`。
 增强对比时，卡片描边从 1 点增加到 1.5 点。
 会话主操作使用 regular interactive Liquid Glass capsule。
-Liquid Glass 只用于开始和结束这两个功能控件。
+玻璃材质用于 popover 外层和开始、结束功能控件。
 
 ### macOS 设计依据
 
@@ -88,7 +89,7 @@ Liquid Glass 只用于开始和结束这两个功能控件。
 | 减少设置数量 | 会话类型和时长使用菜单选择，不使用两排胶囊选项 |
 | 区分状态和设置 | 状态使用摘要和徽标；设置使用原生开关、菜单和步进器 |
 | 保留键盘和读屏路径 | 所有控件使用可见标签、原生焦点顺序和无障碍名称 |
-| Liquid Glass 只用于功能层 | 内容卡使用标准材质；开始和结束按钮使用交互式 Liquid Glass |
+| 区分玻璃层级 | popover 使用 regular Liquid Glass；内容卡使用标准材质；开始和结束使用交互式 Liquid Glass |
 | 区分主从开关 | 总开关使用常规 switch；单行子设置使用 mini switch |
 
 ## 状态模型
@@ -206,7 +207,7 @@ stateDiagram-v2
 
 Power popover 不再显示合盖屏幕、外接屏暂停和零亮度设置。
 
-![Power popover after the display split](previews/441-power-popover-light-after-1.png)
+![Power popover after the display split](previews/441-power-popover-light-after-2.png)
 
 ## 视觉验收
 

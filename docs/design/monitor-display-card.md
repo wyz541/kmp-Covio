@@ -61,6 +61,13 @@ Power card 继续管理电池、适配器、热状态、低电量模式、安全
 - `合盖 Helper`显示安装、审批和修复状态。
 - 零亮度失败时就地显示错误和公开关屏回退说明。
 
+### 材质
+
+- popover 外层使用 regular Liquid Glass。
+- 内容卡使用标准材质，避免多层玻璃叠加。
+- 减少透明度或增强对比时，popover 外层回退为不透明 surface。
+- 开始和结束按钮使用 interactive Liquid Glass。
+
 | 模式 | 行为 |
 | --- | --- |
 | 跟随系统 | 不启动合盖保持运行，由 macOS 执行默认行为 |
@@ -107,12 +114,12 @@ Power card 继续管理电池、适配器、热状态、低电量模式、安全
 
 亮色：
 
-![Screen card popover light](previews/441-screen-card-popover-light-after-1.png)
+![Screen card popover light](previews/441-screen-card-popover-light-after-2.png)
 
 深色：
 
-![Screen card popover dark](previews/441-screen-card-popover-dark-after-1.png)
+![Screen card popover dark](previews/441-screen-card-popover-dark-after-2.png)
 
 英文：
 
-![Screen card popover English](previews/441-screen-card-popover-english-after-1.png)
+![Screen card popover English](previews/441-screen-card-popover-english-after-2.png)

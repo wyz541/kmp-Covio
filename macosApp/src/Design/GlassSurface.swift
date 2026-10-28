@@ -170,6 +170,42 @@ extension View {
             )
         )
     }
+
+    /// Monitor 设置 popover 的外层材质。
+    ///
+    /// 普通显示使用 regular Liquid Glass。
+    /// 减少透明度或增强对比时改用不透明 surface。
+    @MainActor
+    func monitorPopoverSurface(cornerRadius: CGFloat = 16) -> some View {
+        modifier(MonitorPopoverSurfaceModifier(cornerRadius: cornerRadius))
+    }
+}
+
+private struct MonitorPopoverSurfaceModifier: ViewModifier {
+    let cornerRadius: CGFloat
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+    }
+
+    private var usesOpaqueSurface: Bool {
+        reduceTransparency || colorSchemeContrast == .increased
+    }
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if usesOpaqueSurface {
+            content
+                .background(shape.fill(MacTheme.surface))
+                .overlay(shape.strokeBorder(MacTheme.divider, lineWidth: 1.5))
+        } else {
+            content
+                .glassSurface(cornerRadius: cornerRadius, mode: .glass)
+                .overlay(shape.strokeBorder(MacTheme.divider.opacity(0.8), lineWidth: 1))
+        }
+    }
 }
 
 /// 玻璃底材。所有模式共用圆角。

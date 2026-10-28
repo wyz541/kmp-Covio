@@ -507,7 +507,7 @@ private struct MonitorPowerCard: View {
             return .handled
         }
         .onAppear {
-            setDetailsPresented(popoverInitiallyPresented || detailsExpanded)
+            setDetailsPresented(popoverInitiallyPresented || shouldRestoreStoredPresentation)
         }
         .onChange(of: detailsPresented) { _, presented in
             detailsExpanded = presented
@@ -574,6 +574,14 @@ private struct MonitorPowerCard: View {
 
     private func toggleDetails() {
         setDetailsPresented(!detailsPresented)
+    }
+
+    private var shouldRestoreStoredPresentation: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.environment["COVIO_MONITOR_PREVIEW"] != "1" && detailsExpanded
+        #else
+        detailsExpanded
+        #endif
     }
 
     /// 同时更新 Popover 与协调器。先登记再等窗口出现，避免指针事件抢先启动收起。
@@ -955,14 +963,7 @@ struct MonitorPowerDetailPanel: View {
         }
         .padding(MacTheme.space4)
         .frame(width: 560, height: detailHeight)
-        .background(
-            MacTheme.surface.opacity(0.97),
-            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(MacTheme.divider.opacity(0.8), lineWidth: 1)
-        )
+        .monitorPopoverSurface(cornerRadius: 16)
     }
 
     @ViewBuilder

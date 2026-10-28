@@ -69,7 +69,7 @@ struct MonitorDisplayCard: View {
             return .handled
         }
         .onAppear {
-            setDetailsPresented(popoverInitiallyPresented || detailsExpanded)
+            setDetailsPresented(popoverInitiallyPresented || shouldRestoreStoredPresentation)
         }
         .onChange(of: detailsPresented) { _, presented in
             detailsExpanded = presented
@@ -250,6 +250,14 @@ struct MonitorDisplayCard: View {
         setDetailsPresented(!detailsPresented)
     }
 
+    private var shouldRestoreStoredPresentation: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.environment["COVIO_MONITOR_PREVIEW"] != "1" && detailsExpanded
+        #else
+        detailsExpanded
+        #endif
+    }
+
     private func setDetailsPresented(_ presented: Bool) {
         detailsPresented = presented
         popoverCoordinator?.setPresented(presented, id: popoverID)
@@ -288,14 +296,7 @@ private struct MonitorDisplayDetailPanel: View {
         }
         .padding(MacTheme.space4)
         .frame(width: 560, height: panelHeight)
-        .background(
-            MacTheme.surface.opacity(0.98),
-            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(MacTheme.divider.opacity(0.8), lineWidth: 1)
-        )
+        .monitorPopoverSurface(cornerRadius: 16)
     }
 
     private var header: some View {

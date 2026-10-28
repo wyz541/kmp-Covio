@@ -10,13 +10,14 @@ import kmpDomain
 /// 全量运行时会在系统唤醒回调里执行已有逻辑。这个入口绕过运行时，
 /// 只用来检查 `MonitorTabView` 的真实布局和读数。
 struct MonitorPreviewRoot: View {
-    private let language = AppLanguage.simplifiedChinese
+    private let language: AppLanguage
     let snapshot: MonitorSnapshot
     let history: MonitorHistory
     let powerHistory: MonitorPowerHistory
     let runsSampling: Bool
     let startsInPower: Bool
     let powerModel: (any PowerManagementModel)?
+    let width: CGFloat?
     let height: CGFloat?
 
     init(
@@ -26,18 +27,23 @@ struct MonitorPreviewRoot: View {
         runsSampling: Bool = true,
         startsInPower: Bool = false,
         powerModel: (any PowerManagementModel)? = nil,
+        language: AppLanguage = .simplifiedChinese,
+        width: CGFloat? = nil,
         height: CGFloat? = nil
     ) {
+        self.language = language
         self.snapshot = snapshot
         self.history = history
         self.powerHistory = powerHistory
         self.runsSampling = runsSampling
         self.startsInPower = startsInPower
         self.powerModel = powerModel
+        self.width = width
         self.height = height
     }
 
     var body: some View {
+        let totalWidth = width ?? HubMetrics.panelWidth
         let totalHeight = height ?? HubMetrics.monitorBodyHeight + 92
         let bodyHeight = max(HubMetrics.monitorBodyHeight, totalHeight - 92)
         VStack(alignment: .leading, spacing: HubMetrics.pageHeadingGap) {
@@ -57,7 +63,7 @@ struct MonitorPreviewRoot: View {
             .frame(height: bodyHeight)
         }
         .padding(HubMetrics.panelPadding)
-        .frame(width: HubMetrics.panelWidth, height: totalHeight, alignment: .topLeading)
+        .frame(width: totalWidth, height: totalHeight, alignment: .topLeading)
         .background(MacTheme.canvas)
     }
 }
@@ -357,20 +363,32 @@ enum PowerPreviewRenderer {
         let dark = appearance == "dark" ||
             ProcessInfo.processInfo.environment["AppleInterfaceStyle"]?.lowercased() == "dark"
         let colorScheme: ColorScheme = dark ? .dark : .light
+        let preserveGlass = ProcessInfo.processInfo.environment["COVIO_POWER_RENDER_GLASS"] == "1"
+        let dynamicType: DynamicTypeSize = ProcessInfo.processInfo.environment["COVIO_POWER_RENDER_DYNAMIC_TYPE"] == "accessibility3"
+            ? .accessibility3
+            : .large
+        let width = Double(
+            ProcessInfo.processInfo.environment["COVIO_POWER_RENDER_WIDTH"] ?? ""
+        ) ?? HubMetrics.panelWidth
         let height = Double(
             ProcessInfo.processInfo.environment["COVIO_POWER_RENDER_HEIGHT"] ?? ""
         ) ?? HubMetrics.monitorBodyHeight + 92
+        let model = PowerPreviewModel()
         return await MonitorFanPreviewSnapshot.write(
             MonitorPreviewRoot(
                 runsSampling: false,
                 startsInPower: true,
-                powerModel: PowerPreviewModel(),
+                powerModel: model,
+                language: model.language,
+                width: width,
                 height: height
             )
-            .environment(\.colorScheme, colorScheme),
-            size: CGSize(width: HubMetrics.panelWidth, height: height),
+            .environment(\.colorScheme, colorScheme)
+            .environment(\.dynamicTypeSize, dynamicType),
+            size: CGSize(width: width, height: height),
             path: path,
-            dark: dark
+            dark: dark,
+            glassMode: preserveGlass ? nil : .material
         )
     }
 }
@@ -490,10 +508,11 @@ enum MonitorFanPreviewSnapshot {
         _ content: Content,
         size: CGSize,
         path: String,
-        dark: Bool
+        dark: Bool,
+        glassMode: GlassSurfaceMode? = .material
     ) async -> Bool {
         let previousMode = GlassSurfaceMode.current
-        GlassSurfaceMode.current = .material
+        if let glassMode { GlassSurfaceMode.current = glassMode }
         defer { GlassSurfaceMode.current = previousMode }
 
         let host = NSHostingView(rootView: content)

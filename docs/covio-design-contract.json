@@ -5796,6 +5796,22 @@
       "en": "Action failed",
       "zh-Hans": "操作失败"
     },
+    "copy/state/label/error": {
+      "en": "Error",
+      "zh-Hans": "错误"
+    },
+    "copy/state/label/info": {
+      "en": "Info",
+      "zh-Hans": "信息"
+    },
+    "copy/state/label/success": {
+      "en": "Done",
+      "zh-Hans": "完成"
+    },
+    "copy/state/label/warning": {
+      "en": "Warning",
+      "zh-Hans": "警告"
+    },
     "copy/state/loading": {
       "en": "Loading",
       "zh-Hans": "正在加载"

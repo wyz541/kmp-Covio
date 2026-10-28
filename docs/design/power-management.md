@@ -67,6 +67,9 @@ Power 页面显示并写入同一个总开关。
 卡片内边距使用 `token/space/4`。
 页面只保留一个主要阅读列。
 任何设置卡都不与其他设置卡并排。
+内容卡使用 `regularMaterial`，不使用 Liquid Glass。
+减少透明度或增强对比时，内容卡改用不透明 `surface`。
+增强对比时，卡片描边从 1 点增加到 1.5 点。
 
 ### macOS 设计依据
 
@@ -78,6 +81,8 @@ Power 页面显示并写入同一个总开关。
 | 减少设置数量 | 会话类型和时长使用菜单选择，不使用两排胶囊选项 |
 | 区分状态和设置 | 状态使用摘要和徽标；设置使用原生开关、菜单和步进器 |
 | 保留键盘和读屏路径 | 所有控件使用可见标签、原生焦点顺序和无障碍名称 |
+| Liquid Glass 只用于功能层 | 内容卡使用标准材质；导航和浮动控件保留 Liquid Glass |
+| 区分主从开关 | 总开关使用常规 switch；单行子设置使用 mini switch |
 
 ## 状态模型
 
@@ -118,19 +123,27 @@ stateDiagram-v2
 13. 合盖实验能力和三项安全阈值放在“合盖与安全”展开区。
 14. 自动规则始终可见，避免高级设置隐藏常用开关。
 15. 最近活动默认收起，展开后按时间顺序显示事件。
+16. 合盖实验能力开启不等于高级区展开。
+17. helper 异常或零亮度失败时，页面自动展开“合盖与安全”。
+18. 开始、结束和 helper 修复按钮使用 44 点命中高度。
+19. 自定义按钮提供 hover、pressed 和 keyboard focus 状态。
+20. 自动保持规则生效时，会话状态显示“运行中”，不显示“没有会话”。
 
 ## 无障碍
 
 1. 状态同时使用文字和形状。
 2. 不只靠颜色区分供电、警告和失败。
-3. 所有按钮命中区不小于 24 点，开始和结束按钮使用主操作尺寸。
-4. 分段控件支持键盘焦点。
-5. 规则开关有完整读屏名称。
-6. 减少动态效果时停止非必要过渡。
-7. 错误信息写出原因和下一步。
-8. 分组标题使用辅助功能标题语义。
-9. 摘要指标合并为一个可读条目。
-10. 展开区保留标准 DisclosureGroup 键盘行为。
+3. 所有按钮命中区不小于 24 点。
+4. 开始、结束和 helper 修复按钮命中高度不小于 44 点。
+5. 分段控件支持键盘焦点。
+6. 规则开关有完整读屏名称。
+7. 减少动态效果时停止非必要缩放和状态动画。
+8. 错误信息写出原因和下一步。
+9. 提示标签按当前界面语言显示。
+10. 分组标题使用辅助功能标题语义。
+11. 摘要指标合并为一个可读条目。
+12. 展开区保留标准 DisclosureGroup 键盘行为。
+13. 结束按钮与会话摘要保持独立焦点，不合并成单一无障碍元素。
 
 ## 安全边界
 
@@ -173,20 +186,32 @@ stateDiagram-v2
 17. #434 将页面重构为单列设置布局。
 18. #434 使用原生菜单、开关和 DisclosureGroup，移除并排卡片与六宫格状态块。
 19. 浅色、深色、中文和英文预览均完成布局检查。
+20. #434 将 Power 内容卡改为标准材质。
+21. #434 增加增强对比和减少透明度回退。
+22. #434 增加 44 点按钮命中区与 hover、pressed、focused 状态。
+23. #434 完成 720 点宽度和完整英文界面布局检查。
 
 ## 预览
 
 ### 浅色
 
-![Power management light](previews/434-power-management-light-after-1.png)
+![Power management light](previews/434-power-management-light-after-2.png)
 
 ### 深色
 
-![Power management dark](previews/434-power-management-dark-after-1.png)
+![Power management dark](previews/434-power-management-dark-after-2.png)
 
 ### 展开高级规则
 
-![Power management rules](previews/434-power-management-rules-light-after-1.png)
+![Power management rules](previews/434-power-management-rules-light-after-2.png)
+
+### 窄窗口
+
+![Power management at 720 points](previews/434-power-management-narrow-light-after-2.png)
+
+### 英文
+
+![Power management English](previews/434-power-management-english-after-2.png)
 
 ## 默认黑屏预览
 
@@ -212,6 +237,10 @@ stateDiagram-v2
 10. 深色和浅色对比度可读。
 11. 中文和英文无缺字、重叠或溢出。
 12. 滚动区域没有横向裁切。
+13. 720 点宽度下没有横向滚动。
+14. 增强对比模式下卡片使用不透明表面。
+15. 减少透明度模式下卡片不使用透明材质。
+16. 键盘 focus ring 可见。
 
 ## 设计参考
 
@@ -219,6 +248,11 @@ stateDiagram-v2
 - [Apple HIG: Layout](https://developer.apple.com/design/human-interface-guidelines/layout)
 - [Apple HIG: Designing for macOS](https://developer.apple.com/design/human-interface-guidelines/designing-for-macos)
 - [Apple HIG: Accessibility](https://developer.apple.com/design/human-interface-guidelines/accessibility)
+- [Apple HIG: Materials](https://developer.apple.com/design/human-interface-guidelines/materials)
+- [Apple HIG: Buttons](https://developer.apple.com/design/human-interface-guidelines/buttons)
+- [Apple HIG: Color](https://developer.apple.com/design/human-interface-guidelines/color)
+- [Apple HIG: Toggles](https://developer.apple.com/design/human-interface-guidelines/toggles)
+- [Apple HIG: Scroll views](https://developer.apple.com/design/human-interface-guidelines/scroll-views)
 
 ## 未决事项
 

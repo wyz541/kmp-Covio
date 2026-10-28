@@ -26,9 +26,9 @@ struct PowerManagementView: View {
         #endif
         _advancedRulesExpanded = State(initialValue:
             previewExpanded ||
-                model.powerConfig.closedLidZeroBrightness ||
                 model.helperStatus != .match ||
-                model.helperServiceState != .enabled
+                model.helperServiceState != .enabled ||
+                model.closedLidZeroBrightnessPhase == .failed
         )
     }
 
@@ -46,12 +46,18 @@ struct PowerManagementView: View {
         .scrollIndicators(.automatic)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .accessibilityElement(children: .contain)
+        .onChange(of: helperNeedsAction) { _, needsAction in
+            if needsAction { advancedRulesExpanded = true }
+        }
+        .onChange(of: zeroBrightnessNeedsAttention) { _, needsAttention in
+            if needsAttention { advancedRulesExpanded = true }
+        }
     }
 
     // MARK: - 当前供电
 
     private var statusCard: some View {
-        MacCard {
+        PowerSettingsCard {
             HStack(alignment: .center, spacing: MacTheme.space3) {
                 sectionHeader(
                     title: ContractCopy.copyPowerSectionStatus.text(for: language),
@@ -66,7 +72,8 @@ struct PowerManagementView: View {
                     isOn: Binding(
                         get: { model.powerConfig.enabled },
                         set: { model.setPowerEnabled($0) }
-                    )
+                    ),
+                    size: .regular
                 )
             }
 
@@ -81,19 +88,22 @@ struct PowerManagementView: View {
             if !model.powerConfig.enabled {
                 MacAlert(
                     message: ContractCopy.copyPowerErrorMasterOff.text(for: language),
-                    kind: .warning
+                    kind: .warning,
+                    language: language
                 )
             }
             if hasExternalSleepConflict {
                 MacAlert(
                     message: ContractCopy.copyPowerAlertExternalConflict.text(for: language),
-                    kind: .error
+                    kind: .error,
+                    language: language
                 )
             }
             if thermalNeedsAttention {
                 MacAlert(
                     message: ContractCopy.copyPowerAlertThermal.text(for: language),
-                    kind: .warning
+                    kind: .warning,
+                    language: language
                 )
             }
         }
@@ -154,7 +164,7 @@ struct PowerManagementView: View {
     // MARK: - 保持唤醒
 
     private var sessionCard: some View {
-        MacCard {
+        PowerSettingsCard {
             HStack(alignment: .center, spacing: MacTheme.space3) {
                 sectionHeader(
                     title: ContractCopy.copyPowerSectionSession.text(for: language),
@@ -184,14 +194,14 @@ struct PowerManagementView: View {
             }
 
             if let message = safetyVetoMessage {
-                MacAlert(message: message, kind: .warning)
+                MacAlert(message: message, kind: .warning, language: language)
             }
             if let error = model.executionError {
-                MacAlert(message: executionErrorText(error), kind: .error)
+                MacAlert(message: executionErrorText(error), kind: .error, language: language)
             } else if let outcome {
-                MacAlert(message: outcome.message, kind: outcome.kind)
+                MacAlert(message: outcome.message, kind: outcome.kind, language: language)
             } else if let message = model.statusMessage, !message.isEmpty {
-                MacAlert(message: message, kind: .info)
+                MacAlert(message: message, kind: .info, language: language)
             }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -214,7 +224,10 @@ struct PowerManagementView: View {
 
             Spacer(minLength: MacTheme.space3)
 
-            MacButton(title: ContractCopy.copyPowerSessionEnd.text(for: language)) {
+            MacButton(
+                title: ContractCopy.copyPowerSessionEnd.text(for: language),
+                minimumHitHeight: 44
+            ) {
                 model.endSession()
                 outcome = PowerOutcome(
                     message: ContractCopy.copyStateSuccess.text(for: language),
@@ -227,7 +240,7 @@ struct PowerManagementView: View {
             MacTheme.successBackground,
             in: RoundedRectangle(cornerRadius: MacTheme.compactRadius, style: .continuous)
         )
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
     }
 
     private var sessionSetup: some View {
@@ -272,7 +285,7 @@ struct PowerManagementView: View {
 
             HStack(alignment: .center, spacing: MacTheme.space3) {
                 VStack(alignment: .leading, spacing: MacTheme.space1) {
-                    Text(ContractCopy.copyPowerSessionNone.text(for: language))
+                    Text(sessionSetupStatusText)
                         .font(.callout)
                         .foregroundStyle(MacTheme.textSecondary)
                     Text(ContractCopy.copyPowerSessionStartHint.text(for: language))
@@ -283,7 +296,8 @@ struct PowerManagementView: View {
                 MacButton(
                     title: ContractCopy.copyPowerSessionStart.text(for: language),
                     kind: .primary,
-                    isEnabled: canStartSession
+                    isEnabled: canStartSession,
+                    minimumHitHeight: 44
                 ) {
                     let started = model.startSession(mode: sessionMode, duration: sessionDuration)
                     outcome = PowerOutcome(
@@ -318,7 +332,7 @@ struct PowerManagementView: View {
     // MARK: - 安全与自动规则
 
     private var rulesCard: some View {
-        MacCard {
+        PowerSettingsCard {
             sectionHeader(
                 title: ContractCopy.copyPowerSectionRules.text(for: language),
                 symbol: "shield.lefthalf.filled"
@@ -379,7 +393,8 @@ struct PowerManagementView: View {
                     MacButton(
                         title: helperActionTitle,
                         kind: .primary,
-                        isEnabled: !model.busy
+                        isEnabled: !model.busy,
+                        minimumHitHeight: 44
                     ) {
                         if model.helperServiceState == .requiresApproval {
                             model.openHelperApproval()
@@ -425,7 +440,8 @@ struct PowerManagementView: View {
                let error = model.closedLidZeroBrightnessError {
                 MacAlert(
                     message: "\(ContractCopy.copyPowerRulesClosedLidZeroBrightnessFailed.text(for: language)) \(error)",
-                    kind: .warning
+                    kind: .warning,
+                    language: language
                 )
             }
             rowDivider()
@@ -526,7 +542,7 @@ struct PowerManagementView: View {
     // MARK: - 最近活动
 
     private var historyCard: some View {
-        MacCard {
+        PowerSettingsCard {
             DisclosureGroup(isExpanded: $historyExpanded) {
                 VStack(alignment: .leading, spacing: MacTheme.space2) {
                     Text(ContractCopy.copyPowerHistoryHint.text(for: language))
@@ -789,6 +805,17 @@ struct PowerManagementView: View {
         model.helperStatus != .match || model.helperServiceState != .enabled
     }
 
+    private var zeroBrightnessNeedsAttention: Bool {
+        model.closedLidZeroBrightnessPhase == .failed ||
+            (model.closedLidZeroBrightnessError?.isEmpty == false)
+    }
+
+    private var sessionSetupStatusText: String {
+        sessionIsActive
+            ? ContractCopy.copyPowerSessionActive.text(for: language)
+            : ContractCopy.copyPowerSessionNone.text(for: language)
+    }
+
     private var helperActionTitle: String {
         HelperServicePresentation.actionTitle(model.helperServiceState, language: language)
             ?? HelperStatusPresentation.repairTitle.text(for: language)
@@ -1037,15 +1064,47 @@ struct PowerManagementView: View {
     }()
 }
 
+private struct PowerSettingsCard<Content: View>: View {
+    @ViewBuilder var content: Content
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: MacTheme.space3) {
+            content
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(MacTheme.space4)
+        .background {
+            if usesOpaqueSurface {
+                shape.fill(MacTheme.surface)
+            } else {
+                shape.fill(.regularMaterial)
+            }
+        }
+        .overlay(shape.strokeBorder(MacTheme.divider, lineWidth: usesOpaqueSurface ? 1.5 : 1))
+        .accessibilityElement(children: .contain)
+    }
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: MacTheme.cardRadius, style: .continuous)
+    }
+
+    private var usesOpaqueSurface: Bool {
+        reduceTransparency || colorSchemeContrast == .increased
+    }
+}
+
 private struct PowerStatusMetric: View {
     let title: String
     let value: String
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
                 .font(.caption)
-                .foregroundStyle(MacTheme.textSecondary)
+                .foregroundStyle(colorSchemeContrast == .increased ? MacTheme.textPrimary : MacTheme.textSecondary)
             Text(value)
                 .font(.callout.weight(.medium))
                 .foregroundStyle(MacTheme.textPrimary)

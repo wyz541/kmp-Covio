@@ -1415,6 +1415,14 @@ enum ContractCopy {
     static let copyStateEmpty = LocalizedCopy(key: "copy/state/empty", en: "No items", zhHans: "无项目")
     /// `copy/state/error`
     static let copyStateError = LocalizedCopy(key: "copy/state/error", en: "Action failed", zhHans: "操作失败")
+    /// `copy/state/label/error`
+    static let copyStateLabelError = LocalizedCopy(key: "copy/state/label/error", en: "Error", zhHans: "错误")
+    /// `copy/state/label/info`
+    static let copyStateLabelInfo = LocalizedCopy(key: "copy/state/label/info", en: "Info", zhHans: "信息")
+    /// `copy/state/label/success`
+    static let copyStateLabelSuccess = LocalizedCopy(key: "copy/state/label/success", en: "Done", zhHans: "完成")
+    /// `copy/state/label/warning`
+    static let copyStateLabelWarning = LocalizedCopy(key: "copy/state/label/warning", en: "Warning", zhHans: "警告")
     /// `copy/state/loading`
     static let copyStateLoading = LocalizedCopy(key: "copy/state/loading", en: "Loading", zhHans: "正在加载")
     /// `copy/state/normal`
@@ -2251,6 +2259,10 @@ enum ContractCopy {
         copyStateDisabled,
         copyStateEmpty,
         copyStateError,
+        copyStateLabelError,
+        copyStateLabelInfo,
+        copyStateLabelSuccess,
+        copyStateLabelWarning,
         copyStateLoading,
         copyStateNormal,
         copyStateRetry,

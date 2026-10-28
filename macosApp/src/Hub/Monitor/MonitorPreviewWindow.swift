@@ -150,6 +150,10 @@ final class PowerPreviewModel: PowerManagementModel {
                 detail: "UserActivity"
             ),
         ]
+        if ProcessInfo.processInfo.environment["COVIO_POWER_PREVIEW_SESSION"] == "active" {
+            _ = startSession(mode: .lid, duration: .oneHour)
+            remainingSeconds = 2_700
+        }
     }
 
     func setPowerEnabled(_ enabled: Bool) {

@@ -178,15 +178,15 @@ stateDiagram-v2
 
 ### 浅色
 
-![Power management light](previews/150-power-management-light.png)
+![Power management light](previews/434-power-management-light-after-1.png)
 
 ### 深色
 
-![Power management dark](previews/150-power-management-dark.png)
+![Power management dark](previews/434-power-management-dark-after-1.png)
 
 ### 展开高级规则
 
-![Power management rules](previews/150-power-management-rules-light.png)
+![Power management rules](previews/434-power-management-rules-light-after-1.png)
 
 ## 默认黑屏预览
 

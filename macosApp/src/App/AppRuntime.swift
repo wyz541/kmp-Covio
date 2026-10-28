@@ -96,6 +96,7 @@ final class AppRuntime {
     private let sleepWatcher: SleepWatcher
     private let wakeLogReader: WakeLogReader
     private let privileged: PrivilegedOps
+    private let helperMonitor: HelperStatusMonitor?
     private let helperServiceManager: any HelperServiceManaging
     private let chargeLimitClient: any ChargeLimitClientProtocol
     private let loginItem: LoginItem
@@ -152,7 +153,18 @@ final class AppRuntime {
         self.agentExternalPreferences = agentExternalPreferences
         let resolvedStore = configStore ?? ConfigStore.companion.create(path: AppPaths.configFile.path)
 
-        let resolvedPrivileged = privileged ?? MacPrivilegedOps(logger: resolvedLogger)
+        let resolvedPrivileged: PrivilegedOps
+        let resolvedHelperMonitor: HelperStatusMonitor?
+        if let privileged {
+            resolvedPrivileged = privileged
+            resolvedHelperMonitor = privileged as? HelperStatusMonitor
+        } else {
+            let monitor = HelperStatusMonitor(
+                upstream: MacPrivilegedOps(logger: resolvedLogger)
+            )
+            resolvedPrivileged = monitor
+            resolvedHelperMonitor = monitor
+        }
         let resolvedPowerObservation = powerObservation ?? MacPowerObservationSource()
         let resolvedPowerHistory = powerHistoryStore ?? PowerHistoryStore.companion.create(
             path: AppPaths.powerHistoryFile.path
@@ -168,6 +180,7 @@ final class AppRuntime {
         self.sleepWatcher = sleepWatcher
         self.wakeLogReader = wakeLogReader
         self.privileged = resolvedPrivileged
+        self.helperMonitor = resolvedHelperMonitor
         self.helperServiceManager = helperServiceManager ?? SMAppHelperServiceManager.shared
         self.chargeLimitClient = chargeLimitClient
         self.loginItem = loginItem
@@ -376,6 +389,11 @@ final class AppRuntime {
         if agentExternalServiceEnabled {
             configureAgentExternalService()
         }
+        resolvedHelperMonitor?.setUpdateHandler { [weak self] snapshot in
+            Task { @MainActor [weak self] in
+                self?.applyHelperSnapshot(snapshot)
+            }
+        }
     }
 
     var agentExternalServiceEnabled: Bool {
@@ -534,6 +552,7 @@ final class AppRuntime {
         logger.info(message: "Covio \(GeneratedReleaseIdentityKt.APP_VERSION) starting")
 
         helperServiceState = helperServiceManager.state
+        helperMonitor?.requestProbe(force: true)
         helperStatus = privileged.status()
         reconcileChargeLimit()
         syncHibernateMode()
@@ -598,8 +617,12 @@ final class AppRuntime {
         ticks += 1
         syncState()
         if ticks % Self.helperRefreshTicks == 0 {
-            // 心跳里不等待：只读一次当前状态。等待只用在刚装完 helper 的那一刻。
-            Task { @MainActor in await refreshHelperStatus() }
+            // 心跳里不等待：缓存立即返回，真实探测在后台执行。
+            if let helperMonitor {
+                helperMonitor.requestProbe()
+            } else {
+                Task { @MainActor in await refreshHelperStatus() }
+            }
         }
     }
 
@@ -876,22 +899,37 @@ final class AppRuntime {
     /// 与 Compose 版 `awaitHelperStatus` 一致：最多等 5 秒，每 200 毫秒查一次。
     private func refreshHelperStatus(waitForMatch: Bool = false) async {
         helperServiceState = helperServiceManager.state
-        var status = privileged.status()
-        if waitForMatch && status != .match {
-            let deadline = Date().addingTimeInterval(5)
-            while status != .match && Date() < deadline {
-                try? await Task.sleep(nanoseconds: 200_000_000)
-                status = privileged.status()
+        if let helperMonitor {
+            var snapshot = await helperMonitor.probe(force: true)
+            if waitForMatch && snapshot?.status != .match {
+                let deadline = Date().addingTimeInterval(5)
+                while Date() < deadline {
+                    try? await Task.sleep(nanoseconds: 200_000_000)
+                    snapshot = await helperMonitor.probe(force: true)
+                    if snapshot?.status == .match { break }
+                }
             }
-        }
-        guard helperStatus != status else {
-            powerRuntime.refreshHelperStatusNow()
+            if let snapshot {
+                applyHelperSnapshot(snapshot)
+            }
             return
         }
+
+        applyHelperStatus(privileged.status())
+    }
+
+    private func applyHelperSnapshot(_ snapshot: HelperStatusSnapshot) {
+        applyHelperStatus(snapshot.status)
+    }
+
+    private func applyHelperStatus(_ status: HelperStatus) {
+        let changed = helperStatus != status
         helperStatus = status
         if status != .match {
             chargeLimitStatus = nil
         }
+        powerRuntime.refreshHelperStatusNow()
+        guard changed else { return }
         syncState()
         if status == .match {
             _ = engine.updateConfig(newConfig: config)

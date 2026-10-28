@@ -42,11 +42,8 @@ Power card 继续管理电池、适配器、热状态、低电量模式、安全
 
 ## Popover
 
-### 当前屏幕
-
-- 显示内建屏状态、亮度、显示功耗。
-- 显示外接屏数量、分辨率和刷新率。
-- 显示功耗不可用时给出文字说明。
+popover 只承载第一段和第二段之外的动作与设置。
+popover 不重复屏幕状态、亮度、显示功耗、外接屏数量、分辨率和刷新率。
 
 ### 屏幕操作
 
@@ -114,12 +111,12 @@ Power card 继续管理电池、适配器、热状态、低电量模式、安全
 
 亮色：
 
-![Screen card popover light](previews/441-screen-card-popover-light-after-3.png)
+![Screen card popover light](previews/441-screen-card-popover-light-after-4.png)
 
 深色：
 
-![Screen card popover dark](previews/441-screen-card-popover-dark-after-3.png)
+![Screen card popover dark](previews/441-screen-card-popover-dark-after-4.png)
 
 英文：
 
-![Screen card popover English](previews/441-screen-card-popover-english-after-3.png)
+![Screen card popover English](previews/441-screen-card-popover-english-after-4.png)

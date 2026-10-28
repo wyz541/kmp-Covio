@@ -264,6 +264,7 @@ struct MonitorDisplayCard: View {
     }
 }
 
+/// 第三段 popover 只显示卡片摘要之外的动作和设置。
 private struct MonitorDisplayDetailPanel: View {
     let display: MonitorSnapshot.Display
     let language: AppLanguage
@@ -272,7 +273,7 @@ private struct MonitorDisplayDetailPanel: View {
 
     private var panelHeight: CGFloat {
         let available = NSScreen.main?.visibleFrame.height ?? 800
-        return min(780, max(420, available - 140))
+        return min(620, max(420, available - 140))
     }
 
     var body: some View {
@@ -280,7 +281,6 @@ private struct MonitorDisplayDetailPanel: View {
             header
             ScrollView {
                 VStack(alignment: .leading, spacing: MacTheme.space3) {
-                    statusCard
                     if let powerModel {
                         actionsCard(model: powerModel)
                         closedLidCard(model: powerModel)
@@ -319,47 +319,6 @@ private struct MonitorDisplayDetailPanel: View {
             .accessibilityLabel(ContractCopy.copyMonitorPowerDetailsClose.text(for: language))
         }
         .frame(height: 26)
-    }
-
-    private var statusCard: some View {
-        DisplaySettingsCard {
-            DisplaySectionHeader(
-                title: ContractCopy.copyMonitorDisplayStatusTitle.text(for: language),
-                symbol: "display"
-            )
-            HStack(spacing: MacTheme.space3) {
-                Image(systemName: displaySymbol)
-                    .font(.system(size: 34, weight: .medium))
-                    .foregroundStyle(display.state == .asleep ? MacTheme.textSecondary : MacTheme.brand)
-                    .frame(width: 62, height: 62)
-                    .background(MacTheme.brand.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
-                VStack(alignment: .leading, spacing: MacTheme.space1) {
-                    Text(stateText)
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(MacTheme.textPrimary)
-                    Text("\(ContractCopy.copyMonitorDisplayBrightness.text(for: language)) · \(brightnessText)")
-                        .font(.callout)
-                        .foregroundStyle(MacTheme.textSecondary)
-                    Text("\(ContractCopy.copyMonitorDisplayPower.text(for: language)) \(powerText)")
-                        .font(.callout.monospacedDigit())
-                        .foregroundStyle(MacTheme.textPrimary)
-                }
-                Spacer(minLength: 0)
-            }
-            HStack(spacing: MacTheme.space4) {
-                statusMetric(
-                    ContractCopy.copyPowerStatusExternalDisplay.text(for: language),
-                    externalDisplayText
-                )
-                statusMetric(ContractCopy.copyMonitorDisplayResolution.text(for: language), resolutionText)
-                statusMetric(ContractCopy.copyMonitorDisplayRefreshRate.text(for: language), refreshRateText)
-            }
-            if display.powerWatts == nil {
-                Text(ContractCopy.copyMonitorDisplayPowerUnavailable.text(for: language))
-                    .font(.caption)
-                    .foregroundStyle(MacTheme.textSecondary)
-            }
-        }
     }
 
     private func actionsCard(model: any PowerManagementModel) -> some View {
@@ -558,20 +517,6 @@ private struct MonitorDisplayDetailPanel: View {
         .frame(minHeight: 44)
     }
 
-    private func statusMetric(_ title: String, _ value: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(MacTheme.textSecondary)
-            Text(value)
-                .font(.callout.weight(.medium))
-                .foregroundStyle(MacTheme.textPrimary)
-                .lineLimit(1)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)
-    }
-
     private var displaySymbol: String {
         switch display.state {
         case .active: "display"
@@ -579,47 +524,6 @@ private struct MonitorDisplayDetailPanel: View {
         case .offline: "display.trianglebadge.exclamationmark"
         case .unknown: "display"
         }
-    }
-
-    private var stateText: String {
-        switch display.state {
-        case .active: ContractCopy.copyMonitorDisplayStatusActive.text(for: language)
-        case .asleep: ContractCopy.copyMonitorDisplayStatusAsleep.text(for: language)
-        case .offline: ContractCopy.copyMonitorDisplayStatusOffline.text(for: language)
-        case .unknown: ContractCopy.copyMonitorStateUnknown.text(for: language)
-        }
-    }
-
-    private var brightnessText: String {
-        display.brightnessPercent.map { "\(Int(min(100, max(0, $0)).rounded()))%" }
-            ?? ContractCopy.copyMonitorUnavailable.text(for: language)
-    }
-
-    private var powerText: String {
-        MonitorPowerFormat.watts(display.powerWatts)
-    }
-
-    private var externalDisplayText: String {
-        guard let count = display.externalDisplayCount else {
-            return ContractCopy.copyMonitorUnavailable.text(for: language)
-        }
-        return count == 0
-            ? ContractCopy.copyPowerStatusNoExternalDisplay.text(for: language)
-            : String(count)
-    }
-
-    private var resolutionText: String {
-        guard let width = display.pixelWidth, let height = display.pixelHeight else {
-            return ContractCopy.copyMonitorUnavailable.text(for: language)
-        }
-        return "\(width) × \(height)"
-    }
-
-    private var refreshRateText: String {
-        guard let refreshRate = display.refreshRate, refreshRate.isFinite else {
-            return ContractCopy.copyMonitorUnavailable.text(for: language)
-        }
-        return String(format: "%.0f Hz", refreshRate)
     }
 
     private func effectiveMode(for model: any PowerManagementModel) -> ClosedLidDisplayMode {

@@ -224,9 +224,9 @@ struct PowerManagementView: View {
 
             Spacer(minLength: MacTheme.space3)
 
-            MacButton(
+            PowerGlassActionButton(
                 title: ContractCopy.copyPowerSessionEnd.text(for: language),
-                minimumHitHeight: 44
+                symbol: "stop.fill"
             ) {
                 model.endSession()
                 outcome = PowerOutcome(
@@ -293,11 +293,10 @@ struct PowerManagementView: View {
                         .foregroundStyle(MacTheme.textSecondary)
                 }
                 Spacer(minLength: MacTheme.space3)
-                MacButton(
+                PowerGlassActionButton(
                     title: ContractCopy.copyPowerSessionStart.text(for: language),
-                    kind: .primary,
-                    isEnabled: canStartSession,
-                    minimumHitHeight: 44
+                    symbol: "play.fill",
+                    isEnabled: canStartSession
                 ) {
                     let started = model.startSession(mode: sessionMode, duration: sessionDuration)
                     outcome = PowerOutcome(
@@ -1092,6 +1091,51 @@ private struct PowerSettingsCard<Content: View>: View {
 
     private var usesOpaqueSurface: Bool {
         reduceTransparency || colorSchemeContrast == .increased
+    }
+}
+
+private struct PowerGlassActionButton: View {
+    let title: String
+    let symbol: String
+    var isEnabled = true
+    let action: () -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHovering = false
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: symbol)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(MacTheme.textPrimary)
+                .padding(.horizontal, MacTheme.space4)
+                .frame(minHeight: 44)
+                .contentShape(Capsule())
+        }
+        .buttonStyle(PowerGlassActionButtonStyle(reduceMotion: reduceMotion))
+        .glassEffect(.regular.interactive(), in: .capsule)
+        .overlay(
+            Capsule()
+                .strokeBorder(isFocused ? MacTheme.focusRing : .clear, lineWidth: 2)
+        )
+        .brightness(isHovering && isEnabled ? 0.06 : 0)
+        .focused($isFocused)
+        .disabled(!isEnabled)
+        .opacity(isEnabled ? 1 : 0.55)
+        .onHover { isHovering = $0 }
+        .accessibilityLabel(title)
+    }
+}
+
+private struct PowerGlassActionButtonStyle: ButtonStyle {
+    let reduceMotion: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.78 : 1)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 

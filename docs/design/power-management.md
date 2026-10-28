@@ -70,6 +70,8 @@ Power 页面显示并写入同一个总开关。
 内容卡使用 `regularMaterial`，不使用 Liquid Glass。
 减少透明度或增强对比时，内容卡改用不透明 `surface`。
 增强对比时，卡片描边从 1 点增加到 1.5 点。
+会话主操作使用 regular interactive Liquid Glass capsule。
+Liquid Glass 只用于开始和结束这两个功能控件。
 
 ### macOS 设计依据
 
@@ -81,7 +83,7 @@ Power 页面显示并写入同一个总开关。
 | 减少设置数量 | 会话类型和时长使用菜单选择，不使用两排胶囊选项 |
 | 区分状态和设置 | 状态使用摘要和徽标；设置使用原生开关、菜单和步进器 |
 | 保留键盘和读屏路径 | 所有控件使用可见标签、原生焦点顺序和无障碍名称 |
-| Liquid Glass 只用于功能层 | 内容卡使用标准材质；导航和浮动控件保留 Liquid Glass |
+| Liquid Glass 只用于功能层 | 内容卡使用标准材质；开始和结束按钮使用交互式 Liquid Glass |
 | 区分主从开关 | 总开关使用常规 switch；单行子设置使用 mini switch |
 
 ## 状态模型
@@ -128,6 +130,7 @@ stateDiagram-v2
 18. 开始、结束和 helper 修复按钮使用 44 点命中高度。
 19. 自定义按钮提供 hover、pressed 和 keyboard focus 状态。
 20. 自动保持规则生效时，会话状态显示“运行中”，不显示“没有会话”。
+21. 开始和结束按钮使用 regular interactive Liquid Glass capsule。
 
 ## 无障碍
 
@@ -190,28 +193,29 @@ stateDiagram-v2
 21. #434 增加增强对比和减少透明度回退。
 22. #434 增加 44 点按钮命中区与 hover、pressed、focused 状态。
 23. #434 完成 720 点宽度和完整英文界面布局检查。
+24. #434 将开始和结束按钮设为唯一的内容层 Liquid Glass 功能元素。
 
 ## 预览
 
 ### 浅色
 
-![Power management light](previews/434-power-management-light-after-2.png)
+![Power management light](previews/434-power-management-light-after-3.png)
 
 ### 深色
 
-![Power management dark](previews/434-power-management-dark-after-2.png)
+![Power management dark](previews/434-power-management-dark-after-3.png)
 
 ### 展开高级规则
 
-![Power management rules](previews/434-power-management-rules-light-after-2.png)
+![Power management rules](previews/434-power-management-rules-light-after-3.png)
 
 ### 窄窗口
 
-![Power management at 720 points](previews/434-power-management-narrow-light-after-2.png)
+![Power management at 720 points](previews/434-power-management-narrow-light-after-3.png)
 
 ### 英文
 
-![Power management English](previews/434-power-management-english-after-2.png)
+![Power management English](previews/434-power-management-english-after-3.png)
 
 ## 默认黑屏预览
 
@@ -241,6 +245,7 @@ stateDiagram-v2
 14. 增强对比模式下卡片使用不透明表面。
 15. 减少透明度模式下卡片不使用透明材质。
 16. 键盘 focus ring 可见。
+17. 开始和结束按钮呈现 Liquid Glass 反光、透明和交互反馈。
 
 ## 设计参考
 

@@ -8,13 +8,28 @@ body:
         一个 issue 对应一条分支和一个 PR。
         大功能的子 issue 用 GitHub 原生 sub-issue 关系关联。
         标题写成「动词 对象」。
-        验收标准与截图格式见 [研发工作流](../../docs/process/workflow.md) 的 S5 与 Visual verification。
+        UI issue 写可判断的验收标准和表现预期。
+        真机截图写在实现后的 PR 的 `Visual verification`。
+        验收规则见 [研发工作流](../../docs/process/workflow.md) 的 S5 与 Visual verification。
 
   - type: textarea
     id: goal
     attributes:
       label: 目标
       description: 交付后用户能做什么。不写实现细节。
+    validations:
+      required: true
+
+  - type: textarea
+    id: expectation
+    attributes:
+      label: 表现预期
+      description: |
+        写用户可观察的界面变化，一行一条。
+        没有 UI 变化时填「无」。
+      placeholder: |
+        - <界面变化一：可判断的描述>
+        - <界面变化二：可判断的描述>
     validations:
       required: true
 
@@ -44,7 +59,7 @@ body:
     id: ui_type
     attributes:
       label: UI 类型
-      description: 选择本 issue 的 UI 证据类型。
+      description: 选择本 issue 的 UI 类型。UI 代码变更的真机证据在 PR 提供。
       options:
         - 不涉及 UI
         - UI 决策
@@ -53,29 +68,16 @@ body:
       required: true
 
   - type: textarea
-    id: ui_evidence
+    id: preview
     attributes:
-      label: Visual verification
+      label: 预览
       description: |
-        创建时写计划，结题前补图。
-        UI issue 必须保留亮色和深色两组 Before/After 表。
-        每一格放 Markdown 图片，不写本机路径。
-        UI 决策对照当前界面和选定方案。UI 代码变更对照同一页面、同一状态的真机截图。
-        截图归档到 docs/design/previews/。命名遵守该目录的 README。
-        Issue 正文使用同一文件的固定 commit GitHub 图片地址。
-        不涉及 UI 时填「不适用」。
-        截图缺失或链接失效时，不得关闭 issue。
-      value: |
-        **亮色**
-
-        | Before | After |
-        | --- | --- |
-        | Light before | Light after |
-
-        **深色**
-
-        | Before | After |
-        | --- | --- |
-        | Dark before | Dark after |
+        仅 UI 决策填写候选方案、截图和评审状态。
+        UI 代码变更不在 issue 放 After 截图。
+        真机验收证据在 PR 补齐。
+      placeholder: |
+        - 候选方案：<链接或简短说明>
+        - 截图：docs/design/previews/<name>.png
+        - 评审：Pending
     validations:
-      required: true
+      required: false

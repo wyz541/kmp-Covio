@@ -45,6 +45,8 @@ jobs:
       # schema 表达不了的跨段规则。放在这里是为了不装 Xcode 也能快速失败。
       - name: Design contract cross-section rules
         run: python3 -I scripts/validate-contract.py
+      - name: Workflow template rules
+        run: python3 -I scripts/validate-workflow.py
       # 固定 helper、LaunchDaemon 和身份断言的 selftest 不需要管理员授权。
       - name: Local helper layout assertions
         run: bash scripts/verify-helper-cutover.sh selftest

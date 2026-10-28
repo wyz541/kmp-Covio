@@ -19,6 +19,8 @@ Research #103 验证了 Amper 0.12.1 可以运行 `wasm-js/app` 模块。
 
 ## 决策
 
+> 补充：ADR-0023 将 UI 代码变更的 `Visual verification` 放到 PR。本 ADR 关于废弃 Compose Web 打样的决定不变。
+
 1. Compose Web 打样退出设计源和必选评审闸门。
 2. 删除 `designPreview` 模块、打样说明和专用脚本。
 3. 删除 `AGENTS.md`、Issue 模板与研发流程中的强制 Web 预览要求。

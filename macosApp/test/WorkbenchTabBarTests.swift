@@ -11,7 +11,7 @@ import kmpDomain
 final class WorkbenchTabBarTests: XCTestCase {
     private func panes() -> [PaneItem] {
         let model = WorkbenchModel()
-        return model.panes
+        return model.panes(language: CopyLocale.language)
     }
 
     /// 每条页签都有文字标题。导航不靠图标区分目的地。
@@ -48,8 +48,19 @@ final class WorkbenchTabBarTests: XCTestCase {
     /// 编辑提示条上的计数来自配置：可见工作区数与组件数。
     func testTheEditBannerCountsComeFromTheConfig() {
         let model = WorkbenchModel()
-        XCTAssertEqual(model.visiblePaneCount, model.panes.count)
+        XCTAssertEqual(model.visiblePaneCount, model.panes(language: CopyLocale.language).count)
         XCTAssertEqual(model.homeWidgets.count, 6)
+    }
+
+    /// 页签标题必须使用视图传入的语言，不能回落到系统语言。
+    func testPaneTitlesUseTheRequestedLanguage() {
+        let model = WorkbenchModel()
+        let english = model.panes(language: .english)
+        let chinese = model.panes(language: .simplifiedChinese)
+        let builtInTabs: [HubTab] = [.now, .agent, .clipboard, .files, .devices, .settings]
+
+        XCTAssertEqual(english.map(\.title), builtInTabs.map { $0.title.text(for: .english) })
+        XCTAssertEqual(chinese.map(\.title), builtInTabs.map { $0.title.text(for: .simplifiedChinese) })
     }
 
     /// 动作词和搜索清空文案都在合同里，且中英都有。

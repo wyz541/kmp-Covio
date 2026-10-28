@@ -27,6 +27,8 @@ struct HubView: View {
     let runtime: AppRuntime?
     /// Popover 打开时用它通知控制器暂停自动收起。
     var popoverCoordinator: HubPopoverCoordinator? = nil
+    /// 预览与测试没有运行时，用这个语言取文案。
+    var previewLanguage: AppLanguage = CopyLocale.language
 
     var body: some View {
         VStack(spacing: 0) {
@@ -88,7 +90,7 @@ struct HubView: View {
     }
 
     /// 当前界面语言。运行时缺失时（预览、测试）跟随系统。
-    private var language: AppLanguage { runtime?.language ?? workbench.language }
+    private var language: AppLanguage { runtime?.language ?? previewLanguage }
 
     // MARK: - 功能层
 
@@ -127,7 +129,7 @@ struct HubView: View {
 
     private var topBarLayer: some View {
         WorkbenchTabBar(
-            panes: workbench.panes,
+            panes: workbench.panes(language: language),
             destination: workbench.destination,
             isEditing: workbench.isEditing,
             searchPlaceholder: isClipboardDestination
@@ -303,7 +305,7 @@ struct HubTabContent: View {
     var body: some View {
         VStack(alignment: .leading, spacing: HubMetrics.pageGap) {
             if tab != .clipboard,
-               let heading = workbench.heading(for: .pane(id: paneID)) {
+               let heading = workbench.heading(for: .pane(id: paneID), language: language) {
                 PaneHeading(title: heading.title, summary: heading.summary) {
                     headingActions
                 }

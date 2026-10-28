@@ -32,14 +32,12 @@ struct HubGlassPlatePreviewRoot: View {
                 outputState: .ready,
                 workbench: workbench,
                 chrome: chrome,
-                runtime: nil
+                runtime: nil,
+                previewLanguage: .simplifiedChinese
             )
         }
         .frame(width: size.width, height: size.height)
         .environment(\.colorScheme, colorScheme)
-        .onAppear {
-            workbench.language = .simplifiedChinese
-        }
     }
 
     private var backdrop: some View {

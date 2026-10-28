@@ -20,7 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var twoFingerSwipeMonitor: TwoFingerSwipeMonitor?
     private var instanceLock: SingleInstanceLock?
     #if DEBUG
-    private var monitorPreview: MonitorPreviewWindowController?
+    private var monitorPreview: NSWindowController?
     private var glassPlatePreviewWindow: NSWindow?
     private var fanPreviewWindow: NSWindow?
     private var fanCapabilityPreviewWindow: NSWindow?
@@ -250,10 +250,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if ProcessInfo.processInfo.environment["COVIO_POWER_PREVIEW"] == "1" {
             NSApp.setActivationPolicy(.regular)
-            let preview = MonitorPreviewWindowController(
-                startsInPower: true,
-                powerModel: PowerPreviewModel()
-            )
+            let preview = PowerPopoverPreviewWindowController(powerModel: PowerPreviewModel())
             monitorPreview = preview
             preview.showWindow(nil)
             return
@@ -276,10 +273,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     }
                 }
             }
-            let preview = MonitorPreviewWindowController(
-                startsInPower: true,
-                powerModel: runtime
-            )
+            let preview = PowerPopoverPreviewWindowController(powerModel: runtime)
             monitorPreview = preview
             preview.showWindow(nil)
             return

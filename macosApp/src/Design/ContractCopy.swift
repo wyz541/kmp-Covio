@@ -859,8 +859,12 @@ enum ContractCopy {
     static let copyMonitorPowerDetailsClose = LocalizedCopy(key: "copy/monitor/power/details/close", en: "Close power details", zhHans: "关闭电源详情")
     /// `copy/monitor/power/details/collapse`
     static let copyMonitorPowerDetailsCollapse = LocalizedCopy(key: "copy/monitor/power/details/collapse", en: "Hide details", zhHans: "收起详情")
+    /// `copy/monitor/power/details/collapse-settings`
+    static let copyMonitorPowerDetailsCollapseSettings = LocalizedCopy(key: "copy/monitor/power/details/collapse-settings", en: "Hide details and settings", zhHans: "收起详情与设置")
     /// `copy/monitor/power/details/expand`
     static let copyMonitorPowerDetailsExpand = LocalizedCopy(key: "copy/monitor/power/details/expand", en: "Show details", zhHans: "展开详情")
+    /// `copy/monitor/power/details/expand-settings`
+    static let copyMonitorPowerDetailsExpandSettings = LocalizedCopy(key: "copy/monitor/power/details/expand-settings", en: "Show details and settings", zhHans: "展开详情与设置")
     /// `copy/monitor/power/details/title`
     static let copyMonitorPowerDetailsTitle = LocalizedCopy(key: "copy/monitor/power/details/title", en: "Power details", zhHans: "电源详情")
     /// `copy/monitor/power/draw`
@@ -1279,6 +1283,12 @@ enum ContractCopy {
     static let copyPowerHistoryWoke = LocalizedCopy(key: "copy/power/history/woke", en: "Mac woke", zhHans: "Mac 已唤醒")
     /// `copy/power/overview/note`
     static let copyPowerOverviewNote = LocalizedCopy(key: "copy/power/overview/note", en: "The existing live metrics stay in Overview.", zhHans: "现有实时指标保留在概览中。")
+    /// `copy/power/popover/details`
+    static let copyPowerPopoverDetails = LocalizedCopy(key: "copy/power/popover/details", en: "Details", zhHans: "详情")
+    /// `copy/power/popover/power`
+    static let copyPowerPopoverPower = LocalizedCopy(key: "copy/power/popover/power", en: "Power", zhHans: "电源")
+    /// `copy/power/popover/title`
+    static let copyPowerPopoverTitle = LocalizedCopy(key: "copy/power/popover/title", en: "Power settings", zhHans: "电源设置")
     /// `copy/power/rules/adapter`
     static let copyPowerRulesAdapter = LocalizedCopy(key: "copy/power/rules/adapter", en: "Keep awake on adapter", zhHans: "接通电源时保持唤醒")
     /// `copy/power/rules/battery`
@@ -1981,7 +1991,9 @@ enum ContractCopy {
         copyMonitorPowerCriticalBattery,
         copyMonitorPowerDetailsClose,
         copyMonitorPowerDetailsCollapse,
+        copyMonitorPowerDetailsCollapseSettings,
         copyMonitorPowerDetailsExpand,
+        copyMonitorPowerDetailsExpandSettings,
         copyMonitorPowerDetailsTitle,
         copyMonitorPowerDraw,
         copyMonitorPowerEstimateBasis,
@@ -2191,6 +2203,9 @@ enum ContractCopy {
         copyPowerHistoryWindow,
         copyPowerHistoryWoke,
         copyPowerOverviewNote,
+        copyPowerPopoverDetails,
+        copyPowerPopoverPower,
+        copyPowerPopoverTitle,
         copyPowerRulesAdapter,
         copyPowerRulesBattery,
         copyPowerRulesBatteryFloor,

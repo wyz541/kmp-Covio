@@ -1,7 +1,7 @@
 import SwiftUI
 import kmpDomain
 
-/// `Monitor` 页签中的电源管理面。
+/// `Monitor` 页签 Power card 第三段浮层中的电源管理面。
 ///
 /// 所有值都来自 `AppRuntime.powerRuntime`。布局按 macOS 设置页的阅读顺序组织：
 /// 当前状态、当前会话、规则、历史。状态块不参与设置动作，规则只在自己的分组内解释。

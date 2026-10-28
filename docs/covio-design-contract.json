@@ -6120,6 +6120,18 @@
       "en": "Current power",
       "zh-Hans": "当前供电"
     },
+    "copy/power/popover/title": {
+      "en": "Power settings",
+      "zh-Hans": "电源设置"
+    },
+    "copy/power/popover/details": {
+      "en": "Details",
+      "zh-Hans": "详情"
+    },
+    "copy/power/popover/power": {
+      "en": "Power",
+      "zh-Hans": "电源"
+    },
     "copy/power/section/session": {
       "en": "Keep awake",
       "zh-Hans": "保持唤醒"
@@ -6724,9 +6736,17 @@
       "en": "Show details",
       "zh-Hans": "展开详情"
     },
+    "copy/monitor/power/details/expand-settings": {
+      "en": "Show details and settings",
+      "zh-Hans": "展开详情与设置"
+    },
     "copy/monitor/power/details/collapse": {
       "en": "Hide details",
       "zh-Hans": "收起详情"
+    },
+    "copy/monitor/power/details/collapse-settings": {
+      "en": "Hide details and settings",
+      "zh-Hans": "收起详情与设置"
     },
     "copy/monitor/power/details/title": {
       "en": "Power details",

@@ -11,8 +11,9 @@ struct MonitorTabView: View {
     let runtime: AppRuntime?
     let popoverCoordinator: HubPopoverCoordinator?
     private let runsSampling: Bool
+    private let powerPopoverInitiallyPresented: Bool
+    private let powerPopoverInitialTab: MonitorPowerDetailTab
 
-    @State private var section: MonitorSection = .overview
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var snapshot: MonitorSnapshot
     @State private var history: MonitorHistory
@@ -30,14 +31,16 @@ struct MonitorTabView: View {
         initialHistory: MonitorHistory = MonitorHistory(),
         initialPowerHistory: MonitorPowerHistory = MonitorPowerHistory(),
         runsSampling: Bool = true,
-        startsInPower: Bool = false
+        powerPopoverInitiallyPresented: Bool = false,
+        powerPopoverInitialTab: MonitorPowerDetailTab = .details
     ) {
         self.language = language
         self.powerModel = powerModel ?? runtime
         self.runtime = runtime
         self.popoverCoordinator = popoverCoordinator
         self.runsSampling = runsSampling
-        _section = State(initialValue: startsInPower ? .power : .overview)
+        self.powerPopoverInitiallyPresented = powerPopoverInitiallyPresented
+        self.powerPopoverInitialTab = powerPopoverInitialTab
         _snapshot = State(initialValue: initialSnapshot)
         _history = State(initialValue: initialHistory)
         _powerHistory = State(initialValue: initialPowerHistory)
@@ -51,11 +54,7 @@ struct MonitorTabView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: MacTheme.space2) {
             toolbarRow
-            if section == .power, let powerModel {
-                PowerManagementView(model: powerModel)
-            } else {
-                overview
-            }
+            overview
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .task {
@@ -86,18 +85,6 @@ struct MonitorTabView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
                 .accessibilityHint(ContractCopy.copyMonitorReportSummary.text(for: language))
-            }
-            if powerModel != nil {
-                Picker(ContractCopy.copyHubPowerTitle.text(for: language), selection: $section) {
-                    Text(ContractCopy.copyHubPowerSegmentOverview.text(for: language))
-                        .tag(MonitorSection.overview)
-                    Text(ContractCopy.copyHubPowerSegmentPower.text(for: language))
-                        .tag(MonitorSection.power)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .frame(width: 152)
-                .accessibilityLabel(ContractCopy.copyHubPowerTitle.text(for: language))
             }
         }
         .frame(height: HubMetrics.monitorToolbarHeight)
@@ -267,7 +254,10 @@ struct MonitorTabView: View {
                 language: language,
                 reduceMotion: reduceMotion,
                 runtime: runtime,
+                powerModel: powerModel,
                 popoverCoordinator: popoverCoordinator,
+                popoverInitiallyPresented: powerPopoverInitiallyPresented,
+                popoverInitialTab: powerPopoverInitialTab,
                 onOpenApp: openApplication
             )
         } else {
@@ -277,7 +267,10 @@ struct MonitorTabView: View {
                 language: language,
                 reduceMotion: reduceMotion,
                 runtime: runtime,
+                powerModel: powerModel,
                 popoverCoordinator: popoverCoordinator,
+                popoverInitiallyPresented: powerPopoverInitiallyPresented,
+                popoverInitialTab: powerPopoverInitialTab,
                 onOpenApp: openApplication
             )
         }
@@ -328,11 +321,6 @@ struct MonitorTabView: View {
             configuration: NSWorkspace.OpenConfiguration()
         ) { _, _ in }
     }
-}
-
-private enum MonitorSection {
-    case overview
-    case power
 }
 
 // MARK: - 卡片种类
@@ -391,7 +379,10 @@ private struct MonitorPowerCard: View {
     let language: AppLanguage
     let reduceMotion: Bool
     let runtime: AppRuntime?
+    let powerModel: (any PowerManagementModel)?
     let popoverCoordinator: HubPopoverCoordinator?
+    let popoverInitiallyPresented: Bool
+    let popoverInitialTab: MonitorPowerDetailTab
     let onOpenApp: (String) -> Void
 
     @AppStorage("monitor.power.detailsExpanded") private var detailsExpanded = false
@@ -440,9 +431,14 @@ private struct MonitorPowerCard: View {
     }
 
     private var detailActionText: String {
-        detailsPresented
-            ? ContractCopy.copyMonitorPowerDetailsCollapse.text(for: language)
-            : ContractCopy.copyMonitorPowerDetailsExpand.text(for: language)
+        if detailsPresented {
+            return powerModel == nil
+                ? ContractCopy.copyMonitorPowerDetailsCollapse.text(for: language)
+                : ContractCopy.copyMonitorPowerDetailsCollapseSettings.text(for: language)
+        }
+        return powerModel == nil
+            ? ContractCopy.copyMonitorPowerDetailsExpand.text(for: language)
+            : ContractCopy.copyMonitorPowerDetailsExpandSettings.text(for: language)
     }
 
     var body: some View {
@@ -493,7 +489,7 @@ private struct MonitorPowerCard: View {
             return .handled
         }
         .onAppear {
-            setDetailsPresented(detailsExpanded)
+            setDetailsPresented(popoverInitiallyPresented || detailsExpanded)
         }
         .onChange(of: detailsPresented) { _, presented in
             detailsExpanded = presented
@@ -511,6 +507,8 @@ private struct MonitorPowerCard: View {
                 language: language,
                 reduceMotion: reduceMotion,
                 runtime: runtime,
+                powerModel: powerModel,
+                initialTab: popoverInitialTab,
                 onOpenApp: onOpenApp,
                 onClose: { setDetailsPresented(false) }
             )
@@ -870,14 +868,44 @@ private struct MonitorPowerDualLineChart: View {
 
 // MARK: - 可展开详情
 
+enum MonitorPowerDetailTab: Hashable {
+    case details
+    case power
+}
+
 struct MonitorPowerDetailPanel: View {
     let power: MonitorSnapshot.Power
     let history: MonitorPowerHistory
     let language: AppLanguage
     let reduceMotion: Bool
     let runtime: AppRuntime?
+    let powerModel: (any PowerManagementModel)?
     let onOpenApp: (String) -> Void
     let onClose: () -> Void
+
+    @State private var selectedTab: MonitorPowerDetailTab
+
+    init(
+        power: MonitorSnapshot.Power,
+        history: MonitorPowerHistory,
+        language: AppLanguage,
+        reduceMotion: Bool,
+        runtime: AppRuntime?,
+        powerModel: (any PowerManagementModel)? = nil,
+        initialTab: MonitorPowerDetailTab = .details,
+        onOpenApp: @escaping (String) -> Void,
+        onClose: @escaping () -> Void
+    ) {
+        self.power = power
+        self.history = history
+        self.language = language
+        self.reduceMotion = reduceMotion
+        self.runtime = runtime
+        self.powerModel = powerModel
+        self.onOpenApp = onOpenApp
+        self.onClose = onClose
+        _selectedTab = State(initialValue: powerModel == nil ? .details : initialTab)
+    }
 
     private var detailHeight: CGFloat {
         let available = NSScreen.main?.visibleFrame.height ?? 800
@@ -885,40 +913,30 @@ struct MonitorPowerDetailPanel: View {
     }
 
     var body: some View {
-        GeometryReader { proxy in
-            let visibility = MonitorPowerDetailLayoutPolicy.resolve(height: proxy.size.height)
-            VStack(alignment: .leading, spacing: 8) {
-                header
-                if power.hasBattery {
-                    MonitorPowerChargeLimitControls(
-                        runtime: runtime,
-                        power: power,
-                        language: language
-                    )
+        VStack(alignment: .leading, spacing: 8) {
+            header
+            if powerModel != nil {
+                Picker(ContractCopy.copyPowerPopoverTitle.text(for: language), selection: $selectedTab) {
+                    Text(ContractCopy.copyPowerPopoverDetails.text(for: language))
+                        .tag(MonitorPowerDetailTab.details)
+                    Text(ContractCopy.copyPowerPopoverPower.text(for: language))
+                        .tag(MonitorPowerDetailTab.power)
                 }
-                if visibility.showsTopApps {
-                    topAppsSection
-                }
-                if visibility.showsHistory {
-                    historySection
-                }
-                if visibility.showsEstimate, power.hasBattery {
-                    estimateSection
-                }
-                if visibility.showsCharging,
-                   power.hasBattery,
-                   power.supply == .charging || power.supply == .adapter {
-                    chargingSection
-                }
-                if visibility.showsEvents {
-                    eventsSection
-                }
-                Spacer(minLength: 0)
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .accessibilityLabel(ContractCopy.copyPowerPopoverTitle.text(for: language))
             }
-            .padding(MacTheme.space4)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+
+            if selectedTab == .power, let powerModel {
+                PowerManagementView(model: powerModel)
+            } else {
+                GeometryReader { proxy in
+                    detailsContent(height: proxy.size.height)
+                }
+            }
         }
-        .frame(width: 480, height: detailHeight)
+        .padding(MacTheme.space4)
+        .frame(width: 560, height: detailHeight)
         .background(
             MacTheme.surface.opacity(0.97),
             in: RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -929,12 +947,49 @@ struct MonitorPowerDetailPanel: View {
         )
     }
 
+    @ViewBuilder
+    private func detailsContent(height: CGFloat) -> some View {
+        let visibility = MonitorPowerDetailLayoutPolicy.resolve(height: height)
+        VStack(alignment: .leading, spacing: 8) {
+            if power.hasBattery {
+                MonitorPowerChargeLimitControls(
+                    runtime: runtime,
+                    power: power,
+                    language: language
+                )
+            }
+            if visibility.showsTopApps {
+                topAppsSection
+            }
+            if visibility.showsHistory {
+                historySection
+            }
+            if visibility.showsEstimate, power.hasBattery {
+                estimateSection
+            }
+            if visibility.showsCharging,
+               power.hasBattery,
+               power.supply == .charging || power.supply == .adapter {
+                chargingSection
+            }
+            if visibility.showsEvents {
+                eventsSection
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
     private var header: some View {
         HStack(spacing: MacTheme.space2) {
             Image(systemName: "powerplug.fill")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(accent)
-            Text(ContractCopy.copyMonitorPowerDetailsTitle.text(for: language))
+            Text(
+                selectedTab == .power
+                    ? ContractCopy.copyPowerPopoverTitle.text(for: language)
+                    : ContractCopy.copyMonitorPowerDetailsTitle.text(for: language)
+            )
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(MacTheme.textPrimary)
             Spacer(minLength: 0)

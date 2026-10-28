@@ -11,7 +11,10 @@ import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonObject
 
 /** 工作台配置的版本。字段的含义变了就加一。 */
-const val WORKBENCH_SCHEMA_VERSION = 2
+const val WORKBENCH_SCHEMA_VERSION = 3
+
+/** 组件没有显式网格位置。旧配置与新组件都从这一值开始。 */
+const val WIDGET_AUTOMATIC_POSITION = -1
 
 /** id 与种类名的长度上限。挡住坏文件里的超长字符串。 */
 private const val MAX_ID_LENGTH = 64
@@ -120,6 +123,9 @@ internal object WidgetSizeSerializer : KSerializer<WidgetSize> {
  * 宿主认不出的种类要显示一张占位卡片，不能丢：丢掉就丢了用户排好的位置。
  *
  * [settings] 是组件自己的配置。模型不解释它，组件实现自己读。
+ *
+ * [column] 与 [row] 是网格左上角的显式位置。两者必须同时有效。
+ * 任一值为 [WIDGET_AUTOMATIC_POSITION] 时，宿主按列表顺序自动摆放。
  */
 @Serializable
 data class WidgetInstance(
@@ -127,11 +133,28 @@ data class WidgetInstance(
     @SerialName("kind") val kind: String,
     @SerialName("size") val size: WidgetSize = WidgetSize.FALLBACK,
     @SerialName("settings") val settings: JsonObject = JsonObject(emptyMap()),
+    @SerialName("column") val column: Int = WIDGET_AUTOMATIC_POSITION,
+    @SerialName("row") val row: Int = WIDGET_AUTOMATIC_POSITION,
 ) {
-    fun normalized(): WidgetInstance = copy(
-        id = id.trim().take(MAX_ID_LENGTH),
-        kind = kind.trim().take(MAX_KIND_LENGTH),
+    /** 显式位置是否完整。只有一个坐标时不当作有效位置。 */
+    fun hasGridPosition(): Boolean = column >= 0 && row >= 0
+
+    /** 返回带显式网格位置的一份副本。 */
+    fun withGridFrame(size: WidgetSize, column: Int, row: Int): WidgetInstance = copy(
+        size = size,
+        column = column,
+        row = row,
     )
+
+    fun normalized(): WidgetInstance {
+        val positioned = hasGridPosition()
+        return copy(
+            id = id.trim().take(MAX_ID_LENGTH),
+            kind = kind.trim().take(MAX_KIND_LENGTH),
+            column = if (positioned) column else WIDGET_AUTOMATIC_POSITION,
+            row = if (positioned) row else WIDGET_AUTOMATIC_POSITION,
+        )
+    }
 }
 
 /**
@@ -252,6 +275,7 @@ data class WorkbenchConfig(
      * 6. 补回缺失的当前内置工作区。补在末尾：原位置已经丢了，插在中间会打乱用户排好的顺序。
      * 7. 工作区超过 [MAX_PANES] 时先丢自建工作区，内置的一个都不丢。
      * 8. 组件丢掉 id 或种类为空的，id 重复时留第一个，超过 [MAX_WIDGETS] 时留前 24 个。
+     * 9. 组件的列与行必须成对出现；只有一个坐标时退回自动摆放。
      */
     fun normalized(): WorkbenchConfig = copy(
         schemaVersion = WORKBENCH_SCHEMA_VERSION,

@@ -61,6 +61,7 @@ struct BentoWidgetCard: View {
     /// 正在被拖。拖动中抬阴影并描一圈主色边。
     let isDragging: Bool
     let language: AppLanguage
+    let onMoveDirection: (BentoMoveDirection) -> Void
     let onDelete: () -> Void
     let onResize: (CGSize) -> Void
     /// 缩放手势松手。`BentoGrid` 用它忘掉起点档位。
@@ -96,6 +97,22 @@ struct BentoWidgetCard: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel(title)
         .accessibilityValue(detail)
+        .accessibilityActions {
+            if isEditing {
+                Button(ContractCopy.copyHubWidgetMoveLeft.text(for: language)) {
+                    onMoveDirection(.left)
+                }
+                Button(ContractCopy.copyHubWidgetMoveRight.text(for: language)) {
+                    onMoveDirection(.right)
+                }
+                Button(ContractCopy.copyHubWidgetMoveUp.text(for: language)) {
+                    onMoveDirection(.up)
+                }
+                Button(ContractCopy.copyHubWidgetMoveDown.text(for: language)) {
+                    onMoveDirection(.down)
+                }
+            }
+        }
     }
 
     private var shape: RoundedRectangle {

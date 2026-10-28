@@ -36,6 +36,10 @@ final class AppRuntime {
     var language: AppLanguage { AppLanguage.fromCode(config.language) }
     /// 语言设置。空字符串表示跟随系统。
     var languagePreference: AppLanguagePreference { AppLanguagePreference.fromCode(config.language) }
+    /// 屏幕 card 的持久化设置。
+    var displayConfig: DisplayConfig {
+        config.display ?? DisplayConfig.companion.fromLegacy(power: config.power)
+    }
 
     let logger: AppLogger
 
@@ -690,11 +694,11 @@ final class AppRuntime {
 
     func setPowerAllowClosedLid(_ enabled: Bool) {
         guard enabled ? powerRuntime.helperStatus == .match : true else { return }
-        updatePower { copyPower($0, allowClosedLid: enabled) }
+        setDisplayKeepAwakeWhenLidClosed(enabled)
     }
 
     func setPowerPauseClosedLidWithExternalDisplay(_ enabled: Bool) {
-        updatePower { copyPower($0, pauseClosedLidWithExternalDisplay: enabled) }
+        setDisplayPauseWithExternalDisplay(enabled)
     }
 
     func setPowerBatteryFloor(_ percent: Int) {
@@ -721,12 +725,61 @@ final class AppRuntime {
     }
 
     func setPowerClosedLidZeroBrightness(_ enabled: Bool) {
-        if enabled {
+        setDisplayClosedLidMode(enabled ? .blackScreenPipeline : .displayOff)
+    }
+
+    func setDisplayKeepAwakeWhenLidClosed(_ enabled: Bool) {
+        guard enabled ? powerRuntime.helperStatus == .match : true else { return }
+        updateDisplay { display in
+            var mode = display.closedLidDisplayMode
+            if enabled, mode == .system {
+                mode = powerRuntime.closedLidZeroBrightnessAvailability.isAvailable
+                    ? .blackScreenPipeline
+                    : .displayOff
+            }
+            return DisplayConfig(
+                schemaVersion: display.schemaVersion,
+                keepAwakeWhenLidClosed: enabled,
+                closedLidDisplayMode: mode,
+                pauseWhenExternalDisplayConnected: display.pauseWhenExternalDisplayConnected
+            )
+        }
+    }
+
+    func setDisplayClosedLidMode(_ mode: ClosedLidDisplayMode) {
+        if mode == .blackScreenPipeline {
             guard powerRuntime.helperStatus == .match,
                   powerRuntime.closedLidZeroBrightnessAvailability.isAvailable
             else { return }
         }
-        updatePower { copyPower($0, closedLidZeroBrightness: enabled) }
+        updateDisplay { display in
+            DisplayConfig(
+                schemaVersion: display.schemaVersion,
+                keepAwakeWhenLidClosed: mode == .system
+                    ? false
+                    : true,
+                closedLidDisplayMode: mode,
+                pauseWhenExternalDisplayConnected: display.pauseWhenExternalDisplayConnected
+            )
+        }
+    }
+
+    func setDisplayPauseWithExternalDisplay(_ enabled: Bool) {
+        updateDisplay { display in
+            DisplayConfig(
+                schemaVersion: display.schemaVersion,
+                keepAwakeWhenLidClosed: display.keepAwakeWhenLidClosed,
+                closedLidDisplayMode: display.closedLidDisplayMode,
+                pauseWhenExternalDisplayConnected: enabled
+            )
+        }
+    }
+
+    func openDisplaySettings() {
+        guard let url = URL(
+            string: "x-apple.systempreferences:com.apple.Displays-Settings.extension"
+        ) else { return }
+        NSWorkspace.shared.open(url)
     }
 
     /// 打开前先确认 helper 在。helper 不在时它改不了 `pmset`，界面会显示成功但实际没生效。
@@ -1140,6 +1193,21 @@ final class AppRuntime {
         }
     }
 
+    private func updateDisplay(_ change: (DisplayConfig) -> DisplayConfig) {
+        write { draft in
+            let current = draft.display
+                ?? DisplayConfig.companion.fromLegacy(power: draft.power)
+            let next = change(current).normalized()
+            draft.display = next
+            draft.power = copyPower(
+                draft.power,
+                allowClosedLid: next.keepAwakeWhenLidClosed,
+                pauseClosedLidWithExternalDisplay: next.pauseWhenExternalDisplayConnected,
+                closedLidZeroBrightness: next.closedLidDisplayMode == .blackScreenPipeline
+            )
+        }
+    }
+
     private static func powerWithEnabled(_ value: PowerConfig, enabled: Bool) -> PowerConfig {
         PowerConfig(
             enabled: enabled,
@@ -1315,6 +1383,7 @@ final class ConfigDraft {
     var clipboardPasteStackHotKey: String
     var clipboardCaptureHotKey: String
     var power: PowerConfig
+    var display: DisplayConfig?
     var chargeLimitEnabled: Bool
     var chargeLimitPercent: Int32
     var chargeLimitActiveDischarge: Bool
@@ -1343,6 +1412,7 @@ final class ConfigDraft {
         clipboardPasteStackHotKey = config.clipboardPasteStackHotKey
         clipboardCaptureHotKey = config.clipboardCaptureHotKey
         power = config.power
+        display = config.display
         chargeLimitEnabled = config.chargeLimitEnabled
         chargeLimitPercent = config.chargeLimitPercent
         chargeLimitActiveDischarge = config.chargeLimitActiveDischarge
@@ -1376,6 +1446,7 @@ final class ConfigDraft {
             clipboardPasteStackHotKey: clipboardPasteStackHotKey,
             clipboardCaptureHotKey: clipboardCaptureHotKey,
             power: power,
+            display: display,
             chargeLimitEnabled: chargeLimitEnabled,
             chargeLimitPercent: chargeLimitPercent,
             chargeLimitActiveDischarge: chargeLimitActiveDischarge,

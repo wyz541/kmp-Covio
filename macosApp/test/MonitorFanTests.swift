@@ -469,6 +469,7 @@ final class MonitorFanTests: XCTestCase {
             network: nil,
             battery: nil,
             power: nil,
+            display: nil,
             fan: reading,
             thermal: .nominal,
             sampledAt: Date()

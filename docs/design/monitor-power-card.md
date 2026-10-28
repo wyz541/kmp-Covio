@@ -74,6 +74,7 @@
 存在 `PowerManagementModel` 时，浮层显示 `详情 / 电源` 分段控件。
 `电源` 页承载总开关、会话、安全规则和最近活动。
 Power 设置不再占用 `Monitor` 主页面的二级页面。
+合盖屏幕、外接屏暂停和零亮度设置属于屏幕 card，见 `monitor-display-card.md`。
 
 详情浮层按以下顺序显示。
 

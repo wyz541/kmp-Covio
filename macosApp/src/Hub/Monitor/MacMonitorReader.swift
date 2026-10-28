@@ -64,6 +64,7 @@ final class MacMonitorReader {
     private var mainApplications: [AppIdentity] = []
     private var lastIdentityRefreshAt = Date.distantPast
     private let powerEventStore = MonitorPowerEventStore()
+    private let displayReader = MacDisplayReader()
     private lazy var fanReader: SMCFanReader? = try? SMCFanReader()
     private var lastFanReading: MonitorFanReading?
     private var lastFanReadAt = Date.distantPast
@@ -79,6 +80,7 @@ final class MacMonitorReader {
             network: readNetwork(),
             battery: reading.battery,
             power: reading.power,
+            display: displayReader.read(),
             fan: readFan(),
             thermal: readThermal(),
             sampledAt: Date()

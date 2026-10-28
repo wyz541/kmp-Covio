@@ -671,6 +671,52 @@ enum ContractCopy {
     static let copyMonitorDiskUsed = LocalizedCopy(key: "copy/monitor/disk/used", en: "Used", zhHans: "已用")
     /// `copy/monitor/disk/write`
     static let copyMonitorDiskWrite = LocalizedCopy(key: "copy/monitor/disk/write", en: "Write", zhHans: "写入")
+    /// `copy/monitor/display/action-settings`
+    static let copyMonitorDisplayActionSettings = LocalizedCopy(key: "copy/monitor/display/action-settings", en: "Open Display Settings", zhHans: "打开显示器设置")
+    /// `copy/monitor/display/action-sleep`
+    static let copyMonitorDisplayActionSleep = LocalizedCopy(key: "copy/monitor/display/action-sleep", en: "Turn display off now", zhHans: "立即关闭显示器")
+    /// `copy/monitor/display/actions-title`
+    static let copyMonitorDisplayActionsTitle = LocalizedCopy(key: "copy/monitor/display/actions-title", en: "Display actions", zhHans: "屏幕操作")
+    /// `copy/monitor/display/brightness`
+    static let copyMonitorDisplayBrightness = LocalizedCopy(key: "copy/monitor/display/brightness", en: "Brightness", zhHans: "亮度")
+    /// `copy/monitor/display/details-collapse`
+    static let copyMonitorDisplayDetailsCollapse = LocalizedCopy(key: "copy/monitor/display/details-collapse", en: "Hide details and settings", zhHans: "收起详情与设置")
+    /// `copy/monitor/display/details-expand`
+    static let copyMonitorDisplayDetailsExpand = LocalizedCopy(key: "copy/monitor/display/details-expand", en: "Show details and settings", zhHans: "展开详情与设置")
+    /// `copy/monitor/display/details-title`
+    static let copyMonitorDisplayDetailsTitle = LocalizedCopy(key: "copy/monitor/display/details-title", en: "Display details", zhHans: "屏幕详情")
+    /// `copy/monitor/display/keep-awake`
+    static let copyMonitorDisplayKeepAwake = LocalizedCopy(key: "copy/monitor/display/keep-awake", en: "Keep system running with lid closed", zhHans: "合盖时保持系统运行")
+    /// `copy/monitor/display/keep-awake-hint`
+    static let copyMonitorDisplayKeepAwakeHint = LocalizedCopy(key: "copy/monitor/display/keep-awake-hint", en: "Uses the closed-lid helper and the Power safety guards.", zhHans: "使用合盖 Helper 和 Power 安全护栏。")
+    /// `copy/monitor/display/mode`
+    static let copyMonitorDisplayMode = LocalizedCopy(key: "copy/monitor/display/mode", en: "Screen when lid closes", zhHans: "合盖时的屏幕")
+    /// `copy/monitor/display/mode-black`
+    static let copyMonitorDisplayModeBlack = LocalizedCopy(key: "copy/monitor/display/mode-black", en: "Black screen, display link active", zhHans: "黑屏并保持显示链路")
+    /// `copy/monitor/display/mode-off`
+    static let copyMonitorDisplayModeOff = LocalizedCopy(key: "copy/monitor/display/mode-off", en: "Turn display off", zhHans: "关闭显示器")
+    /// `copy/monitor/display/mode-system`
+    static let copyMonitorDisplayModeSystem = LocalizedCopy(key: "copy/monitor/display/mode-system", en: "Follow system", zhHans: "跟随系统")
+    /// `copy/monitor/display/power`
+    static let copyMonitorDisplayPower = LocalizedCopy(key: "copy/monitor/display/power", en: "Display power", zhHans: "显示功耗")
+    /// `copy/monitor/display/power-unavailable`
+    static let copyMonitorDisplayPowerUnavailable = LocalizedCopy(key: "copy/monitor/display/power-unavailable", en: "No reliable display power reading.", zhHans: "没有可靠的显示功耗读数。")
+    /// `copy/monitor/display/refresh-rate`
+    static let copyMonitorDisplayRefreshRate = LocalizedCopy(key: "copy/monitor/display/refresh-rate", en: "Refresh rate", zhHans: "刷新率")
+    /// `copy/monitor/display/resolution`
+    static let copyMonitorDisplayResolution = LocalizedCopy(key: "copy/monitor/display/resolution", en: "Resolution", zhHans: "分辨率")
+    /// `copy/monitor/display/safety-note`
+    static let copyMonitorDisplaySafetyNote = LocalizedCopy(key: "copy/monitor/display/safety-note", en: "Battery and thermal safety remain in the Power card.", zhHans: "电池与温度安全仍由 Power card 管理。")
+    /// `copy/monitor/display/session-start`
+    static let copyMonitorDisplaySessionStart = LocalizedCopy(key: "copy/monitor/display/session-start", en: "Start closed-lid session", zhHans: "开始合盖会话")
+    /// `copy/monitor/display/status-title`
+    static let copyMonitorDisplayStatusTitle = LocalizedCopy(key: "copy/monitor/display/status-title", en: "Screen status", zhHans: "屏幕状态")
+    /// `copy/monitor/display/status/active`
+    static let copyMonitorDisplayStatusActive = LocalizedCopy(key: "copy/monitor/display/status/active", en: "Active", zhHans: "活跃")
+    /// `copy/monitor/display/status/asleep`
+    static let copyMonitorDisplayStatusAsleep = LocalizedCopy(key: "copy/monitor/display/status/asleep", en: "Asleep", zhHans: "已休眠")
+    /// `copy/monitor/display/status/offline`
+    static let copyMonitorDisplayStatusOffline = LocalizedCopy(key: "copy/monitor/display/status/offline", en: "Offline", zhHans: "离线")
     /// `copy/monitor/fan/a11y-curve`
     static let copyMonitorFanA11yCurve = LocalizedCopy(key: "copy/monitor/fan/a11y-curve", en: "Fan temperature curve", zhHans: "风扇温控曲线")
     /// `copy/monitor/fan/a11y-open`
@@ -1055,6 +1101,8 @@ enum ContractCopy {
     static let copyMonitorTitleCpu = LocalizedCopy(key: "copy/monitor/title/cpu", en: "CPU", zhHans: "CPU")
     /// `copy/monitor/title/disk`
     static let copyMonitorTitleDisk = LocalizedCopy(key: "copy/monitor/title/disk", en: "Disk", zhHans: "磁盘")
+    /// `copy/monitor/title/display`
+    static let copyMonitorTitleDisplay = LocalizedCopy(key: "copy/monitor/title/display", en: "Screen", zhHans: "屏幕")
     /// `copy/monitor/title/gpu`
     static let copyMonitorTitleGpu = LocalizedCopy(key: "copy/monitor/title/gpu", en: "GPU", zhHans: "GPU")
     /// `copy/monitor/title/memory`
@@ -1897,6 +1945,29 @@ enum ContractCopy {
         copyMonitorDiskRead,
         copyMonitorDiskUsed,
         copyMonitorDiskWrite,
+        copyMonitorDisplayActionSettings,
+        copyMonitorDisplayActionSleep,
+        copyMonitorDisplayActionsTitle,
+        copyMonitorDisplayBrightness,
+        copyMonitorDisplayDetailsCollapse,
+        copyMonitorDisplayDetailsExpand,
+        copyMonitorDisplayDetailsTitle,
+        copyMonitorDisplayKeepAwake,
+        copyMonitorDisplayKeepAwakeHint,
+        copyMonitorDisplayMode,
+        copyMonitorDisplayModeBlack,
+        copyMonitorDisplayModeOff,
+        copyMonitorDisplayModeSystem,
+        copyMonitorDisplayPower,
+        copyMonitorDisplayPowerUnavailable,
+        copyMonitorDisplayRefreshRate,
+        copyMonitorDisplayResolution,
+        copyMonitorDisplaySafetyNote,
+        copyMonitorDisplaySessionStart,
+        copyMonitorDisplayStatusTitle,
+        copyMonitorDisplayStatusActive,
+        copyMonitorDisplayStatusAsleep,
+        copyMonitorDisplayStatusOffline,
         copyMonitorFanA11yCurve,
         copyMonitorFanA11yOpen,
         copyMonitorFanA11yStatus,
@@ -2089,6 +2160,7 @@ enum ContractCopy {
         copyMonitorTitleBattery,
         copyMonitorTitleCpu,
         copyMonitorTitleDisk,
+        copyMonitorTitleDisplay,
         copyMonitorTitleGpu,
         copyMonitorTitleMemory,
         copyMonitorTitleNetwork,

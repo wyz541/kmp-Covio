@@ -232,6 +232,8 @@ final class AppRuntimeTests: XCTestCase {
         XCTAssertFalse(created.config.power.closedLidZeroBrightness)
         let power = try XCTUnwrap(savedJSON()["power"] as? [String: Any])
         XCTAssertEqual(power["closedLidZeroBrightness"] as? Bool, false)
+        let display = try XCTUnwrap(savedJSON()["display"] as? [String: Any])
+        XCTAssertEqual(display["closedLidDisplayMode"] as? String, "displayOff")
     }
 
     func testUnavailableExperimentalBrightnessCannotBeEnabled() {
@@ -460,6 +462,26 @@ final class AppRuntimeTests: XCTestCase {
         XCTAssertFalse(created.powerRuntime.config.keepAwakeOnAdapter)
         XCTAssertEqual(created.powerRuntime.config.batteryFloorPercent, 30)
         XCTAssertEqual(created.powerRuntime.config.closedLidTimeCapMinutes, 90)
+    }
+
+    func testDisplaySettingsArePersistedAndMirroredIntoPowerConfig() throws {
+        let created = makeRuntime(engineStarted: true, helperInstalled: true)
+
+        created.setDisplayClosedLidMode(.displayOff)
+        created.setDisplayKeepAwakeWhenLidClosed(false)
+        created.setDisplayPauseWithExternalDisplay(false)
+
+        XCTAssertFalse(created.displayConfig.keepAwakeWhenLidClosed)
+        XCTAssertEqual(created.displayConfig.closedLidDisplayMode, .displayOff)
+        XCTAssertFalse(created.displayConfig.pauseWhenExternalDisplayConnected)
+        XCTAssertFalse(created.powerRuntime.config.allowClosedLid)
+        XCTAssertFalse(created.powerRuntime.config.closedLidZeroBrightness)
+        XCTAssertFalse(created.powerRuntime.config.pauseClosedLidWithExternalDisplay)
+
+        let saved = try XCTUnwrap(savedJSON()["display"] as? [String: Any])
+        XCTAssertEqual(saved["keepAwakeWhenLidClosed"] as? Bool, false)
+        XCTAssertEqual(saved["closedLidDisplayMode"] as? String, "displayOff")
+        XCTAssertEqual(saved["pauseWhenExternalDisplayConnected"] as? Bool, false)
     }
 
     func testPowerEnableStateStaysAlignedWithSleepProtection() throws {

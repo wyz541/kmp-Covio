@@ -18,6 +18,7 @@ struct MonitorPreviewRoot: View {
     let powerModel: (any PowerManagementModel)?
     let powerPopoverInitiallyPresented: Bool
     let powerPopoverInitialTab: MonitorPowerDetailTab
+    let displayPopoverInitiallyPresented: Bool
     let width: CGFloat?
     let height: CGFloat?
 
@@ -29,6 +30,7 @@ struct MonitorPreviewRoot: View {
         powerModel: (any PowerManagementModel)? = nil,
         powerPopoverInitiallyPresented: Bool = false,
         powerPopoverInitialTab: MonitorPowerDetailTab = .details,
+        displayPopoverInitiallyPresented: Bool = false,
         language: AppLanguage = .simplifiedChinese,
         width: CGFloat? = nil,
         height: CGFloat? = nil
@@ -41,6 +43,7 @@ struct MonitorPreviewRoot: View {
         self.powerModel = powerModel
         self.powerPopoverInitiallyPresented = powerPopoverInitiallyPresented
         self.powerPopoverInitialTab = powerPopoverInitialTab
+        self.displayPopoverInitiallyPresented = displayPopoverInitiallyPresented
         self.width = width
         self.height = height
     }
@@ -62,7 +65,8 @@ struct MonitorPreviewRoot: View {
                 initialPowerHistory: powerHistory,
                 runsSampling: runsSampling,
                 powerPopoverInitiallyPresented: powerPopoverInitiallyPresented,
-                powerPopoverInitialTab: powerPopoverInitialTab
+                powerPopoverInitialTab: powerPopoverInitialTab,
+                displayPopoverInitiallyPresented: displayPopoverInitiallyPresented
             )
             .frame(height: bodyHeight)
         }
@@ -79,6 +83,7 @@ final class PowerPreviewModel: PowerManagementModel {
     let language: AppLanguage
     var sleepProtectionEnabled = true
     var powerConfig: PowerConfig
+    var displayConfig: DisplayConfig
     var observation: PowerObservation
     var snapshot: PowerSnapshot
     var decision: PowerDecision
@@ -100,7 +105,7 @@ final class PowerPreviewModel: PowerManagementModel {
         language = AppLanguage(
             rawValue: ProcessInfo.processInfo.environment["COVIO_POWER_PREVIEW_LANGUAGE"] ?? ""
         ) ?? .simplifiedChinese
-        powerConfig = PowerConfig(
+        let previewPower = PowerConfig(
             enabled: true,
             keepAwakeOnAdapter: true,
             keepAwakeOnBattery: false,
@@ -113,6 +118,8 @@ final class PowerPreviewModel: PowerManagementModel {
             closedLidTimeCapMinutes: 240,
             closedLidZeroBrightness: true
         )
+        powerConfig = previewPower
+        displayConfig = DisplayConfig.companion.fromLegacy(power: previewPower)
         let sampleObservation = PowerObservation(
             batteryPercent: KotlinInt(int: 84),
             hasBattery: KotlinBoolean(bool: true),
@@ -172,16 +179,33 @@ final class PowerPreviewModel: PowerManagementModel {
     }
     func setPowerKeepAwakeOnAdapter(_ enabled: Bool) { powerConfig = copyPower(adapter: enabled) }
     func setPowerKeepAwakeOnBattery(_ enabled: Bool) { powerConfig = copyPower(battery: enabled) }
-    func setPowerAllowClosedLid(_ enabled: Bool) { powerConfig = copyPower(lid: enabled) }
+    func setPowerAllowClosedLid(_ enabled: Bool) { setDisplayKeepAwakeWhenLidClosed(enabled) }
     func setPowerClosedLidZeroBrightness(_ enabled: Bool) {
-        powerConfig = copyPower(zeroBrightness: enabled)
-        closedLidZeroBrightnessPhase = enabled ? .ready : .disabled
+        setDisplayClosedLidMode(enabled ? .blackScreenPipeline : .displayOff)
     }
-    func setPowerPauseClosedLidWithExternalDisplay(_ enabled: Bool) { powerConfig = copyPower(external: enabled) }
+    func setPowerPauseClosedLidWithExternalDisplay(_ enabled: Bool) {
+        setDisplayPauseWithExternalDisplay(enabled)
+    }
     func setPowerYieldOnLowPowerMode(_ enabled: Bool) { powerConfig = copyPower(lowPower: enabled) }
     func setPowerHeatGuard(_ enabled: Bool) { powerConfig = copyPower(heat: enabled) }
     func setPowerBatteryFloor(_ percent: Int) { powerConfig = copyPower(floor: Int32(percent)) }
     func setPowerClosedLidTimeCapMinutes(_ minutes: Int) { powerConfig = copyPower(cap: Int32(minutes)) }
+    func setDisplayKeepAwakeWhenLidClosed(_ enabled: Bool) {
+        displayConfig = copyDisplay(keepAwake: enabled)
+        powerConfig = copyPower(lid: enabled)
+    }
+    func setDisplayClosedLidMode(_ mode: ClosedLidDisplayMode) {
+        displayConfig = copyDisplay(keepAwake: mode != .system, mode: mode)
+        powerConfig = copyPower(
+            lid: mode != .system,
+            zeroBrightness: mode == .blackScreenPipeline
+        )
+        closedLidZeroBrightnessPhase = mode == .blackScreenPipeline ? .ready : .disabled
+    }
+    func setDisplayPauseWithExternalDisplay(_ enabled: Bool) {
+        displayConfig = copyDisplay(pauseWithExternal: enabled)
+        powerConfig = copyPower(external: enabled)
+    }
 
     func startSession(mode: PowerRuntime.SessionMode, duration: PowerRuntime.SessionDuration) -> Bool {
         hasManualSession = true
@@ -229,6 +253,10 @@ final class PowerPreviewModel: PowerManagementModel {
 
     func openHelperApproval() {}
 
+    func displaySleepNow() {}
+
+    func openDisplaySettings() {}
+
     private func copyPower(
         enabled: Bool? = nil,
         adapter: Bool? = nil,
@@ -253,6 +281,20 @@ final class PowerPreviewModel: PowerManagementModel {
             heatGuardEnabled: heat ?? powerConfig.heatGuardEnabled,
             closedLidTimeCapMinutes: cap ?? powerConfig.closedLidTimeCapMinutes,
             closedLidZeroBrightness: zeroBrightness ?? powerConfig.closedLidZeroBrightness
+        )
+    }
+
+    private func copyDisplay(
+        keepAwake: Bool? = nil,
+        mode: ClosedLidDisplayMode? = nil,
+        pauseWithExternal: Bool? = nil
+    ) -> DisplayConfig {
+        DisplayConfig(
+            schemaVersion: displayConfig.schemaVersion,
+            keepAwakeWhenLidClosed: keepAwake ?? displayConfig.keepAwakeWhenLidClosed,
+            closedLidDisplayMode: mode ?? displayConfig.closedLidDisplayMode,
+            pauseWhenExternalDisplayConnected: pauseWithExternal
+                ?? displayConfig.pauseWhenExternalDisplayConnected
         )
     }
 }
@@ -439,6 +481,18 @@ enum MonitorPowerPreviewFixtures {
         batteryDataAvailable: true,
         powerDataAvailable: true,
         energyDataAvailable: true
+    )
+}
+
+enum MonitorDisplayPreviewFixtures {
+    static let display = MonitorSnapshot.Display(
+        state: .active,
+        brightnessPercent: 58,
+        powerWatts: nil,
+        externalDisplayCount: 0,
+        pixelWidth: 3_456,
+        pixelHeight: 2_234,
+        refreshRate: 120
     )
 }
 
@@ -677,9 +731,14 @@ final class MonitorPreviewWindowController: NSWindowController {
         let showsPowerPopover = ProcessInfo.processInfo.environment[
             "COVIO_POWER_POPOVER_PREVIEW"
         ] == "1"
-        let previewHeight = showsPowerPopover
-            ? MonitorPowerDetailLayoutPolicy.fullHeight + 100
-            : HubMetrics.monitorBodyHeight + 92
+        let showsDisplayPopover = ProcessInfo.processInfo.environment[
+            "COVIO_DISPLAY_POPOVER_PREVIEW"
+        ] == "1"
+        let previewHeight = showsDisplayPopover
+            ? 1_040
+            : showsPowerPopover
+                ? MonitorPowerDetailLayoutPolicy.fullHeight + 100
+                : HubMetrics.monitorBodyHeight + 92
         let window = NSWindow(
             contentRect: NSRect(
                 x: 0,
@@ -695,15 +754,22 @@ final class MonitorPreviewWindowController: NSWindowController {
         window.appearance = HubAppearance.panel
         let powerModel = PowerPreviewModel()
         let snapshot = showsPowerPopover
-            ? MonitorSnapshot.empty.replacingPower(MonitorPowerPreviewFixtures.power)
-            : .empty
+            ? MonitorSnapshot.empty
+                .replacingPower(MonitorPowerPreviewFixtures.power)
+                .replacingDisplay(MonitorDisplayPreviewFixtures.display)
+            : showsDisplayPopover
+                ? MonitorSnapshot.empty
+                    .replacingPower(MonitorPowerPreviewFixtures.power)
+                    .replacingDisplay(MonitorDisplayPreviewFixtures.display)
+                : .empty
         window.contentView = NSHostingView(
             rootView: MonitorPreviewRoot(
                 snapshot: snapshot,
-                runsSampling: !showsPowerPopover,
+                runsSampling: !(showsPowerPopover || showsDisplayPopover),
                 powerModel: powerModel,
                 powerPopoverInitiallyPresented: showsPowerPopover,
                 powerPopoverInitialTab: .power,
+                displayPopoverInitiallyPresented: showsDisplayPopover,
                 language: powerModel.language,
                 height: previewHeight
             )

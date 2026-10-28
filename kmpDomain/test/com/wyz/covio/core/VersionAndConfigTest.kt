@@ -391,6 +391,68 @@ class VersionAndConfigTest {
             assertTrue(loaded.power.closedLidZeroBrightness)
         }
 
+    @Test
+    fun `display config migrates from legacy power fields`() =
+        withTemporaryDirectory("config") { directory ->
+            val path = directory.resolve("config.json")
+            path.writeText(
+                """
+                {
+                  "power": {
+                    "allowClosedLid": false,
+                    "pauseClosedLidWithExternalDisplay": false,
+                    "closedLidZeroBrightness": true
+                  }
+                }
+                """.trimIndent(),
+            )
+
+            val loaded = ConfigStore(path.toString()).load()
+
+            assertFalse(loaded.display!!.keepAwakeWhenLidClosed)
+            assertEquals(ClosedLidDisplayMode.BLACK_SCREEN_PIPELINE, loaded.display!!.closedLidDisplayMode)
+            assertFalse(loaded.display!!.pauseWhenExternalDisplayConnected)
+            assertFalse(loaded.power.allowClosedLid)
+            assertTrue(loaded.power.closedLidZeroBrightness)
+        }
+
+    @Test
+    fun `display config overrides the legacy power mirror`() =
+        withTemporaryDirectory("config") { directory ->
+            val path = directory.resolve("config.json")
+            path.writeText(
+                """
+                {
+                  "power": {
+                    "allowClosedLid": true,
+                    "pauseClosedLidWithExternalDisplay": true,
+                    "closedLidZeroBrightness": true
+                  },
+                  "display": {
+                    "schemaVersion": 1,
+                    "keepAwakeWhenLidClosed": false,
+                    "closedLidDisplayMode": "displayOff",
+                    "pauseWhenExternalDisplayConnected": false,
+                    "futureNestedKey": {"keep": true}
+                  }
+                }
+                """.trimIndent(),
+            )
+            val store = ConfigStore(path.toString())
+            val loaded = store.load()
+
+            assertFalse(loaded.display!!.keepAwakeWhenLidClosed)
+            assertEquals(ClosedLidDisplayMode.DISPLAY_OFF, loaded.display!!.closedLidDisplayMode)
+            assertFalse(loaded.power.allowClosedLid)
+            assertFalse(loaded.power.pauseClosedLidWithExternalDisplay)
+            assertFalse(loaded.power.closedLidZeroBrightness)
+
+            store.save(loaded)
+            val text = path.readText()
+            assertTrue(text.contains("futureNestedKey"))
+            assertTrue(text.contains("\"keep\""))
+        }
+
     /// 默认路径必须与 0.4.2 完全一致，否则老用户的设置会丢。
     @Test
     fun `default paths match the older release layout`() {

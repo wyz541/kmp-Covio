@@ -72,6 +72,12 @@ class ConfigStore(
                 mergedObject["power"] = JsonObject(previousPower + nextPower)
             }
 
+            val previousDisplay = existing["display"] as? JsonObject
+            val nextDisplay = encoded["display"] as? JsonObject
+            if (previousDisplay != null && nextDisplay != null) {
+                mergedObject["display"] = JsonObject(previousDisplay + nextDisplay)
+            }
+
             val existingFileNaming = existing["fileNaming"] as? JsonObject
             val encodedFileNaming = encoded["fileNaming"] as? JsonObject
             if (existingFileNaming != null && encodedFileNaming != null) {
@@ -113,6 +119,57 @@ class ConfigStore(
         fun powerInt(name: String, fallback: Int): Int =
             powerRoot[name]?.jsonPrimitive?.intOrNull ?: fallback
         val powerDefaults = PowerConfig()
+        val decodedPower = PowerConfig(
+            enabled = powerBool("enabled", powerDefaults.enabled),
+            keepAwakeOnAdapter = powerBool("keepAwakeOnAdapter", powerDefaults.keepAwakeOnAdapter),
+            keepAwakeOnBattery = powerBool("keepAwakeOnBattery", powerDefaults.keepAwakeOnBattery),
+            allowClosedLid = powerBool("allowClosedLid", powerDefaults.allowClosedLid),
+            pauseClosedLidWithExternalDisplay = powerBool(
+                "pauseClosedLidWithExternalDisplay",
+                powerDefaults.pauseClosedLidWithExternalDisplay,
+            ),
+            batteryFloorPercent = powerInt("batteryFloorPercent", powerDefaults.batteryFloorPercent),
+            batteryFloorRecoveryPercent = powerInt(
+                "batteryFloorRecoveryPercent",
+                powerDefaults.batteryFloorRecoveryPercent,
+            ),
+            yieldOnLowPowerMode = powerBool("yieldOnLowPowerMode", powerDefaults.yieldOnLowPowerMode),
+            heatGuardEnabled = powerBool("heatGuardEnabled", powerDefaults.heatGuardEnabled),
+            closedLidTimeCapMinutes = powerInt(
+                "closedLidTimeCapMinutes",
+                powerDefaults.closedLidTimeCapMinutes,
+            ),
+            closedLidZeroBrightness = powerBool(
+                "closedLidZeroBrightness",
+                powerDefaults.closedLidZeroBrightness,
+            ),
+        )
+
+        val displayRoot = root["display"] as? JsonObject
+        val displayDefaults = DisplayConfig.fromLegacy(decodedPower)
+        val decodedDisplay = displayRoot?.let { display ->
+            fun displayBool(name: String, fallback: Boolean): Boolean =
+                display[name]?.jsonPrimitive?.booleanOrNull ?: fallback
+            fun displayInt(name: String, fallback: Int): Int =
+                display[name]?.jsonPrimitive?.intOrNull ?: fallback
+            val mode = display["closedLidDisplayMode"]?.let { value ->
+                runCatching {
+                    json.decodeFromJsonElement(ClosedLidDisplayMode.serializer(), value)
+                }.getOrNull()
+            } ?: displayDefaults.closedLidDisplayMode
+            DisplayConfig(
+                schemaVersion = displayInt("schemaVersion", displayDefaults.schemaVersion),
+                keepAwakeWhenLidClosed = displayBool(
+                    "keepAwakeWhenLidClosed",
+                    displayDefaults.keepAwakeWhenLidClosed,
+                ),
+                closedLidDisplayMode = mode,
+                pauseWhenExternalDisplayConnected = displayBool(
+                    "pauseWhenExternalDisplayConnected",
+                    displayDefaults.pauseWhenExternalDisplayConnected,
+                ),
+            )
+        }
 
         return AppConfig(
             schemaVersion = int("schemaVersion", defaults.schemaVersion),
@@ -139,31 +196,8 @@ class ConfigStore(
             clipboardEnabled = bool("clipboardEnabled", defaults.clipboardEnabled),
             clipboardPasteStackHotKey = string("clipboardPasteStackHotKey", defaults.clipboardPasteStackHotKey),
             clipboardCaptureHotKey = string("clipboardCaptureHotKey", defaults.clipboardCaptureHotKey),
-            power = PowerConfig(
-                enabled = powerBool("enabled", powerDefaults.enabled),
-                keepAwakeOnAdapter = powerBool("keepAwakeOnAdapter", powerDefaults.keepAwakeOnAdapter),
-                keepAwakeOnBattery = powerBool("keepAwakeOnBattery", powerDefaults.keepAwakeOnBattery),
-                allowClosedLid = powerBool("allowClosedLid", powerDefaults.allowClosedLid),
-                pauseClosedLidWithExternalDisplay = powerBool(
-                    "pauseClosedLidWithExternalDisplay",
-                    powerDefaults.pauseClosedLidWithExternalDisplay,
-                ),
-                batteryFloorPercent = powerInt("batteryFloorPercent", powerDefaults.batteryFloorPercent),
-                batteryFloorRecoveryPercent = powerInt(
-                    "batteryFloorRecoveryPercent",
-                    powerDefaults.batteryFloorRecoveryPercent,
-                ),
-                yieldOnLowPowerMode = powerBool("yieldOnLowPowerMode", powerDefaults.yieldOnLowPowerMode),
-                heatGuardEnabled = powerBool("heatGuardEnabled", powerDefaults.heatGuardEnabled),
-                closedLidTimeCapMinutes = powerInt(
-                    "closedLidTimeCapMinutes",
-                    powerDefaults.closedLidTimeCapMinutes,
-                ),
-                closedLidZeroBrightness = powerBool(
-                    "closedLidZeroBrightness",
-                    powerDefaults.closedLidZeroBrightness,
-                ),
-            ),
+            power = decodedPower,
+            display = decodedDisplay,
             chargeLimitEnabled = bool("chargeLimitEnabled", defaults.chargeLimitEnabled),
             chargeLimitPercent = int("chargeLimitPercent", defaults.chargeLimitPercent),
             chargeLimitActiveDischarge = bool(

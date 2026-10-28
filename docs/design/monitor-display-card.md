@@ -114,12 +114,12 @@ Power card 继续管理电池、适配器、热状态、低电量模式、安全
 
 亮色：
 
-![Screen card popover light](previews/441-screen-card-popover-light-after-2.png)
+![Screen card popover light](previews/441-screen-card-popover-light-after-3.png)
 
 深色：
 
-![Screen card popover dark](previews/441-screen-card-popover-dark-after-2.png)
+![Screen card popover dark](previews/441-screen-card-popover-dark-after-3.png)
 
 英文：
 
-![Screen card popover English](previews/441-screen-card-popover-english-after-2.png)
+![Screen card popover English](previews/441-screen-card-popover-english-after-3.png)

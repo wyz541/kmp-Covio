@@ -209,7 +209,7 @@ stateDiagram-v2
 
 Power popover 不再显示合盖屏幕、外接屏暂停和零亮度设置。
 
-![Power popover after the display split](previews/441-power-popover-light-after-2.png)
+![Power popover after the display split](previews/441-power-popover-light-after-3.png)
 
 ## 视觉验收
 

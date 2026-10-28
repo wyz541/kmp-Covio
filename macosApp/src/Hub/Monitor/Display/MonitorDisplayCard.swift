@@ -296,7 +296,7 @@ private struct MonitorDisplayDetailPanel: View {
         }
         .padding(MacTheme.space4)
         .frame(width: 560, height: panelHeight)
-        .monitorPopoverSurface(cornerRadius: 16)
+        .popoverGlassSurface(cornerRadius: 16, layer: .outer)
     }
 
     private var header: some View {
@@ -686,8 +686,6 @@ private struct DisplaySectionHeader: View {
 
 private struct DisplaySettingsCard<Content: View>: View {
     @ViewBuilder var content: Content
-    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
         VStack(alignment: .leading, spacing: MacTheme.space3) {
@@ -695,22 +693,7 @@ private struct DisplaySettingsCard<Content: View>: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(MacTheme.space4)
-        .background {
-            if usesOpaqueSurface {
-                shape.fill(MacTheme.surface)
-            } else {
-                shape.fill(.regularMaterial)
-            }
-        }
-        .overlay(shape.strokeBorder(MacTheme.divider, lineWidth: usesOpaqueSurface ? 1.5 : 1))
+        .popoverGlassSurface(cornerRadius: MacTheme.cardRadius, layer: .inset)
         .accessibilityElement(children: .contain)
-    }
-
-    private var shape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: MacTheme.cardRadius, style: .continuous)
-    }
-
-    private var usesOpaqueSurface: Bool {
-        reduceTransparency || colorSchemeContrast == .increased
     }
 }

@@ -171,18 +171,36 @@ extension View {
         )
     }
 
-    /// Monitor 设置 popover 的外层材质。
+    /// Popover 的分层玻璃材质。
     ///
-    /// 普通显示使用 regular Liquid Glass。
+    /// 外层使用 regular Liquid Glass。
+    /// 内部卡片使用 clear Liquid Glass。
     /// 减少透明度或增强对比时改用不透明 surface。
     @MainActor
-    func monitorPopoverSurface(cornerRadius: CGFloat = 16) -> some View {
-        modifier(MonitorPopoverSurfaceModifier(cornerRadius: cornerRadius))
+    func popoverGlassSurface(
+        cornerRadius: CGFloat = 16,
+        layer: PopoverGlassLayer = .outer,
+        tint: Color? = nil
+    ) -> some View {
+        modifier(
+            PopoverGlassSurfaceModifier(
+                cornerRadius: cornerRadius,
+                layer: layer,
+                tint: tint
+            )
+        )
     }
 }
 
-private struct MonitorPopoverSurfaceModifier: ViewModifier {
+enum PopoverGlassLayer {
+    case outer
+    case inset
+}
+
+private struct PopoverGlassSurfaceModifier: ViewModifier {
     let cornerRadius: CGFloat
+    let layer: PopoverGlassLayer
+    let tint: Color?
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
@@ -198,12 +216,23 @@ private struct MonitorPopoverSurfaceModifier: ViewModifier {
     func body(content: Content) -> some View {
         if usesOpaqueSurface {
             content
-                .background(shape.fill(MacTheme.surface))
-                .overlay(shape.strokeBorder(MacTheme.divider, lineWidth: 1.5))
+                .background(
+                    shape.fill(layer == .outer ? MacTheme.surface : MacTheme.surface.opacity(0.94))
+                )
+                .overlay(shape.strokeBorder(MacTheme.divider, lineWidth: layer == .outer ? 1.5 : 1))
         } else {
             content
-                .glassSurface(cornerRadius: cornerRadius, mode: .glass)
-                .overlay(shape.strokeBorder(MacTheme.divider.opacity(0.8), lineWidth: 1))
+                .glassSurface(
+                    cornerRadius: cornerRadius,
+                    tint: tint,
+                    mode: layer == .outer ? .glass : .clear
+                )
+                .overlay(
+                    shape.strokeBorder(
+                        MacTheme.divider.opacity(layer == .outer ? 0.8 : 0.55),
+                        lineWidth: layer == .outer ? 1 : 0.75
+                    )
+                )
         }
     }
 }

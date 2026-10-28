@@ -64,8 +64,8 @@ Power card 继续管理电池、适配器、热状态、低电量模式、安全
 ### 材质
 
 - popover 外层使用 regular Liquid Glass。
-- 内容卡使用标准材质，避免多层玻璃叠加。
-- 减少透明度或增强对比时，popover 外层回退为不透明 surface。
+- 内容卡叠加 clear Liquid Glass。clear 层提供细高光和层次，不重复外层模糊。
+- 减少透明度或增强对比时，外层和内容卡都回退为不透明 surface。
 - 开始和结束按钮使用 interactive Liquid Glass。
 
 | 模式 | 行为 |
@@ -96,7 +96,7 @@ Power card 继续管理电池、适配器、热状态、低电量模式、安全
 - 开始和结束按钮使用 regular interactive Liquid Glass。
 - 开始、结束和操作按钮至少有 44 点命中高度。
 - 状态同时使用文字和图标。
-- 减少透明度或增强对比时，内容卡使用不透明表面。
+- 减少透明度或增强对比时，popover 外层和内容卡使用不透明表面。
 
 ## 异常
 

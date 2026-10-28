@@ -73,9 +73,10 @@ Power 设置放在 `Monitor` 页签 Power card 的第三段浮层中。
 `电源` 页只保留一个主要阅读列。
 任何设置卡都不与其他设置卡并排。
 popover 外层使用 regular Liquid Glass。
-内容卡使用 `regularMaterial`，不重复叠加 Liquid Glass。
-减少透明度或增强对比时，内容卡改用不透明 `surface`。
-增强对比时，卡片描边从 1 点增加到 1.5 点。
+内容卡叠加 clear Liquid Glass。
+clear 层提供细高光和空间层次，不重复外层模糊。
+减少透明度或增强对比时，外层和内容卡改用不透明 `surface`。
+增强对比时，外层描边使用 1.5 点，内容卡描边使用 1 点。
 会话主操作使用 regular interactive Liquid Glass capsule。
 玻璃材质用于 popover 外层和开始、结束功能控件。
 
@@ -89,7 +90,7 @@ popover 外层使用 regular Liquid Glass。
 | 减少设置数量 | 会话类型和时长使用菜单选择，不使用两排胶囊选项 |
 | 区分状态和设置 | 状态使用摘要和徽标；设置使用原生开关、菜单和步进器 |
 | 保留键盘和读屏路径 | 所有控件使用可见标签、原生焦点顺序和无障碍名称 |
-| 区分玻璃层级 | popover 使用 regular Liquid Glass；内容卡使用标准材质；开始和结束使用交互式 Liquid Glass |
+| 区分玻璃层级 | popover 使用 regular Liquid Glass；内容卡使用 clear Liquid Glass；开始和结束使用交互式 Liquid Glass |
 | 区分主从开关 | 总开关使用常规 switch；单行子设置使用 mini switch |
 
 ## 状态模型
@@ -180,6 +181,7 @@ stateDiagram-v2
 13. #434 增加增强对比、减少透明度和 44 点命中区。
 14. #441 将合盖屏幕、外接屏暂停和零亮度设置迁入屏幕 card。
 15. #441 为屏幕设置增加独立 `DisplayConfig` 和旧配置迁移。
+16. #441 将所有 popover 改为分层 Liquid Glass，内容卡使用 clear 层。
 
 ## 预览
 

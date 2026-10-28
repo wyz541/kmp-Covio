@@ -1278,7 +1278,7 @@ enum ContractCopy {
     /// `copy/power/rules/closed-lid-zero-brightness-failed`
     static let copyPowerRulesClosedLidZeroBrightnessFailed = LocalizedCopy(key: "copy/power/rules/closed-lid-zero-brightness-failed", en: "Zero brightness failed. Covio restored the original brightness when possible and fell back to the public screen-off path.", zhHans: "零亮度设置失败。Covio 已尽力恢复原亮度，并回退到公开关屏路径。")
     /// `copy/power/rules/closed-lid-zero-brightness-hint`
-    static let copyPowerRulesClosedLidZeroBrightnessHint = LocalizedCopy(key: "copy/power/rules/closed-lid-zero-brightness-hint", en: "Opt-in. The panel is set to 0.0. The framebuffer and display pipeline stay active and may support Computer Use or remote capture, but this is not guaranteed. The private API can break after a macOS update.", zhHans: "需要显式开启。面板亮度设为 0.0；framebuffer 和显示链路保持在线，可能支持 Computer Use 或远程截图，但不保证可用。私有接口可能随 macOS 更新失效。")
+    static let copyPowerRulesClosedLidZeroBrightnessHint = LocalizedCopy(key: "copy/power/rules/closed-lid-zero-brightness-hint", en: "On by default. While closed-lid hold is active, the panel is set to 0.0. The framebuffer and display pipeline stay active and may support Computer Use or remote capture, but this is not guaranteed. The private API can break after a macOS update.", zhHans: "默认开启。合盖保持唤醒时，面板亮度设为 0.0；framebuffer 和显示链路保持在线，可能支持 Computer Use 或远程截图，但不保证可用。私有接口可能随 macOS 更新失效。")
     /// `copy/power/rules/closed-lid-zero-brightness-unavailable`
     static let copyPowerRulesClosedLidZeroBrightnessUnavailable = LocalizedCopy(key: "copy/power/rules/closed-lid-zero-brightness-unavailable", en: "Unavailable on this macOS version or hardware.", zhHans: "当前 macOS 版本或硬件不支持。")
     /// `copy/power/rules/external-display`

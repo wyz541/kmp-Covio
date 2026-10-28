@@ -120,6 +120,14 @@ final class ConfigCompatibilityTests: XCTestCase {
         XCTAssertEqual(power.batteryFloorPercent, 15)
         XCTAssertEqual(power.batteryFloorRecoveryPercent, 20)
         XCTAssertEqual(power.closedLidTimeCapMinutes, 240)
+        XCTAssertTrue(power.closedLidZeroBrightness)
+    }
+
+    /// 缺少实验黑屏键时使用新默认值；显式关闭必须保留。
+    func testExplicitlyDisabledExperimentalBlackScreenSurvivesLoading() throws {
+        try write(#"{"power":{"closedLidZeroBrightness":false}}"#)
+
+        XCTAssertFalse(store().load().power.closedLidZeroBrightness)
     }
 
     /// Power 意图与既有配置一起原子写入并原样读回。

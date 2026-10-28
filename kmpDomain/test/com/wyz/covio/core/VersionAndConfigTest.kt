@@ -28,6 +28,7 @@ class VersionAndConfigTest {
             assertEquals(null, defaults.hibernateMode)
             assertTrue(defaults.chargeLimitEnabled)
             assertEquals(70, defaults.chargeLimitPercent)
+            assertTrue(defaults.power.closedLidZeroBrightness)
             assertTrue(path.exists)
         }
 
@@ -318,6 +319,7 @@ class VersionAndConfigTest {
 
             assertEquals(3, loaded.schemaVersion)
             assertFalse(loaded.enabled)
+            assertTrue(loaded.power.closedLidZeroBrightness)
             assertEquals(PowerConfig.defaults(), loaded.power)
         }
 
@@ -367,6 +369,17 @@ class VersionAndConfigTest {
         }
 
     @Test
+    fun `explicitly disabled experimental black screen survives loading`() =
+        withTemporaryDirectory("config") { directory ->
+            val path = directory.resolve("config.json")
+            path.writeText("""{"power":{"closedLidZeroBrightness":false}}""")
+
+            val loaded = ConfigStore(path.toString()).load()
+
+            assertFalse(loaded.power.closedLidZeroBrightness)
+        }
+
+    @Test
     fun `bad power key falls back without affecting sibling keys`() =
         withTemporaryDirectory("config") { directory ->
             val path = directory.resolve("config.json")
@@ -375,7 +388,7 @@ class VersionAndConfigTest {
 
             assertEquals(PowerConfig.defaults().enabled, loaded.power.enabled)
             assertEquals(25, loaded.power.batteryFloorPercent)
-            assertFalse(loaded.power.closedLidZeroBrightness)
+            assertTrue(loaded.power.closedLidZeroBrightness)
         }
 
     /// 默认路径必须与 0.4.2 完全一致，否则老用户的设置会丢。

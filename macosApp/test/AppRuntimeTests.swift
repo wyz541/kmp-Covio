@@ -222,14 +222,16 @@ final class AppRuntimeTests: XCTestCase {
         XCTAssertEqual(try savedJSON()["firstRun"] as? Bool, false)
     }
 
-    func testExperimentalZeroBrightnessSettingIsPersisted() throws {
+    func testExperimentalZeroBrightnessIsOnAndCanBeDisabled() throws {
         let created = makeRuntime(engineStarted: true, helperInstalled: true)
 
-        created.setPowerClosedLidZeroBrightness(true)
-
         XCTAssertTrue(created.config.power.closedLidZeroBrightness)
+
+        created.setPowerClosedLidZeroBrightness(false)
+
+        XCTAssertFalse(created.config.power.closedLidZeroBrightness)
         let power = try XCTUnwrap(savedJSON()["power"] as? [String: Any])
-        XCTAssertEqual(power["closedLidZeroBrightness"] as? Bool, true)
+        XCTAssertEqual(power["closedLidZeroBrightness"] as? Bool, false)
     }
 
     func testUnavailableExperimentalBrightnessCannotBeEnabled() {
@@ -240,6 +242,7 @@ final class AppRuntimeTests: XCTestCase {
             helperInstalled: true,
             brightnessBackend: unavailable
         )
+        created.setPowerClosedLidZeroBrightness(false)
 
         created.setPowerClosedLidZeroBrightness(true)
 
@@ -649,6 +652,7 @@ final class AppRuntimeTests: XCTestCase {
         XCTAssertEqual(created.config.firstRun, defaults.firstRun)
         XCTAssertTrue(created.config.chargeLimitEnabled)
         XCTAssertEqual(created.config.chargeLimitPercent, 70)
+        XCTAssertTrue(created.config.power.closedLidZeroBrightness)
         XCTAssertNotNil(created.statusMessage)
     }
 

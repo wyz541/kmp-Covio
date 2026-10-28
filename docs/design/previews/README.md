@@ -1,6 +1,8 @@
 # UI 截图
 
-本目录存 UI 决策和 UI 代码变更的截图。截图的固定 commit URL 填入对应 issue 的 `Visual verification` 表格。
+本目录存 UI 决策和 UI 代码变更的截图。
+UI 决策截图可以写进 Issue 的 `预览` 段。
+UI 代码变更的固定 commit URL 填入对应 PR 的 `Visual verification` 表格。
 
 Compose Web 打样已由 [ADR-0021](../../adr/adr-0021-deprecate-compose-web-preview.md) 废弃。旧打样截图继续作为历史证据保留。
 
@@ -35,10 +37,11 @@ Compose Web 打样已由 [ADR-0021](../../adr/adr-0021-deprecate-compose-web-pre
 
 ## 取图
 
-1. 启动目标界面。UI 决策使用选定方案；UI 代码变更使用真机 app。
+1. 启动目标界面。UI 决策使用候选或选定方案；UI 代码变更使用实现后的真机 app。
 2. 切到亮色和深色。两组都取同一页面、同一状态。
 3. 截图。窗口宽度按要评审的宽度取。窗口太窄或太宽都要另截一张。
 4. 存进本目录。
+5. 把 Before/After 表和固定 commit 图片链接写入 PR。
 
 ## 注意
 

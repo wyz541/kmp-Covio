@@ -8,7 +8,8 @@ body:
       value: |
         一个 spike 只回答一个问题，时间盒默认 2 个工作日，上限 3 个工作日。
         格式见 [研发工作流](../../docs/process/workflow.md) 的 S2 与 S3。
-        涉及 UI 时，正文使用 `Visual verification` 格式。
+        UI 决策可在 `预览` 段记录候选方案。
+        UI 代码变更的真机截图在实现后的 PR 提供。
 
   - type: textarea
     id: question
@@ -47,45 +48,19 @@ body:
     validations:
       required: true
 
-  - type: dropdown
-    id: ui_type
-    attributes:
-      label: UI 类型
-      description: 选择本 issue 的 UI 证据类型。
-      options:
-        - 不涉及 UI
-        - UI 决策
-        - UI 代码变更
-    validations:
-      required: true
-
   - type: textarea
-    id: ui_evidence
+    id: preview
     attributes:
-      label: Visual verification
+      label: 预览
       description: |
-        创建时写计划，结题前补图。
-        UI issue 必须保留亮色和深色两组 Before/After 表。
-        每一格放 Markdown 图片，不写本机路径。
-        UI 决策对照当前界面和选定方案。UI 代码变更对照同一页面、同一状态的真机截图。
-        截图归档到 docs/design/previews/。命名遵守该目录的 README。
-        Issue 正文使用同一文件的固定 commit GitHub 图片地址。
-        不涉及 UI 时填「不适用」。
-        截图缺失或链接失效时，不得关闭 issue。
-      value: |
-        **亮色**
-
-        | Before | After |
-        | --- | --- |
-        | Light before | Light after |
-
-        **深色**
-
-        | Before | After |
-        | --- | --- |
-        | Dark before | Dark after |
+        仅在调研产出 UI 候选方案时填写。
+        真机验收截图在实现后的 PR 提供。
+      placeholder: |
+        - 候选方案：<链接或简短说明>
+        - 截图：docs/design/previews/<name>.png
+        - 评审：Pending
     validations:
-      required: true
+      required: false
 
   - type: input
     id: assignee

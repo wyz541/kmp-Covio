@@ -2,7 +2,7 @@
 
 **把想法变成可追踪的 issue。七步，只用 GitHub 原生能力。**
 
-版本 0.10 · 2026-10-26
+版本 0.11 · 2026-10-28
 
 ---
 
@@ -155,15 +155,15 @@ flowchart LR
 2. 负责人记在 assignee 字段里，不写进正文。
 3. 每个 sub-issue 建好后，加标签 `task`，就地写一行验收标准，预计工期 1 到 3 天。
 4. 用 blocked by 记录顺序。被阻塞的 issue 会自动显示标记。
-5. UI 决策或 UI 代码变更完成后，按「UI 证据」补截图。截图缺失时，不关闭 issue。
+5. UI issue 写 `表现预期`。UI 决策可在 issue 的 `预览` 段放候选方案。UI 代码变更的真机截图在 PR 补齐。
 
 **判断「大功能」：** 需要 2 个以上 PR；预计超过 5 个工作日；需要先改设计。满足任一条就建 Feature。
 
 **层级：** 不超过 3 层，从 Feature 数起。工具支持 8 层，但第 4 层开始没人看。层级不表示工期。
 
-**完成标准：** 每个 sub-issue 都有验收标准，且工期不超过 3 天。涉及 UI 变化时，UI 截图证据齐全。
+**完成标准：** 每个 sub-issue 都有验收标准，且工期不超过 3 天。涉及 UI 变化时，正文写有可判断的表现预期。
 
-**小功能的 UI 证据：** 小功能涉及 UI 变化时，Visual verification 写在同一个 issue 正文里。不另建 sub-issue。
+**小功能的 UI 证据：** 小功能涉及 UI 代码变更时，先建 task issue。实现完成后，把真机证据写入对应 PR。
 
 **规则：** issue 不要求写满需求。issue 是讨论的起点，细节在评论与 PR 里补齐。同一条信息只维护一处，不建并行的 PRD。
 
@@ -268,15 +268,16 @@ GitHub 默认只有 task、bug、feature 三种 issue type，且只在组织账�
 
 ### UI 证据与 Visual verification
 
-**何时用：** issue 涉及 UI 决策或 UI 代码变更。
-**谁做：** 负责人补齐证据。评审人核对截图。
+**何时用：** issue 涉及 UI 决策，或 PR 涉及 UI 代码变更。
+**谁做：** 负责人补证据。评审人在 PR 核对真机截图。
 
-| 类型 | issue 正文必须包含 |
-|---|---|
-| UI 决策 | 亮色和深色两组 Before/After 表。Before 放当前界面，After 放选定方案。 |
-| UI 代码变更 | 亮色和深色两组 Before/After 表。两组都放同一页面、同一状态的真机截图。 |
+Issue 只写问题、范围、表现预期和验收标准。
+UI 决策可以在 issue 的 `预览` 段放候选方案。
+候选方案不等于真机验收。
+UI 代码变更只有在实现后才能生成 After 截图。
+因此，UI 代码变更的 `Visual verification` 只写在 PR。
 
-UI issue 的正文使用以下固定格式：
+PR 使用以下固定格式：
 
 ```markdown
 ## Visual verification
@@ -298,11 +299,11 @@ UI issue 的正文使用以下固定格式：
 
 1. 截图归档到仓库内的 `docs/design/previews/`。此目录保存 UI 证据。
 2. 文件名遵守该目录的 `README.md`。UI 决策使用 `candidate`、`selected` 或 `current` 角色。UI 代码变更使用 `before` 或 `after` 角色。
-3. Issue 正文嵌入同一文件的固定 commit GitHub 图片地址。不写本机路径，不上传第二份权威副本。
-4. Issue 正文记录截图来源、日期、设备型号、系统版本、页面、状态和 commit。
+3. PR 正文嵌入同一文件的固定 commit GitHub 图片地址。不写本机路径，不上传第二份权威副本。
+4. PR 正文记录截图来源、日期、设备型号、系统版本、页面、状态和 commit。
 5. 旧图不删除。同一场景重截后，序号加一。
-6. 不涉及 UI 的 issue 在 `Visual verification` 栏写「不适用」。
-7. UI issue 缺少截图或证据链接失效时，不得关闭。
+6. 不涉及 UI 的 PR 在 `Visual verification` 段写「不适用」。
+7. UI 代码 PR 缺少截图或图片链接失效时，不得转入 ready 或合并。
 8. 仓库是公开仓库。截图必须使用测试数据，并遮挡用户名、文件名、通知和其他个人信息。
 
 ### 目录
@@ -313,10 +314,12 @@ ADR 与流程文件放在同一个仓库。跨仓库的对象用 `owner/repo#123
 
 ```text
 repo/
-├─ .github/ISSUE_TEMPLATE/
-│  ├─ feature.yml
-│  ├─ research.yml
-│  └─ task.yml
+├─ .github/
+│  ├─ ISSUE_TEMPLATE/
+│  │  ├─ feature.yml
+│  │  ├─ research.yml
+│  │  └─ task.yml
+│  └─ pull_request_template.md    ← PR 的 Visual verification
 └─ docs/
    ├─ adr/
    │  ├─ adr-template.md

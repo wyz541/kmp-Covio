@@ -84,15 +84,18 @@ enum HubMetrics {
     static let tabBarItemGap: CGFloat = MacTheme.space2
 
     /// 首页入口按钮。合同 `component/button` 的命中区下限是 24 点。
-    static let homeEntryWidth: CGFloat = 36
+    static let homeEntryWidth: CGFloat = 52
     static let homeEntryHeight: CGFloat = 30
 
     /// 搜索框。
-    static let searchFieldWidth: CGFloat = 170
+    static let searchFieldWidth: CGFloat = 190
     static let searchFieldHeight: CGFloat = 30
 
     /// 一条页签的高度。选中滑块也用它。
     static let tabHeight: CGFloat = 30
+
+    /// 一条页签的固定宽度。文字超长时截断，不能把选中背景撑开。
+    static let tabWidth: CGFloat = 72
 
     /// 页签之间的间距。
     static let tabGap: CGFloat = 4
@@ -102,8 +105,8 @@ enum HubMetrics {
 
     /// 拖动换位时，跨过多少点算换一条页签。
     ///
-    /// 页签宽度随文字变，这里用一个估值。与打样的 `tabStepPx()` 一致。
-    static let tabReorderStep: CGFloat = 84
+    /// 页签宽度固定，换位步长还要算上页签间距。
+    static let tabReorderStep: CGFloat = tabWidth + tabGap
 
     /// 右端动作按钮的横向内边距。
     static let actionHPadding: CGFloat = MacTheme.space3
@@ -114,6 +117,17 @@ enum HubMetrics {
     static var tabBarFixedWidth: CGFloat {
         homeEntryWidth + searchFieldWidth + actionButtonMinWidth
             + tabBarItemGap * 3
+    }
+
+    /// 顶栏留给工作区页签的宽度。
+    static var tabStripWidth: CGFloat {
+        tabBarWidth - tabBarHPadding * 2 - tabBarFixedWidth
+    }
+
+    /// 一排固定宽度页签的总宽度。
+    static func tabsWidth(count: Int) -> CGFloat {
+        guard count > 0 else { return 0 }
+        return CGFloat(count) * tabWidth + CGFloat(count - 1) * tabGap
     }
 
     /// 动作按钮的最小宽度。四段文案最长是「设置」，两个字。
@@ -258,8 +272,13 @@ enum HubMetrics {
     /// 首页没有页标题行：打样的首页直接从网格开始。
     static func pageContentHeight(for page: HubPage) -> CGFloat {
         switch page {
-        case .home: bodyHeight(for: page)
-        case .pane: pageHeadingHeight + pageHeadingGap + bodyHeight(for: page)
+        case .home:
+            bodyHeight(for: page)
+        case .pane(.clipboard):
+            // 顶部页签已经标出页面身份，不再重复标题行。
+            bodyHeight(for: page)
+        case .pane:
+            pageHeadingHeight + pageHeadingGap + bodyHeight(for: page)
         }
     }
 

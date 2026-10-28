@@ -62,6 +62,7 @@ struct MonitorPreviewRoot: View {
 @Observable
 final class PowerPreviewModel: PowerManagementModel {
     let language = AppLanguage.simplifiedChinese
+    var sleepProtectionEnabled = true
     var powerConfig: PowerConfig
     var observation: PowerObservation
     var snapshot: PowerSnapshot
@@ -143,7 +144,10 @@ final class PowerPreviewModel: PowerManagementModel {
         ]
     }
 
-    func setPowerEnabled(_ enabled: Bool) { powerConfig = copyPower(enabled: enabled) }
+    func setPowerEnabled(_ enabled: Bool) {
+        sleepProtectionEnabled = enabled
+        powerConfig = copyPower(enabled: enabled)
+    }
     func setPowerKeepAwakeOnAdapter(_ enabled: Bool) { powerConfig = copyPower(adapter: enabled) }
     func setPowerKeepAwakeOnBattery(_ enabled: Bool) { powerConfig = copyPower(battery: enabled) }
     func setPowerAllowClosedLid(_ enabled: Bool) { powerConfig = copyPower(lid: enabled) }

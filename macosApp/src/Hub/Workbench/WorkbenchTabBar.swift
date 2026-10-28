@@ -9,8 +9,6 @@ struct PaneItem: Identifiable, Equatable, Sendable {
     let tab: HubTab
     /// 已经解析好的显示名。用户改过名就是用户的名字。
     let title: String
-
-    var glyph: String { tab.glyph }
 }
 
 /// 页签拖动排序的换算。
@@ -52,9 +50,10 @@ struct WorkbenchTabBar: View {
     let panes: [PaneItem]
     let destination: HubDestination
     let isEditing: Bool
+    let searchPlaceholder: LocalizedCopy
     @Binding var searchText: String
     let language: AppLanguage
-    let pageAction: LocalizedCopy
+    let pageAction: LocalizedCopy?
     let reduceMotion: Bool
     let onHome: () -> Void
     let onSelect: (String) -> Void
@@ -73,15 +72,14 @@ struct WorkbenchTabBar: View {
     @State private var hoveredTarget: NavigationGlassTarget?
     /// 键盘焦点所在的导航按钮。焦点态同样显示玻璃。
     @FocusState private var focusedTarget: NavigationGlassTarget?
-    /// 选中玻璃的身份。切换页签时让同一个玻璃形状完成 transition。
-    @Namespace private var selectionNamespace
-
+    /// 搜索框的键盘焦点。搜索框不是目的地，所以单独保存焦点状态。
+    @FocusState private var searchFocused: Bool
     var body: some View {
         HStack(spacing: HubMetrics.tabBarItemGap) {
             homeEntry
             searchField
             tabStrip
-            pageActionButton
+            pageActionSlot
         }
         .padding(.horizontal, HubMetrics.tabBarHPadding)
         .frame(width: HubMetrics.tabBarWidth, height: HubMetrics.tabBarHeight)
@@ -101,14 +99,11 @@ struct WorkbenchTabBar: View {
         return Button(action: onHome) {
             homeLabel
                 .contentShape(Rectangle())
+                .background { navigationBackground(for: .home, isSelected: isSelected) }
         }
         .buttonStyle(.plain)
         .focused($focusedTarget, equals: .home)
-        .glassEffect(navigationGlass(for: .home, isSelected: isSelected), in: .capsule)
-        .glassEffectID(isSelected ? Self.selectionGlassID : nil, in: selectionNamespace)
-        .glassEffectTransition(.matchedGeometry)
         .overlay { navigationFocusRing(for: .home) }
-        .animation(selectionAnimation, value: isSelected)
         .accessibilityLabel(ContractCopy.copyHubActionHome.text(for: language))
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
         .onHover { inside in
@@ -120,46 +115,84 @@ struct WorkbenchTabBar: View {
     // MARK: - 搜索
 
     private var searchField: some View {
-        HStack(spacing: MacTheme.space1) {
-            Text("⌕")
-                .font(.system(size: 13))
+        HStack(spacing: MacTheme.space2) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(MacTheme.textSecondary)
                 .accessibilityHidden(true)
             TextField(placeholder, text: $searchText)
                 .textFieldStyle(.plain)
                 .font(.system(size: 12))
+                .focused($searchFocused)
                 .disabled(isEditing)
+
+            if !searchText.isEmpty, !isEditing {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(MacTheme.textSecondary)
+                        .frame(width: 16, height: 20)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(ContractCopy.copyHubSearchClear.text(for: language))
+            }
         }
-        .padding(.horizontal, MacTheme.space2)
+        .padding(.leading, MacTheme.space3)
+        .padding(.trailing, MacTheme.space2)
         .frame(width: HubMetrics.searchFieldWidth, height: HubMetrics.searchFieldHeight)
-        .background(
-            isEditing ? Color.primary.opacity(0.06) : MacTheme.elevated,
-            in: RoundedRectangle(cornerRadius: MacTheme.controlRadius, style: .continuous)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: MacTheme.controlRadius, style: .continuous)
-                .strokeBorder(MacTheme.divider, lineWidth: 1)
-        )
+        .glassEffect(.regular.interactive(), in: .capsule)
+        .overlay { searchFocusRing }
+        .opacity(isEditing ? 0.6 : 1)
         .accessibilityLabel(placeholder)
+        .background {
+            Button("") {
+                searchFocused = true
+            }
+            .keyboardShortcut("f", modifiers: .command)
+            .opacity(0)
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
+            .disabled(isEditing)
+        }
+    }
+
+    @ViewBuilder
+    private var searchFocusRing: some View {
+        if searchFocused {
+            Capsule(style: .continuous)
+                .strokeBorder(Color(nsColor: .keyboardFocusIndicatorColor), lineWidth: 2)
+                .allowsHitTesting(false)
+        }
     }
 
     private var placeholder: String {
-        ContractCopy.copyNavSearchPlaceholder.text(for: language)
+        searchPlaceholder.text(for: language)
     }
 
     // MARK: - 页签
 
+    @ViewBuilder
     private var tabStrip: some View {
-        ScrollView(.horizontal) {
-            HStack(spacing: HubMetrics.tabGap) {
-                ForEach(Array(panes.enumerated()), id: \.element.id) { _, pane in
-                    tab(pane)
-                }
+        if HubMetrics.tabsWidth(count: panes.count) <= HubMetrics.tabStripWidth {
+            tabRow
+        } else {
+            ScrollView(.horizontal) {
+                tabRow
             }
-            .padding(.vertical, 1)
+            .scrollIndicators(.never)
         }
-        .scrollIndicators(.never)
-        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var tabRow: some View {
+        HStack(spacing: HubMetrics.tabGap) {
+            ForEach(Array(panes.enumerated()), id: \.element.id) { _, pane in
+                tab(pane)
+            }
+        }
+        .padding(.vertical, 1)
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     private func tab(_ pane: PaneItem) -> some View {
@@ -170,14 +203,13 @@ struct WorkbenchTabBar: View {
         } label: {
             tabLabel(pane, isSelected: isSelected)
                 .contentShape(Rectangle())
+                .background {
+                    navigationBackground(for: .pane(pane.id), isSelected: isSelected)
+                }
         }
         .buttonStyle(.plain)
         .focused($focusedTarget, equals: .pane(pane.id))
-        .glassEffect(navigationGlass(for: .pane(pane.id), isSelected: isSelected), in: .capsule)
-        .glassEffectID(isSelected ? Self.selectionGlassID : nil, in: selectionNamespace)
-        .glassEffectTransition(.matchedGeometry)
         .overlay { navigationFocusRing(for: .pane(pane.id)) }
-        .animation(selectionAnimation, value: isSelected)
         .accessibilityLabel(pane.title)
         .accessibilityHint(pane.tab.summary.text(for: language))
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
@@ -197,11 +229,11 @@ struct WorkbenchTabBar: View {
     }
 
     private var homeLabel: some View {
-        Image(systemName: "square.grid.2x2.fill")
-            .font(.system(size: 13, weight: .medium))
-            .symbolRenderingMode(.monochrome)
+        Text(ContractCopy.copyHubActionHome.text(for: language))
+            .font(.system(size: 12))
             .foregroundStyle(.primary)
-            .frame(width: HubMetrics.homeEntryWidth, height: HubMetrics.homeEntryHeight)
+            .padding(.horizontal, HubMetrics.tabHPadding)
+            .frame(minWidth: HubMetrics.homeEntryWidth, minHeight: HubMetrics.homeEntryHeight)
     }
 
     private func tabLabel(_ pane: PaneItem, isSelected: Bool) -> some View {
@@ -212,27 +244,34 @@ struct WorkbenchTabBar: View {
                     .foregroundStyle(.secondary)
                     .accessibilityHidden(true)
             }
-            Text(pane.glyph)
-                .font(.system(size: 11))
-                .foregroundStyle(isSelected ? .primary : .secondary)
-                .accessibilityHidden(true)
             Text(pane.title)
-                .font(.system(size: 12, weight: isSelected ? .medium : .regular))
-                .foregroundStyle(.primary)
+                .font(.system(size: 12))
+                .foregroundStyle(isSelected ? .primary : .secondary)
                 .lineLimit(1)
         }
         .padding(.horizontal, HubMetrics.tabHPadding)
-        .frame(height: HubMetrics.tabHeight)
+        .frame(width: HubMetrics.tabWidth, height: HubMetrics.tabHeight)
     }
 
-    private func navigationGlass(for target: NavigationGlassTarget, isSelected: Bool) -> Glass {
+    /// 导航高亮使用固定尺寸的颜色胶囊，不参与外层 Liquid Glass 合并。
+    @ViewBuilder
+    private func navigationBackground(
+        for target: NavigationGlassTarget,
+        isSelected: Bool
+    ) -> some View {
         if isSelected {
-            return .regular.tint(MacTheme.accent.opacity(0.24)).interactive()
+            Capsule(style: .continuous).fill(MacTheme.accent.opacity(0.24))
+        } else if hoveredTarget == target || focusedTarget == target {
+            Capsule(style: .continuous).fill(MacTheme.accent.opacity(0.12))
+        } else {
+            Color.clear
         }
-        if hoveredTarget == target || focusedTarget == target {
-            return .regular.tint(MacTheme.accent.opacity(0.12)).interactive()
-        }
-        return .identity
+    }
+
+    private func actionGlass(for target: NavigationGlassTarget) -> Glass {
+        hoveredTarget == target || focusedTarget == target
+            ? .regular.tint(MacTheme.accent.opacity(0.12)).interactive()
+            : .identity
     }
 
     @ViewBuilder
@@ -272,29 +311,40 @@ struct WorkbenchTabBar: View {
 
     // MARK: - 当前页的动作
 
-    private var pageActionButton: some View {
+    /// 动作位始终占同样的宽度。动作消失时页签不会跟着改宽度。
+    @ViewBuilder
+    private var pageActionSlot: some View {
+        Group {
+            if let pageAction {
+                pageActionButton(pageAction)
+            } else {
+                Color.clear
+            }
+        }
+        .frame(minWidth: HubMetrics.actionButtonMinWidth, minHeight: HubMetrics.tabHeight)
+    }
+
+    private func pageActionButton(_ action: LocalizedCopy) -> some View {
         Button(action: onPageAction) {
-            pageActionLabel
+            pageActionLabel(action)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .focused($focusedTarget, equals: .pageAction)
-        .glassEffect(navigationGlass(for: .pageAction, isSelected: false), in: .capsule)
+        .glassEffect(actionGlass(for: .pageAction), in: .capsule)
         .overlay { navigationFocusRing(for: .pageAction) }
-        .accessibilityLabel(pageAction.text(for: language))
+        .accessibilityLabel(action.text(for: language))
         .onHover { hoveredTarget = $0 ? .pageAction : nil }
     }
 
-    private var pageActionLabel: some View {
-        Text(pageAction.text(for: language))
+    private func pageActionLabel(_ action: LocalizedCopy) -> some View {
+        Text(action.text(for: language))
             .font(.system(size: 12))
             .foregroundStyle(.primary)
             .lineLimit(1)
             .padding(.horizontal, HubMetrics.actionHPadding)
             .frame(minWidth: HubMetrics.actionButtonMinWidth, minHeight: HubMetrics.tabHeight)
     }
-
-    private static let selectionGlassID = "workbench-navigation-selection"
 
 }
 

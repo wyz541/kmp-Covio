@@ -45,8 +45,8 @@ enum AgentSettingKey: String, CaseIterable, Sendable {
             guard let value = Int(text), (20...80).contains(value) else { return nil }
             return .integer(value)
         case .language:
-            guard let language = AppLanguage(rawValue: text) else { return nil }
-            return .string(language.rawValue)
+            guard let preference = AppLanguagePreference.parse(text) else { return nil }
+            return .string(preference.agentValue)
         default:
             switch text.lowercased() {
             case "true": return .boolean(true)

@@ -41,25 +41,27 @@ Progress is read from GitHub. The repository does not hold issue definitions.
 ## Download (internal test)
 
 Covio is under internal test.
-Covio 0.5.2-internal.5 is the current internal build.
+Covio 0.6.0-internal.6 is the current internal build.
 It requires macOS 26 or later on Apple Silicon.
-The older `v0.5.2` release contains the full model.
-The current release separates the default slim package and the optional offline package.
+The default installer does not contain model weights.
+Covio downloads the model after user confirmation.
+This release does not provide an offline model installer.
 Validation results are in `docs/research/installer-size-reduction/validation/`.
 
-- [Default DMG](https://github.com/wyz541/kmp-Covio/releases/download/v0.5.2-internal.5/Covio-0.5.2.dmg)
-- [Offline DMG](https://github.com/wyz541/kmp-Covio/releases/download/v0.5.2-internal.5/Covio-Offline-0.5.2.dmg)
-- [Release page](https://github.com/wyz541/kmp-Covio/releases/tag/v0.5.2-internal.5)
-- [Checksums](https://github.com/wyz541/kmp-Covio/releases/download/v0.5.2-internal.5/checksums.txt)
+- [Default DMG](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.6/Covio-0.6.0.dmg)
+- [Transactional PKG](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.6/Covio-0.6.0.pkg)
+- [Release page](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.6)
+- [Checksums](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.6/checksums.txt)
+- [Covio 0.5.2 internal build 5](https://github.com/wyz541/kmp-Covio/releases/tag/v0.5.2-internal.5) is an older internal test.
 - [Covio 0.5.1](https://github.com/wyz541/kmp-Covio/releases/tag/v0.5.1) is an older internal test.
 - [Covio 0.4.2](https://github.com/wyz541/kmp-Covio/releases/tag/v0.4.2) is an older internal test.
 
 Install steps:
 
-1. Open `Covio-0.5.2.dmg` for online installation, or open `Covio-Offline-0.5.2.dmg` for offline installation.
+1. Open `Covio-0.6.0.dmg`.
 2. Drag `Covio.app` to `Applications`.
 3. Open `Covio.app`.
-4. Open an AI feature and confirm the model download when using the default DMG.
+4. Open an AI feature and confirm the model download.
 
 Covio uses a clean install.
 Covio does not copy settings from older internal-test builds.
@@ -72,12 +74,21 @@ Allow the app in Privacy & Security, or clear the quarantine flag:
 xattr -dr com.apple.quarantine /Applications/Covio.app
 ```
 
-The DMG SHA-256 values are:
+Checksums are in the release `checksums.txt` asset.
 
-```text
-5eced02d91ca0eb9585cd028afb6ed5c63d24e06bd55e40e2730b073997aee99  Covio-0.5.2.dmg
-8bea35be7bd4c7dd7a439142153292f9672edaee63b3f1d2710eea92d6a754d7  Covio-Offline-0.5.2.dmg
-```
+## What is new in 0.6.0
+
+- The workbench opens with a two-finger downward swipe on the built-in trackpad.
+- Workbench navigation uses text-only tabs, one glass search field, and a fixed action slot.
+- Covio follows the macOS system language when no app language is set.
+- Clipboard uses a recency-first list, type filters, search, pinned groups, and a fixed detail pane.
+- Clipboard supports keyboard selection, two-step selection reset, double-click paste, and VoiceOver actions.
+- Clipboard text details render Markdown while copy, paste, search, and storage keep the original text.
+- Monitor battery and power cards share one layout. Redundant badges are removed.
+- Closed-lid protection reports success only after the helper applies the setting and owns the lease.
+- The default installer is slim. Covio downloads and verifies the model after user confirmation.
+- App and helper upgrades use the transactional PKG path.
+- All 0.5.2 features remain available.
 
 ## What is new in 0.5.2
 
@@ -371,21 +382,21 @@ Model weights are not in Git.
 4. Verify the optional offline DMG in a network-denied sandbox:
 
    ```sh
-   bash scripts/verify-file-naming-bundle.sh dist/Covio-Offline-0.5.2.dmg
+   bash scripts/verify-file-naming-bundle.sh dist/Covio-Offline-0.6.0.dmg
    ```
 
 The package script writes these files:
 
 - `dist/Covio.app`
-- `dist/Covio-0.5.2.dmg`
-- `dist/Covio-0.5.2.pkg`
-- `dist/Covio-0.5.2.app.zip`
+- `dist/Covio-0.6.0.dmg`
+- `dist/Covio-0.6.0.pkg`
+- `dist/Covio-0.6.0.app.zip`
 - `dist/release-manifest.json`
 
 The offline packaging command adds:
 
 - `dist/Covio-Offline.app`
-- `dist/Covio-Offline-0.5.2.dmg`
+- `dist/Covio-Offline-0.6.0.dmg`
 
 The default script verifies the model manifest and rejects model weights in the app.
 The offline script verifies model file sizes, SHA-256 values, license, and NOTICE.
@@ -471,3 +482,7 @@ Exact 8 GB hardware validation is tracked by [#185](https://github.com/wyz541/km
 19. Quit the app. Confirm the LaunchAgent does not restart it.
 20. Force-quit the app. Confirm the LaunchAgent restarts it.
 21. Remove the helper. Confirm `SleepDisabled` is `0`.
+22. Set the macOS preferred language to Simplified Chinese. Start Covio. Confirm the interface is Chinese.
+23. Set the macOS preferred language to English. Start Covio. Confirm the interface is English.
+24. Select **Follow System** in Covio. Change the macOS preferred language to one other than Chinese or English. Restart Covio. Confirm the interface is English.
+25. Select **English** manually. Change the macOS preferred language to Simplified Chinese. Restart Covio. Confirm the interface remains English.

@@ -1,6 +1,8 @@
 # UI 截图
 
-本目录存打样、UI 决策和 UI 代码变更的截图。截图的固定 commit URL 填入对应 issue 的 `Visual verification` 表格。
+本目录存 UI 决策和 UI 代码变更的截图。截图的固定 commit URL 填入对应 issue 的 `Visual verification` 表格。
+
+Compose Web 打样已由 [ADR-0021](../../adr/adr-0021-deprecate-compose-web-preview.md) 废弃。旧打样截图继续作为历史证据保留。
 
 ## 命名
 
@@ -25,7 +27,7 @@
 - `231-file-area-960-candidate-a-1.png`
 - `231-file-area-960-selected-a-1.png`
 
-只有打样图、没有前后对比或方案选择时，可以继续使用旧格式：`<issue 号>-<打样名>-<序号>.png`。
+历史打样图没有前后对比或方案选择时，可以继续使用旧格式：`<issue 号>-<打样名>-<序号>.png`。
 例如 `106-device-pane-1.png`。
 
 序号从 1 起。同一场景改了之后重截，序号加一。旧图不删，
@@ -33,8 +35,8 @@
 
 ## 取图
 
-1. 起服务。见 `docs/design/design-preview.md` 第 3 节。
-2. 浏览器打开 `http://127.0.0.1:8080`，进到要截的那一屏。
+1. 启动目标界面。UI 决策使用选定方案；UI 代码变更使用真机 app。
+2. 切到亮色和深色。两组都取同一页面、同一状态。
 3. 截图。窗口宽度按要评审的宽度取。窗口太窄或太宽都要另截一张。
 4. 存进本目录。
 

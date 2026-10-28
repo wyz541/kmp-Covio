@@ -507,7 +507,7 @@ enum AgentToolCatalog {
                     .required(
                         "value",
                         type: .string,
-                        description: "Boolean literal, integer 20-80, or supported language code.",
+                        description: "Boolean literal, integer 20-80, system, or a supported language code.",
                         extraProperties: ["minLength": 1, "maxLength": 32]
                     ),
                 ]

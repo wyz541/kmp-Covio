@@ -4,7 +4,7 @@
 # 用法：
 #   bash scripts/probe-trackpad-gesture.sh symbols           # 列出私有框架的符号
 #   bash scripts/probe-trackpad-gesture.sh devices           # 枚举多触点设备
-#   bash scripts/probe-trackpad-gesture.sh listen [秒数]      # 采集接触帧，默认 20 秒
+#   bash scripts/probe-trackpad-gesture.sh listen [秒数] [手指数] # 采集接触帧，默认 20 秒、4 指
 #   bash scripts/probe-trackpad-gesture.sh accessors         # 逐个调用 MTDeviceGet* 访问器
 #
 # 警告：`listen` 会调用 `MTDeviceStart` 启动内建触控板。
@@ -23,6 +23,12 @@ trap 'rm -rf "$WORK"' EXIT
 
 MODE="${1:-}"
 DURATION="${2:-20}"
+FINGERS="${3:-4}"
+
+if ! [[ "$FINGERS" =~ ^[1-9]$|^10$ ]]; then
+  echo "手指数必须是 1 到 10。" >&2
+  exit 2
+fi
 
 if [ -z "$MODE" ]; then
   sed -n '2,17p' "$0"
@@ -215,10 +221,13 @@ static void *g_callback = NULL;
 static int g_frames = 0;
 static int g_max_fingers = 0;
 static int g_counts[16];
-static double g_four_finger_y_first = 0.0;
-static double g_four_finger_y_last = 0.0;
-static int g_four_finger_frames = 0;
-static double g_four_finger_t0 = 0.0;
+static int g_target_fingers = 4;
+static double g_target_x_first = 0.0;
+static double g_target_x_last = 0.0;
+static double g_target_y_first = 0.0;
+static double g_target_y_last = 0.0;
+static int g_target_frames = 0;
+static double g_target_t0 = 0.0;
 
 static void cleanup(void) {
     if (g_device && g_stop) g_stop(g_device, 0);
@@ -237,23 +246,32 @@ static int on_frame(MTDeviceRef device, MTTouch *touches, int count, double time
     if (count > 0 && count < 16) g_counts[count]++;
     if (count > g_max_fingers) g_max_fingers = count;
 
-    if (count == 4) {
-        double sum = 0.0;
-        for (int i = 0; i < count; i++) sum += touches[i].normalized.pos.y;
-        double mean = sum / count;
-        if (g_four_finger_frames == 0) {
-            g_four_finger_y_first = mean;
-            g_four_finger_t0 = timestamp;
+    if (count == g_target_fingers) {
+        double sum_x = 0.0;
+        double sum_y = 0.0;
+        for (int i = 0; i < count; i++) {
+            sum_x += touches[i].normalized.pos.x;
+            sum_y += touches[i].normalized.pos.y;
         }
-        g_four_finger_y_last = mean;
-        g_four_finger_frames++;
-    } else if (g_four_finger_frames > 0) {
-        /* 一次四指接触结束，报告这一段的位移。 */
-        fprintf(stdout, "四指段：%d 帧，y %.4f -> %.4f，位移 %.4f，时长 %.3f 秒\n",
-                g_four_finger_frames, g_four_finger_y_first, g_four_finger_y_last,
-                g_four_finger_y_last - g_four_finger_y_first, timestamp - g_four_finger_t0);
+        double mean_x = sum_x / count;
+        double mean_y = sum_y / count;
+        if (g_target_frames == 0) {
+            g_target_x_first = mean_x;
+            g_target_y_first = mean_y;
+            g_target_t0 = timestamp;
+        }
+        g_target_x_last = mean_x;
+        g_target_y_last = mean_y;
+        g_target_frames++;
+    } else if (g_target_frames > 0) {
+        /* 一次目标手指数接触结束，报告这一段的位移。 */
+        fprintf(stdout, "%d 指段：%d 帧，x %.4f -> %.4f，y %.4f -> %.4f，位移 %.4f，时长 %.3f 秒\n",
+                g_target_fingers, g_target_frames,
+                g_target_x_first, g_target_x_last,
+                g_target_y_first, g_target_y_last,
+                g_target_y_last - g_target_y_first, timestamp - g_target_t0);
         fflush(stdout);
-        g_four_finger_frames = 0;
+        g_target_frames = 0;
     }
     return 0;
 }
@@ -261,6 +279,11 @@ static int on_frame(MTDeviceRef device, MTTouch *touches, int count, double time
 int main(int argc, char **argv) {
     int seconds = argc > 1 ? atoi(argv[1]) : 20;
     if (seconds <= 0) seconds = 20;
+    const char *fingers_text = getenv("COVIO_PROBE_FINGERS");
+    if (fingers_text) {
+        g_target_fingers = atoi(fingers_text);
+        if (g_target_fingers < 1 || g_target_fingers > 10) g_target_fingers = 4;
+    }
 
     void *handle = mt_open();
     if (!handle) return 1;
@@ -289,7 +312,7 @@ int main(int argc, char **argv) {
     start(g_device, 0);
 
     fprintf(stdout, "已启动。运行中=%d。\n", running ? running(g_device) : -1);
-    fprintf(stdout, "请在 %d 秒内做手势：四指下滑、三指下滑、两指滚动各做几次。\n", seconds);
+    fprintf(stdout, "请在 %d 秒内做手势。记录 %d 指接触段；同时做其他手指数动作用于对照。\n", seconds, g_target_fingers);
     fflush(stdout);
 
     alarm(seconds + 5);
@@ -312,7 +335,7 @@ EOF
     echo "编译完成：$WORK/probe"
     echo "启动内建触控板采集。按 Control+C 可以提前结束。"
     echo
-    "$WORK/probe" "$DURATION"
+    COVIO_PROBE_FINGERS="$FINGERS" "$WORK/probe" "$DURATION"
     ;;
 
   *)

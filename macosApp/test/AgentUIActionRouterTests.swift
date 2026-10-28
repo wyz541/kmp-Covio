@@ -49,24 +49,28 @@ final class AgentUIActionRouterTests: XCTestCase {
 
     func testSettingChangeParsesAndAppliesOneTypedValue() {
         let router = AgentUIActionRouter()
-        var changed: (AgentSettingKey, AgentSettingValue)?
+        var changes: [(AgentSettingKey, AgentSettingValue)] = []
         router.install(
             openPane: nil,
             readSetting: nil,
             changeSetting: { key, value in
-                changed = (key, value)
+                changes.append((key, value))
                 return true
             }
         )
 
         let result = router.requestSettingChange("language", valueText: "zh-CN")
+        let system = router.requestSettingChange("language", valueText: "system")
         let rejected = router.requestSettingChange("language", valueText: "mars")
 
         XCTAssertTrue(result.ok)
-        XCTAssertEqual(changed?.0, .language)
-        XCTAssertEqual(changed?.1, .string("zh-CN"))
+        XCTAssertTrue(system.ok)
         XCTAssertFalse(rejected.ok)
         XCTAssertEqual(rejected.errorCode, .invalidArguments)
-        XCTAssertEqual(changed?.1, .string("zh-CN"))
+        XCTAssertEqual(changes.count, 2)
+        XCTAssertEqual(changes[0].0, .language)
+        XCTAssertEqual(changes[0].1, .string("zh-CN"))
+        XCTAssertEqual(changes[1].0, .language)
+        XCTAssertEqual(changes[1].1, .string("system"))
     }
 }

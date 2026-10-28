@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let shell = NotchShellController()
     private(set) var statusItemController: StatusItemController?
     private var hotKey: GlobalHotKey?
+    private var twoFingerSwipeMonitor: TwoFingerSwipeMonitor?
     private var instanceLock: SingleInstanceLock?
     #if DEBUG
     private var monitorPreview: MonitorPreviewWindowController?
@@ -32,6 +33,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Self.current = self
         // LSUIElement 已经让进程成为代理应用。这里显式再设一次，防止从 Xcode 直接运行时不一致。
         NSApp.setActivationPolicy(.accessory)
+
+        #if DEBUG
+        switch ProcessInfo.processInfo.environment["COVIO_FORCE_APPEARANCE"]?.lowercased() {
+        case "dark":
+            NSApp.appearance = NSAppearance(named: .darkAqua)
+        case "light":
+            NSApp.appearance = NSAppearance(named: .aqua)
+        default:
+            break
+        }
+        #endif
 
         if let path = ProcessInfo.processInfo.environment["COVIO_FILE_NAMING_ACCEPTANCE_PATH"],
            !path.isEmpty
@@ -335,6 +347,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         AppPaths.ensureSupportDirectory()
 
+        #if DEBUG
+        let liveClipboardPreview =
+            ProcessInfo.processInfo.environment["COVIO_CLIPBOARD_LIVE_PREVIEW"] == "1"
+        if liveClipboardPreview, !ClipboardWorkspaceLivePreview.prepare() {
+            NSLog("剪切板原生预览数据未准备成功。")
+            return
+        }
+        #endif
+
         let runtime = AppRuntime()
         self.runtime = runtime
         shell.runtime = runtime
@@ -356,6 +377,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         shell.start()
+
+        #if DEBUG
+        if liveClipboardPreview {
+            Task { @MainActor in
+                shell.workbench.select(paneID: PaneKind.clipboard.defaultId)
+                try? await Task.sleep(for: .milliseconds(120))
+                shell.showFromGesture()
+            }
+        }
+        #endif
+
+        if !LaunchEnvironment.isRunningTests() {
+            let shell = self.shell
+            let monitor = TwoFingerSwipeMonitor { [weak shell] in
+                shell?.showFromGesture()
+            }
+            let result = monitor.start()
+            if case let .started(deviceCount) = result {
+                NSLog("双指下滑入口已启动，设备数：%d", deviceCount)
+            } else if let errorCode = result.errorCode {
+                NSLog("双指下滑入口不可用：%@", errorCode)
+            }
+            twoFingerSwipeMonitor = monitor
+        }
+
         let statusItemController = StatusItemController(shell: shell, runtime: runtime)
         self.statusItemController = statusItemController
 
@@ -394,6 +440,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         FanControlLeaseKeeper.shared.stopAndRestore()
         // 先停引擎。它会撤销 `pmset` 的改动，必须在进程退出前跑完。
         runtime?.stop()
+        twoFingerSwipeMonitor?.stop()
+        twoFingerSwipeMonitor = nil
         shell.stop()
         instanceLock?.release()
     }

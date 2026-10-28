@@ -200,16 +200,15 @@ final class AppRuntimeTests: XCTestCase {
 
     // MARK: - 首次启动
 
-    /// 配置文件不存在时写出一份默认配置，并补上系统语言。
-    ///
-    /// 语言留空会让 Compose 版也读到空值，所以构造时就补齐并落盘。
-    func testFirstLaunchFillsInTheSystemLanguage() throws {
+    /// 首次启动保留空语言码，空语言码表示跟随系统。
+    func testFirstLaunchKeepsFollowingTheSystemLanguage() throws {
         XCTAssertFalse(FileManager.default.fileExists(atPath: configFile.path))
         let created = makeRuntime()
 
-        XCTAssertEqual(created.config.language, CopyLocale.language.rawValue)
-        XCTAssertFalse(created.config.language.isEmpty)
-        XCTAssertEqual(try savedJSON()["language"] as? String, CopyLocale.language.rawValue)
+        XCTAssertEqual(created.languagePreference, .system)
+        XCTAssertEqual(created.language, CopyLocale.language)
+        XCTAssertEqual(created.config.language, "")
+        XCTAssertEqual(try savedJSON()["language"] as? String, "")
     }
 
     /// 首次启动显示欢迎页。用户关掉之后写回 `firstRun`。
@@ -291,19 +290,27 @@ final class AppRuntimeTests: XCTestCase {
 
     // MARK: - 语言
 
-    /// 换语言立刻落盘，界面文案跟着换。
+    /// 换语言立刻落盘，界面文案跟着换。跟随系统写回空字符串。
     func testLanguageChangeIsPersisted() throws {
         let created = makeRuntime()
 
-        created.changeLanguage(.simplifiedChinese)
+        created.setLanguagePreference(.simplifiedChinese)
 
         XCTAssertEqual(created.language, .simplifiedChinese)
+        XCTAssertEqual(created.languagePreference, .simplifiedChinese)
         XCTAssertEqual(created.config.language, "zh-CN")
         XCTAssertEqual(try savedJSON()["language"] as? String, "zh-CN")
 
-        created.changeLanguage(.english)
+        created.setLanguagePreference(.english)
         XCTAssertEqual(created.language, .english)
+        XCTAssertEqual(created.languagePreference, .english)
         XCTAssertEqual(try savedJSON()["language"] as? String, "en")
+
+        created.setLanguagePreference(.system)
+        XCTAssertEqual(created.language, CopyLocale.language)
+        XCTAssertEqual(created.languagePreference, .system)
+        XCTAssertEqual(created.config.language, "")
+        XCTAssertEqual(try savedJSON()["language"] as? String, "")
     }
 
     // MARK: - 休眠模式
@@ -450,6 +457,53 @@ final class AppRuntimeTests: XCTestCase {
         XCTAssertFalse(created.powerRuntime.config.keepAwakeOnAdapter)
         XCTAssertEqual(created.powerRuntime.config.batteryFloorPercent, 30)
         XCTAssertEqual(created.powerRuntime.config.closedLidTimeCapMinutes, 90)
+    }
+
+    func testPowerEnableStateStaysAlignedWithSleepProtection() throws {
+        let created = makeRuntime()
+
+        created.setPowerEnabled(false)
+
+        XCTAssertFalse(created.config.enabled)
+        XCTAssertFalse(created.config.power.enabled)
+        XCTAssertFalse(created.powerRuntime.sleepProtectionEnabled)
+        var saved = try XCTUnwrap(savedJSON()["power"] as? [String: Any])
+        XCTAssertEqual(try savedJSON()["enabled"] as? Bool, false)
+        XCTAssertEqual(saved["enabled"] as? Bool, false)
+
+        created.setEnabled(true)
+
+        XCTAssertTrue(created.config.enabled)
+        XCTAssertTrue(created.config.power.enabled)
+        XCTAssertTrue(created.powerRuntime.sleepProtectionEnabled)
+        saved = try XCTUnwrap(savedJSON()["power"] as? [String: Any])
+        XCTAssertEqual(try savedJSON()["enabled"] as? Bool, true)
+        XCTAssertEqual(saved["enabled"] as? Bool, true)
+    }
+
+    func testStartupAlignsLegacyPowerEnablementWithSleepProtection() throws {
+        let draft = ConfigDraft(AppConfigs.defaults)
+        draft.enabled = false
+        ConfigStore.companion.create(path: configFile.path).save(config: draft.build())
+
+        let created = makeRuntime()
+
+        XCTAssertFalse(created.config.enabled)
+        XCTAssertFalse(created.config.power.enabled)
+        XCTAssertFalse(created.powerRuntime.sleepProtectionEnabled)
+        let saved = try XCTUnwrap(savedJSON()["power"] as? [String: Any])
+        XCTAssertEqual(saved["enabled"] as? Bool, false)
+    }
+
+    func testLidToggleUsesActualAvailability() {
+        let created = makeRuntime(engineStarted: true, helperInstalled: true)
+        XCTAssertTrue(created.appState.lidSleepAvailable)
+
+        created.toggleLidSleep()
+        XCTAssertFalse(created.appState.lidSleepAvailable)
+
+        created.toggleLidSleep()
+        XCTAssertTrue(created.appState.lidSleepAvailable)
     }
 
     // MARK: - 充电上限

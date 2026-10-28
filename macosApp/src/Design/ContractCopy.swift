@@ -147,6 +147,8 @@ enum ContractCopy {
     static let copyBatteryUnitPercent = LocalizedCopy(key: "copy/battery/unit/percent", en: "percent", zhHans: "百分比")
     /// `copy/clipboard/action/clear`
     static let copyClipboardActionClear = LocalizedCopy(key: "copy/clipboard/action/clear", en: "Clear All", zhHans: "全部清除")
+    /// `copy/clipboard/action/clear-search`
+    static let copyClipboardActionClearSearch = LocalizedCopy(key: "copy/clipboard/action/clear-search", en: "Clear Search", zhHans: "清除搜索")
     /// `copy/clipboard/action/open-settings`
     static let copyClipboardActionOpenSettings = LocalizedCopy(key: "copy/clipboard/action/open-settings", en: "Open System Settings", zhHans: "打开系统设置")
     /// `copy/clipboard/action/paste`
@@ -169,6 +171,26 @@ enum ContractCopy {
     static let copyClipboardErrorImage = LocalizedCopy(key: "copy/clipboard/error/image", en: "Cannot save the image.", zhHans: "无法保存图片。")
     /// `copy/clipboard/error/paste`
     static let copyClipboardErrorPaste = LocalizedCopy(key: "copy/clipboard/error/paste", en: "Cannot paste into the front app.", zhHans: "无法粘贴到前台应用。")
+    /// `copy/clipboard/filter/all`
+    static let copyClipboardFilterAll = LocalizedCopy(key: "copy/clipboard/filter/all", en: "All Types", zhHans: "全部类型")
+    /// `copy/clipboard/group/earlier`
+    static let copyClipboardGroupEarlier = LocalizedCopy(key: "copy/clipboard/group/earlier", en: "Earlier", zhHans: "更早")
+    /// `copy/clipboard/group/pinned`
+    static let copyClipboardGroupPinned = LocalizedCopy(key: "copy/clipboard/group/pinned", en: "Pinned", zhHans: "置顶")
+    /// `copy/clipboard/group/today`
+    static let copyClipboardGroupToday = LocalizedCopy(key: "copy/clipboard/group/today", en: "Today", zhHans: "今天")
+    /// `copy/clipboard/group/yesterday`
+    static let copyClipboardGroupYesterday = LocalizedCopy(key: "copy/clipboard/group/yesterday", en: "Yesterday", zhHans: "昨天")
+    /// `copy/clipboard/kind/dedicated`
+    static let copyClipboardKindDedicated = LocalizedCopy(key: "copy/clipboard/kind/dedicated", en: "Dedicated", zhHans: "专有")
+    /// `copy/clipboard/no-match/hint`
+    static let copyClipboardNoMatchHint = LocalizedCopy(key: "copy/clipboard/no-match/hint", en: "Try another word or clear the search.", zhHans: "换一个词，或清除搜索。")
+    /// `copy/clipboard/no-match/title`
+    static let copyClipboardNoMatchTitle = LocalizedCopy(key: "copy/clipboard/no-match/title", en: "No matching items", zhHans: "没有匹配内容")
+    /// `copy/clipboard/preview/empty`
+    static let copyClipboardPreviewEmpty = LocalizedCopy(key: "copy/clipboard/preview/empty", en: "Select an item to preview.", zhHans: "选择一条内容查看详情。")
+    /// `copy/clipboard/search-placeholder`
+    static let copyClipboardSearchPlaceholder = LocalizedCopy(key: "copy/clipboard/search-placeholder", en: "Search clipboard", zhHans: "搜索剪切板")
     /// `copy/clipboard/settings/accessibility`
     static let copyClipboardSettingsAccessibility = LocalizedCopy(key: "copy/clipboard/settings/accessibility", en: "Accessibility permission", zhHans: "辅助功能权限")
     /// `copy/clipboard/settings/accessibility-fallback`
@@ -279,6 +301,8 @@ enum ContractCopy {
     static let copyGeneralLanguageChinese = LocalizedCopy(key: "copy/general/language/chinese", en: "Simplified Chinese", zhHans: "简体中文")
     /// `copy/general/language/english`
     static let copyGeneralLanguageEnglish = LocalizedCopy(key: "copy/general/language/english", en: "English", zhHans: "English")
+    /// `copy/general/language/system`
+    static let copyGeneralLanguageSystem = LocalizedCopy(key: "copy/general/language/system", en: "Follow System", zhHans: "跟随系统")
     /// `copy/general/launch-at-login`
     static let copyGeneralLaunchAtLogin = LocalizedCopy(key: "copy/general/launch-at-login", en: "Launch at login", zhHans: "登录时启动")
     /// `copy/general/local-model/active`
@@ -471,6 +495,8 @@ enum ContractCopy {
     static let copyHubPowerSummary = LocalizedCopy(key: "copy/hub/power/summary", en: "Manage sleep, display, lid, battery, and adapter behavior.", zhHans: "管理睡眠、屏幕、合盖、电池和适配器行为。")
     /// `copy/hub/power/title`
     static let copyHubPowerTitle = LocalizedCopy(key: "copy/hub/power/title", en: "Power management", zhHans: "电源管理")
+    /// `copy/hub/search/clear`
+    static let copyHubSearchClear = LocalizedCopy(key: "copy/hub/search/clear", en: "Clear search", zhHans: "清除搜索")
     /// `copy/hub/tab/agent`
     static let copyHubTabAgent = LocalizedCopy(key: "copy/hub/tab/agent", en: "Agent", zhHans: "助手")
     /// `copy/hub/tab/agent/summary`
@@ -482,7 +508,7 @@ enum ContractCopy {
     /// `copy/hub/tab/clipboard`
     static let copyHubTabClipboard = LocalizedCopy(key: "copy/hub/tab/clipboard", en: "Clipboard", zhHans: "剪贴板")
     /// `copy/hub/tab/clipboard/summary`
-    static let copyHubTabClipboardSummary = LocalizedCopy(key: "copy/hub/tab/clipboard/summary", en: "Recent text, images, and files.", zhHans: "最近文本、图片和文件列表。")
+    static let copyHubTabClipboardSummary = LocalizedCopy(key: "copy/hub/tab/clipboard/summary", en: "Find recent files, text, images, and screenshots.", zhHans: "按时间查找文件、文本、图片和截图。")
     /// `copy/hub/tab/devices`
     static let copyHubTabDevices = LocalizedCopy(key: "copy/hub/tab/devices", en: "Monitor", zhHans: "监控")
     /// `copy/hub/tab/devices/summary`
@@ -1217,6 +1243,10 @@ enum ContractCopy {
     static let copyPowerAlertHelperMissing = LocalizedCopy(key: "copy/power/alert/helper-missing", en: "Install the helper before using closed-lid hold.", zhHans: "使用合盖保持唤醒前请安装助手。")
     /// `copy/power/alert/thermal`
     static let copyPowerAlertThermal = LocalizedCopy(key: "copy/power/alert/thermal", en: "The heat guard will release every hold.", zhHans: "温度保护会释放全部保持唤醒。")
+    /// `copy/power/error/lid-not-applied`
+    static let copyPowerErrorLidNotApplied = LocalizedCopy(key: "copy/power/error/lid-not-applied", en: "The helper did not apply closed-lid protection. Check Helper status and try again.", zhHans: "Helper 没有应用合盖保护。检查 Helper 状态后重试。")
+    /// `copy/power/error/master-off`
+    static let copyPowerErrorMasterOff = LocalizedCopy(key: "copy/power/error/master-off", en: "Turn on Sleep Protection before starting a session.", zhHans: "启动会话前，请先打开“睡眠保护”。")
     /// `copy/power/history/adapter-connected`
     static let copyPowerHistoryAdapterConnected = LocalizedCopy(key: "copy/power/history/adapter-connected", en: "Power adapter connected", zhHans: "已接通电源")
     /// `copy/power/history/adapter-disconnected`
@@ -1543,6 +1573,7 @@ enum ContractCopy {
         copyBatteryUnitMinutes,
         copyBatteryUnitPercent,
         copyClipboardActionClear,
+        copyClipboardActionClearSearch,
         copyClipboardActionOpenSettings,
         copyClipboardActionPaste,
         copyClipboardActionPin,
@@ -1554,6 +1585,16 @@ enum ContractCopy {
         copyClipboardErrorHotKey,
         copyClipboardErrorImage,
         copyClipboardErrorPaste,
+        copyClipboardFilterAll,
+        copyClipboardGroupEarlier,
+        copyClipboardGroupPinned,
+        copyClipboardGroupToday,
+        copyClipboardGroupYesterday,
+        copyClipboardKindDedicated,
+        copyClipboardNoMatchHint,
+        copyClipboardNoMatchTitle,
+        copyClipboardPreviewEmpty,
+        copyClipboardSearchPlaceholder,
         copyClipboardSettingsAccessibility,
         copyClipboardSettingsAccessibilityFallback,
         copyClipboardSettingsCaptureHotKey,
@@ -1609,6 +1650,7 @@ enum ContractCopy {
         copyGeneralLanguage,
         copyGeneralLanguageChinese,
         copyGeneralLanguageEnglish,
+        copyGeneralLanguageSystem,
         copyGeneralLaunchAtLogin,
         copyGeneralLocalModelActive,
         copyGeneralLocalModelAgentDisabled,
@@ -1705,6 +1747,7 @@ enum ContractCopy {
         copyHubPowerSegmentPower,
         copyHubPowerSummary,
         copyHubPowerTitle,
+        copyHubSearchClear,
         copyHubTabAgent,
         copyHubTabAgentSummary,
         copyHubTabBoard,
@@ -2078,6 +2121,8 @@ enum ContractCopy {
         copyPowerAlertExternalConflict,
         copyPowerAlertHelperMissing,
         copyPowerAlertThermal,
+        copyPowerErrorLidNotApplied,
+        copyPowerErrorMasterOff,
         copyPowerHistoryAdapterConnected,
         copyPowerHistoryAdapterDisconnected,
         copyPowerHistoryExternalConflictCleared,

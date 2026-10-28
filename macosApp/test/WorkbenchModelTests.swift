@@ -34,12 +34,13 @@ final class WorkbenchModelTests: XCTestCase {
     /// 默认配置里的内置工作区是六个。`board` 是用户自建的，不在默认里。
     func testTheDefaultConfigShowsEveryBuiltInPane() {
         let model = model()
-        XCTAssertEqual(model.panes.count, 6)
+        let panes = model.panes(language: CopyLocale.language)
+        XCTAssertEqual(panes.count, 6)
         XCTAssertEqual(
-            model.panes.map(\.tab),
+            panes.map(\.tab),
             [.now, .agent, .clipboard, .files, .devices, .settings]
         )
-        for pane in model.panes {
+        for pane in panes {
             XCTAssertFalse(pane.title.isEmpty, "\(pane.id) 没有标题")
         }
     }
@@ -154,18 +155,32 @@ final class WorkbenchModelTests: XCTestCase {
 
     /// 首页没有页标题行。打样的首页直接从网格开始。
     func testTheHomePageHasNoHeading() {
-        XCTAssertNil(model().heading(for: .home))
+        XCTAssertNil(model().heading(for: .home, language: CopyLocale.language))
     }
 
     /// 每个工作区都有标题与说明。
     func testEveryPaneHasAHeading() {
         let model = model()
-        for pane in model.panes {
-            let heading = model.heading(for: .pane(id: pane.id))
+        for pane in model.panes(language: CopyLocale.language) {
+            let heading = model.heading(for: .pane(id: pane.id), language: CopyLocale.language)
             XCTAssertNotNil(heading, "\(pane.id) 没有页标题")
             XCTAssertFalse(heading?.title.isEmpty ?? true, "\(pane.id) 的标题为空")
             XCTAssertFalse(heading?.summary.isEmpty ?? true, "\(pane.id) 的说明为空")
         }
+    }
+
+    /// 页标题与页签必须使用同一个语言。
+    func testHeadingsUseTheRequestedLanguage() {
+        let model = model()
+        let destination = HubDestination.pane(id: PaneKind.now.defaultId)
+
+        let english = model.heading(for: destination, language: .english)
+        let chinese = model.heading(for: destination, language: .simplifiedChinese)
+
+        XCTAssertEqual(english?.title, HubTab.now.title.text(for: .english))
+        XCTAssertEqual(english?.summary, HubTab.now.summary.text(for: .english))
+        XCTAssertEqual(chinese?.title, HubTab.now.title.text(for: .simplifiedChinese))
+        XCTAssertEqual(chinese?.summary, HubTab.now.summary.text(for: .simplifiedChinese))
     }
 
     // MARK: - 编辑首页
@@ -235,21 +250,21 @@ final class WorkbenchModelTests: XCTestCase {
     /// 页签换位按可见列表的下标走，隐藏的工作区不参与。
     func testMovingAPaneReordersTheVisibleTabs() {
         let model = model()
-        let before = model.panes.map(\.id)
+        let before = model.panes(language: CopyLocale.language).map(\.id)
         model.movePane(from: 0, to: 1)
         var expected = before
         let moved = expected.remove(at: 0)
         expected.insert(moved, at: 1)
-        XCTAssertEqual(model.panes.map(\.id), expected)
+        XCTAssertEqual(model.panes(language: CopyLocale.language).map(\.id), expected)
     }
 
     /// 越界的页签换位被忽略。
     func testMovingAPaneOutOfRangeIsIgnored() {
         let model = model()
-        let before = model.panes.map(\.id)
+        let before = model.panes(language: CopyLocale.language).map(\.id)
         model.movePane(from: 0, to: 99)
         model.movePane(from: 99, to: 0)
-        XCTAssertEqual(model.panes.map(\.id), before)
+        XCTAssertEqual(model.panes(language: CopyLocale.language).map(\.id), before)
     }
 
     // MARK: - 指针切换页签
@@ -473,12 +488,16 @@ final class WorkbenchModelTests: XCTestCase {
         model.removeWidget(id: removed)
         model.moveWidget(id: "w-clock", toColumn: 2, toRow: 2)
         model.movePane(from: 0, to: 1)
-        let expectedOrder = model.panes.map(\.id)
+        let expectedOrder = model.panes(language: CopyLocale.language).map(\.id)
 
         let reloaded = WorkbenchModel()
         reloaded.attach(store: WorkbenchStore.companion.create(path: path))
         XCTAssertFalse(reloaded.homeWidgets.contains { $0.id == removed }, "删除没有落盘")
-        XCTAssertEqual(reloaded.panes.map(\.id), expectedOrder, "页签顺序没有落盘")
+        XCTAssertEqual(
+            reloaded.panes(language: CopyLocale.language).map(\.id),
+            expectedOrder,
+            "页签顺序没有落盘"
+        )
         XCTAssertEqual(spot("w-clock", in: reloaded)?.column, 2, "卡片列没有落盘")
         XCTAssertEqual(spot("w-clock", in: reloaded)?.row, 2, "卡片行没有落盘")
     }

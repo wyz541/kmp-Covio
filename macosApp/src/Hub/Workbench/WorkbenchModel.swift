@@ -35,9 +35,6 @@ final class WorkbenchModel {
     /// 一次性的文件筛选请求。旧「截图」目的地经这里进入文件区，消费后清空。
     private(set) var pendingFileFilter: FileAreaFilterChoice?
 
-    /// 界面语言。页签名字按合同取，换语言要重算一次。
-    var language: AppLanguage = CopyLocale.language
-
     /// 落盘。为 nil 时不存（预览与测试）。
     private var store: WorkbenchStore?
 
@@ -58,7 +55,9 @@ final class WorkbenchModel {
     // MARK: - 读
 
     /// 顶栏要画的页签。隐藏的工作区不出现。
-    var panes: [PaneItem] {
+    ///
+    /// 语言由视图传入，避免模型保存一份可能过期或与运行时不同的语言。
+    func panes(language: AppLanguage) -> [PaneItem] {
         config.visiblePanes.compactMap { pane in
             guard let tab = HubTab(rawValue: pane.kind.key) else { return nil }
             let title = pane.title.isEmpty ? tab.title.text(for: language) : pane.title
@@ -84,7 +83,10 @@ final class WorkbenchModel {
     }
 
     /// 页标题行里的标题与说明。首页没有标题行，所以返回 nil。
-    func heading(for destination: HubDestination) -> (title: String, summary: String)? {
+    func heading(
+        for destination: HubDestination,
+        language: AppLanguage
+    ) -> (title: String, summary: String)? {
         guard let id = destination.paneID, let pane = config.pane(id: id) else { return nil }
         let tab = HubTab(rawValue: pane.kind.key) ?? .board
         let title = pane.title.isEmpty ? tab.title.text(for: language) : pane.title

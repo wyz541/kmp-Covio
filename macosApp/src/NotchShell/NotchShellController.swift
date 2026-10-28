@@ -460,10 +460,6 @@ final class NotchShellController {
 
     /// 刷新全部几何。显示器配置或菜单栏可见性变化后调用。
     func refreshLayout() {
-        // 页签名字按合同取，语言变了要重算。
-        if let language = runtime?.language, language != workbench.language {
-            workbench.language = language
-        }
         geometry = ScreenGeometry.current(location: pointerLocation())
         if state == .hidden {
             rebuildHotZones()

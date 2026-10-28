@@ -158,6 +158,16 @@ stateDiagram-v2
 
 ![Power management dark](previews/150-power-management-dark.png)
 
+## 默认黑屏预览
+
+浅色：
+
+![Default experimental black screen, light](previews/398-power-default-black-screen-after-light-1.png)
+
+深色：
+
+![Default experimental black screen, dark](previews/398-power-default-black-screen-after-dark-1.png)
+
 ## 视觉验收
 
 1. 四个区域在 960 点面板内完整显示。

@@ -93,7 +93,7 @@ final class PowerPreviewModel: PowerManagementModel {
             yieldOnLowPowerMode: true,
             heatGuardEnabled: true,
             closedLidTimeCapMinutes: 240,
-            closedLidZeroBrightness: false
+            closedLidZeroBrightness: true
         )
         let sampleObservation = PowerObservation(
             batteryPercent: KotlinInt(int: 84),

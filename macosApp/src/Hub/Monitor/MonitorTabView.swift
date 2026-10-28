@@ -1167,7 +1167,12 @@ private struct MonitorPowerChargeLimitControls: View {
         self.runtime = runtime
         self.power = power
         self.language = language
-        _pendingLimit = State(initialValue: Double(runtime?.config.chargeLimitPercent ?? 80))
+        _pendingLimit = State(
+            initialValue: Double(
+                runtime?.config.chargeLimitPercent
+                    ?? ChargeLimitPolicyKt.DEFAULT_CHARGE_LIMIT_PERCENT
+            )
+        )
         _pendingActiveDischarge = State(
             initialValue: runtime?.config.chargeLimitActiveDischarge ?? false
         )

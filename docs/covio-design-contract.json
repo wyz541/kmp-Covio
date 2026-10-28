@@ -6249,8 +6249,8 @@
       "zh-Hans": "实验性合盖黑屏"
     },
     "copy/power/rules/closed-lid-zero-brightness-hint": {
-      "en": "Opt-in. The panel is set to 0.0. The framebuffer and display pipeline stay active and may support Computer Use or remote capture, but this is not guaranteed. The private API can break after a macOS update.",
-      "zh-Hans": "需要显式开启。面板亮度设为 0.0；framebuffer 和显示链路保持在线，可能支持 Computer Use 或远程截图，但不保证可用。私有接口可能随 macOS 更新失效。"
+      "en": "On by default. While closed-lid hold is active, the panel is set to 0.0. The framebuffer and display pipeline stay active and may support Computer Use or remote capture, but this is not guaranteed. The private API can break after a macOS update.",
+      "zh-Hans": "默认开启。合盖保持唤醒时，面板亮度设为 0.0；framebuffer 和显示链路保持在线，可能支持 Computer Use 或远程截图，但不保证可用。私有接口可能随 macOS 更新失效。"
     },
     "copy/power/rules/closed-lid-zero-brightness-unavailable": {
       "en": "Unavailable on this macOS version or hardware.",

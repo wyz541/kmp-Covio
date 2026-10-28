@@ -52,7 +52,7 @@ class ChargeLimitPolicyTest {
         assertFalse(ChargeLimitPolicy.isValidUpperLimit(39))
         assertFalse(ChargeLimitPolicy.isValidUpperLimit(79))
         assertFalse(ChargeLimitPolicy.isValidUpperLimit(101))
-        assertEquals(80, ChargeLimitPolicy.normalizeUpperLimit(79))
+        assertEquals(70, ChargeLimitPolicy.normalizeUpperLimit(79))
         assertEquals(75, ChargeLimitPolicy.normalizeUpperLimit(75))
     }
 

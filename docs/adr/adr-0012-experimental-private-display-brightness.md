@@ -1,6 +1,7 @@
 # ADR-0012：默认关闭的实验性合盖零亮度
 
-- Status：accepted
+- Status：superseded
+- Superseded by：[ADR-0022](adr-0022-default-experimental-black-screen.md)
 - Kind：architecture
 - Date：2026-10-21
 - Supersedes：none

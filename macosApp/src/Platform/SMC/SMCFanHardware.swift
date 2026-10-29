@@ -203,14 +203,61 @@ enum SMCTemperatureName {
         "TC0F": ("CPU 核心", "CPU Core"),
         "TC0H": ("CPU 散热片", "CPU Heatsink"),
         "TC0C": ("CPU 核心", "CPU Core"),
+        "TC1C": ("CPU 核心 1", "CPU Core 1"),
+        "TC2C": ("CPU 核心 2", "CPU Core 2"),
+        "TC3C": ("CPU 核心 3", "CPU Core 3"),
+        "TC4C": ("CPU 核心 4", "CPU Core 4"),
+        "TC5C": ("CPU 核心 5", "CPU Core 5"),
+        "TC6C": ("CPU 核心 6", "CPU Core 6"),
+        "TC7C": ("CPU 核心 7", "CPU Core 7"),
+        "TC8C": ("CPU 核心 8", "CPU Core 8"),
+        "TCSA": ("CPU 系统代理", "CPU System Agent"),
         "TG0P": ("GPU 邻近", "GPU Proximity"),
         "TG0D": ("GPU 核心", "GPU Core"),
         "TG0H": ("GPU 散热片", "GPU Heatsink"),
+        "TG1D": ("GPU2 核心", "GPU2 Core"),
+        "TG1P": ("GPU2 邻近", "GPU2 Proximity"),
         "Tm0P": ("内存", "Memory"),
-        "TB0T": ("电池", "Battery"),
+        "TM0P": ("内存", "Memory"),
+        "TM0A": ("内存 A", "Memory A"),
+        "TM0B": ("内存 B", "Memory B"),
+        "TMVR": ("内存 VRM", "Memory VRM"),
+        "TN0D": ("北桥", "Northbridge"),
+        "TN1D": ("北桥 2", "Northbridge 2"),
+        "TS0P": ("南桥", "Southbridge"),
+        "TB0T": ("电池 1", "Battery 1"),
+        "TB1T": ("电池 2", "Battery 2"),
+        "TB2T": ("电池 3", "Battery 3"),
+        "TB3T": ("电池 4", "Battery 4"),
+        "TP0P": ("电源", "Power"),
+        "TP1P": ("电源 2", "Power 2"),
+        "TPCD": ("电源二极管", "Power Diode"),
+        "TAOL": ("环境", "Ambient"),
+        "TaLP": ("环境", "Ambient"),
         "TA0P": ("环境", "Ambient"),
-        "TH0P": ("存储", "Storage"),
+        "TA1P": ("环境 2", "Ambient 2"),
+        "TaSP": ("环境（睡眠）", "Ambient (Sleep)"),
+        "Ts0S": ("掌托左", "Palm Rest Left"),
+        "Ts1S": ("掌托右", "Palm Rest Right"),
+        "Ts0P": ("掌托", "Palm Rest"),
+        "Ts1P": ("掌托 2", "Palm Rest 2"),
+        "TCXC": ("扩充槽", "Expansion Slot"),
+        "TH0P": ("HDD", "HDD"),
+        "TH0a": ("出风口 a", "Exhaust a"),
+        "TH0b": ("出风口 b", "Exhaust b"),
+        "TH1a": ("出风口 c", "Exhaust c"),
+        "TH1b": ("出风口 d", "Exhaust d"),
+        "TH0x": ("出风口 e", "Exhaust e"),
         "TW0P": ("无线网卡", "Wi-Fi"),
+        "TL0P": ("雷电", "Thunderbolt"),
+        "TI0P": ("雷电", "Thunderbolt"),
+        "TI1P": ("雷电 2", "Thunderbolt 2"),
+        "TD0P": ("SSD 控制器", "SSD Controller"),
+        "TDRD": ("SSD 二极管", "SSD Diode"),
+        "TD3P": ("NAND", "NAND"),
+        "TO0P": ("光学驱动器", "Optical Drive"),
+        "TVEP": ("视频", "Video"),
+        "TVM0": ("显存", "Video Memory"),
     ]
 
     private static let prefixes: [(String, (zh: String, en: String))] = [
@@ -238,4 +285,16 @@ enum SMCTemperatureName {
         }
         return key
     }
+
+    static func matches(_ key: String, query: String) -> Bool {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return true }
+        return key.localizedCaseInsensitiveContains(trimmed)
+            || displayName(for: key, language: .simplifiedChinese)
+                .localizedCaseInsensitiveContains(trimmed)
+            || displayName(for: key, language: .english)
+                .localizedCaseInsensitiveContains(trimmed)
+    }
+
+    static var knownKeys: Set<String> { Set(known.keys) }
 }

@@ -255,8 +255,10 @@ struct MonitorFanPopover: View {
     @ObservedObject var model: MonitorFanControlModel
     var scrollsContent = true
     var rendersForSnapshot = false
+    var sensorsInitiallyExpanded = false
 
     @State private var sensorsExpanded = false
+    @State private var sensorQuery = ""
 
     private var controlTemperature: Double? {
         model.configuration.controlTemperature(in: reading)
@@ -284,6 +286,7 @@ struct MonitorFanPopover: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     detailContent
                 }
+                .defaultScrollAnchor(sensorsInitiallyExpanded ? .bottom : .top)
             } else {
                 detailContent
             }
@@ -291,6 +294,9 @@ struct MonitorFanPopover: View {
         .padding(16)
         .tint(MonitorCardKind.fan.accent)
         .onAppear {
+            if sensorsInitiallyExpanded {
+                sensorsExpanded = true
+            }
             model.refreshAvailability()
         }
         .task {
@@ -724,33 +730,52 @@ struct MonitorFanPopover: View {
     private var sensorSection: some View {
         VStack(alignment: .leading, spacing: 4) {
             DisclosureGroup(isExpanded: $sensorsExpanded) {
-                ScrollView(.vertical, showsIndicators: true) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        ForEach(reading.temperatures) { sensor in
-                            Toggle(isOn: Binding(
-                                get: { model.configuration.selectedSensorKeys.contains(sensor.key) },
-                                set: { model.setSensor(sensor.key, enabled: $0, reading: reading) }
-                            )) {
-                                HStack(spacing: 6) {
-                                    Text(SMCTemperatureName.displayName(
-                                        for: sensor.key,
-                                        language: language
-                                    ))
-                                    Text(sensor.key)
-                                        .foregroundStyle(MacTheme.textSecondary)
-                                    Spacer(minLength: 0)
-                                    Text(MonitorFanFormat.temperature(sensor.celsius))
-                                        .monospacedDigit()
+                VStack(alignment: .leading, spacing: 5) {
+                    TextField(
+                        ContractCopy.copyMonitorFanSensorFilter.text(for: language),
+                        text: $sensorQuery
+                    )
+                    .textFieldStyle(.roundedBorder)
+                    .controlSize(.small)
+                    .accessibilityLabel(ContractCopy.copyMonitorFanSensorFilter.text(for: language))
+
+                    ScrollView(.vertical, showsIndicators: true) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            ForEach(filteredTemperatures) { sensor in
+                                Toggle(isOn: Binding(
+                                    get: { model.configuration.selectedSensorKeys.contains(sensor.key) },
+                                    set: { model.setSensor(sensor.key, enabled: $0, reading: reading) }
+                                )) {
+                                    HStack(spacing: 6) {
+                                        Text(SMCTemperatureName.displayName(
+                                            for: sensor.key,
+                                            language: language
+                                        ))
+                                        Text(sensor.key)
+                                            .foregroundStyle(MacTheme.textSecondary)
+                                        Spacer(minLength: 0)
+                                        Text(MonitorFanFormat.temperature(sensor.celsius))
+                                            .monospacedDigit()
+                                    }
+                                    .font(.system(size: 9, weight: .medium))
                                 }
-                                .font(.system(size: 9, weight: .medium))
+                                .toggleStyle(.checkbox)
+                                .frame(minHeight: 22)
                             }
-                            .toggleStyle(.checkbox)
-                            .frame(minHeight: 22)
+                            if filteredTemperatures.isEmpty {
+                                Text(ContractCopy.copyMonitorFanSensorFilterEmpty.text(for: language))
+                                    .font(.system(size: 9, weight: .medium))
+                                    .foregroundStyle(MacTheme.textSecondary)
+                            }
                         }
+                        .padding(.top, 2)
                     }
-                    .padding(.top, 4)
+                    .frame(maxHeight: 150)
+
+                    Text(ContractCopy.copyMonitorFanSensorLibraryHint.text(for: language))
+                        .font(.system(size: 8, weight: .medium))
+                        .foregroundStyle(MacTheme.textSecondary)
                 }
-                .frame(maxHeight: 150)
             } label: {
                 Text(ContractCopy.copyMonitorFanControlSensors.text(for: language))
                     .font(.system(size: 11, weight: .semibold))
@@ -758,6 +783,12 @@ struct MonitorFanPopover: View {
         }
         .padding(10)
         .popoverContentSurface()
+    }
+
+    private var filteredTemperatures: [MonitorFanReading.Temperature] {
+        reading.temperatures.filter { sensor in
+            SMCTemperatureName.matches(sensor.key, query: sensorQuery)
+        }
     }
 
     private var warning: some View {

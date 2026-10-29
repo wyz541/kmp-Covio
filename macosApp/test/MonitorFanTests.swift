@@ -527,6 +527,66 @@ final class MonitorFanTests: XCTestCase {
         XCTAssertEqual(intel[.battery], 31.4)
     }
 
+    func testTemperatureNameLibraryCoversAll64ExplicitKeys() {
+        let expected: Set<String> = [
+            "TCMz", "TCMb", "TCMc", "TC0P", "TC0D", "TC0E", "TC0F", "TC0H",
+            "TC0C", "TC1C", "TC2C", "TC3C", "TC4C", "TC5C", "TC6C", "TC7C",
+            "TC8C", "TCSA", "TG0P", "TG0D", "TG0H", "TG1D", "TG1P", "Tm0P",
+            "TM0P", "TM0A", "TM0B", "TMVR", "TN0D", "TN1D", "TS0P", "TB0T",
+            "TB1T", "TB2T", "TB3T", "TP0P", "TP1P", "TPCD", "TAOL", "TaLP",
+            "TA0P", "TA1P", "TaSP", "Ts0S", "Ts1S", "Ts0P", "Ts1P", "TCXC",
+            "TH0P", "TH0a", "TH0b", "TH1a", "TH1b", "TH0x", "TW0P", "TL0P",
+            "TI0P", "TI1P", "TD0P", "TDRD", "TD3P", "TO0P", "TVEP", "TVM0",
+        ]
+
+        XCTAssertEqual(SMCTemperatureName.knownKeys, expected)
+        for key in expected {
+            XCTAssertFalse(
+                SMCTemperatureName.displayName(for: key, language: .simplifiedChinese).isEmpty
+            )
+            XCTAssertFalse(
+                SMCTemperatureName.displayName(for: key, language: .english).isEmpty
+            )
+        }
+        XCTAssertEqual(
+            SMCTemperatureName.displayName(for: "TCSA", language: .simplifiedChinese),
+            "CPU 系统代理"
+        )
+        XCTAssertEqual(
+            SMCTemperatureName.displayName(for: "TH0x", language: .english),
+            "Exhaust e"
+        )
+        XCTAssertEqual(
+            SMCTemperatureName.displayName(for: "TCZZ", language: .english),
+            "CPU ZZ"
+        )
+        XCTAssertEqual(
+            SMCTemperatureName.displayName(for: "ZZZZ", language: .simplifiedChinese),
+            "ZZZZ"
+        )
+    }
+
+    func testTemperatureNameFilterMatchesNameAndKey() {
+        XCTAssertTrue(
+            SMCTemperatureName.matches("TC1C", query: "core 1")
+        )
+        XCTAssertTrue(
+            SMCTemperatureName.matches("TB2T", query: "电池 3")
+        )
+        XCTAssertTrue(
+            SMCTemperatureName.matches("TB2T", query: "battery 3")
+        )
+        XCTAssertTrue(
+            SMCTemperatureName.matches("TD3P", query: "td3p")
+        )
+        XCTAssertFalse(
+            SMCTemperatureName.matches("TC1C", query: "battery")
+        )
+        XCTAssertTrue(
+            SMCTemperatureName.matches("ZZZZ", query: "zzzz")
+        )
+    }
+
     func testTemperatureRuleInterpolatesAndClampsPercent() {
         let points = [
             MonitorFanTemperatureRulePoint(celsius: 32, fanPercent: 30),

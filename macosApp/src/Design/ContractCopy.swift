@@ -811,6 +811,12 @@ enum ContractCopy {
     static let copyMonitorFanRestoreSystem = LocalizedCopy(key: "copy/monitor/fan/restore-system", en: "Restore system control", zhHans: "恢复系统控制")
     /// `copy/monitor/fan/rpm`
     static let copyMonitorFanRpm = LocalizedCopy(key: "copy/monitor/fan/rpm", en: "RPM", zhHans: "转速")
+    /// `copy/monitor/fan/sensor-filter`
+    static let copyMonitorFanSensorFilter = LocalizedCopy(key: "copy/monitor/fan/sensor-filter", en: "Filter sensors", zhHans: "筛选传感器")
+    /// `copy/monitor/fan/sensor-filter-empty`
+    static let copyMonitorFanSensorFilterEmpty = LocalizedCopy(key: "copy/monitor/fan/sensor-filter-empty", en: "No matching sensors", zhHans: "没有匹配的传感器")
+    /// `copy/monitor/fan/sensor-library-hint`
+    static let copyMonitorFanSensorLibraryHint = LocalizedCopy(key: "copy/monitor/fan/sensor-library-hint", en: "64 sensors have names. Unknown keys show the raw key.", zhHans: "64 个传感器有名称。未知键显示原始键。")
     /// `copy/monitor/fan/source-battery`
     static let copyMonitorFanSourceBattery = LocalizedCopy(key: "copy/monitor/fan/source-battery", en: "Battery temperature", zhHans: "电池温度")
     /// `copy/monitor/fan/source-cpu`
@@ -2045,6 +2051,9 @@ enum ContractCopy {
         copyMonitorFanResetCurve,
         copyMonitorFanRestoreSystem,
         copyMonitorFanRpm,
+        copyMonitorFanSensorFilter,
+        copyMonitorFanSensorFilterEmpty,
+        copyMonitorFanSensorLibraryHint,
         copyMonitorFanSourceBattery,
         copyMonitorFanSourceCpu,
         copyMonitorFanSourceFanPercent,

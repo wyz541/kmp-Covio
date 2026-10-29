@@ -528,6 +528,7 @@ enum MonitorFanPreviewFixtures {
                 .init(key: "TC0P", celsius: 61.2),
                 .init(key: "TG0D", celsius: 55.4),
                 .init(key: "TB0T", celsius: 35.1),
+                .init(key: "TD3P", celsius: 48.6),
             ],
             units: [
                 .init(index: 0, rpm: 2_789, minimumRPM: 1_200, maximumRPM: 5_800, targetRPM: 2_588, mode: 1),
@@ -615,8 +616,9 @@ struct MonitorFanPreviewRoot: View {
             language: .simplifiedChinese,
             runtime: nil,
             model: model,
-            scrollsContent: false,
-            rendersForSnapshot: true
+            scrollsContent: Self.scenario == "sensors",
+            rendersForSnapshot: true,
+            sensorsInitiallyExpanded: Self.scenario == "sensors"
         )
         .frame(width: 420, height: 760, alignment: .topLeading)
         .background(MacTheme.surface)

@@ -82,15 +82,15 @@ struct MacSwitch: View {
     let label: String
     @Binding var isOn: Bool
     var isEnabled = true
+    var size: ControlSize = .small
 
     var body: some View {
         Toggle("", isOn: $isOn)
             .labelsHidden()
             .toggleStyle(.switch)
-            .controlSize(.small)
+            .controlSize(size)
             .disabled(!isEnabled)
             .accessibilityLabel(label)
-            .accessibilityValue(isOn ? "1" : "0")
     }
 }
 
@@ -160,28 +160,45 @@ struct MacButton: View {
     let title: String
     var kind: MacButtonKind = .secondary
     var isEnabled = true
+    var minimumHitHeight: CGFloat = MacButton.minHeight
     let action: () -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHovering = false
+    @FocusState private var isFocused: Bool
 
     var body: some View {
         Button(action: action) {
-            Text(title)
-                .font(.system(size: 12))
-                .foregroundStyle(foreground)
-                .padding(.horizontal, MacTheme.space3)
-                .frame(minHeight: MacButton.minHeight)
-                .background(
-                    background,
-                    in: RoundedRectangle(cornerRadius: MacTheme.mediumRadius, style: .continuous)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: MacTheme.mediumRadius, style: .continuous)
-                        .strokeBorder(kind == .secondary ? MacTheme.divider : .clear, lineWidth: 1)
-                )
+            buttonSurface
+                .padding(.vertical, hitPadding)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(MacButtonInteractionStyle(reduceMotion: reduceMotion))
+        .focused($isFocused)
         .disabled(!isEnabled)
         .opacity(isEnabled ? 1 : 0.5)
+        .onHover { isHovering = $0 }
+    }
+
+    private var buttonSurface: some View {
+        Text(title)
+            .font(.system(size: 12))
+            .foregroundStyle(foreground)
+            .padding(.horizontal, MacTheme.space3)
+            .frame(minHeight: MacButton.minHeight)
+            .background(background, in: shape)
+            .overlay(shape.strokeBorder(border, lineWidth: 1))
+            .overlay(shape.strokeBorder(isFocused ? MacTheme.focusRing : .clear, lineWidth: 2))
+            .brightness(kind == .primary && isHovering ? 0.06 : 0)
+            .contentShape(Rectangle())
+    }
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: MacTheme.mediumRadius, style: .continuous)
+    }
+
+    private var hitPadding: CGFloat {
+        max(0, (minimumHitHeight - MacButton.minHeight) / 2)
     }
 
     private var foreground: Color {
@@ -191,9 +208,28 @@ struct MacButton: View {
     private var background: Color {
         switch kind {
         case .primary: MacTheme.brand
-        case .secondary: MacTheme.elevated
+        case .secondary: isHovering ? MacTheme.controlFillHover : MacTheme.controlFill
+        case .plain: isHovering ? MacTheme.controlFillHover : .clear
+        }
+    }
+
+    private var border: Color {
+        switch kind {
+        case .primary: .clear
+        case .secondary: MacTheme.divider
         case .plain: .clear
         }
+    }
+}
+
+private struct MacButtonInteractionStyle: ButtonStyle {
+    let reduceMotion: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.76 : 1)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.98 : 1)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 
@@ -223,12 +259,12 @@ enum MacAlertKind {
     }
 
     /// 无障碍名称。合同要求颜色不能是唯一的线索，所以每种提示都带一个词。
-    var label: String {
+    func label(for language: AppLanguage) -> String {
         switch self {
-        case .info: "Info"
-        case .warning: "Warning"
-        case .error: "Error"
-        case .success: "Done"
+        case .info: ContractCopy.copyStateLabelInfo.text(for: language)
+        case .warning: ContractCopy.copyStateLabelWarning.text(for: language)
+        case .error: ContractCopy.copyStateLabelError.text(for: language)
+        case .success: ContractCopy.copyStateLabelSuccess.text(for: language)
         }
     }
 }
@@ -236,10 +272,11 @@ enum MacAlertKind {
 struct MacAlert: View {
     let message: String
     var kind: MacAlertKind = .info
+    var language: AppLanguage = CopyLocale.language
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: MacTheme.space2) {
-            Text(kind.label)
+            Text(kind.label(for: language))
                 .font(.system(size: 11, weight: .semibold))
             Text(message)
                 .font(.system(size: 11))

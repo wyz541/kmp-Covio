@@ -20,7 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var twoFingerSwipeMonitor: TwoFingerSwipeMonitor?
     private var instanceLock: SingleInstanceLock?
     #if DEBUG
-    private var monitorPreview: MonitorPreviewWindowController?
+    private var monitorPreview: NSWindowController?
     private var glassPlatePreviewWindow: NSWindow?
     private var fanPreviewWindow: NSWindow?
     private var fanCapabilityPreviewWindow: NSWindow?
@@ -147,6 +147,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             return
         }
+        if let path = ProcessInfo.processInfo.environment["COVIO_POWER_RENDER"], !path.isEmpty {
+            Task { @MainActor in
+                exit(await PowerPreviewRenderer.render(to: path) ? 0 : 1)
+            }
+            return
+        }
         if let path = ProcessInfo.processInfo.environment["COVIO_MONITOR_FAN_DETAIL_RENDER"], !path.isEmpty {
             Task { @MainActor in
                 exit(await MonitorFanDetailRenderer.render(to: path) ? 0 : 1)
@@ -244,10 +250,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if ProcessInfo.processInfo.environment["COVIO_POWER_PREVIEW"] == "1" {
             NSApp.setActivationPolicy(.regular)
-            let preview = MonitorPreviewWindowController(
-                startsInPower: true,
-                powerModel: PowerPreviewModel()
-            )
+            let preview = PowerPopoverPreviewWindowController(powerModel: PowerPreviewModel())
             monitorPreview = preview
             preview.showWindow(nil)
             return
@@ -270,10 +273,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     }
                 }
             }
-            let preview = MonitorPreviewWindowController(
-                startsInPower: true,
-                powerModel: runtime
-            )
+            let preview = PowerPopoverPreviewWindowController(powerModel: runtime)
             monitorPreview = preview
             preview.showWindow(nil)
             return

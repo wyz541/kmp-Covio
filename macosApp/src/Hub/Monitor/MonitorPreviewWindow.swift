@@ -10,31 +10,45 @@ import kmpDomain
 /// 全量运行时会在系统唤醒回调里执行已有逻辑。这个入口绕过运行时，
 /// 只用来检查 `MonitorTabView` 的真实布局和读数。
 struct MonitorPreviewRoot: View {
-    private let language = AppLanguage.simplifiedChinese
+    private let language: AppLanguage
     let snapshot: MonitorSnapshot
     let history: MonitorHistory
     let powerHistory: MonitorPowerHistory
     let runsSampling: Bool
-    let startsInPower: Bool
     let powerModel: (any PowerManagementModel)?
+    let powerPopoverInitiallyPresented: Bool
+    let powerPopoverInitialTab: MonitorPowerDetailTab
+    let width: CGFloat?
+    let height: CGFloat?
 
     init(
         snapshot: MonitorSnapshot = .empty,
         history: MonitorHistory = MonitorHistory(),
         powerHistory: MonitorPowerHistory = MonitorPowerHistory(),
         runsSampling: Bool = true,
-        startsInPower: Bool = false,
-        powerModel: (any PowerManagementModel)? = nil
+        powerModel: (any PowerManagementModel)? = nil,
+        powerPopoverInitiallyPresented: Bool = false,
+        powerPopoverInitialTab: MonitorPowerDetailTab = .details,
+        language: AppLanguage = .simplifiedChinese,
+        width: CGFloat? = nil,
+        height: CGFloat? = nil
     ) {
+        self.language = language
         self.snapshot = snapshot
         self.history = history
         self.powerHistory = powerHistory
         self.runsSampling = runsSampling
-        self.startsInPower = startsInPower
         self.powerModel = powerModel
+        self.powerPopoverInitiallyPresented = powerPopoverInitiallyPresented
+        self.powerPopoverInitialTab = powerPopoverInitialTab
+        self.width = width
+        self.height = height
     }
 
     var body: some View {
+        let totalWidth = width ?? HubMetrics.panelWidth
+        let totalHeight = height ?? HubMetrics.monitorBodyHeight + 92
+        let bodyHeight = max(HubMetrics.monitorBodyHeight, totalHeight - 92)
         VStack(alignment: .leading, spacing: HubMetrics.pageHeadingGap) {
             PaneHeading(
                 title: ContractCopy.copyHubTabDevices.text(for: language),
@@ -47,12 +61,13 @@ struct MonitorPreviewRoot: View {
                 initialHistory: history,
                 initialPowerHistory: powerHistory,
                 runsSampling: runsSampling,
-                startsInPower: startsInPower
+                powerPopoverInitiallyPresented: powerPopoverInitiallyPresented,
+                powerPopoverInitialTab: powerPopoverInitialTab
             )
-            .frame(height: HubMetrics.monitorBodyHeight)
+            .frame(height: bodyHeight)
         }
         .padding(HubMetrics.panelPadding)
-        .frame(width: HubMetrics.panelWidth, height: HubMetrics.monitorBodyHeight + 92)
+        .frame(width: totalWidth, height: totalHeight, alignment: .topLeading)
         .background(MacTheme.canvas)
     }
 }
@@ -61,7 +76,7 @@ struct MonitorPreviewRoot: View {
 @MainActor
 @Observable
 final class PowerPreviewModel: PowerManagementModel {
-    let language = AppLanguage.simplifiedChinese
+    let language: AppLanguage
     var sleepProtectionEnabled = true
     var powerConfig: PowerConfig
     var observation: PowerObservation
@@ -73,15 +88,18 @@ final class PowerPreviewModel: PowerManagementModel {
     var closedLidZeroBrightnessPhase: ClosedLidZeroBrightnessPhase = .ready
     var closedLidZeroBrightnessAvailability: ClosedLidBrightnessAvailability = .available
     var closedLidZeroBrightnessError: String?
-    var hasManualSession = true
-    var sessionMode: PowerRuntime.SessionMode? = .lid
-    var remainingSeconds: Int64? = 2_700
+    var hasManualSession = false
+    var sessionMode: PowerRuntime.SessionMode?
+    var remainingSeconds: Int64?
     var recentHistory: [PowerHistoryEvent] = []
     var appState: AppState = AppRuntime.initialState(enabled: true)
     var statusMessage: String?
     var busy = false
 
     init() {
+        language = AppLanguage(
+            rawValue: ProcessInfo.processInfo.environment["COVIO_POWER_PREVIEW_LANGUAGE"] ?? ""
+        ) ?? .simplifiedChinese
         powerConfig = PowerConfig(
             enabled: true,
             keepAwakeOnAdapter: true,
@@ -112,11 +130,11 @@ final class PowerPreviewModel: PowerManagementModel {
             covioOwnsSleepDisabled: KotlinBoolean(bool: false)
         )
         decision = PowerDecision(
-            preventUserIdleSystemSleep: true,
+            preventUserIdleSystemSleep: false,
             preventUserIdleDisplaySleep: false,
-            preventLidSleep: true,
-            appliedLeaseLevel: .closedLid,
-            activeLeaseIds: ["power/session/preview"],
+            preventLidSleep: false,
+            appliedLeaseLevel: nil,
+            activeLeaseIds: [],
             automaticRuleApplied: false,
             safetyVetoes: [],
             batteryGuardLatched: false
@@ -142,6 +160,10 @@ final class PowerPreviewModel: PowerManagementModel {
                 detail: "UserActivity"
             ),
         ]
+        if ProcessInfo.processInfo.environment["COVIO_POWER_PREVIEW_SESSION"] == "active" {
+            _ = startSession(mode: .lid, duration: .oneHour)
+            remainingSeconds = 2_700
+        }
     }
 
     func setPowerEnabled(_ enabled: Bool) {
@@ -314,6 +336,7 @@ enum MonitorPowerDetailRenderer {
             language: .simplifiedChinese,
             reduceMotion: false,
             runtime: nil,
+            powerModel: nil,
             onOpenApp: { _ in },
             onClose: {}
         )
@@ -335,6 +358,88 @@ enum MonitorPowerDetailRenderer {
             return false
         }
     }
+}
+
+@MainActor
+struct PowerPopoverPreviewRoot: View {
+    let powerModel: any PowerManagementModel
+    let width: CGFloat
+    let height: CGFloat
+
+    var body: some View {
+        ZStack {
+            MacTheme.canvas
+                .ignoresSafeArea()
+            MonitorPowerDetailPanel(
+                power: MonitorPowerPreviewFixtures.power,
+                history: MonitorPowerHistory(),
+                language: powerModel.language,
+                reduceMotion: false,
+                runtime: nil,
+                powerModel: powerModel,
+                initialTab: .power,
+                onOpenApp: { _ in },
+                onClose: {}
+            )
+            .padding(24)
+        }
+        .frame(width: width, height: height)
+    }
+}
+
+@MainActor
+enum PowerPreviewRenderer {
+    static func render(to path: String) async -> Bool {
+        let appearance = ProcessInfo.processInfo.environment["COVIO_FORCE_APPEARANCE"]?
+            .lowercased()
+        let dark = appearance == "dark" ||
+            ProcessInfo.processInfo.environment["AppleInterfaceStyle"]?.lowercased() == "dark"
+        let colorScheme: ColorScheme = dark ? .dark : .light
+        let preserveGlass = ProcessInfo.processInfo.environment["COVIO_POWER_RENDER_GLASS"] == "1"
+        let dynamicType: DynamicTypeSize = ProcessInfo.processInfo.environment["COVIO_POWER_RENDER_DYNAMIC_TYPE"] == "accessibility3"
+            ? .accessibility3
+            : .large
+        let width = Double(
+            ProcessInfo.processInfo.environment["COVIO_POWER_RENDER_WIDTH"] ?? ""
+        ) ?? 620
+        let height = Double(
+            ProcessInfo.processInfo.environment["COVIO_POWER_RENDER_HEIGHT"] ?? ""
+        ) ?? 848
+        let model = PowerPreviewModel()
+        return await MonitorFanPreviewSnapshot.write(
+            PowerPopoverPreviewRoot(
+                powerModel: model,
+                width: width,
+                height: height
+            )
+            .environment(\.colorScheme, colorScheme)
+            .environment(\.dynamicTypeSize, dynamicType),
+            size: CGSize(width: width, height: height),
+            path: path,
+            dark: dark,
+            glassMode: preserveGlass ? nil : .material
+        )
+    }
+}
+
+enum MonitorPowerPreviewFixtures {
+    static let power = MonitorSnapshot.Power(
+        supply: .adapter,
+        hasBattery: true,
+        batteryPercent: 84,
+        temperatureCelsius: 33,
+        watts: 18.1,
+        averageWatts: 18.1,
+        remainingSeconds: nil,
+        chargePowerWatts: 9.8,
+        timeToFullSeconds: 18_660,
+        batteryHealthPercent: 97,
+        topApps: [],
+        events: [],
+        batteryDataAvailable: true,
+        powerDataAvailable: true,
+        energyDataAvailable: true
+    )
 }
 
 enum MonitorFanPreviewFixtures {
@@ -452,10 +557,11 @@ enum MonitorFanPreviewSnapshot {
         _ content: Content,
         size: CGSize,
         path: String,
-        dark: Bool
+        dark: Bool,
+        glassMode: GlassSurfaceMode? = .material
     ) async -> Bool {
         let previousMode = GlassSurfaceMode.current
-        GlassSurfaceMode.current = .material
+        if let glassMode { GlassSurfaceMode.current = glassMode }
         defer { GlassSurfaceMode.current = previousMode }
 
         let host = NSHostingView(rootView: content)
@@ -567,22 +673,70 @@ enum MonitorFanCardRenderer {
 
 @MainActor
 final class MonitorPreviewWindowController: NSWindowController {
-    init(startsInPower: Bool = false, powerModel: (any PowerManagementModel)? = nil) {
+    init() {
+        let showsPowerPopover = ProcessInfo.processInfo.environment[
+            "COVIO_POWER_POPOVER_PREVIEW"
+        ] == "1"
+        let previewHeight = showsPowerPopover
+            ? MonitorPowerDetailLayoutPolicy.fullHeight + 100
+            : HubMetrics.monitorBodyHeight + 92
         let window = NSWindow(
             contentRect: NSRect(
                 x: 0,
                 y: 0,
                 width: HubMetrics.panelWidth,
-                height: HubMetrics.monitorBodyHeight + 92
+                height: previewHeight
             ),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
         )
-        window.title = startsInPower ? "Covio Power Preview" : "Covio Monitor Preview"
+        window.title = "Covio Monitor Preview"
+        window.appearance = HubAppearance.panel
+        let powerModel = PowerPreviewModel()
+        let snapshot = showsPowerPopover
+            ? MonitorSnapshot.empty.replacingPower(MonitorPowerPreviewFixtures.power)
+            : .empty
+        window.contentView = NSHostingView(
+            rootView: MonitorPreviewRoot(
+                snapshot: snapshot,
+                runsSampling: !showsPowerPopover,
+                powerModel: powerModel,
+                powerPopoverInitiallyPresented: showsPowerPopover,
+                powerPopoverInitialTab: .power,
+                language: powerModel.language,
+                height: previewHeight
+            )
+        )
+        window.center()
+        super.init(window: window)
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    required init?(coder: NSCoder) {
+        nil
+    }
+}
+
+@MainActor
+final class PowerPopoverPreviewWindowController: NSWindowController {
+    init(powerModel: any PowerManagementModel) {
+        let size = CGSize(width: 620, height: 848)
+        let window = NSWindow(
+            contentRect: NSRect(origin: .zero, size: size),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Covio Power Popover Preview"
         window.appearance = HubAppearance.panel
         window.contentView = NSHostingView(
-            rootView: MonitorPreviewRoot(startsInPower: startsInPower, powerModel: powerModel)
+            rootView: PowerPopoverPreviewRoot(
+                powerModel: powerModel,
+                width: size.width,
+                height: size.height
+            )
         )
         window.center()
         super.init(window: window)

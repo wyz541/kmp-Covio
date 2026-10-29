@@ -5796,6 +5796,22 @@
       "en": "Action failed",
       "zh-Hans": "操作失败"
     },
+    "copy/state/label/error": {
+      "en": "Error",
+      "zh-Hans": "错误"
+    },
+    "copy/state/label/info": {
+      "en": "Info",
+      "zh-Hans": "信息"
+    },
+    "copy/state/label/success": {
+      "en": "Done",
+      "zh-Hans": "完成"
+    },
+    "copy/state/label/warning": {
+      "en": "Warning",
+      "zh-Hans": "警告"
+    },
     "copy/state/loading": {
       "en": "Loading",
       "zh-Hans": "正在加载"
@@ -6104,6 +6120,18 @@
       "en": "Current power",
       "zh-Hans": "当前供电"
     },
+    "copy/power/popover/title": {
+      "en": "Power settings",
+      "zh-Hans": "电源设置"
+    },
+    "copy/power/popover/details": {
+      "en": "Details",
+      "zh-Hans": "详情"
+    },
+    "copy/power/popover/power": {
+      "en": "Power",
+      "zh-Hans": "电源"
+    },
     "copy/power/section/session": {
       "en": "Keep awake",
       "zh-Hans": "保持唤醒"
@@ -6116,6 +6144,26 @@
       "en": "Recent activity",
       "zh-Hans": "最近活动"
     },
+    "copy/power/section/automatic": {
+      "en": "Automatically keep awake",
+      "zh-Hans": "自动保持唤醒"
+    },
+    "copy/power/section/closed-lid": {
+      "en": "Closed-lid sessions",
+      "zh-Hans": "合盖会话"
+    },
+    "copy/power/section/safety": {
+      "en": "Safety guards",
+      "zh-Hans": "安全护栏"
+    },
+    "copy/power/section/advanced": {
+      "en": "Closed-lid and safety",
+      "zh-Hans": "合盖与安全"
+    },
+    "copy/power/description/master": {
+      "en": "Use Covio to keep this Mac awake. Turning this off releases every rule and session.",
+      "zh-Hans": "使用 Covio 保持 Mac 唤醒。关闭后会释放全部规则和会话。"
+    },
     "copy/power/error/lid-not-applied": {
       "en": "The helper did not apply closed-lid protection. Check Helper status and try again.",
       "zh-Hans": "Helper 没有应用合盖保护。检查 Helper 状态后重试。"
@@ -6127,6 +6175,14 @@
     "copy/power/status/adapter": {
       "en": "Adapter",
       "zh-Hans": "适配器"
+    },
+    "copy/power/status/helper": {
+      "en": "Closed-lid helper",
+      "zh-Hans": "合盖 Helper"
+    },
+    "copy/power/status/helper-hint": {
+      "en": "The privileged helper applies closed-lid holds.",
+      "zh-Hans": "特权 Helper 负责应用合盖保持唤醒。"
     },
     "copy/power/status/low-power-mode": {
       "en": "Low Power Mode",
@@ -6159,6 +6215,18 @@
     "copy/power/session/system": {
       "en": "System",
       "zh-Hans": "仅系统"
+    },
+    "copy/power/session/mode": {
+      "en": "Session type",
+      "zh-Hans": "会话类型"
+    },
+    "copy/power/session/duration": {
+      "en": "Duration",
+      "zh-Hans": "时长"
+    },
+    "copy/power/session/start-hint": {
+      "en": "Start a session before closing the lid.",
+      "zh-Hans": "合盖前先启动会话。"
     },
     "copy/power/session/display": {
       "en": "System + display",
@@ -6240,9 +6308,17 @@
       "en": "Keep awake on battery",
       "zh-Hans": "使用电池时保持唤醒"
     },
+    "copy/power/rules/battery-hint": {
+      "en": "This can drain the battery faster.",
+      "zh-Hans": "这会加快电池耗电。"
+    },
     "copy/power/rules/lid": {
       "en": "Allow closed-lid hold",
       "zh-Hans": "允许合盖保持唤醒"
+    },
+    "copy/power/rules/lid-hint": {
+      "en": "Requires the closed-lid helper and a successful safety check.",
+      "zh-Hans": "需要合盖 Helper，并通过安全检查。"
     },
     "copy/power/rules/closed-lid-zero-brightness": {
       "en": "Experimental closed-lid black screen",
@@ -6264,17 +6340,37 @@
       "en": "Pause lid hold with external display",
       "zh-Hans": "有外接屏时暂停合盖保持唤醒"
     },
+    "copy/power/rules/external-display-hint": {
+      "en": "Pause a closed-lid session when an external display is connected.",
+      "zh-Hans": "连接外接屏时暂停合盖会话。"
+    },
     "copy/power/rules/battery-floor": {
       "en": "Battery floor",
       "zh-Hans": "电池下限"
+    },
+    "copy/power/rules/battery-floor-hint": {
+      "en": "Release protection when the battery reaches this level.",
+      "zh-Hans": "电量降到该值时释放保护。"
+    },
+    "copy/power/rules/low-power-hint": {
+      "en": "Release protection when Low Power Mode is on.",
+      "zh-Hans": "启用低电量模式时释放保护。"
     },
     "copy/power/rules/heat-guard": {
       "en": "Heat guard",
       "zh-Hans": "温度保护"
     },
+    "copy/power/rules/heat-guard-hint": {
+      "en": "Release protection when macOS reports serious heat.",
+      "zh-Hans": "macOS 报告高温时释放保护。"
+    },
     "copy/power/rules/time-cap": {
       "en": "Closed-lid time cap",
       "zh-Hans": "合盖时长上限"
+    },
+    "copy/power/rules/time-cap-hint": {
+      "en": "End closed-lid sessions after this limit.",
+      "zh-Hans": "达到此时限后结束合盖会话。"
     },
     "copy/power/rules/on": {
       "en": "On",
@@ -6287,6 +6383,10 @@
     "copy/power/history/window": {
       "en": "Last 24 hours",
       "zh-Hans": "最近 24 小时"
+    },
+    "copy/power/history/hint": {
+      "en": "Shows power and sleep events from the last 24 hours.",
+      "zh-Hans": "显示最近 24 小时的电源和睡眠事件。"
     },
     "copy/power/history/adapter-connected": {
       "en": "Power adapter connected",
@@ -6636,9 +6736,17 @@
       "en": "Show details",
       "zh-Hans": "展开详情"
     },
+    "copy/monitor/power/details/expand-settings": {
+      "en": "Show details and settings",
+      "zh-Hans": "展开详情与设置"
+    },
     "copy/monitor/power/details/collapse": {
       "en": "Hide details",
       "zh-Hans": "收起详情"
+    },
+    "copy/monitor/power/details/collapse-settings": {
+      "en": "Hide details and settings",
+      "zh-Hans": "收起详情与设置"
     },
     "copy/monitor/power/details/title": {
       "en": "Power details",

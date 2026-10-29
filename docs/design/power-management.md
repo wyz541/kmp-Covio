@@ -1,28 +1,29 @@
-# Monitor 电源管理面
+# Monitor 电源卡片设置浮层
 
 ## 文档状态
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | `2.3` |
-| 状态 | 已实现；默认值已真机检查，合盖矩阵待验收 |
+| 文档版本 | `4.0` |
+| 状态 | 已实现；Power 设置位于 Power card 第三段浮层，等待用户视觉验收 |
 | 日期 | `2026-10-28` |
-| Issue | #150、#154、#155、#190、#203、#398、#424 |
+| Issue | #150、#154、#155、#190、#203、#398、#424、#434 |
 | Feature | #148 |
 | 上游决策 | ADR-0011、ADR-0012、ADR-0022 |
 | 调研 | #145 |
 
 ## 目标
 
-在现有 `Monitor` 页签中增加 `概览 / 电源` 二级切换。
-用户在一个入口查看供电状态、启动保持唤醒、设置安全规则并检查历史。
+Power 设置放在 `Monitor` 页签 Power card 的第三段浮层中。
+用户从卡片打开浮层，在 `详情 / 电源` 之间切换。
+`电源` 按 macOS 设置页的阅读顺序组织，不使用并列设置卡。
 
 本设计不增加第七个页签。
-页面读取真实系统观察、策略结果与 helper 状态。
-页面通过 `AppRuntime` 写入持久化的 `PowerConfig`。
+浮层读取真实系统观察、策略结果与 helper 状态。
+浮层通过 `AppRuntime` 写入持久化的 `PowerConfig`。
 
 `AppConfig.enabled` 是睡眠保护总开关。
-Power 页面显示并写入同一个总开关。
+`电源` 页显示并写入同一个总开关。
 启动时，旧配置中的 `PowerConfig.enabled` 会自动与总开关对齐。
 
 ## 实现接入
@@ -34,10 +35,10 @@ Power 页面显示并写入同一个总开关。
 | 纯策略 | `PowerPolicy` | `kmpDomain` |
 | 运行时租约 | `PowerRuntime` 与 `Engine` | IOKit 电源断言 |
 | 合盖租约 | `PrivilegedOps` | 特权 helper v2 |
-| 页面动作 | `AppRuntime` | 配置、helper 与运行时动作 |
+| 浮层动作 | `AppRuntime` | 配置、helper 与运行时动作 |
 
-页面只显示观察值与实际结果。
-租约请求失败时，页面显示错误，不显示成功。
+`电源` 页只显示观察值与实际结果。
+租约请求失败时，`电源` 页显示错误，不显示成功。
 最近活动读取有界、原子写入的电源历史。
 历史实现见 `power-history.md`。
 实验零亮度默认开启。能力不可用或写入失败时，Covio 使用公开合盖关屏路径。
@@ -45,25 +46,49 @@ Power 页面显示并写入同一个总开关。
 ## 入口与层级
 
 1. 用户进入 `Monitor` 页签。
-2. 页标题右侧显示 `概览 / 电源` 分段控件。
-3. `概览` 保留现有实时指标。
-4. `电源` 显示本设计的四个区域。
-5. 切换只改变页内内容，不改变页签。
+2. 主页面只显示实时指标卡片。
+3. 用户点击 Power card，或点击 Power card 第三段详情入口。
+4. Power card 打开详情浮层。
+5. 浮层显示 `详情 / 电源` 分段控件。
+6. `详情` 保留原有电源详情。
+7. `电源` 显示本设计的四个区域。
+8. 关闭浮层后，Hub 恢复普通自动收起规则。
 
 ## 布局
 
 | 区域 | 位置 | 内容 |
 | --- | --- | --- |
-| 当前供电 | 顶部整行 | 电池环、供电方式、剩余时间、热状态、低电量模式、外接屏 |
-| 保持唤醒 | 第二行左侧 | 模式、时长、活动原因、开始或结束动作 |
-| 安全与自动规则 | 第二行右侧 | 插电、电池、合盖、外接屏和三项安全阈值 |
-| 最近活动 | 底部整行 | 最近 24 小时的供电、睡眠、唤醒和护栏事件 |
+| 当前供电 | 浮层顶部整行 | 总开关、供电方式、电量、外接屏、热状态、低电量模式 |
+| 保持唤醒 | 浮层第二段整行 | 会话类型、时长、活动原因、开始或结束动作 |
+| 安全与自动规则 | 浮层第三段整行 | 自动规则；合盖与安全规则使用展开区 |
+| 最近活动 | 浮层底部整行 | 最近 24 小时的供电、睡眠、唤醒和护栏事件 |
 
-内容宽度沿用 `Monitor` 的 912 点内容列。
+浮层宽度使用 `560` 点。
+浮层高度受屏幕可见区域限制，内容在浮层内滚动。
 卡片间距使用 `token/space/3`。
 卡片圆角使用 `token/radius/card`。
-页面外边距使用 `token/space/6`。
+浮层外边距使用 `token/space/4`。
 卡片内边距使用 `token/space/4`。
+`电源` 页只保留一个主要阅读列。
+任何设置卡都不与其他设置卡并排。
+内容卡使用 `regularMaterial`，不使用 Liquid Glass。
+减少透明度或增强对比时，内容卡改用不透明 `surface`。
+增强对比时，卡片描边从 1 点增加到 1.5 点。
+会话主操作使用 regular interactive Liquid Glass capsule。
+Liquid Glass 只用于开始和结束这两个功能控件。
+
+### macOS 设计依据
+
+| Apple 原则 | 浮层做法 |
+| --- | --- |
+| 按重要程度排列 | 先显示当前供电，再显示当前会话，最后显示规则和历史 |
+| 分组相关内容 | 规则分为自动规则、合盖会话和安全护栏 |
+| 使用渐进披露 | 合盖与安全默认收起；历史默认收起 |
+| 减少设置数量 | 会话类型和时长使用菜单选择，不使用两排胶囊选项 |
+| 区分状态和设置 | 状态使用摘要和徽标；设置使用原生开关、菜单和步进器 |
+| 保留键盘和读屏路径 | 所有控件使用可见标签、原生焦点顺序和无障碍名称 |
+| Liquid Glass 只用于功能层 | 内容卡使用标准材质；开始和结束按钮使用交互式 Liquid Glass |
+| 区分主从开关 | 总开关使用常规 switch；单行子设置使用 mini switch |
 
 ## 状态模型
 
@@ -95,21 +120,37 @@ stateDiagram-v2
 4. 实验路径不可用时，合盖会话的名称是“合盖关屏”。
 5. 点击结束只结束当前会话。
 6. 点击规则开关只改变一条自动化规则。关闭实验零亮度会立即恢复原亮度。
-7. 总开关关闭时不能开始任何会话，页面显示原因。
+7. 总开关关闭时不能开始任何会话，`电源` 页显示原因。
 8. 合盖模式在 helper 不可用时不能开始。
 9. 合盖会话只有在 `SleepDisabled=1` 且 helper 拥有租约时才能返回成功。
 10. 外部冲突不会阻止系统断言，但会阻止特权合盖动作。
 11. 状态变化后，读屏要播报新状态和原因。
+12. 当前会话运行时，主操作显示为结束按钮。
+13. 合盖实验能力和三项安全阈值放在“合盖与安全”展开区。
+14. 自动规则始终可见，避免高级设置隐藏常用开关。
+15. 最近活动默认收起，展开后按时间顺序显示事件。
+16. 合盖实验能力开启不等于高级区展开。
+17. helper 异常或零亮度失败时，页面自动展开“合盖与安全”。
+18. 开始、结束和 helper 修复按钮使用 44 点命中高度。
+19. 自定义按钮提供 hover、pressed 和 keyboard focus 状态。
+20. 自动保持规则生效时，会话状态显示“运行中”，不显示“没有会话”。
+21. 开始和结束按钮使用 regular interactive Liquid Glass capsule。
 
 ## 无障碍
 
 1. 状态同时使用文字和形状。
 2. 不只靠颜色区分供电、警告和失败。
 3. 所有按钮命中区不小于 24 点。
-4. 分段控件支持键盘焦点。
-5. 规则开关有完整读屏名称。
-6. 减少动态效果时停止非必要过渡。
-7. 错误信息写出原因和下一步。
+4. 开始、结束和 helper 修复按钮命中高度不小于 44 点。
+5. 分段控件支持键盘焦点。
+6. 规则开关有完整读屏名称。
+7. 减少动态效果时停止非必要缩放和状态动画。
+8. 错误信息写出原因和下一步。
+9. 提示标签按当前界面语言显示。
+10. 分组标题使用辅助功能标题语义。
+11. 摘要指标合并为一个可读条目。
+12. 展开区保留标准 DisclosureGroup 键盘行为。
+13. 结束按钮与会话摘要保持独立焦点，不合并成单一无障碍元素。
 
 ## 安全边界
 
@@ -120,14 +161,16 @@ stateDiagram-v2
 5. 不把 helper 缺失显示为“运行中”。
 6. 不把未知状态显示为正常。
 7. 不隐藏电池下限、温度保护和合盖时长。
-8. 总开关关闭时，Power 页面必须显示原因并禁用会话启动。
+8. 总开关关闭时，`电源` 页必须显示原因并禁用会话启动。
 9. helper 返回成功但系统状态未生效时，页面必须显示失败。
 10. 实验性合盖黑屏开关显示“面板黑屏、framebuffer 保持活动”和“可能随 macOS 更新失效”。
 11. 私有符号、版本、写入或回读失败时显示失败，并回退公开关屏。
+12. helper 异常时，“合盖与安全”自动展开，并显示修复动作。
+13. 零亮度已开启或处于失败态时，高级规则保持可见。
 
 ## 已验证范围
 
-1. 概览与电源切换已接入 `Monitor` 页签。
+1. Power 设置已接入 Power card 第三段浮层。
 2. 电池、适配器、外接屏、热状态和低电量模式已接入。
 3. 系统与屏幕保持唤醒已接入 IOKit 断言。
 4. 合盖保持唤醒已接入 helper v2 租约。
@@ -147,16 +190,36 @@ stateDiagram-v2
 14. 合盖黑屏在写入零亮度前后都会验证显示状态。验证失败时恢复原亮度并回退公开关屏。
 15. #424 修复了总开关与 Power 开关不同步导致的合盖会话假成功。
 16. 合盖会话启动后会校验 `SleepDisabled` 和 helper 所有权。
+17. #434 将页面重构为单列设置布局。
+18. #434 使用原生菜单、开关和 DisclosureGroup，移除并排卡片与六宫格状态块。
+19. 浅色、深色、中文和英文预览均完成布局检查。
+20. #434 将 Power 内容卡改为标准材质。
+21. #434 增加增强对比和减少透明度回退。
+22. #434 增加 44 点按钮命中区与 hover、pressed、focused 状态。
+23. #434 完成 720 点宽度和完整英文界面布局检查。
+24. #434 将开始和结束按钮设为唯一的内容层 Liquid Glass 功能元素。
 
-## 历史预览
+## 预览
 
 ### 浅色
 
-![Power management light](previews/150-power-management-light.png)
+![Power management light](previews/434-power-management-light-after-3.png)
 
 ### 深色
 
-![Power management dark](previews/150-power-management-dark.png)
+![Power management dark](previews/434-power-management-dark-after-3.png)
+
+### 展开高级规则
+
+![Power management rules](previews/434-power-management-rules-light-after-3.png)
+
+### 窄窗口
+
+![Power management at 720 points](previews/434-power-management-narrow-light-after-3.png)
+
+### 英文
+
+![Power management English](previews/434-power-management-english-after-3.png)
 
 ## 默认黑屏预览
 
@@ -170,16 +233,35 @@ stateDiagram-v2
 
 ## 视觉验收
 
-1. 四个区域在 960 点面板内完整显示。
-2. `概览 / 电源` 可点击切换。
-3. 三种会话模式和五种时长可点击。
-4. 规则开关可点击。
-5. 开始和结束动作能改变状态。
-6. helper 缺失时不能开始合盖会话。
-7. 外部冲突、热警告和无电池状态有明确文字。
-8. 深色和浅色对比度可读。
-9. 中文无缺字。
-10. 预览没有重叠、溢出和裁切。
+1. Power card 第三段可打开设置浮层。
+2. `详情 / 电源` 可点击切换。
+3. 浮层首屏能看到当前供电、总开关、当前会话和主操作。
+4. 三种会话模式和五种时长可点击。
+5. “合盖与安全”可展开和收起。
+6. 规则开关、步进器和菜单可点击。
+7. 开始和结束动作能改变状态。
+8. helper 缺失时不能开始合盖会话。
+9. 外部冲突、热警告和无电池状态有明确文字。
+10. 深色和浅色对比度可读。
+11. 中文和英文无缺字、重叠或溢出。
+12. 浮层滚动区域没有横向裁切。
+13. `560` 点浮层宽度下没有横向滚动。
+14. 增强对比模式下卡片使用不透明表面。
+15. 减少透明度模式下卡片不使用透明材质。
+16. 键盘 focus ring 可见。
+17. 开始和结束按钮呈现 Liquid Glass 反光、透明和交互反馈。
+
+## 设计参考
+
+- [Apple HIG: Settings](https://developer.apple.com/design/human-interface-guidelines/settings)
+- [Apple HIG: Layout](https://developer.apple.com/design/human-interface-guidelines/layout)
+- [Apple HIG: Designing for macOS](https://developer.apple.com/design/human-interface-guidelines/designing-for-macos)
+- [Apple HIG: Accessibility](https://developer.apple.com/design/human-interface-guidelines/accessibility)
+- [Apple HIG: Materials](https://developer.apple.com/design/human-interface-guidelines/materials)
+- [Apple HIG: Buttons](https://developer.apple.com/design/human-interface-guidelines/buttons)
+- [Apple HIG: Color](https://developer.apple.com/design/human-interface-guidelines/color)
+- [Apple HIG: Toggles](https://developer.apple.com/design/human-interface-guidelines/toggles)
+- [Apple HIG: Scroll views](https://developer.apple.com/design/human-interface-guidelines/scroll-views)
 
 ## 未决事项
 

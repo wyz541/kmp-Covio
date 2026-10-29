@@ -38,6 +38,12 @@ enum MacTheme {
     @MainActor static var tintedCardOpacity: CGFloat = 0.1
     /// 抬起的表面。
     static let elevated = color(ContractColors.tokenColorElevated)
+    /// 原生控件默认填充。
+    static let controlFill = color(ContractColors.tokenColorControlFill)
+    /// 原生控件悬停填充。
+    static let controlFillHover = color(ContractColors.tokenColorControlFillHover)
+    /// 原生控件按下填充。
+    static let controlFillPressed = color(ContractColors.tokenColorControlFillPressed)
     /// 分隔线与控件描边。
     static let divider = color(ContractColors.tokenColorDivider)
     /// 主文字。

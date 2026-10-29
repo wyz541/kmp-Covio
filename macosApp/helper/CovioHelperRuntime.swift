@@ -14,6 +14,7 @@ enum CovioHelperRuntime {
         }
 
         let fanControlRuntime = FanControlRuntime(log: log)
+        defer { fanControlRuntime.shutdown() }
         let leaseCoordinator = HelperLeaseCoordinator(log: log)
         HelperServer.resumeSharedChargeLimitRuntime(log: log)
         leaseCoordinator.restoreStaleState()

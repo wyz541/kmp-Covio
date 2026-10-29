@@ -539,10 +539,18 @@ enum MonitorFanPreviewFixtures {
 
 @MainActor
 struct MonitorFanPreviewRoot: View {
+    private static var scenario: String {
+        ProcessInfo.processInfo.environment["COVIO_MONITOR_FAN_RENDER_SCENARIO"] ?? "curve"
+    }
+
+    private static var previewError: String? {
+        scenario == "error" ? "Fan control write failed" : nil
+    }
+
     @StateObject private var model = MonitorFanControlModel(
         previewConfiguration: MonitorFanConfiguration(
-            enabled: true,
-            mode: ProcessInfo.processInfo.environment["COVIO_MONITOR_FAN_RENDER_SCENARIO"] == "manual-sync"
+            enabled: Self.scenario != "error",
+            mode: Self.scenario == "manual-sync"
                 ? .manual
                 : .curve,
             startCelsius: 58,
@@ -550,7 +558,7 @@ struct MonitorFanPreviewRoot: View {
             selectedSensorKeys: ["TCMz", "TC0P"],
             manualRPM: ["0": 2_588, "1": 2_709],
             manualModes: ["0": .manual, "1": .manual],
-            syncFans: ProcessInfo.processInfo.environment["COVIO_MONITOR_FAN_RENDER_SCENARIO"] == "manual-sync",
+            syncFans: Self.scenario == "manual-sync",
             curves: [
                 "0": [
                     .init(temperature: 45, rpm: 1_200),
@@ -568,13 +576,13 @@ struct MonitorFanPreviewRoot: View {
         ),
         availability: .ready,
         helperStatus: FanControlHelperStatus(
-            active: true,
-            mode: ProcessInfo.processInfo.environment["COVIO_MONITOR_FAN_RENDER_SCENARIO"] == "manual-sync"
+            active: Self.scenario != "error",
+            mode: Self.scenario == "manual-sync"
                 ? "manual"
                 : "curve",
             controlTemperature: 65.9,
             leaseRemainingSeconds: 20,
-            error: nil
+            error: Self.previewError
         )
     )
 

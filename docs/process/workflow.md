@@ -2,7 +2,7 @@
 
 **把想法变成可追踪的 issue。七步，只用 GitHub 原生能力。**
 
-版本 0.11 · 2026-10-28
+版本 0.12 · 2026-10-29
 
 ---
 
@@ -30,7 +30,7 @@
 | Discussions | 已完成 | 仓库 Settings 页 |
 | Project | 已完成 | [Project 8](https://github.com/users/wyz541/projects/8) |
 | Project 字段名 | 已核对 | 见 [Project 字段](project-fields.md) |
-| 自动加入 | **待人工打开** | 见 S7 第 5 步 |
+| 自动加入 | 已完成 | 见 S7 第 5 步 |
 
 > issue forms 仍是 public preview，结构可能变动。
 
@@ -55,70 +55,92 @@ ADR 的 PR 与本文件的 PR，通常需要一名非作者批准。
 
 ```mermaid
 flowchart LR
-  A["S1 Discussion 想法"] -->|做法不清楚| B["S2 Research issue"]
-  A -->|做法清楚| F["S5 Feature issue"]
-  B --> C["S3 结论写回 issue"]
-  C -->|否决| D["关闭, 回帖"]
+  A["S1 Discussion 开放探索"] -->|问题与产出已收敛| P["Parent Feature issue"]
+  A -->|答案已知，小功能| T0["Task issue"]
+  P -->|答案未知| R["S2 Research sub-issue"]
+  P -->|答案已知| G["S5 Task sub-issues"]
+  R --> C["S3 结论写回 issue"]
+  C -->|否决| X["关闭 Parent Feature"]
   C -->|长期决策| E["S4 ADR"]
-  C -->|可直接做| F
-  E --> F
-  F --> G["S5 sub-issues"]
+  C -->|可以实施| G
+  E --> G
   G --> H["PR"]
+  T0 --> H
 ```
 
-主线两条：想法走 Discussion，交付走 Feature 与 sub-issue。调研与决策是旁挂：做法不清楚时开 Research，需要长期留存时写 ADR。S6 与 S7 贯穿全部步骤。
+主线是 `Discussion → Parent Feature → Research sub-issue → Task sub-issue → PR`。Research 和 Task 都是 Parent Feature 的 sub-issue，靠标签与完成标准区分。答案已知的小功能可以直接建 task issue。S6 与 S7 贯穿全部步骤。
+
+**Parent Feature 是工作容器，不表示已经承诺实施。** 调研结论可以在 S3 否决 Parent Feature。
 
 ---
 
 ## 七个步骤
 
-### S1 想法进 Discussions
+### S1 开放式想法进 Discussions
 
-**何时用：** 任何人想到一件事，做法还不清楚。
+**何时用：** 任何人想到一件事；问题、做法或产出还没有收敛。
 **谁做：** 提交人。
 
 1. 建帖，选 `Ideas` 或 `Q&A` 分类。
 2. 写三样：问题、受影响的人、一个具体场景。不写解法。
 3. 打上 `idea` 标签。没有 triage 权限就请维护人代打。
-4. 出现下列任一信号时，转成 Research issue，进入 S2：3 个不同的人回复；或有人在帖子里说要做调研。
-5. 30 天内没有信号，维护人提醒原提交人。无人处理时，维护人关闭讨论并写一行原因。
+4. 在 Discussion 中补上下文、约束和候选方向。不要提前创建 Research issue。
+5. 每周检查一次是否收敛。收敛后执行第 6 条或第 7 条。
+6. 如果仍有一个明确问题待回答，创建 Parent Feature。再创建 Research issue，并把 Research 设为 Parent Feature 的 sub-issue。进入 S2。
+7. 如果答案已经明确，选择直接交付或拆分交付。功能小且一个会话能完成时，创建一个 task issue。功能大且需要多个 PR 时，创建 Parent Feature，再拆 task sub-issue。进入 S5。
+8. 在 Discussion 写最终评论：结论、Parent Feature 或 task issue 链接、下一动作。然后关闭 Discussion。
+9. 30 天内没有收敛，维护人提醒原提交人。无人处理时，维护人关闭讨论并写一行原因。
 
-**完成标准：** 帖子含问题、受影响的人、一个具体场景。
+**收敛条件：** 以下四项必须同时成立。
+
+1. 可以用一句话写出一个待答问题或交付目标。
+2. 可以写清预期产出。
+3. 有人担任负责人。
+4. Research 的时间盒不超过 3 个工作日；或者 task 可以在一个会话内完成。
+
+**完成标准：** Discussion 已转入一个 task issue 或 Parent Feature，并且原帖有回链；或者 Discussion 已写明关闭原因。
 
 > **警告：** Discussions 不进 Projects，也不能排期。需要排期时必须转成 issue。官方文档只列出 issue、PR 与 draft issue。
 
-### S2 调研开一个 spike issue
+> **警告：** Discussion 不能作为 GitHub 原生 parent。Parent Feature 必须是 Issue。Discussion 只保存来源和探索过程。
 
-**何时用：** 问题清楚，但做法、成本、风险或可行性有未知项。
+### S2 调研开一个 Research sub-issue
+
+**何时用：** S1 已收敛为一个明确问题；问题有负责人、时间盒和预期产出。
 **谁做：** 负责人。
 
-1. 用 `.github/ISSUE_TEMPLATE/research.yml` 建 issue。表单自动加标签 `research`。命令行建的话，加 `--label research`。
-2. 标题写成 `research: <要回答的问题>`。
-3. 填满三项：待答问题、时间盒、预期产出。背景字段填原 Discussion 链接。
-4. 时间盒默认 2 个工作日，上限 3 个工作日。
-5. 到期时召集一次 15 分钟评审。评审只决定一件事：结题，或延长。
-6. 延长只允许一次，且不超过原时长。延长用尽仍未答出，按第 7 条结题。
-7. 答不出的问题写进结论，关闭 issue，由新的 spike 或 Feature 承接。
+1. 确认 Parent Feature 已存在。没有 Parent Feature 时，先按 S5 创建。
+2. 用 `.github/ISSUE_TEMPLATE/research.yml` 建 issue。表单自动加标签 `research`。命令行建的话，加 `--label research --parent <Feature 编号>`。
+3. 在 GitHub 的 Parent Feature 页面打开 `Sub-issues`，把 Research issue 添加为子项。命令行建时检查 `--parent` 是否生效。
+4. 标题写成 `research: <要回答的问题>`。
+5. 填满三项：待答问题、时间盒、预期产出。背景字段填原 Discussion 链接。
+6. 时间盒默认 2 个工作日，上限 3 个工作日。
+7. 到期时召集一次 15 分钟评审。评审只决定一件事：结题，或延长。
+8. 延长只允许一次，且不超过原时长。延长用尽仍未答出，按第 9 条结题。
+9. 答不出的问题写进结论，关闭 issue，由新的 Research issue 或 Parent Feature 承接。
 
-**完成标准：** 三项内容齐全，且 issue 有 assignee。
+**完成标准：** 三项内容齐全，issue 有 assignee，并且 Parent Feature 的 `Sub-issues` 已显示 Research issue。
 
-**规则：** 一个 spike 只回答一个问题。spike 的代码不合并到 `main`。
+**规则：** 一个 Research issue 只回答一个问题。Research 的代码不合并到 `main`。Research 不要求一条分支和一个 PR。
 
 ### S3 结论写回 issue
 
-**何时用：** spike 到期，或调研可以收尾。
+**何时用：** Research 到期，或调研可以收尾。
 **谁做：** 负责人。
 
 1. 编辑正文，填「结论」段。写三样：结论、依据、后续动作。
 2. 依据含数据或链接。例如基准测试结果、文档链接、失败日志。
 3. 结论是否决时，写明理由。
 4. 加一行决策指向。格式见 S6。编号未知时写 `pending`。
-5. 关闭 issue。原因填 `completed`（调研已结题）或 `not planned`（否决）。
-6. 有原 Discussion 时，在原帖留一条评论：一句话结论加 issue 链接。
+5. 结论允许实施时，在 Parent Feature 下创建 task sub-issue。每个 task 使用 `blocked by` 指向 Research issue。
+6. 结论否决时，把未完成的 Task sub-issue 关闭为 `not planned`。
+7. 关闭 Research issue。原因填 `completed`（调研已结题）或 `not planned`（否决）。
+8. 结论否决时，关闭 Parent Feature。原因填 `not planned`，正文写否决原因。
+9. 有原 Discussion 时，在原帖补一条评论：一句话结论、Research issue 链接和下一步。
 
-**完成标准：** 只读正文就能懂结论，评论可以全部不看。
+**完成标准：** 只读 Research 正文就能懂结论。Parent Feature 已记录后续 task，或者已关闭。
 
-**规则：** 结论写在正文，不写评论。评论按时间排列，结论会被后续讨论淹没。结论未写入正文前，不关闭 issue。
+**规则：** 结论写在正文，不写评论。评论按时间排列，结论会被后续讨论淹没。结论未写入正文前，不关闭 Research issue。
 
 **判断「长期留存」：** 影响多个模块；改起来成本高；半年后还会被问到。满足任一条进入 S4。
 
@@ -146,32 +168,34 @@ flowchart LR
 
 > **警告：** 不要删除或改写旧 ADR 的正文。删除会丢失决策历史。
 
-### S5 大功能建 Feature，小功能建 sub-issue
+### S5 建 Parent Feature 和 sub-issues
 
-**何时用：** 结论明确，可以动工。做法清楚的想法从 S1 直接到这里。
+**何时用：** Discussion 已收敛为需要跟踪的工作；或者答案明确，但工作预计涉及多个步骤。做法清楚的小功能直接建 task issue。
 **谁做：** 负责人。
 
-1. 用 `.github/ISSUE_TEMPLATE/feature.yml` 建 issue。表单自动加标签 `feature`。标题写成 `<动词> <对象>`。命令行建的话，加 `--label feature`。
+1. 用 `.github/ISSUE_TEMPLATE/feature.yml` 建 Parent Feature。表单自动加标签 `feature`。标题写成 `<动词> <对象>`。命令行建的话，加 `--label feature`。
 2. 负责人记在 assignee 字段里，不写进正文。
-3. 每个 sub-issue 建好后，加标签 `task`，就地写一行验收标准，预计工期 1 到 3 天。
-4. 用 blocked by 记录顺序。被阻塞的 issue 会自动显示标记。
-5. UI issue 写 `表现预期`。UI 决策可在 issue 的 `预览` 段放候选方案。UI 代码变更的真机截图在 PR 补齐。
+3. 有 Discussion 来源时，在 Parent Feature 正文写 `discussion: <URL>`。没有时写 `discussion: none`。
+4. 需要回答未知问题时，先创建 Research sub-issue，进入 S2。Parent Feature 暂时只跟踪 Research。
+5. Research 完成后，把实施工作拆成 task sub-issue。每个 task 加标签 `task`，写验收标准，预计工期 1 到 3 天。
+6. 从 Research 产生的 task，用 `blocked by` 指向 Research issue。其他技术顺序也用 `blocked by` 记录。
+7. UI issue 写 `表现预期`。UI 决策可在 issue 的 `预览` 段放候选方案。UI 代码变更的真机截图在 PR 补齐。
 
-**判断「大功能」：** 需要 2 个以上 PR；预计超过 5 个工作日；需要先改设计。满足任一条就建 Feature。
+**判断「大功能」：** 需要 2 个以上 PR；预计超过 5 个工作日；需要先改设计。满足任一条就建 Parent Feature。需要调研的工作直接创建 Parent Feature，不等待最终规模判断。
 
 **层级：** 不超过 3 层，从 Feature 数起。工具支持 8 层，但第 4 层开始没人看。层级不表示工期。
 
-**完成标准：** 每个 sub-issue 都有验收标准，且工期不超过 3 天。涉及 UI 变化时，正文写有可判断的表现预期。
+**完成标准：** Parent Feature 至少有一个 Research 或 Task sub-issue。每个 task 都有验收标准，且工期不超过 3 天。涉及 UI 变化时，正文写有可判断的表现预期。
 
-**小功能的 UI 证据：** 小功能涉及 UI 代码变更时，先建 task issue。实现完成后，把真机证据写入对应 PR。
+**小功能：** 答案明确且一个会话能完成时，建 task issue，不需要 Parent Feature。小功能涉及 UI 代码变更时，实现完成后把真机证据写入对应 PR。
 
 **规则：** issue 不要求写满需求。issue 是讨论的起点，细节在评论与 PR 里补齐。同一条信息只维护一处，不建并行的 PRD。
 
-> **注意：** sub-issue 不要按人分配。此做法有争议。反方认为按人分配妨碍协作。正方认为未完成会阻断迭代关闭。团队自行选择。
+> **注意：** Research 和 Task 都可以分配给负责人。执行顺序只用 `blocked by` 表达，不用 assignee 表达。
 
 **取消工作时：**
 
-1. Feature 与未完成的 sub-issue 关闭为 `not planned`。Feature 正文写取消原因。
+1. Parent Feature 与未完成的 sub-issue 关闭为 `not planned`。Parent Feature 正文写取消原因。
 2. 关联的 ADR 加一行 `Cancelled by: #123`。决策本身作废时，Status 另改成 `deprecated`。
 
 ### S6 用文本约定回链
@@ -181,13 +205,15 @@ flowchart LR
 
 | 对象 | 写法 | 指向 |
 |---|---|---|
-| Feature issue | `decision: ADR-0042` 或 `decision: none` | 决策记录 |
-| Feature issue | `research: #98` | 调研结论 |
+| Parent Feature | `discussion: <URL>` 或 `discussion: none` | Discussion 来源 |
+| Parent Feature | `decision: ADR-0042` 或 `decision: none` | 决策记录 |
 | ADR | `Implements: #123` 或 `Implements: pending` | 执行的 Feature |
 | ADR | `Supersedes: ADR-0003` 或 `Supersedes: none` | 被推翻的旧决策 |
 | Research issue | `decision: pending`、`decision: ADR-0042` 或 `decision: none` | 决策状态 |
 
 **规则：** 未定的值写 `pending`，5 个工作日内回填。本仓库引用写 `#123`，跨仓库写 `owner/repo#123`。每行只放一个引用。
+
+Research 与 Parent Feature 的原生 sub-issue 关系是唯一层级来源。不要再在 Research 正文重复写 Parent Feature 编号。
 
 **检索：**
 
@@ -203,7 +229,7 @@ GitHub 的 issue 搜索不保证支持标点。命令里只写关键词 `decisio
 
 ### S7 用 Projects 看进度
 
-**何时用：** 建好 Feature 之后配置一次。之后每周看一次。
+**何时用：** 建好 Parent Feature 之后配置一次。之后每周看一次。
 **谁做：** 维护人。
 
 1. 核对字段。字段的唯一来源是 [Project 字段](project-fields.md)。该文件记录实测的名字与取值。
@@ -213,11 +239,11 @@ GitHub 的 issue 搜索不保证支持标点。命令里只写关键词 `decisio
 5. 打开自动加入。位置是 Project 的 `⋯` 菜单，`Workflows`，`Auto-add to project`。筛选条件填 `repo:wyz541/kmp-Covio is:issue`。
 6. 每周过一遍带 `Blocked` 标记的 issue。
 
-> **警告：** 不打开第 5 步的自动加入，`gh` 建的 issue 不会出现在 Project 里。表单建的 issue 也不会。只有手工添加或开自动加入才会进。
+> **警告：** 关闭第 5 步的自动加入后，`gh` 建的 issue 不会出现在 Project 里。表单建的 issue 也不会。只有手工添加或开自动加入才会进。
 
 > **关于权限：** 读字段需要 `read:project`。用 `gh project item-add` 手工加条目需要 `project`。开了自动加入就不需要后者。
 
-**完成标准：** Feature 的进度看 Sub-issues progress 就能读到，不需要问人。
+**完成标准：** Parent Feature 的进度看 Sub-issues progress 就能读到，不需要问人。
 
 > **警告：** roadmap 视图不能展开子项。要看子项进度时切回 table 视图。
 
@@ -229,13 +255,15 @@ GitHub 的 issue 搜索不保证支持标点。命令里只写关键词 `decisio
 
 | 对象 | 承载 | 标签 | 标题前缀 |
 |---|---|---|---|
-| 想法 | Discussions | 分类 `Ideas` 或 `Q&A`，标签 `idea` | 无 |
-| 调研 | Issue | `research` | `research:` |
-| 大功能 | Issue | `feature` | 无 |
-| 小功能 | Issue | `task` | 无 |
+| 想法与开放探索 | Discussion | 分类 `Ideas` 或 `Q&A`，标签 `idea` | 无 |
+| Parent Feature | Issue | `feature` | 无 |
+| 调研 | Parent Feature 的 sub-issue | `research` | `research:` |
+| 小功能或实施任务 | Issue 或 Parent Feature 的 sub-issue | `task` | 无 |
 | 决策 | 仓库文件 | `docs/adr/` | 无 |
 
 GitHub 默认只有 task、bug、feature 三种 issue type，且只在组织账号可用。本流程不依赖 type。区分对象看标签。
+
+**Research 与 Task 的差异：** 两者都可以是 sub-issue。Research 的产出是结论，Task 的产出是 PR。
 
 ### 字段
 
@@ -346,9 +374,11 @@ repo/
 1. 搜 `decision pending`，找出超期的，通知负责人回填。
 2. 过一遍带 `Blocked` 标记的 issue，有阻塞就找人解开。
 3. 跑 `gh issue list --label research --state open`，找出创建超过 3 个工作日的。提醒负责人结题，不代为关闭。
-4. 检查 Feature 的 Sub-issues progress。进度停滞时问一次原因。
-5. 检查已合并的 ADR 是否仍带 `proposed`。带的话说明作者漏改，通知负责人。
-6. 检查 roadmap 视图的 Target date。日期过期就改或删。
+4. 检查打开超过 30 天的 Discussion。提醒提交人收敛、转 Issue，或关闭。
+5. 检查 Research issue 是否都有 Parent Feature。缺父级时补齐原生 sub-issue 关系。
+6. 检查 Parent Feature 的 Sub-issues progress。进度停滞时问一次原因。
+7. 检查已合并的 ADR 是否仍带 `proposed`。带的话说明作者漏改，通知负责人。
+8. 检查 roadmap 视图的 Target date。日期过期就改或删。
 
 ---
 

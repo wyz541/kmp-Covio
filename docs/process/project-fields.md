@@ -8,17 +8,17 @@ gh project field-list 8 --owner wyz541
 
 读取需要 `read:project` 权限。设置字段值或加条目需要 `project` 权限。
 
-新 issue 不会自动进 Project。要让它们进来，在 Project 的 `⋯` 菜单里打开 `Workflows`，再开 `Auto-add to project`，筛选条件填 `repo:wyz541/kmp-Covio is:issue`。
+自动加入当前已开启，筛选条件是 `repo:wyz541/kmp-Covio is:issue`。如果新 issue 没有进入 Project，在 Project 的 `⋯` 菜单打开 `Workflows`，再检查 `Auto-add to project`。
 
 ## 字段
 
 | 名称 | 类型 | 取值 | 用途 |
 | --- | --- | --- | --- |
 | `Status` | 单选 | `Todo`、`In progress`、`Done` | 全部 issue |
-| `Priority` | 单选 | `P0`、`P1`、`P2` | Feature issue |
+| `Priority` | 单选 | `P0`、`P1`、`P2` | Parent Feature |
 | `Size` | 单选 | `XS`、`S`、`M`、`L`、`XL` | 全部 issue，由负责人打分 |
-| `Start date` | 日期 | 日期 | Feature issue |
-| `Target date` | 日期 | 日期 | Feature issue，roadmap 视图读它 |
+| `Start date` | 日期 | 日期 | Parent Feature |
+| `Target date` | 日期 | 日期 | Parent Feature，roadmap 视图读它 |
 | `Iteration` | 迭代 | 未启用 | 需要按周期排期时再配 |
 
 GitHub 自带的字段还有 `Title`、`Assignees`、`Labels`、`Linked pull requests`、`Milestone`、`Repository`、`Reviewers`、`Parent issue`、`Sub-issues progress`、`Created`、`Updated`、`Closed`。

@@ -17,40 +17,46 @@ Covio 是 macOS 菜单栏应用。界面是 SwiftUI 宿主，放在 `macosApp/`�
 ## 2. 流程
 
 ```text
-想法 → 调研报告 → 决策 → Issue → 交付
-                                └─ 大功能：父 issue 加子 issue
-                                └─ 小功能：直接做
+Discussion（开放探索）
+  └─ 收敛后 → Parent Feature（Issue）
+                 ├─ Research sub-issue
+                 └─ Task sub-issue → PR
+
+答案明确的小功能 → task issue → PR
 ```
 
 1. 调研报告放 `docs/research/<主题>/`。格式见 `docs/research/AUTHORING.md`。
 2. 决策放 `docs/adr/adr-NNNN-<slug>.md`。模板见 `docs/adr/adr-template.md`。
 3. Issue 建在 GitHub 上。仓库里不放 issue 定义文件，不设本地编号。
 
-## 3. 大功能与小功能
+## 3. Parent Feature 与小功能
 
-大功能建一个父 issue，拆成子 issue，用 GitHub 原生 sub-issue 关联。
+需要跟踪的调研或大功能建一个 Parent Feature，用 GitHub 原生 sub-issue 关联 Research 与 Task。
 进度由 GitHub 自动汇总。不要另外维护进度表。
 小功能建一个 issue，直接做。
 
-一个子 issue 的粒度是一个会话能做完，对应一条分支和一个 PR。
+一个 task sub-issue 的粒度是一个会话能做完，对应一条分支和一个 PR。
+Research 是 sub-issue，但产出是结论，不要求分支和 PR。
+Research 和 Task 都可使用 `research` 或 `task` 标签，以标签区分对象。
 
 ## 4. 工作流
 
 流程定义在 `docs/process/workflow.md`。本文件管执行。每次会话按下面的规则做。
 
 1. 开场先归位。判断本次任务在 S1 到 S7 中的哪一步，按该步的条目与完成标准推进。
-2. 想法不确定做法时走 S1 与 S2。提交人写问题、受影响的人和一个场景，不写解法。
-3. 做法有未知项时开 Research issue。一个 spike 只回答一个问题。时间盒不超 3 个工作日。
-4. 调研结论写在 issue 正文，不写评论。正文含结论、依据和后续动作。结论未写回正文前不关 issue。
-5. 长期决策进 S4。写新 ADR 走 PR，合并前 Status 改成 `accepted`。
-6. 大功能走 S5 建 Feature。每个 sub-issue 写一行验收标准，工期 1 到 3 天。
-7. UI issue 的正文必须写 `表现预期`，不要求 After 截图。实现完成后，PR 必须使用 `Visual verification`，亮色和深色各放一组 `Before`/`After` 表。
-8. 引用另一个对象时走 S6。值未定时写 `pending`，5 个工作日内回填。
-9. 对象用标签区分。建 issue 时带对应的标签：调研 `research`，大功能 `feature`，小功能与 sub-issue `task`。
-10. 个人账号没有 issue types 与 issue fields。不要用 `--type`，也不要找 issue fields。
+2. 开放探索留在 Discussion。问题、负责人、时间盒和预期产出未收敛时，不转 Issue。
+3. Discussion 不能作为原生 parent。收敛后先建 Parent Feature，再把 Research 作为原生 sub-issue 挂到父级。
+4. 做法有未知项时开 Research sub-issue。一个 Research 只回答一个问题。时间盒不超 3 个工作日。
+5. 调研结论写在 issue 正文，不写评论。正文含结论、依据和后续动作。结论未写回正文前不关 issue。
+6. 长期决策进 S4。写新 ADR 走 PR，合并前 Status 改成 `accepted`。
+7. 需要跟踪的工作走 S5 建 Parent Feature。Research 完成后，再拆 Task sub-issue。每个 Task 写一行验收标准，工期 1 到 3 天。
+8. UI issue 的正文必须写 `表现预期`，不要求 After 截图。实现完成后，PR 必须使用 `Visual verification`，亮色和深色各放一组 `Before`/`After` 表。
+9. 引用另一个对象时走 S6。值未定时写 `pending`，5 个工作日内回填。
+10. 对象用标签区分。建 issue 时带对应的标签：Parent Feature `feature`，调研 sub-issue `research`，小功能与 Task sub-issue `task`。
+11. 个人账号没有 issue types 与 issue fields。不要用 `--type`，也不要找 issue fields。
    字段用 Project 8 的字段，名字见 `docs/process/project-fields.md`。
    Start date 与 Target date 只在 Project 里维护，不写进 issue 正文。
-11. 需要你在 Web 界面操作的步骤，写明操作位置，不要跳过。
+12. 需要你在 Web 界面操作的步骤，写明操作位置，不要跳过。
 
 ## 5. 文档
 

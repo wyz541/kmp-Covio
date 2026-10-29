@@ -1,21 +1,34 @@
 name: Feature
-description: 大功能。需要拆成 sub-issue 交付。
+description: Parent Feature。用原生 sub-issue 跟踪 Research 和 Task。
 labels: ["feature"]
 body:
   - type: markdown
     attributes:
       value: |
-        判断大功能：需要 2 个以上 PR；预计超过 5 个工作日；需要先改设计。满足任一条就用本表单。
+        本表单创建 Parent Feature。Parent Feature 是工作容器，不表示已经承诺实施。
+        Parent Feature 可以在调研结论产生前创建。先挂 Research sub-issue，再在调研后挂 Task sub-issue。
+        需要先调研、需要 2 个以上 PR、预计超过 5 个工作日，或需要先改设计时，使用本表单。
         标题写成「动词 对象」，例如「Add the workbench store」。
         UI issue 写可判断的表现预期，不在 issue 等待 After 截图。
         真机截图写在实现后的 PR 的 `Visual verification`。
-        拆法、回链与验收规则见 [研发工作流](../../docs/process/workflow.md) 的 S5、S6 与 Visual verification。
+        层级、回链与验收规则见 [研发工作流](../../docs/process/workflow.md) 的 S1、S2、S5、S6 与 Visual verification。
 
   - type: textarea
     id: goal
     attributes:
       label: 目标
       description: 交付后用户能做什么。不写实现细节。
+    validations:
+      required: true
+
+  - type: input
+    id: discussion
+    attributes:
+      label: Discussion 来源
+      description: |
+        有来源时填写 `discussion: <URL>`。
+        没有来源时填写 `discussion: none`。
+      placeholder: "discussion: https://github.com/wyz541/kmp-Covio/discussions/1"
     validations:
       required: true
 
@@ -68,15 +81,6 @@ body:
     validations:
       required: true
 
-  - type: input
-    id: research
-    attributes:
-      label: 调研指向
-      description: 有调研时填 `research` 加 `#N`。没有就留空。
-      placeholder: 'research: #98'
-    validations:
-      required: false
-
   - type: dropdown
     id: priority
     attributes:
@@ -98,15 +102,6 @@ body:
     attributes:
       value: |
         建好之后在 Project 里补 Start date 与 Target date。这两个字段只在 Project 维护，不写进正文。
-
-  - type: textarea
-    id: subissues
-    attributes:
-      label: Sub-issue
-      description: |
-        一行一个。写明验收标准，工期 1 到 3 天。
-        用 blocked by 记录顺序。层数不超过 3 层，从本 issue 数起。
-      value: |
-        - [ ] <子任务> — 验收：<> — 工期：<1 到 3 天>
-    validations:
-      required: true
+        创建后先添加 Research sub-issue。调研结束后，再添加 Task sub-issue。
+        Sub-issues 是层级与进度的唯一来源，不在正文维护第二份清单。
+        Task sub-issue 使用 `blocked by` 指向 Research issue 或前置 Task。

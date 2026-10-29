@@ -217,15 +217,16 @@ final class EngineContractTests: XCTestCase {
 
     // MARK: - 电池与合盖策略
 
-    /// 对应 `battery policy holds lid sleep on battery power`。
-    func testBatteryPolicyHoldsLidSleepOnBatteryPower() {
+    /// PowerRuntime 通过独立通道请求合盖保持。
+    func testPowerRuntimeHoldsLidSleep() {
         let fixture = Fixture(
-            config: AppConfigs.make(disableLidSleepOnBattery: true, lidSleepImmediateOnClose: false)
+            config: AppConfigs.make(lidSleepImmediateOnClose: false)
         )
         fixture.privileged.match = true
         fixture.power.value = BatteryStatus(percent: 80, state: .discharging, remainingSeconds: KotlinLong(longLong: 3_600))
         fixture.engine.start()
 
+        XCTAssertTrue(fixture.engine.setPowerLidHold(required: true))
         XCTAssertFalse(fixture.engine.currentState.lidSleepAvailable)
         XCTAssertTrue(fixture.privileged.disableSleepValues.contains(true))
     }
@@ -262,23 +263,15 @@ final class EngineContractTests: XCTestCase {
         XCTAssertFalse(fixture.privileged.disableSleepValues.contains(true))
     }
 
-    /// 对应 `helper failure rolls back lid policy config`。
-    func testHelperFailureRollsBackLidPolicyConfig() {
+    /// 合盖写入失败时保持睡眠可用并返回失败。
+    func testHelperFailureKeepsLidSleepAvailable() {
         let fixture = Fixture(config: AppConfigs.make(lidSleepImmediateOnClose: false))
         fixture.privileged.match = true
         fixture.privileged.disableSleepResult = false
         fixture.power.value = BatteryStatus(percent: 80, state: .discharging, remainingSeconds: KotlinLong(longLong: 3_600))
         fixture.engine.start()
 
-        let success = fixture.engine.updateConfig(
-            newConfig: AppConfigs.make(
-                from: fixture.engine.currentConfig,
-                disableLidSleepOnBattery: true
-            )
-        )
-
-        XCTAssertFalse(success)
-        XCTAssertFalse(fixture.engine.currentConfig.disableLidSleepOnBattery)
+        XCTAssertFalse(fixture.engine.setPowerLidHold(required: true))
         XCTAssertTrue(fixture.engine.currentState.lidSleepAvailable)
     }
 
@@ -301,40 +294,28 @@ final class EngineContractTests: XCTestCase {
         XCTAssertEqual(fixture.sleep.sleepCalls, 1)
     }
 
-    /// 对应 `charging rules prevent idle and lid sleep then restore on battery`。
-    func testChargingRulesPreventIdleAndLidSleepThenRestoreOnBattery() {
+    /// 充电规则只管理空闲睡眠。合盖策略由 PowerRuntime 管理。
+    func testChargingRulePreventsAndRestoresIdleSleep() {
         let fixture = Fixture(
-            config: AppConfigs.make(
-                disableIdleSleepInCharging: true,
-                disableLidSleepInCharging: true,
-                lidSleepImmediateOnClose: false
-            )
+            config: AppConfigs.make(disableIdleSleepInCharging: true)
         )
-        fixture.privileged.match = true
         fixture.power.value = BatteryStatus(percent: 80, state: .charging, remainingSeconds: nil)
         fixture.engine.start()
         XCTAssertFalse(fixture.engine.currentState.idleSleepAvailable)
-        XCTAssertFalse(fixture.engine.currentState.lidSleepAvailable)
 
         fixture.power.value = BatteryStatus(percent: 75, state: .discharging, remainingSeconds: KotlinLong(longLong: 3_600))
         fixture.power.emit()
         XCTAssertTrue(fixture.engine.currentState.idleSleepAvailable)
-        XCTAssertTrue(fixture.engine.currentState.lidSleepAvailable)
     }
 
-    /// 对应 `lid charging policy is skipped when the helper is not installed`。
-    func testLidChargingPolicyIsSkippedWhenHelperIsNotInstalled() {
-        let fixture = Fixture(
-            config: AppConfigs.make(
-                disableIdleSleepInCharging: true,
-                disableLidSleepInCharging: true,
-                lidSleepImmediateOnClose: false
-            )
-        )
+    /// Helper 不可用时，PowerRuntime 的合盖请求被拒绝。
+    func testPowerLidHoldIsSkippedWhenHelperIsNotInstalled() {
+        let fixture = Fixture()
         fixture.privileged.match = false
         fixture.power.value = BatteryStatus(percent: 80, state: .charging, remainingSeconds: nil)
         fixture.engine.start()
-        XCTAssertFalse(fixture.engine.currentState.idleSleepAvailable)
+
+        XCTAssertFalse(fixture.engine.setPowerLidHold(required: true))
         XCTAssertTrue(fixture.engine.currentState.lidSleepAvailable)
         XCTAssertTrue(fixture.privileged.disableSleepValues.isEmpty)
     }

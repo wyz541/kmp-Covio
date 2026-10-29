@@ -36,27 +36,48 @@ data class AppConfig(
     @SerialName("clipboardPasteStackHotKey") val clipboardPasteStackHotKey: String = DEFAULT_PASTE_STACK_HOT_KEY,
     @SerialName("clipboardCaptureHotKey") val clipboardCaptureHotKey: String = DEFAULT_CAPTURE_HOT_KEY,
     @SerialName("power") val power: PowerConfig = PowerConfig(),
+    @SerialName("display") val display: DisplayConfig? = null,
     @SerialName("chargeLimitEnabled") val chargeLimitEnabled: Boolean = true,
     @SerialName("chargeLimitPercent") val chargeLimitPercent: Int = DEFAULT_CHARGE_LIMIT_PERCENT,
     @SerialName("chargeLimitActiveDischarge") val chargeLimitActiveDischarge: Boolean = false,
     @SerialName("fileNaming") val fileNaming: FileNamingPolicy = FileNamingPolicy(),
 ) {
-    fun normalized(): AppConfig = copy(
-        schemaVersion = 3,
-        lowBatteryCapacity = lowBatteryCapacity.coerceIn(0, 100),
-        lowTimeRemainingMinutes = lowTimeRemainingMinutes.coerceAtLeast(0),
-        updateCheckIntervalHours = updateCheckIntervalHours.coerceIn(1, 168),
-        lastUpdateCheckEpochSeconds = lastUpdateCheckEpochSeconds.coerceAtLeast(0L),
-        hibernateMode = hibernateMode?.takeIf { it in SUPPORTED_HIBERNATE_MODES },
-        clipboardPasteStackHotKey = normalizeHotKeyBinding(clipboardPasteStackHotKey, DEFAULT_PASTE_STACK_HOT_KEY),
-        clipboardCaptureHotKey = normalizeHotKeyBinding(clipboardCaptureHotKey, DEFAULT_CAPTURE_HOT_KEY),
-        shelfEnabled = false,
-        screenshotInboxEnabled = false,
-        shelfSoundsEnabled = false,
-        power = power.normalized(),
-        chargeLimitPercent = ChargeLimitPolicy.normalizeUpperLimit(chargeLimitPercent),
-        fileNaming = fileNaming.normalized(),
-    )
+    fun normalized(): AppConfig {
+        val normalizedPower = power.normalized()
+        val normalizedDisplay = (
+            display ?: DisplayConfig.fromLegacy(
+                power = normalizedPower,
+                keepsAwakeOnAdapter = disableLidSleepInCharging,
+                keepsAwakeOnBattery = disableLidSleepOnBattery,
+            )
+        ).normalized()
+        val closedLidPolicy = normalizedDisplay.closedLidPowerPolicy
+        return copy(
+            schemaVersion = 3,
+            lowBatteryCapacity = lowBatteryCapacity.coerceIn(0, 100),
+            lowTimeRemainingMinutes = lowTimeRemainingMinutes.coerceAtLeast(0),
+            updateCheckIntervalHours = updateCheckIntervalHours.coerceIn(1, 168),
+            lastUpdateCheckEpochSeconds = lastUpdateCheckEpochSeconds.coerceAtLeast(0L),
+            hibernateMode = hibernateMode?.takeIf { it in SUPPORTED_HIBERNATE_MODES },
+            clipboardPasteStackHotKey = normalizeHotKeyBinding(clipboardPasteStackHotKey, DEFAULT_PASTE_STACK_HOT_KEY),
+            clipboardCaptureHotKey = normalizeHotKeyBinding(clipboardCaptureHotKey, DEFAULT_CAPTURE_HOT_KEY),
+            shelfEnabled = false,
+            screenshotInboxEnabled = false,
+            shelfSoundsEnabled = false,
+            disableLidSleepInCharging = closedLidPolicy.keepsAwakeOnAdapter,
+            disableLidSleepOnBattery = closedLidPolicy.keepsAwakeOnBattery,
+            // 合盖但未持有租约时立即睡眠。旧独立开关不再改变这项行为。
+            lidSleepImmediateOnClose = true,
+            power = normalizedPower.copy(
+                allowClosedLid = normalizedDisplay.keepAwakeWhenLidClosed,
+                pauseClosedLidWithExternalDisplay = normalizedDisplay.pauseWhenExternalDisplayConnected,
+                closedLidZeroBrightness = normalizedDisplay.closedLidDisplayMode == ClosedLidDisplayMode.BLACK_SCREEN_PIPELINE,
+            ),
+            display = normalizedDisplay,
+            chargeLimitPercent = ChargeLimitPolicy.normalizeUpperLimit(chargeLimitPercent),
+            fileNaming = fileNaming.normalized(),
+        )
+    }
 }
 
 /** 粘贴栈快捷键的默认写法。格式见 [normalizeHotKeyBinding]。 */

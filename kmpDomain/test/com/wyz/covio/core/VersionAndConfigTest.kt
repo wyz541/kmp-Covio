@@ -29,6 +29,8 @@ class VersionAndConfigTest {
             assertTrue(defaults.chargeLimitEnabled)
             assertEquals(70, defaults.chargeLimitPercent)
             assertTrue(defaults.power.closedLidZeroBrightness)
+            assertEquals(ClosedLidPowerPolicy.ADAPTER, defaults.display?.closedLidPowerPolicy)
+            assertTrue(defaults.lidSleepImmediateOnClose)
             assertTrue(path.exists)
         }
 
@@ -44,6 +46,8 @@ class VersionAndConfigTest {
             assertFalse(loaded.enabled)
             assertTrue(loaded.disableLidSleepInCharging)
             assertFalse(loaded.disableLidSleepOnBattery)
+            assertEquals(ClosedLidPowerPolicy.ADAPTER, loaded.display?.closedLidPowerPolicy)
+            assertTrue(loaded.lidSleepImmediateOnClose)
             assertTrue(loaded.darkWakeAwarenessEnabled)
 
             store.save(loaded)
@@ -62,10 +66,41 @@ class VersionAndConfigTest {
             val loaded = store.load()
             assertEquals(3, loaded.schemaVersion)
             assertTrue(loaded.disableLidSleepOnBattery)
+            assertEquals(ClosedLidPowerPolicy.BATTERY, loaded.display?.closedLidPowerPolicy)
+            assertTrue(loaded.lidSleepImmediateOnClose)
             assertFalse(loaded.darkWakeAwarenessEnabled)
             assertFalse(loaded.shelfEnabled)
             assertFalse(loaded.screenshotInboxEnabled)
             assertFalse(loaded.shelfSoundsEnabled)
+        }
+
+    @Test
+    fun `closed lid policy owns legacy lid mirrors`() =
+        withTemporaryDirectory("config") { directory ->
+            val path = directory.resolve("config.json")
+            path.writeText(
+                """
+                {
+                    "disableLidSleepInCharging": true,
+                    "disableLidSleepOnBattery": true,
+                    "lidSleepImmediateOnClose": false,
+                    "display": {
+                        "schemaVersion": 2,
+                        "keepAwakeWhenLidClosed": true,
+                        "closedLidPowerPolicy": "sleep",
+                        "closedLidDisplayMode": "displayOff",
+                        "pauseWhenExternalDisplayConnected": true
+                    }
+                }
+                """.trimIndent(),
+            )
+
+            val loaded = ConfigStore(path.toString()).load()
+
+            assertEquals(ClosedLidPowerPolicy.SLEEP, loaded.display?.closedLidPowerPolicy)
+            assertFalse(loaded.disableLidSleepInCharging)
+            assertFalse(loaded.disableLidSleepOnBattery)
+            assertTrue(loaded.lidSleepImmediateOnClose)
         }
 
     @Test
@@ -276,7 +311,8 @@ class VersionAndConfigTest {
             assertFalse(loaded.disableLidSleepInCharging)
             assertTrue(loaded.disableLidSleepOnBattery)
             assertFalse(loaded.darkWakeAwarenessEnabled)
-            assertFalse(loaded.lidSleepImmediateOnClose)
+            assertTrue(loaded.lidSleepImmediateOnClose)
+            assertEquals(ClosedLidPowerPolicy.BATTERY, loaded.display?.closedLidPowerPolicy)
             assertFalse(loaded.notificationsEnabled)
             assertFalse(loaded.updateCheckEnabled)
             assertEquals(48, loaded.updateCheckIntervalHours)
@@ -389,6 +425,68 @@ class VersionAndConfigTest {
             assertEquals(PowerConfig.defaults().enabled, loaded.power.enabled)
             assertEquals(25, loaded.power.batteryFloorPercent)
             assertTrue(loaded.power.closedLidZeroBrightness)
+        }
+
+    @Test
+    fun `display config migrates from legacy power fields`() =
+        withTemporaryDirectory("config") { directory ->
+            val path = directory.resolve("config.json")
+            path.writeText(
+                """
+                {
+                  "power": {
+                    "allowClosedLid": false,
+                    "pauseClosedLidWithExternalDisplay": false,
+                    "closedLidZeroBrightness": true
+                  }
+                }
+                """.trimIndent(),
+            )
+
+            val loaded = ConfigStore(path.toString()).load()
+
+            assertFalse(loaded.display!!.keepAwakeWhenLidClosed)
+            assertEquals(ClosedLidDisplayMode.BLACK_SCREEN_PIPELINE, loaded.display!!.closedLidDisplayMode)
+            assertFalse(loaded.display!!.pauseWhenExternalDisplayConnected)
+            assertFalse(loaded.power.allowClosedLid)
+            assertTrue(loaded.power.closedLidZeroBrightness)
+        }
+
+    @Test
+    fun `display config overrides the legacy power mirror`() =
+        withTemporaryDirectory("config") { directory ->
+            val path = directory.resolve("config.json")
+            path.writeText(
+                """
+                {
+                  "power": {
+                    "allowClosedLid": true,
+                    "pauseClosedLidWithExternalDisplay": true,
+                    "closedLidZeroBrightness": true
+                  },
+                  "display": {
+                    "schemaVersion": 1,
+                    "keepAwakeWhenLidClosed": false,
+                    "closedLidDisplayMode": "displayOff",
+                    "pauseWhenExternalDisplayConnected": false,
+                    "futureNestedKey": {"keep": true}
+                  }
+                }
+                """.trimIndent(),
+            )
+            val store = ConfigStore(path.toString())
+            val loaded = store.load()
+
+            assertFalse(loaded.display!!.keepAwakeWhenLidClosed)
+            assertEquals(ClosedLidDisplayMode.DISPLAY_OFF, loaded.display!!.closedLidDisplayMode)
+            assertFalse(loaded.power.allowClosedLid)
+            assertFalse(loaded.power.pauseClosedLidWithExternalDisplay)
+            assertFalse(loaded.power.closedLidZeroBrightness)
+
+            store.save(loaded)
+            val text = path.readText()
+            assertTrue(text.contains("futureNestedKey"))
+            assertTrue(text.contains("\"keep\""))
         }
 
     /// 默认路径必须与 0.4.2 完全一致，否则老用户的设置会丢。

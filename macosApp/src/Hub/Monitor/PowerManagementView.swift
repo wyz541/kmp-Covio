@@ -18,18 +18,13 @@ struct PowerManagementView: View {
 
     init(model: any PowerManagementModel) {
         self.model = model
-        _sessionMode = State(initialValue: model.sessionMode ?? .system)
+        _sessionMode = State(initialValue: model.sessionMode == .lid ? .system : model.sessionMode ?? .system)
         #if DEBUG
         let previewExpanded = ProcessInfo.processInfo.environment["COVIO_POWER_PREVIEW_ADVANCED"] == "1"
         #else
         let previewExpanded = false
         #endif
-        _advancedRulesExpanded = State(initialValue:
-            previewExpanded ||
-                model.helperStatus != .match ||
-                model.helperServiceState != .enabled ||
-                model.closedLidZeroBrightnessPhase == .failed
-        )
+        _advancedRulesExpanded = State(initialValue: previewExpanded)
     }
 
     var body: some View {
@@ -46,12 +41,6 @@ struct PowerManagementView: View {
         .scrollIndicators(.automatic)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .accessibilityElement(children: .contain)
-        .onChange(of: helperNeedsAction) { _, needsAction in
-            if needsAction { advancedRulesExpanded = true }
-        }
-        .onChange(of: zeroBrightnessNeedsAttention) { _, needsAttention in
-            if needsAttention { advancedRulesExpanded = true }
-        }
     }
 
     // MARK: - 当前供电
@@ -146,10 +135,6 @@ struct PowerManagementView: View {
 
             HStack(alignment: .top, spacing: MacTheme.space5) {
                 PowerStatusMetric(
-                    title: ContractCopy.copyPowerStatusExternalDisplay.text(for: language),
-                    value: externalDisplayValue
-                )
-                PowerStatusMetric(
                     title: ContractCopy.copyMonitorThermal.text(for: language),
                     value: thermalValue
                 )
@@ -196,7 +181,7 @@ struct PowerManagementView: View {
             if let message = safetyVetoMessage {
                 MacAlert(message: message, kind: .warning, language: language)
             }
-            if let error = model.executionError {
+            if let error = powerExecutionError {
                 MacAlert(message: executionErrorText(error), kind: .error, language: language)
             } else if let outcome {
                 MacAlert(message: outcome.message, kind: outcome.kind, language: language)
@@ -224,7 +209,7 @@ struct PowerManagementView: View {
 
             Spacer(minLength: MacTheme.space3)
 
-            PowerGlassActionButton(
+            MonitorGlassActionButton(
                 title: ContractCopy.copyPowerSessionEnd.text(for: language),
                 symbol: "stop.fill"
             ) {
@@ -250,7 +235,7 @@ struct PowerManagementView: View {
                     ContractCopy.copyPowerSessionMode.text(for: language),
                     selection: $sessionMode
                 ) {
-                    ForEach(PowerRuntime.SessionMode.allCases) { mode in
+                    ForEach([PowerRuntime.SessionMode.system, .display]) { mode in
                         Text(sessionModeTitle(mode)).tag(mode)
                     }
                 }
@@ -275,14 +260,6 @@ struct PowerManagementView: View {
                 .frame(minWidth: 160, alignment: .trailing)
             }
 
-            if sessionMode == .lid {
-                Text(lidSessionHint)
-                    .font(.caption)
-                    .foregroundStyle(MacTheme.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, MacTheme.space1)
-            }
-
             HStack(alignment: .center, spacing: MacTheme.space3) {
                 VStack(alignment: .leading, spacing: MacTheme.space1) {
                     Text(sessionSetupStatusText)
@@ -293,7 +270,7 @@ struct PowerManagementView: View {
                         .foregroundStyle(MacTheme.textSecondary)
                 }
                 Spacer(minLength: MacTheme.space3)
-                PowerGlassActionButton(
+                MonitorGlassActionButton(
                     title: ContractCopy.copyPowerSessionStart.text(for: language),
                     symbol: "play.fill",
                     isEnabled: canStartSession
@@ -365,95 +342,16 @@ struct PowerManagementView: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(MacTheme.textPrimary)
                     Spacer(minLength: MacTheme.space3)
-                    if helperNeedsAction {
-                        PowerStatusPill(
-                            label: ContractCopy.copyPowerStatusGuardMissing.text(for: language),
-                            symbol: "exclamationmark.shield.fill",
-                            tint: MacTheme.warningText
-                        )
-                    }
                 }
             }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
-    private var helperSettingRow: some View {
-        MacSettingRow(
-            title: ContractCopy.copyPowerStatusHelper.text(for: language),
-            description: helperDescription
-        ) {
-            HStack(spacing: MacTheme.space2) {
-                Text(helperValue)
-                    .font(.callout)
-                    .foregroundStyle(helperNeedsAction ? MacTheme.warningText : MacTheme.textSecondary)
-                    .lineLimit(1)
-                if helperNeedsAction {
-                    MacButton(
-                        title: helperActionTitle,
-                        kind: .primary,
-                        isEnabled: !model.busy,
-                        minimumHitHeight: 44
-                    ) {
-                        if model.helperServiceState == .requiresApproval {
-                            model.openHelperApproval()
-                        } else {
-                            model.installHelper()
-                        }
-                    }
-                }
-            }
-        }
-    }
-
 
     private var advancedRulesContent: some View {
         VStack(alignment: .leading, spacing: 0) {
-            ruleGroupTitle(ContractCopy.copyPowerSectionClosedLid.text(for: language))
-            helperSettingRow
-            rowDivider()
-            settingToggleRow(
-                title: ContractCopy.copyPowerRulesLid.text(for: language),
-                description: ContractCopy.copyPowerRulesLidHint.text(for: language),
-                isOn: Binding(
-                    get: { model.powerConfig.allowClosedLid },
-                    set: { model.setPowerAllowClosedLid($0) }
-                ),
-                isEnabled: model.helperStatus == .match || !model.powerConfig.allowClosedLid
-            )
-            rowDivider()
-            settingToggleRow(
-                title: ContractCopy.copyPowerRulesClosedLidZeroBrightness.text(for: language),
-                description: closedLidZeroBrightnessDescription,
-                isOn: Binding(
-                    get: { model.powerConfig.closedLidZeroBrightness },
-                    set: { model.setPowerClosedLidZeroBrightness($0) }
-                ),
-                isEnabled: model.powerConfig.closedLidZeroBrightness ||
-                    (model.powerConfig.allowClosedLid &&
-                        model.helperStatus == .match &&
-                        model.closedLidZeroBrightnessAvailability.isAvailable)
-            )
-            if model.powerConfig.closedLidZeroBrightness,
-               model.closedLidZeroBrightnessPhase == .failed,
-               let error = model.closedLidZeroBrightnessError {
-                MacAlert(
-                    message: "\(ContractCopy.copyPowerRulesClosedLidZeroBrightnessFailed.text(for: language)) \(error)",
-                    kind: .warning,
-                    language: language
-                )
-            }
-            rowDivider()
-            settingToggleRow(
-                title: ContractCopy.copyPowerRulesExternalDisplay.text(for: language),
-                description: ContractCopy.copyPowerRulesExternalDisplayHint.text(for: language),
-                isOn: Binding(
-                    get: { model.powerConfig.pauseClosedLidWithExternalDisplay },
-                    set: { model.setPowerPauseClosedLidWithExternalDisplay($0) }
-                ),
-                isEnabled: model.powerConfig.allowClosedLid
-            )
-            rowDivider()
+            ruleGroupTitle(ContractCopy.copyPowerSectionSafety.text(for: language))
             MacSettingRow(
                 title: ContractCopy.copyPowerRulesTimeCap.text(for: language),
                 description: ContractCopy.copyPowerRulesTimeCapHint.text(for: language)
@@ -477,7 +375,6 @@ struct PowerManagementView: View {
             }
 
             rowDivider()
-            ruleGroupTitle(ContractCopy.copyPowerSectionSafety.text(for: language))
             MacSettingRow(
                 title: ContractCopy.copyPowerRulesBatteryFloor.text(for: language),
                 description: ContractCopy.copyPowerRulesBatteryFloorHint.text(for: language)
@@ -621,8 +518,7 @@ struct PowerManagementView: View {
     private var canStartSession: Bool {
         model.sleepProtectionEnabled &&
             model.powerConfig.enabled &&
-            (!model.hasManualSession || model.sessionMode != sessionMode) &&
-            (sessionMode != .lid || model.helperStatus == .match)
+            (!model.hasManualSession || model.sessionMode != sessionMode)
     }
 
     private var supportingReasons: [PowerReason] {
@@ -673,26 +569,13 @@ struct PowerManagementView: View {
                 )
             )
         }
-        if !model.appState.lidSleepAvailable,
-           model.sessionMode != .lid {
-            result.append(
-                PowerReason(
-                    id: "engine-lid",
-                    title: ContractCopy.copyPowerSessionLid.text(for: language),
-                    detail: model.appState.lidCancelRemainingSeconds.map {
-                        SettingsFormat.duration(seconds: $0.int64Value, language: language)
-                    }
-                )
-            )
-        }
         return result
     }
 
     private var sessionIsActive: Bool {
         model.hasManualSession ||
             model.decision.preventUserIdleSystemSleep ||
-            model.decision.preventUserIdleDisplaySleep ||
-            model.decision.preventLidSleep
+            model.decision.preventUserIdleDisplaySleep
     }
 
     private var sessionPillLabel: String {
@@ -717,12 +600,26 @@ struct PowerManagementView: View {
 
     private var safetyVetoMessage: String? {
         var seen = Set<String>()
-        let messages = model.decision.safetyVetoes.compactMap { veto -> String? in
+        let messages = powerSafetyVetoes.compactMap { veto -> String? in
             let text = vetoText(veto)
             guard seen.insert(text).inserted else { return nil }
             return text
         }
         return messages.isEmpty ? nil : messages.joined(separator: "\n")
+    }
+
+    private var powerSafetyVetoes: [SafetyVeto] {
+        model.decision.safetyVetoes.filter { veto in
+            switch veto {
+            case .closedLidDisabled,
+                 .helperUnavailable,
+                 .externalDisplayConnected,
+                 .externalDisplayUnknown:
+                false
+            default:
+                true
+            }
+        }
     }
 
     private var powerHeadline: String {
@@ -776,64 +673,29 @@ struct PowerManagementView: View {
         if !model.powerConfig.enabled {
             return ContractCopy.copyPowerRulesOff.text(for: language)
         }
-        if model.helperStatus == .match && model.helperServiceState == .enabled {
-            return ContractCopy.copyPowerStatusGuardReady.text(for: language)
-        }
-        return ContractCopy.copyPowerStatusGuardMissing.text(for: language)
+        return ContractCopy.copyPowerRulesOn.text(for: language)
     }
 
     private var powerStatusPillSymbol: String {
-        if !model.powerConfig.enabled {
-            return "power"
-        }
-        return model.helperStatus == .match && model.helperServiceState == .enabled
-            ? "checkmark.shield.fill"
-            : "exclamationmark.shield.fill"
+        model.powerConfig.enabled ? "checkmark.shield.fill" : "power"
     }
 
     private var powerStatusPillTint: Color {
-        if !model.powerConfig.enabled {
-            return MacTheme.textSecondary
+        model.powerConfig.enabled ? MacTheme.successText : MacTheme.textSecondary
+    }
+
+    private var powerExecutionError: String? {
+        guard let error = model.executionError else { return nil }
+        if error == "helper-unavailable" || error == "lid-hold-not-applied" {
+            return nil
         }
-        return model.helperStatus == .match && model.helperServiceState == .enabled
-            ? MacTheme.successText
-            : MacTheme.warningText
-    }
-
-    private var helperNeedsAction: Bool {
-        model.helperStatus != .match || model.helperServiceState != .enabled
-    }
-
-    private var zeroBrightnessNeedsAttention: Bool {
-        model.closedLidZeroBrightnessPhase == .failed ||
-            (model.closedLidZeroBrightnessError?.isEmpty == false)
+        return error
     }
 
     private var sessionSetupStatusText: String {
         sessionIsActive
             ? ContractCopy.copyPowerSessionActive.text(for: language)
             : ContractCopy.copyPowerSessionNone.text(for: language)
-    }
-
-    private var helperActionTitle: String {
-        HelperServicePresentation.actionTitle(model.helperServiceState, language: language)
-            ?? HelperStatusPresentation.repairTitle.text(for: language)
-    }
-
-    private var helperDescription: String {
-        if let reason = HelperStatusPresentation.readOnlyReason(model.helperStatus, language: language) {
-            return reason
-        }
-        if model.helperServiceState != .enabled {
-            return HelperServicePresentation.value(model.helperServiceState, language: language)
-        }
-        return ContractCopy.copyPowerStatusHelperHint.text(for: language)
-    }
-
-    private var closedLidZeroBrightnessDescription: String {
-        model.closedLidZeroBrightnessAvailability.isAvailable
-            ? ContractCopy.copyPowerRulesClosedLidZeroBrightnessHint.text(for: language)
-            : ContractCopy.copyPowerRulesClosedLidZeroBrightnessUnavailable.text(for: language)
     }
 
     private func executionErrorText(_ error: String) -> String {
@@ -872,16 +734,6 @@ struct PowerManagementView: View {
         }
     }
 
-    private var externalDisplayValue: String {
-        guard let count = model.observation.externalDisplayCount?.intValue else {
-            return ContractCopy.copyMonitorStateUnknown.text(for: language)
-        }
-        guard count > 0 else {
-            return ContractCopy.copyPowerStatusNoExternalDisplay.text(for: language)
-        }
-        return "\(count)"
-    }
-
     private var thermalValue: String {
         switch model.observation.thermalState {
         case .nominal: ContractCopy.copyMonitorThermalNominal.text(for: language)
@@ -891,13 +743,6 @@ struct PowerManagementView: View {
         case .unknown: ContractCopy.copyMonitorStateUnknown.text(for: language)
         default: ContractCopy.copyMonitorStateUnknown.text(for: language)
         }
-    }
-
-    private var helperValue: String {
-        if model.helperServiceState == .requiresApproval {
-            return HelperServicePresentation.value(model.helperServiceState, language: language)
-        }
-        return HelperStatusPresentation.value(model.helperStatus, language: language)
     }
 
     private var thermalNeedsAttention: Bool {
@@ -926,14 +771,6 @@ struct PowerManagementView: View {
                 ? ContractCopy.copyPowerSessionLidZeroBrightness.text(for: language)
                 : ContractCopy.copyPowerSessionLidDisplayOff.text(for: language)
         }
-    }
-
-    private var lidSessionHint: String {
-        if model.powerConfig.closedLidZeroBrightness,
-           model.closedLidZeroBrightnessAvailability.isAvailable {
-            return ContractCopy.copyPowerRulesClosedLidZeroBrightnessHint.text(for: language)
-        }
-        return ContractCopy.copyPowerSessionLidDisplayOffHint.text(for: language)
     }
 
     private func durationTitle(_ duration: PowerRuntime.SessionDuration) -> String {
@@ -1065,8 +902,6 @@ struct PowerManagementView: View {
 
 private struct PowerSettingsCard<Content: View>: View {
     @ViewBuilder var content: Content
-    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
         VStack(alignment: .leading, spacing: MacTheme.space3) {
@@ -1074,68 +909,37 @@ private struct PowerSettingsCard<Content: View>: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(MacTheme.space4)
-        .background {
-            if usesOpaqueSurface {
-                shape.fill(MacTheme.surface)
-            } else {
-                shape.fill(.regularMaterial)
-            }
-        }
-        .overlay(shape.strokeBorder(MacTheme.divider, lineWidth: usesOpaqueSurface ? 1.5 : 1))
+        .popoverContentSurface()
         .accessibilityElement(children: .contain)
-    }
-
-    private var shape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: MacTheme.cardRadius, style: .continuous)
-    }
-
-    private var usesOpaqueSurface: Bool {
-        reduceTransparency || colorSchemeContrast == .increased
     }
 }
 
-private struct PowerGlassActionButton: View {
+struct MonitorGlassActionButton: View {
     let title: String
     let symbol: String
     var isEnabled = true
     let action: () -> Void
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var isHovering = false
     @FocusState private var isFocused: Bool
 
     var body: some View {
         Button(action: action) {
             Label(title, systemImage: symbol)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(MacTheme.textPrimary)
-                .padding(.horizontal, MacTheme.space4)
+                .padding(.horizontal, MacTheme.space2)
                 .frame(minHeight: 44)
                 .contentShape(Capsule())
         }
-        .buttonStyle(PowerGlassActionButtonStyle(reduceMotion: reduceMotion))
-        .glassEffect(.regular.interactive(), in: .capsule)
+        .buttonStyle(.glass)
+        .controlSize(.large)
         .overlay(
             Capsule()
                 .strokeBorder(isFocused ? MacTheme.focusRing : .clear, lineWidth: 2)
         )
-        .brightness(isHovering && isEnabled ? 0.06 : 0)
         .focused($isFocused)
         .disabled(!isEnabled)
         .opacity(isEnabled ? 1 : 0.55)
-        .onHover { isHovering = $0 }
         .accessibilityLabel(title)
-    }
-}
-
-private struct PowerGlassActionButtonStyle: ButtonStyle {
-    let reduceMotion: Bool
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .opacity(configuration.isPressed ? 0.78 : 1)
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 
@@ -1195,6 +999,8 @@ private struct PowerOutcome {
 protocol PowerManagementModel: AnyObject {
     var language: AppLanguage { get }
     var sleepProtectionEnabled: Bool { get }
+    var displayConfig: DisplayConfig { get }
+    var closedLidPowerPolicy: ClosedLidPowerPolicy { get }
     var powerConfig: PowerConfig { get }
     var observation: PowerObservation { get }
     var snapshot: PowerSnapshot { get }
@@ -1216,15 +1022,17 @@ protocol PowerManagementModel: AnyObject {
     func setPowerEnabled(_ enabled: Bool)
     func setPowerKeepAwakeOnAdapter(_ enabled: Bool)
     func setPowerKeepAwakeOnBattery(_ enabled: Bool)
-    func setPowerAllowClosedLid(_ enabled: Bool)
-    func setPowerClosedLidZeroBrightness(_ enabled: Bool)
-    func setPowerPauseClosedLidWithExternalDisplay(_ enabled: Bool)
     func setPowerYieldOnLowPowerMode(_ enabled: Bool)
     func setPowerHeatGuard(_ enabled: Bool)
     func setPowerBatteryFloor(_ percent: Int)
     func setPowerClosedLidTimeCapMinutes(_ minutes: Int)
+    func setClosedLidPowerPolicy(_ policy: ClosedLidPowerPolicy)
+    func setDisplayClosedLidMode(_ mode: ClosedLidDisplayMode)
+    func setDisplayPauseWithExternalDisplay(_ enabled: Bool)
     func startSession(mode: PowerRuntime.SessionMode, duration: PowerRuntime.SessionDuration) -> Bool
     func endSession()
+    func displaySleepNow()
+    func openDisplaySettings()
     func installHelper()
     func openHelperApproval()
 }

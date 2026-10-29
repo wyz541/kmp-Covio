@@ -41,6 +41,7 @@ enum AppConfigs {
         lidSleepImmediateOnClose: Bool? = nil,
         enabled: Bool? = nil,
         power: PowerConfig? = nil,
+        display: DisplayConfig? = nil,
         chargeLimitEnabled: Bool? = nil,
         chargeLimitPercent: Int32? = nil,
         chargeLimitActiveDischarge: Bool? = nil
@@ -71,6 +72,7 @@ enum AppConfigs {
             clipboardPasteStackHotKey: base.clipboardPasteStackHotKey,
             clipboardCaptureHotKey: base.clipboardCaptureHotKey,
             power: power ?? base.power,
+            display: display ?? (power == nil ? base.display : nil),
             chargeLimitEnabled: chargeLimitEnabled ?? base.chargeLimitEnabled,
             chargeLimitPercent: chargeLimitPercent ?? base.chargeLimitPercent,
             chargeLimitActiveDischarge: chargeLimitActiveDischarge ?? base.chargeLimitActiveDischarge,

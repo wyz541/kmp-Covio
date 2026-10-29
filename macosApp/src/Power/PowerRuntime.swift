@@ -3,6 +3,32 @@ import Foundation
 import SwiftUI
 import kmpDomain
 
+extension ClosedLidPowerPolicy {
+    var stableID: String {
+        switch self {
+        case .sleep: "sleep"
+        case .adapter: "adapter"
+        case .battery: "battery"
+        case .any: "any"
+        default: "unknown"
+        }
+    }
+
+    var title: LocalizedCopy {
+        switch self {
+        case .sleep: ContractCopy.copyLidHoldPolicySleep
+        case .adapter: ContractCopy.copyLidHoldPolicyAdapter
+        case .battery: ContractCopy.copyLidHoldPolicyBattery
+        case .any: ContractCopy.copyLidHoldPolicyAny
+        default: ContractCopy.copyLidHoldPolicySleep
+        }
+    }
+
+    func applies(to powerState: PowerState) -> Bool {
+        appliesTo(powerState: powerState)
+    }
+}
+
 /// Power 管理面的运行时协调器。
 ///
 /// 它只负责观察、策略和会话意图。
@@ -47,6 +73,7 @@ final class PowerRuntime {
     }
 
     private(set) var config: PowerConfig
+    private(set) var displayConfig: DisplayConfig
     private(set) var sleepProtectionEnabled: Bool
     private(set) var observation: PowerObservation
     private(set) var snapshot: PowerSnapshot
@@ -83,6 +110,7 @@ final class PowerRuntime {
     private var lastSleepAt: Int64?
     private var wakeFallbackTask: Task<Void, Never>?
     private var appliedPowerLidDisplayOff = true
+    private var automaticClosedLidCapLatched = false
     private var applicationError: String?
 
     init(
@@ -91,6 +119,7 @@ final class PowerRuntime {
         observationSource: PowerObservationSource,
         historyStore: PowerHistoryStore,
         config: PowerConfig,
+        displayConfig: DisplayConfig? = nil,
         sleepProtectionEnabled: Bool = true,
         closedLidBrightnessBackend: ClosedLidBrightnessBackend? = nil,
         closedLidBrightnessStore: ClosedLidBrightnessRecoveryStoring? = nil,
@@ -113,6 +142,12 @@ final class PowerRuntime {
         closedLidZeroBrightnessAvailability = brightnessController.availability
         self.sleepProtectionEnabled = sleepProtectionEnabled
         self.config = config.normalized()
+        self.displayConfig = displayConfig
+            ?? DisplayConfig.companion.fromLegacy(
+                power: config.normalized(),
+                keepsAwakeOnAdapter: false,
+                keepsAwakeOnBattery: false
+            )
         self.nowEpochSeconds = nowEpochSeconds
         let emptyObservation = PowerObservation(
             batteryPercent: nil,
@@ -228,9 +263,20 @@ final class PowerRuntime {
         refresh()
     }
 
-    func updateConfig(_ next: PowerConfig, sleepProtectionEnabled: Bool? = nil) {
+    func updateConfig(
+        _ next: PowerConfig,
+        displayConfig: DisplayConfig? = nil,
+        sleepProtectionEnabled: Bool? = nil
+    ) {
         if let sleepProtectionEnabled {
             self.sleepProtectionEnabled = sleepProtectionEnabled
+        }
+        if let displayConfig {
+            let previousPolicy = self.displayConfig.closedLidPowerPolicy
+            self.displayConfig = displayConfig
+            if displayConfig.closedLidPowerPolicy != previousPolicy {
+                automaticClosedLidCapLatched = false
+            }
         }
         config = next.normalized()
         if !self.sleepProtectionEnabled || !config.enabled {
@@ -321,12 +367,25 @@ final class PowerRuntime {
         )
         recordObservationHistory(previous: previousObservation, at: now)
 
+        if observation.lidState == .open {
+            automaticClosedLidCapLatched = false
+        }
+        let automaticLease = automaticClosedLidLease
+        let automaticCapReleased = automaticLease.map { lease in
+            lease.createdAtEpochSeconds > 0 &&
+                now - lease.createdAtEpochSeconds >= Int64(config.closedLidTimeCapMinutes) * 60
+        } ?? false
+        if automaticCapReleased {
+            automaticClosedLidCapLatched = true
+            recordHistory(.guardReleased, detail: "closed-lid-time-cap", at: now)
+        }
+
         let closedLidCapReleased = leases.contains { lease in
             lease.level == .closedLid &&
                 (lease.expiresAtEpochSeconds?.int64Value ?? Int64.max) > now &&
                 lease.createdAtEpochSeconds + Int64(config.closedLidTimeCapMinutes) * 60 <= now
         }
-        if closedLidCapReleased {
+        if closedLidCapReleased && !automaticCapReleased {
             recordHistory(.guardReleased, detail: "closed-lid-time-cap", at: now)
         }
         leases.removeAll { lease in
@@ -346,7 +405,6 @@ final class PowerRuntime {
             paused: !sleepProtectionEnabled,
             batteryGuardLatched: batteryGuardLatched
         )
-        recordGuardHistory(nextDecision, at: now)
         if containsReleaseVeto(nextDecision.safetyVetoes) {
             leases.removeAll(keepingCapacity: true)
             nextDecision = PowerPolicy.shared.decide(
@@ -357,7 +415,17 @@ final class PowerRuntime {
                 paused: !sleepProtectionEnabled,
                 batteryGuardLatched: batteryGuardLatched
             )
+        } else if reconcileAutomaticClosedLidLease(now: now) {
+            nextDecision = PowerPolicy.shared.decide(
+                config: config,
+                snapshot: snapshot,
+                leases: leases,
+                nowEpochSeconds: now,
+                paused: !sleepProtectionEnabled,
+                batteryGuardLatched: batteryGuardLatched
+            )
         }
+        recordGuardHistory(nextDecision, at: now)
         if nextDecision.automaticRuleApplied && !previousDecision.automaticRuleApplied {
             recordHistory(.holdStarted, detail: "automatic", at: now)
         }
@@ -387,6 +455,52 @@ final class PowerRuntime {
            let error = closedLidZeroBrightnessError {
             executionError = error
         }
+    }
+
+    private var automaticClosedLidLease: HoldLease? {
+        leases.first {
+            $0.source == .rule && $0.reason == Self.automaticClosedLidReason
+        }
+    }
+
+    private var closedLidPowerPolicy: ClosedLidPowerPolicy {
+        displayConfig.closedLidPowerPolicy
+    }
+
+    private var wantsAutomaticClosedLidLease: Bool {
+        guard sleepProtectionEnabled, config.enabled else { return false }
+        guard closedLidPowerPolicy.keepsAwake else { return false }
+        guard closedLidPowerPolicy.applies(to: observation.powerState) else { return false }
+        guard helperStatus == .match else { return false }
+        if displayConfig.pauseWhenExternalDisplayConnected {
+            guard observation.externalDisplayCount?.intValue == 0 else { return false }
+        }
+        return true
+    }
+
+    /// 返回是否有租约变化。调用方在无安全否决时调用。
+    private func reconcileAutomaticClosedLidLease(now: Int64) -> Bool {
+        let exists = automaticClosedLidLease != nil
+        guard wantsAutomaticClosedLidLease, !automaticClosedLidCapLatched else {
+            guard exists else { return false }
+            leases.removeAll {
+                $0.source == .rule && $0.reason == Self.automaticClosedLidReason
+            }
+            return true
+        }
+        guard !exists else { return false }
+        leases.append(
+            HoldLease(
+                id: Self.automaticClosedLidLeaseID,
+                level: .closedLid,
+                source: .rule,
+                reason: Self.automaticClosedLidReason,
+                createdAtEpochSeconds: now,
+                expiresAtEpochSeconds: nil
+            )
+        )
+        recordHistory(.holdStarted, detail: "closed-lid-policy", at: now)
+        return true
     }
 
     /// 由 Sleep watcher 或测试调用。系统将要睡眠时记录一条事件。
@@ -640,6 +754,8 @@ final class PowerRuntime {
     }
 
     private static let sessionReason = "power-session"
+    private static let automaticClosedLidLeaseID = "power/closed-lid/policy"
+    private static let automaticClosedLidReason = "Closed-lid policy"
     private static let helperUnavailableError = "helper-unavailable"
     private static let masterOffError = "sleep-protection-disabled"
     private static let powerDisabledError = "power-disabled"

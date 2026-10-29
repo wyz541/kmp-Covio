@@ -2,6 +2,33 @@ import XCTest
 @testable import Covio
 
 final class MonitorMetricsTests: XCTestCase {
+    func testDisplayStateUsesOnlineAsleepAndActiveInOrder() {
+        XCTAssertEqual(
+            MacDisplayReader.state(isOnline: false, isAsleep: false, isActive: false),
+            .offline
+        )
+        XCTAssertEqual(
+            MacDisplayReader.state(isOnline: true, isAsleep: true, isActive: true),
+            .asleep
+        )
+        XCTAssertEqual(
+            MacDisplayReader.state(isOnline: true, isAsleep: false, isActive: true),
+            .active
+        )
+        XCTAssertEqual(
+            MacDisplayReader.state(isOnline: true, isAsleep: false, isActive: false),
+            .unknown
+        )
+    }
+
+    func testDisplayBrightnessUsesPercentAndRejectsInvalidValues() {
+        XCTAssertEqual(MacDisplayReader.brightnessPercent(from: 0.58) ?? -1, 58, accuracy: 0.001)
+        XCTAssertEqual(MacDisplayReader.brightnessPercent(from: -1) ?? -1, 0)
+        XCTAssertEqual(MacDisplayReader.brightnessPercent(from: 2) ?? -1, 100)
+        XCTAssertNil(MacDisplayReader.brightnessPercent(from: nil))
+        XCTAssertNil(MacDisplayReader.brightnessPercent(from: .infinity))
+    }
+
     func testRateUsesElapsedTime() {
         XCTAssertEqual(
             MonitorRate.perSecond(current: 1_040, previous: 40, elapsed: 2),
@@ -467,6 +494,7 @@ final class MonitorMetricsTests: XCTestCase {
             network: nil,
             battery: battery,
             power: power,
+            display: nil,
             fan: nil,
             thermal: .nominal,
             sampledAt: Date()

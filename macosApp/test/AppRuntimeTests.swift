@@ -227,11 +227,13 @@ final class AppRuntimeTests: XCTestCase {
 
         XCTAssertTrue(created.config.power.closedLidZeroBrightness)
 
-        created.setPowerClosedLidZeroBrightness(false)
+        created.setDisplayClosedLidMode(.displayOff)
 
         XCTAssertFalse(created.config.power.closedLidZeroBrightness)
         let power = try XCTUnwrap(savedJSON()["power"] as? [String: Any])
         XCTAssertEqual(power["closedLidZeroBrightness"] as? Bool, false)
+        let display = try XCTUnwrap(savedJSON()["display"] as? [String: Any])
+        XCTAssertEqual(display["closedLidDisplayMode"] as? String, "displayOff")
     }
 
     func testUnavailableExperimentalBrightnessCannotBeEnabled() {
@@ -242,9 +244,9 @@ final class AppRuntimeTests: XCTestCase {
             helperInstalled: true,
             brightnessBackend: unavailable
         )
-        created.setPowerClosedLidZeroBrightness(false)
+        created.setDisplayClosedLidMode(.displayOff)
 
-        created.setPowerClosedLidZeroBrightness(true)
+        created.setDisplayClosedLidMode(.blackScreenPipeline)
 
         XCTAssertFalse(created.config.power.closedLidZeroBrightness)
     }
@@ -340,43 +342,57 @@ final class AppRuntimeTests: XCTestCase {
         XCTAssertTrue(try savedJSON()["hibernateMode"] is NSNull)
     }
 
-    // MARK: - 合盖开关与 helper
+    // MARK: - 合盖策略与 helper
 
-    /// helper 没装时不许打开合盖开关。
-    ///
-    /// 打开它要改 `pmset`，而只有 helper 有 root。让开关亮着会骗用户。
-    func testLidSwitchIsRefusedWithoutTheHelper() throws {
+    /// helper 没装时不许启用自动合盖租约。
+    func testClosedLidPolicyIsRefusedWithoutTheHelper() throws {
         let created = makeRuntime(engineStarted: true)
         XCTAssertEqual(created.helperStatus, .missing)
 
-        created.setDisableLidWhileCharging(true)
-        created.setDisableLidOnBattery(true)
+        created.setClosedLidPowerPolicy(.battery)
 
-        XCTAssertFalse(created.config.disableLidSleepInCharging)
+        XCTAssertEqual(created.closedLidPowerPolicy, .adapter)
         XCTAssertFalse(created.config.disableLidSleepOnBattery)
         XCTAssertNotNil(created.statusMessage, "拒绝时必须给用户一句话")
     }
 
-    /// helper 在时开关正常。
-    func testLidSwitchIsAcceptedWithTheHelper() throws {
+    /// helper 在时策略可以写入，并同步旧字段供降级版本读取。
+    func testClosedLidPolicyIsAcceptedWithTheHelper() throws {
         let created = makeRuntime(engineStarted: true, helperInstalled: true)
         XCTAssertEqual(created.helperStatus, .match)
 
-        created.setDisableLidWhileCharging(true)
+        created.setClosedLidPowerPolicy(.battery)
 
-        XCTAssertTrue(created.config.disableLidSleepInCharging)
-        XCTAssertEqual(try savedJSON()["disableLidSleepInCharging"] as? Bool, true)
+        XCTAssertEqual(created.closedLidPowerPolicy, .battery)
+        XCTAssertFalse(created.config.disableLidSleepInCharging)
+        XCTAssertTrue(created.config.disableLidSleepOnBattery)
+        let display = try XCTUnwrap(savedJSON()["display"] as? [String: Any])
+        XCTAssertEqual(display["closedLidPowerPolicy"] as? String, "battery")
     }
 
-    /// 关掉开关不需要 helper。用户总是能撤销一个已经生效的限制。
-    func testLidSwitchCanAlwaysBeTurnedOff() throws {
+    /// 关闭自动保持不需要 helper。用户总是能撤销一个已经生效的限制。
+    func testClosedLidPolicyCanAlwaysReturnToSleep() throws {
+        ConfigStore.companion.create(path: configFile.path).save(
+            config: AppConfigs.make(
+                display: DisplayConfig(
+                    schemaVersion: 2,
+                    keepAwakeWhenLidClosed: true,
+                    closedLidPowerPolicy: .battery,
+                    closedLidDisplayMode: .blackScreenPipeline,
+                    pauseWhenExternalDisplayConnected: true
+                )
+            )
+        )
         let created = makeRuntime(engineStarted: true)
+        XCTAssertEqual(created.helperStatus, .missing)
+        XCTAssertEqual(created.closedLidPowerPolicy, .battery)
 
-        created.setDisableLidWhileCharging(false)
-        created.setDisableLidOnBattery(false)
+        created.setClosedLidPowerPolicy(.sleep)
 
+        XCTAssertEqual(created.closedLidPowerPolicy, .sleep)
         XCTAssertFalse(created.config.disableLidSleepInCharging)
-        XCTAssertNil(created.statusMessage)
+        XCTAssertFalse(created.config.disableLidSleepOnBattery)
+        XCTAssertTrue(created.config.lidSleepImmediateOnClose)
     }
 
     /// 闲置开关不经过 helper，直接写。
@@ -431,17 +447,18 @@ final class AppRuntimeTests: XCTestCase {
         XCTAssertTrue(helperServiceManager.didOpenSettings)
     }
 
-    /// 卸载 helper 之后状态回到未安装，并撤销合盖限制。
+    /// 卸载 helper 之后释放租约，但保留用户选择的策略。
     func testUninstallHelperClearsTheLidPolicy() async throws {
         let created = makeRuntime(engineStarted: true, helperInstalled: true)
-        created.setDisableLidWhileCharging(true)
-        XCTAssertTrue(created.config.disableLidSleepInCharging)
+        created.setClosedLidPowerPolicy(.battery)
+        XCTAssertEqual(created.closedLidPowerPolicy, .battery)
 
         created.uninstallHelper()
         await waitUntil { !created.busy }
 
         XCTAssertEqual(created.helperStatus, .missing)
         XCTAssertTrue(created.appState.lidSleepAvailable, "helper 走了就限制不住了，状态要如实反映")
+        XCTAssertEqual(created.closedLidPowerPolicy, .battery)
     }
 
     /// Power 管理面的意图要同时更新内存、运行时和配置文件。
@@ -460,6 +477,36 @@ final class AppRuntimeTests: XCTestCase {
         XCTAssertFalse(created.powerRuntime.config.keepAwakeOnAdapter)
         XCTAssertEqual(created.powerRuntime.config.batteryFloorPercent, 30)
         XCTAssertEqual(created.powerRuntime.config.closedLidTimeCapMinutes, 90)
+    }
+
+    func testDisplaySettingsArePersistedAndMirroredIntoPowerConfig() throws {
+        let created = makeRuntime(engineStarted: true, helperInstalled: true)
+
+        created.setDisplayClosedLidMode(.displayOff)
+        created.setDisplayPauseWithExternalDisplay(false)
+        created.setClosedLidPowerPolicy(.battery)
+
+        XCTAssertTrue(created.displayConfig.keepAwakeWhenLidClosed)
+        XCTAssertEqual(created.displayConfig.closedLidPowerPolicy, .battery)
+        XCTAssertEqual(created.displayConfig.closedLidDisplayMode, .displayOff)
+        XCTAssertFalse(created.displayConfig.pauseWhenExternalDisplayConnected)
+        XCTAssertTrue(created.powerRuntime.config.allowClosedLid)
+        XCTAssertFalse(created.powerRuntime.config.closedLidZeroBrightness)
+        XCTAssertFalse(created.powerRuntime.config.pauseClosedLidWithExternalDisplay)
+
+        var saved = try XCTUnwrap(savedJSON()["display"] as? [String: Any])
+        XCTAssertEqual(saved["keepAwakeWhenLidClosed"] as? Bool, true)
+        XCTAssertEqual(saved["closedLidPowerPolicy"] as? String, "battery")
+        XCTAssertEqual(saved["closedLidDisplayMode"] as? String, "displayOff")
+        XCTAssertEqual(saved["pauseWhenExternalDisplayConnected"] as? Bool, false)
+
+        created.setClosedLidPowerPolicy(.sleep)
+        XCTAssertFalse(created.displayConfig.keepAwakeWhenLidClosed)
+        XCTAssertEqual(created.displayConfig.closedLidPowerPolicy, .sleep)
+        XCTAssertEqual(created.displayConfig.closedLidDisplayMode, .displayOff)
+        saved = try XCTUnwrap(savedJSON()["display"] as? [String: Any])
+        XCTAssertEqual(saved["closedLidPowerPolicy"] as? String, "sleep")
+        XCTAssertEqual(saved["closedLidDisplayMode"] as? String, "displayOff")
     }
 
     func testPowerEnableStateStaysAlignedWithSleepProtection() throws {
@@ -692,7 +739,6 @@ final class AppRuntimeTests: XCTestCase {
         created.setEnabled(false)
         created.setLowBatterySleep(false)
         created.setDarkWakeAwareness(false)
-        created.setImmediateLidSleep(false)
         created.setNotifications(false)
         created.setUpdateChecks(false)
 
@@ -700,7 +746,7 @@ final class AppRuntimeTests: XCTestCase {
         XCTAssertEqual(json["enabled"] as? Bool, false)
         XCTAssertEqual(json["lowBatteryCapacitySleep"] as? Bool, false)
         XCTAssertEqual(json["darkWakeAwarenessEnabled"] as? Bool, false)
-        XCTAssertEqual(json["lidSleepImmediateOnClose"] as? Bool, false)
+        XCTAssertEqual(json["lidSleepImmediateOnClose"] as? Bool, true)
         XCTAssertEqual(json["notificationsEnabled"] as? Bool, false)
         XCTAssertEqual(json["updateCheckEnabled"] as? Bool, false)
     }
@@ -708,7 +754,7 @@ final class AppRuntimeTests: XCTestCase {
     /// 提示语可以清掉。
     func testStatusMessageCanBeCleared() throws {
         let created = makeRuntime(engineStarted: true)
-        created.setDisableLidWhileCharging(true)
+        created.setClosedLidPowerPolicy(.battery)
         XCTAssertNotNil(created.statusMessage)
 
         created.clearStatus()

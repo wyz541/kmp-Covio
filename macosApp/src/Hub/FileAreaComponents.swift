@@ -501,7 +501,6 @@ struct FileKeyboardActionMenuView: View {
         }
         .padding(6)
         .frame(width: 160)
-        .background(.regularMaterial)
         .onAppear {
             Task { @MainActor in
                 await Task.yield()

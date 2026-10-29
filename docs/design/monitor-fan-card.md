@@ -22,6 +22,7 @@
 | ![多点曲线亮色](previews/333-fan-multipoint-curve-light-after-2.png) | ![多点曲线深色](previews/333-fan-multipoint-curve-dark-after-2.png) |
 | ![手动同步亮色](previews/362-fan-manual-sync-light-after-1.png) | ![手动同步深色](previews/362-fan-manual-sync-dark-after-1.png) |
 | ![手动风扇模式亮色](previews/366-fan-manual-stats-light-after-1.png) | ![手动风扇模式深色](previews/366-fan-manual-stats-dark-after-1.png) |
+| ![分层玻璃 popover 亮色](previews/441-fan-popover-light-after-3.png) | ![分层玻璃 popover 深色](previews/441-fan-popover-dark-after-3.png) |
 
 ## 3. 三段式结构
 
@@ -52,6 +53,10 @@ SMC 键只在读取器初始化时枚举一次。
 ## 5. popover
 
 popover 固定宽度 420 点、固定高度 760 点。
+popover 外壳使用系统原生 regular Liquid Glass。
+警告区、控制区、风扇区和传感器区使用标准 thin material。
+Liquid Glass 不用于内容层。
+减少透明度或增强对比时，内容区回退为不透明 surface。
 头部固定，详情内容在头部下方滚动。
 
 1. 控制温度和接管状态。

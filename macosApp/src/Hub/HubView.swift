@@ -111,7 +111,7 @@ struct HubView: View {
             }
         }
         .frame(width: HubMetrics.panelWidth, height: plateStackHeight, alignment: .top)
-        // 高亮行从环境里取，六个设置页不必各自拿一遍模型。
+        // 高亮行从环境里取，五个设置页不必各自拿一遍模型。
         .environment(\.highlightedSettingsRow, chrome.highlightedRowID)
     }
 

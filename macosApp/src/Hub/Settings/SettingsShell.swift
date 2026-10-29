@@ -40,7 +40,6 @@ struct SettingsTabView: View {
         switch section {
         case .overview: OverviewPage(runtime: runtime)
         case .battery: BatteryPage(runtime: runtime)
-        case .lid: LidPage(runtime: runtime)
         case .idle: IdlePage(runtime: runtime)
         case .clipboard: ClipboardPage(runtime: runtime)
         case .general: GeneralPage(runtime: runtime)

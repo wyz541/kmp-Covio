@@ -59,6 +59,37 @@ struct MonitorSnapshot: Equatable, Sendable {
         let remaining: TimeInterval?
     }
 
+    /// 当前内建屏幕的公开读数。
+    ///
+    /// `powerWatts` 只在存在可靠测量来源时填写。
+    /// 不把系统总功耗或背光电流换算值当作显示器功耗。
+    struct Display: Equatable, Sendable {
+        enum State: String, Equatable, Sendable {
+            case active
+            case asleep
+            case offline
+            case unknown
+        }
+
+        let state: State
+        let brightnessPercent: Double?
+        let powerWatts: Double?
+        let externalDisplayCount: Int?
+        let pixelWidth: Int?
+        let pixelHeight: Int?
+        let refreshRate: Double?
+
+        static let empty = Display(
+            state: .unknown,
+            brightnessPercent: nil,
+            powerWatts: nil,
+            externalDisplayCount: nil,
+            pixelWidth: nil,
+            pixelHeight: nil,
+            refreshRate: nil
+        )
+    }
+
     enum ThermalState: String, Equatable, Sendable {
         case nominal
         case fair
@@ -73,6 +104,7 @@ struct MonitorSnapshot: Equatable, Sendable {
     let network: Network?
     let battery: Battery?
     let power: Power?
+    let display: Display?
     let fan: MonitorFanReading?
     let thermal: ThermalState
     let sampledAt: Date
@@ -85,6 +117,7 @@ struct MonitorSnapshot: Equatable, Sendable {
         network: nil,
         battery: nil,
         power: nil,
+        display: nil,
         fan: nil,
         thermal: .nominal,
         sampledAt: .distantPast
@@ -105,6 +138,23 @@ struct MonitorSnapshot: Equatable, Sendable {
             network: network,
             battery: battery,
             power: power,
+            display: display,
+            fan: fan,
+            thermal: thermal,
+            sampledAt: sampledAt
+        )
+    }
+
+    func replacingDisplay(_ display: Display) -> MonitorSnapshot {
+        MonitorSnapshot(
+            cpu: cpu,
+            gpu: gpu,
+            memory: memory,
+            disk: disk,
+            network: network,
+            battery: battery,
+            power: power,
+            display: display,
             fan: fan,
             thermal: thermal,
             sampledAt: sampledAt

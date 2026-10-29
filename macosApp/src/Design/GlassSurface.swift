@@ -170,6 +170,57 @@ extension View {
             )
         )
     }
+
+    /// Popover 内容层使用的标准材质。
+    ///
+    /// popover 外壳由系统提供 Liquid Glass。
+    /// 内容层按 Apple HIG 使用标准材质，避免重复模糊和混淆层级。
+    /// 减少透明度或增强对比时改用不透明 surface。
+    @MainActor
+    func popoverContentSurface(
+        cornerRadius: CGFloat = MacTheme.cardRadius,
+        tint: Color? = nil
+    ) -> some View {
+        modifier(
+            PopoverContentSurfaceModifier(
+                cornerRadius: cornerRadius,
+                tint: tint
+            )
+        )
+    }
+}
+
+private struct PopoverContentSurfaceModifier: ViewModifier {
+    let cornerRadius: CGFloat
+    let tint: Color?
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+    }
+
+    private var usesOpaqueSurface: Bool {
+        reduceTransparency || colorSchemeContrast == .increased
+    }
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if usesOpaqueSurface {
+            content
+                .background(shape.fill(tint ?? MacTheme.surface))
+                .overlay(shape.strokeBorder(MacTheme.divider, lineWidth: 1))
+        } else {
+            content
+                .background(
+                    shape.fill(
+                        tint ?? MacTheme.surface.opacity(colorScheme == .dark ? 0.16 : 0.26)
+                    )
+                )
+                .overlay(shape.strokeBorder(MacTheme.divider.opacity(0.48), lineWidth: 0.75))
+        }
+    }
 }
 
 /// 玻璃底材。所有模式共用圆角。

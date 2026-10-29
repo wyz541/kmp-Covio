@@ -289,7 +289,6 @@ struct MonitorFanPopover: View {
             }
         }
         .padding(16)
-        .background(MacTheme.surface)
         .tint(MonitorCardKind.fan.accent)
         .onAppear {
             model.refreshAvailability()
@@ -387,7 +386,10 @@ struct MonitorFanPopover: View {
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(MacTheme.warningText.opacity(0.09), in: RoundedRectangle(cornerRadius: 9))
+        .popoverContentSurface(
+            cornerRadius: 9,
+            tint: MacTheme.warningText.opacity(0.12)
+        )
     }
 
     private var controls: some View {
@@ -405,6 +407,8 @@ struct MonitorFanPopover: View {
                 }
             }
         }
+        .padding(10)
+        .popoverContentSurface()
     }
 
     @ViewBuilder
@@ -668,6 +672,8 @@ struct MonitorFanPopover: View {
                 .frame(minHeight: 22)
             }
         }
+        .padding(10)
+        .popoverContentSurface()
     }
 
     private var sensorSection: some View {
@@ -705,6 +711,8 @@ struct MonitorFanPopover: View {
                     .font(.system(size: 11, weight: .semibold))
             }
         }
+        .padding(10)
+        .popoverContentSurface()
     }
 
     private var warning: some View {

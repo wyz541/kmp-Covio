@@ -246,17 +246,13 @@ class EngineTest {
     }
 
     @Test
-    fun `battery policy holds lid sleep on battery power`() {
-        val fixture = Fixture(
-            AppConfig(
-                disableLidSleepOnBattery = true,
-                lidSleepImmediateOnClose = false,
-            ),
-        )
+    fun `power runtime holds lid sleep`() {
+        val fixture = Fixture(AppConfig(lidSleepImmediateOnClose = false))
         fixture.privileged.installed = true
         fixture.power.value = BatteryStatus(80, PowerState.DISCHARGING, 3_600L)
         fixture.engine.start()
 
+        assertTrue(fixture.engine.setPowerLidHold(true))
         assertFalse(fixture.engine.currentState.lidSleepAvailable)
         assertTrue(fixture.privileged.disableSleepValues.contains(true))
     }
@@ -276,10 +272,9 @@ class EngineTest {
     }
 
     @Test
-    fun `low battery policy overrides battery lid hold`() {
+    fun `low battery policy overrides power runtime lid hold`() {
         val fixture = Fixture(
             AppConfig(
-                disableLidSleepOnBattery = true,
                 lowBatteryCapacity = 10,
                 lidSleepImmediateOnClose = false,
             ),
@@ -288,25 +283,21 @@ class EngineTest {
         fixture.power.value = BatteryStatus(5, PowerState.DISCHARGING, 3_600L)
         fixture.engine.start()
 
+        assertFalse(fixture.engine.setPowerLidHold(true))
         assertEquals(1, fixture.sleep.sleepCalls)
         assertTrue(fixture.engine.currentState.lidSleepAvailable)
         assertFalse(fixture.privileged.disableSleepValues.contains(true))
     }
 
     @Test
-    fun `helper failure rolls back lid policy config`() {
+    fun `helper failure keeps lid sleep available`() {
         val fixture = Fixture(AppConfig(lidSleepImmediateOnClose = false))
         fixture.privileged.installed = true
         fixture.privileged.disableSleepResult = false
         fixture.power.value = BatteryStatus(80, PowerState.DISCHARGING, 3_600L)
         fixture.engine.start()
 
-        val success = fixture.engine.updateConfig(
-            fixture.engine.currentConfig.copy(disableLidSleepOnBattery = true),
-        )
-
-        assertFalse(success)
-        assertFalse(fixture.engine.currentConfig.disableLidSleepOnBattery)
+        assertFalse(fixture.engine.setPowerLidHold(true))
         assertTrue(fixture.engine.currentState.lidSleepAvailable)
     }
 
@@ -330,39 +321,25 @@ class EngineTest {
     }
 
     @Test
-    fun `charging rules prevent idle and lid sleep then restore on battery`() {
-        val fixture = Fixture(
-            AppConfig(
-                disableIdleSleepInCharging = true,
-                disableLidSleepInCharging = true,
-                lidSleepImmediateOnClose = false,
-            ),
-        )
-        fixture.privileged.installed = true
+    fun `charging rule prevents and restores idle sleep`() {
+        val fixture = Fixture(AppConfig(disableIdleSleepInCharging = true))
         fixture.power.value = BatteryStatus(80, PowerState.CHARGING, null)
         fixture.engine.start()
         assertFalse(fixture.engine.currentState.idleSleepAvailable)
-        assertFalse(fixture.engine.currentState.lidSleepAvailable)
 
         fixture.power.value = BatteryStatus(75, PowerState.DISCHARGING, 3_600)
         fixture.power.emit()
         assertTrue(fixture.engine.currentState.idleSleepAvailable)
-        assertTrue(fixture.engine.currentState.lidSleepAvailable)
     }
 
     @Test
-    fun `lid charging policy is skipped when the helper is not installed`() {
-        val fixture = Fixture(
-            AppConfig(
-                disableIdleSleepInCharging = true,
-                disableLidSleepInCharging = true,
-                lidSleepImmediateOnClose = false,
-            ),
-        )
+    fun `power lid hold is skipped when helper is not installed`() {
+        val fixture = Fixture()
         fixture.privileged.installed = false
         fixture.power.value = BatteryStatus(80, PowerState.CHARGING, null)
         fixture.engine.start()
-        assertFalse(fixture.engine.currentState.idleSleepAvailable)
+
+        assertFalse(fixture.engine.setPowerLidHold(true))
         assertTrue(fixture.engine.currentState.lidSleepAvailable)
         assertTrue(fixture.privileged.disableSleepValues.isEmpty())
     }

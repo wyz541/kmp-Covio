@@ -36,6 +36,18 @@ final class AppRuntime {
     var language: AppLanguage { AppLanguage.fromCode(config.language) }
     /// 语言设置。空字符串表示跟随系统。
     var languagePreference: AppLanguagePreference { AppLanguagePreference.fromCode(config.language) }
+    /// 屏幕 card 的持久化设置。
+    var displayConfig: DisplayConfig {
+        config.display ?? DisplayConfig.companion.fromLegacy(
+            power: config.power,
+            keepsAwakeOnAdapter: config.disableLidSleepInCharging,
+            keepsAwakeOnBattery: config.disableLidSleepOnBattery
+        )
+    }
+    /// Screen card 的单一合盖保持策略。
+    var closedLidPowerPolicy: ClosedLidPowerPolicy {
+        displayConfig.closedLidPowerPolicy
+    }
 
     let logger: AppLogger
 
@@ -320,6 +332,11 @@ final class AppRuntime {
             attachmentStore: agentAttachments
         )
 
+        let resolvedDisplayConfig = loaded.display ?? DisplayConfig.companion.fromLegacy(
+            power: loaded.power,
+            keepsAwakeOnAdapter: loaded.disableLidSleepInCharging,
+            keepsAwakeOnBattery: loaded.disableLidSleepOnBattery
+        )
         let engine = Engine(
             initialConfig: loaded,
             power: power,
@@ -356,6 +373,7 @@ final class AppRuntime {
             observationSource: resolvedPowerObservation,
             historyStore: resolvedPowerHistory,
             config: loaded.power,
+            displayConfig: resolvedDisplayConfig,
             sleepProtectionEnabled: loaded.enabled,
             closedLidBrightnessBackend: closedLidBrightnessBackend,
             closedLidBrightnessStore: closedLidBrightnessStore
@@ -711,15 +729,6 @@ final class AppRuntime {
         updatePower { copyPower($0, keepAwakeOnBattery: enabled) }
     }
 
-    func setPowerAllowClosedLid(_ enabled: Bool) {
-        guard enabled ? powerRuntime.helperStatus == .match : true else { return }
-        updatePower { copyPower($0, allowClosedLid: enabled) }
-    }
-
-    func setPowerPauseClosedLidWithExternalDisplay(_ enabled: Bool) {
-        updatePower { copyPower($0, pauseClosedLidWithExternalDisplay: enabled) }
-    }
-
     func setPowerBatteryFloor(_ percent: Int) {
         let floor = min(max(percent, 0), 95)
         updatePower {
@@ -743,28 +752,86 @@ final class AppRuntime {
         updatePower { copyPower($0, closedLidTimeCapMinutes: Int32(min(max(minutes, 30), 1_440))) }
     }
 
-    func setPowerClosedLidZeroBrightness(_ enabled: Bool) {
-        if enabled {
-            guard powerRuntime.helperStatus == .match,
-                  powerRuntime.closedLidZeroBrightnessAvailability.isAvailable
-            else { return }
+    func setClosedLidPowerPolicy(_ policy: ClosedLidPowerPolicy) {
+        _ = applyClosedLidPolicy(policy)
+    }
+
+    func setDisplayClosedLidMode(_ mode: ClosedLidDisplayMode) {
+        let policy = mode == .system
+            ? .sleep
+            : (closedLidPowerPolicy == .sleep ? .adapter : closedLidPowerPolicy)
+        _ = applyClosedLidPolicy(policy, mode: mode)
+    }
+
+    func setDisplayPauseWithExternalDisplay(_ enabled: Bool) {
+        _ = applyClosedLidPolicy(closedLidPowerPolicy, pauseWithExternalDisplay: enabled)
+    }
+
+    @discardableResult
+    private func applyClosedLidPolicy(
+        _ policy: ClosedLidPowerPolicy,
+        mode requestedMode: ClosedLidDisplayMode? = nil,
+        pauseWithExternalDisplay: Bool? = nil
+    ) -> Bool {
+        if policy != .sleep, powerRuntime.helperStatus != .match {
+            statusMessage = ContractCopy.copyToastError.text(for: language)
+            return false
         }
-        updatePower { copyPower($0, closedLidZeroBrightness: enabled) }
+        if requestedMode == .blackScreenPipeline,
+           (!powerRuntime.closedLidZeroBrightnessAvailability.isAvailable) {
+            statusMessage = ContractCopy.copyToastError.text(for: language)
+            return false
+        }
+        return updateConfigDraft { draft in
+            let display = draft.display
+                ?? DisplayConfig.companion.fromLegacy(
+                    power: draft.power,
+                    keepsAwakeOnAdapter: draft.disableLidSleepInCharging,
+                    keepsAwakeOnBattery: draft.disableLidSleepOnBattery
+                )
+            let mode: ClosedLidDisplayMode
+            if let requestedMode, requestedMode != .system {
+                mode = requestedMode
+            } else if policy == .sleep, requestedMode == nil {
+                mode = display.closedLidDisplayMode
+            } else if policy == .sleep {
+                mode = .system
+            } else if display.closedLidDisplayMode == .system {
+                mode = powerRuntime.closedLidZeroBrightnessAvailability.isAvailable
+                    ? .blackScreenPipeline
+                    : .displayOff
+            } else {
+                mode = display.closedLidDisplayMode
+            }
+            draft.display = DisplayConfig(
+                schemaVersion: display.schemaVersion,
+                keepAwakeWhenLidClosed: policy.keepsAwake,
+                closedLidPowerPolicy: policy,
+                closedLidDisplayMode: mode,
+                pauseWhenExternalDisplayConnected: pauseWithExternalDisplay
+                    ?? display.pauseWhenExternalDisplayConnected
+            )
+            draft.disableLidSleepInCharging = policy.keepsAwakeOnAdapter
+            draft.disableLidSleepOnBattery = policy.keepsAwakeOnBattery
+            draft.lidSleepImmediateOnClose = true
+            draft.power = copyPower(
+                draft.power,
+                allowClosedLid: policy.keepsAwake,
+                pauseClosedLidWithExternalDisplay: pauseWithExternalDisplay
+                    ?? display.pauseWhenExternalDisplayConnected,
+                closedLidZeroBrightness: mode == .blackScreenPipeline
+            )
+        }
     }
 
-    /// 打开前先确认 helper 在。helper 不在时它改不了 `pmset`，界面会显示成功但实际没生效。
-    func setDisableLidWhileCharging(_ enabled: Bool) {
-        guard enabled ? lidPolicyAvailable() : true else { return }
-        write { $0.disableLidSleepInCharging = enabled }
-    }
-
-    func setDisableLidOnBattery(_ enabled: Bool) {
-        guard enabled ? lidPolicyAvailable() : true else { return }
-        write { $0.disableLidSleepOnBattery = enabled }
+    func openDisplaySettings() {
+        guard let url = URL(
+            string: "x-apple.systempreferences:com.apple.Displays-Settings.extension"
+        ) else { return }
+        NSWorkspace.shared.open(url)
     }
 
     func setDarkWakeAwareness(_ enabled: Bool) { write { $0.darkWakeAwarenessEnabled = enabled } }
-    func setImmediateLidSleep(_ enabled: Bool) { write { $0.lidSleepImmediateOnClose = enabled } }
     func setNotifications(_ enabled: Bool) { write { $0.notificationsEnabled = enabled } }
     func setUpdateChecks(_ enabled: Bool) { write { $0.updateCheckEnabled = enabled } }
     func setSleepMode(_ mode: Int32) { write { $0.hibernateMode = KotlinInt(int: mode) } }
@@ -841,7 +908,16 @@ final class AppRuntime {
         config = defaults
         clipboardBridge.config = defaults
         _ = engine.updateConfig(newConfig: defaults)
-        powerRuntime.updateConfig(defaults.power, sleepProtectionEnabled: defaults.enabled)
+        powerRuntime.updateConfig(
+            defaults.power,
+            displayConfig: defaults.display
+                ?? DisplayConfig.companion.fromLegacy(
+                    power: defaults.power,
+                    keepsAwakeOnAdapter: defaults.disableLidSleepInCharging,
+                    keepsAwakeOnBattery: defaults.disableLidSleepOnBattery
+                ),
+            sleepProtectionEnabled: defaults.enabled
+        )
         reconcileChargeLimit()
         syncState()
         statusMessage = ContractCopy.copyDialogResetTitle.text(for: language)
@@ -1167,7 +1243,11 @@ final class AppRuntime {
             configStore.save(config: previous)
             _ = engine.updateConfig(newConfig: previous)
         }
-        powerRuntime.updateConfig(config.power, sleepProtectionEnabled: config.enabled)
+        powerRuntime.updateConfig(
+            config.power,
+            displayConfig: displayConfig,
+            sleepProtectionEnabled: config.enabled
+        )
         syncState()
         return success
     }
@@ -1353,6 +1433,7 @@ final class ConfigDraft {
     var clipboardPasteStackHotKey: String
     var clipboardCaptureHotKey: String
     var power: PowerConfig
+    var display: DisplayConfig?
     var chargeLimitEnabled: Bool
     var chargeLimitPercent: Int32
     var chargeLimitActiveDischarge: Bool
@@ -1381,6 +1462,7 @@ final class ConfigDraft {
         clipboardPasteStackHotKey = config.clipboardPasteStackHotKey
         clipboardCaptureHotKey = config.clipboardCaptureHotKey
         power = config.power
+        display = config.display
         chargeLimitEnabled = config.chargeLimitEnabled
         chargeLimitPercent = config.chargeLimitPercent
         chargeLimitActiveDischarge = config.chargeLimitActiveDischarge
@@ -1414,6 +1496,7 @@ final class ConfigDraft {
             clipboardPasteStackHotKey: clipboardPasteStackHotKey,
             clipboardCaptureHotKey: clipboardCaptureHotKey,
             power: power,
+            display: display,
             chargeLimitEnabled: chargeLimitEnabled,
             chargeLimitPercent: chargeLimitPercent,
             chargeLimitActiveDischarge: chargeLimitActiveDischarge,

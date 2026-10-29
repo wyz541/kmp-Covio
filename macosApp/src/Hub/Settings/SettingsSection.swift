@@ -1,6 +1,6 @@
 import Foundation
 
-/// 设置页签里的六个分节。
+/// 设置页签里的五个分节。
 ///
 /// 名称与顺序来自设计合同 `copy/nav/*`。
 /// 每节的标题与说明来自 `copy/page/*/title` 与 `copy/page/*/summary`。
@@ -9,7 +9,6 @@ import Foundation
 enum SettingsSection: String, CaseIterable, Identifiable, Sendable {
     case overview
     case battery
-    case lid
     case idle
     case clipboard
     case general
@@ -21,7 +20,6 @@ enum SettingsSection: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .overview: ContractCopy.copyNavOverview
         case .battery: ContractCopy.copyNavBattery
-        case .lid: ContractCopy.copyNavLid
         case .idle: ContractCopy.copyNavIdle
         case .clipboard: ContractCopy.copyNavClipboard
         case .general: ContractCopy.copyNavGeneral
@@ -33,7 +31,6 @@ enum SettingsSection: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .overview: ContractCopy.copyPageOverviewTitle
         case .battery: ContractCopy.copyPageBatteryTitle
-        case .lid: ContractCopy.copyPageLidTitle
         case .idle: ContractCopy.copyPageIdleTitle
         case .clipboard: ContractCopy.copyPageClipboardTitle
         case .general: ContractCopy.copyPageGeneralTitle
@@ -45,7 +42,6 @@ enum SettingsSection: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .overview: ContractCopy.copyPageOverviewSummary
         case .battery: ContractCopy.copyPageBatterySummary
-        case .lid: ContractCopy.copyPageLidSummary
         case .idle: ContractCopy.copyPageIdleSummary
         case .clipboard: ContractCopy.copyPageClipboardSummary
         case .general: ContractCopy.copyPageGeneralSummary

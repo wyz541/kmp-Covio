@@ -80,7 +80,7 @@ final class ConfigCompatibilityTests: XCTestCase {
         XCTAssertTrue(config.disableLidSleepInCharging)
         XCTAssertTrue(config.disableLidSleepOnBattery)
         XCTAssertFalse(config.darkWakeAwarenessEnabled)
-        XCTAssertFalse(config.lidSleepImmediateOnClose)
+        XCTAssertTrue(config.lidSleepImmediateOnClose)
         XCTAssertFalse(config.notificationsEnabled)
         XCTAssertFalse(config.updateCheckEnabled)
         XCTAssertEqual(config.updateCheckIntervalHours, 12)
@@ -111,7 +111,8 @@ final class ConfigCompatibilityTests: XCTestCase {
     /// 旧版文件没有 `power`。加载后必须得到本版默认意图。
     func testLegacyConfigGetsPowerDefaults() throws {
         try write(legacyConfig)
-        let power = store().load().power
+        let config = store().load()
+        let power = config.power
 
         XCTAssertTrue(power.enabled)
         XCTAssertTrue(power.keepAwakeOnAdapter)
@@ -121,6 +122,66 @@ final class ConfigCompatibilityTests: XCTestCase {
         XCTAssertEqual(power.batteryFloorRecoveryPercent, 20)
         XCTAssertEqual(power.closedLidTimeCapMinutes, 240)
         XCTAssertTrue(power.closedLidZeroBrightness)
+        XCTAssertEqual(config.display?.keepAwakeWhenLidClosed, true)
+        XCTAssertEqual(config.display?.closedLidPowerPolicy, .any)
+        XCTAssertEqual(config.display?.closedLidDisplayMode, .blackScreenPipeline)
+        XCTAssertEqual(config.display?.pauseWhenExternalDisplayConnected, true)
+    }
+
+    func testDisplayConfigOverridesLegacyPowerMirror() throws {
+        try write(
+            """
+            {
+              "power": {
+                "allowClosedLid": true,
+                "pauseClosedLidWithExternalDisplay": true,
+                "closedLidZeroBrightness": true
+              },
+              "display": {
+                "schemaVersion": 1,
+                "keepAwakeWhenLidClosed": false,
+                "closedLidDisplayMode": "displayOff",
+                "pauseWhenExternalDisplayConnected": false
+              }
+            }
+            """
+        )
+
+        let config = store().load()
+
+        XCTAssertFalse(config.power.allowClosedLid)
+        XCTAssertFalse(config.power.pauseClosedLidWithExternalDisplay)
+        XCTAssertFalse(config.power.closedLidZeroBrightness)
+        XCTAssertFalse(config.display?.keepAwakeWhenLidClosed ?? true)
+        XCTAssertEqual(config.display?.closedLidPowerPolicy, .sleep)
+        XCTAssertEqual(config.display?.closedLidDisplayMode, .displayOff)
+    }
+
+    func testClosedLidPolicyIsAuthoritativeOverLegacyMirrors() throws {
+        try write(
+            """
+            {
+              "disableLidSleepInCharging": true,
+              "disableLidSleepOnBattery": true,
+              "lidSleepImmediateOnClose": false,
+              "display": {
+                "schemaVersion": 2,
+                "keepAwakeWhenLidClosed": true,
+                "closedLidPowerPolicy": "sleep",
+                "closedLidDisplayMode": "displayOff",
+                "pauseWhenExternalDisplayConnected": true
+              }
+            }
+            """
+        )
+
+        let config = store().load()
+
+        XCTAssertEqual(config.display?.closedLidPowerPolicy, .sleep)
+        XCTAssertEqual(config.display?.keepAwakeWhenLidClosed, false)
+        XCTAssertFalse(config.disableLidSleepInCharging)
+        XCTAssertFalse(config.disableLidSleepOnBattery)
+        XCTAssertTrue(config.lidSleepImmediateOnClose)
     }
 
     /// 缺少实验黑屏键时使用新默认值；显式关闭必须保留。
@@ -189,7 +250,14 @@ final class ConfigCompatibilityTests: XCTestCase {
             disableLidSleepOnBattery: true,
             darkWakeAwarenessEnabled: false,
             lidSleepImmediateOnClose: false,
-            enabled: false
+            enabled: false,
+            display: DisplayConfig(
+                schemaVersion: 2,
+                keepAwakeWhenLidClosed: true,
+                closedLidPowerPolicy: .any,
+                closedLidDisplayMode: .blackScreenPipeline,
+                pauseWhenExternalDisplayConnected: true
+            )
         )
         store.save(config: original)
         let reloaded = store.load()
@@ -201,7 +269,7 @@ final class ConfigCompatibilityTests: XCTestCase {
         XCTAssertTrue(reloaded.disableLidSleepInCharging)
         XCTAssertTrue(reloaded.disableLidSleepOnBattery)
         XCTAssertFalse(reloaded.darkWakeAwarenessEnabled)
-        XCTAssertFalse(reloaded.lidSleepImmediateOnClose)
+        XCTAssertTrue(reloaded.lidSleepImmediateOnClose)
         XCTAssertFalse(reloaded.enabled)
     }
 

@@ -13,6 +13,7 @@ struct MonitorTabView: View {
     private let runsSampling: Bool
     private let powerPopoverInitiallyPresented: Bool
     private let powerPopoverInitialTab: MonitorPowerDetailTab
+    private let displayPopoverInitiallyPresented: Bool
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var snapshot: MonitorSnapshot
@@ -32,7 +33,8 @@ struct MonitorTabView: View {
         initialPowerHistory: MonitorPowerHistory = MonitorPowerHistory(),
         runsSampling: Bool = true,
         powerPopoverInitiallyPresented: Bool = false,
-        powerPopoverInitialTab: MonitorPowerDetailTab = .details
+        powerPopoverInitialTab: MonitorPowerDetailTab = .details,
+        displayPopoverInitiallyPresented: Bool = false
     ) {
         self.language = language
         self.powerModel = powerModel ?? runtime
@@ -41,6 +43,7 @@ struct MonitorTabView: View {
         self.runsSampling = runsSampling
         self.powerPopoverInitiallyPresented = powerPopoverInitiallyPresented
         self.powerPopoverInitialTab = powerPopoverInitialTab
+        self.displayPopoverInitiallyPresented = displayPopoverInitiallyPresented
         _snapshot = State(initialValue: initialSnapshot)
         _history = State(initialValue: initialHistory)
         _powerHistory = State(initialValue: initialPowerHistory)
@@ -99,6 +102,7 @@ struct MonitorTabView: View {
                 diskCard
                 networkCard
                 powerCard
+                displayCard
                 fanCard
             }
         }
@@ -292,6 +296,16 @@ struct MonitorTabView: View {
         }
     }
 
+    private var displayCard: some View {
+        MonitorDisplayCard(
+            display: snapshot.display ?? .empty,
+            language: language,
+            powerModel: powerModel,
+            popoverCoordinator: popoverCoordinator,
+            popoverInitiallyPresented: displayPopoverInitiallyPresented
+        )
+    }
+
     @ViewBuilder
     private var networkCard: some View {
         if let network = snapshot.network {
@@ -332,6 +346,7 @@ enum MonitorCardKind {
     case disk
     case network
     case power
+    case display
     case fan
 
     var title: LocalizedCopy {
@@ -342,6 +357,7 @@ enum MonitorCardKind {
         case .disk: ContractCopy.copyMonitorTitleDisk
         case .network: ContractCopy.copyMonitorTitleNetwork
         case .power: ContractCopy.copyMonitorTitleBattery
+        case .display: ContractCopy.copyMonitorTitleDisplay
         case .fan: ContractCopy.copyMonitorFanTitle
         }
     }
@@ -354,6 +370,7 @@ enum MonitorCardKind {
         case .disk: "internaldrive"
         case .network: "network"
         case .power: "powerplug.fill"
+        case .display: "display"
         case .fan: "fanblades.fill"
         }
     }
@@ -366,6 +383,7 @@ enum MonitorCardKind {
         case .disk: MacTheme.color(ContractColors.tokenColorWarningFill)
         case .network: MacTheme.color(ContractColors.tokenColorErrorText)
         case .power: MacTheme.color(ContractColors.tokenColorSuccessFill)
+        case .display: MacTheme.color(ContractColors.tokenColorBrand)
         case .fan: MacTheme.color(ContractColors.tokenColorBrand)
         }
     }
@@ -489,7 +507,7 @@ private struct MonitorPowerCard: View {
             return .handled
         }
         .onAppear {
-            setDetailsPresented(popoverInitiallyPresented || detailsExpanded)
+            setDetailsPresented(popoverInitiallyPresented || shouldRestoreStoredPresentation)
         }
         .onChange(of: detailsPresented) { _, presented in
             detailsExpanded = presented
@@ -556,6 +574,14 @@ private struct MonitorPowerCard: View {
 
     private func toggleDetails() {
         setDetailsPresented(!detailsPresented)
+    }
+
+    private var shouldRestoreStoredPresentation: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.environment["COVIO_MONITOR_PREVIEW"] != "1" && detailsExpanded
+        #else
+        detailsExpanded
+        #endif
     }
 
     /// 同时更新 Popover 与协调器。先登记再等窗口出现，避免指针事件抢先启动收起。
@@ -937,14 +963,6 @@ struct MonitorPowerDetailPanel: View {
         }
         .padding(MacTheme.space4)
         .frame(width: 560, height: detailHeight)
-        .background(
-            MacTheme.surface.opacity(0.97),
-            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(MacTheme.divider.opacity(0.8), lineWidth: 1)
-        )
     }
 
     @ViewBuilder
@@ -1497,10 +1515,7 @@ private struct MonitorPowerDetailSection<Content: View>: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            MacTheme.elevated.opacity(0.82),
-            in: RoundedRectangle(cornerRadius: 9, style: .continuous)
-        )
+        .popoverContentSurface(cornerRadius: 9)
     }
 }
 

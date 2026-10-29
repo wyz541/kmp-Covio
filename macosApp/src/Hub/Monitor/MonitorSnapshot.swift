@@ -128,6 +128,17 @@ struct MonitorSnapshot: Equatable, Sendable {
         power?.supply == .battery || battery?.state == .discharging
     }
 
+    var fanPowerSource: MonitorFanPowerSource {
+        switch power?.supply {
+        case .adapter, .charging:
+            return .adapter
+        case .battery:
+            return .battery
+        case .unknown, nil:
+            return isOnBattery ? .battery : .unknown
+        }
+    }
+
     /// 电源卡片有独立的 1 秒采样循环。这个函数只替换电源数据。
     func replacingPower(_ power: Power) -> MonitorSnapshot {
         MonitorSnapshot(

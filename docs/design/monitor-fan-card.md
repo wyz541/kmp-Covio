@@ -24,6 +24,7 @@
 | ![手动风扇模式亮色](previews/366-fan-manual-stats-light-after-1.png) | ![手动风扇模式深色](previews/366-fan-manual-stats-dark-after-1.png) |
 | ![分层玻璃 popover 亮色](previews/441-fan-popover-light-after-3.png) | ![分层玻璃 popover 深色](previews/441-fan-popover-dark-after-3.png) |
 | ![温度来源规则亮色](previews/474-monitor-fan-temperature-rules-light-after-4.png) | ![温度来源规则深色](previews/474-monitor-fan-temperature-rules-dark-after-4.png) |
+| ![插电与电池曲线亮色](previews/334-fan-power-curves-light-after-2.png) | ![插电与电池曲线深色](previews/334-fan-power-curves-dark-after-2.png) |
 
 ## 3. 三段式结构
 
@@ -71,6 +72,13 @@ Liquid Glass 不用于内容层。
 系统自动模式只释放风扇控制，不运行温度曲线。
 曲线模式才持有风扇并写入目标转速。
 曲线模式使用 SwiftUI 和 Apple Swift Charts。
+
+曲线模式保存插电曲线和电池曲线。
+编辑器显示当前电源来源和生效曲线。
+电池曲线缺少某台风扇时，该风扇沿用插电曲线。
+用户可以把插电曲线复制到电池曲线。
+电源状态变化后，Covio 自动应用对应曲线。
+温度来源规则存在时，来源规则优先于插电和电池曲线。
 
 | 项目 | 规范 |
 | --- | --- |

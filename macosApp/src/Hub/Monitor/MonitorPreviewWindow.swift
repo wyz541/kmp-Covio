@@ -559,6 +559,7 @@ struct MonitorFanPreviewRoot: View {
             manualRPM: ["0": 2_588, "1": 2_709],
             manualModes: ["0": .manual, "1": .manual],
             syncFans: Self.scenario == "manual-sync",
+            powerSource: Self.scenario.hasPrefix("power-curves") ? .battery : .adapter,
             curves: [
                 "0": [
                     .init(temperature: 45, rpm: 1_200),
@@ -573,6 +574,22 @@ struct MonitorFanPreviewRoot: View {
                     .init(temperature: 92, rpm: 6_000),
                 ],
             ],
+            batteryCurves: Self.scenario == "power-curves"
+                ? [
+                    "0": [
+                        .init(temperature: 50, rpm: 1_200),
+                        .init(temperature: 70, rpm: 2_200),
+                        .init(temperature: 86, rpm: 3_900),
+                        .init(temperature: 100, rpm: 5_800),
+                    ],
+                    "1": [
+                        .init(temperature: 50, rpm: 1_300),
+                        .init(temperature: 70, rpm: 2_600),
+                        .init(temperature: 86, rpm: 4_400),
+                        .init(temperature: 100, rpm: 6_000),
+                    ],
+                ]
+                : [:],
             temperatureRules: Self.scenario == "temperature-rules"
                 ? ["battery": MonitorFanTemperatureRule.defaultPoints(for: .battery)]
                 : [:]

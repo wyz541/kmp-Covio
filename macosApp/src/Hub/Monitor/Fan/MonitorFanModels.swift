@@ -40,6 +40,21 @@ enum MonitorFanMode: String, Codable, CaseIterable, Sendable {
     var isAutomatic: Bool { self == .automatic }
 }
 
+enum MonitorFanPowerSource: String, Codable, CaseIterable, Sendable {
+    case adapter
+    case battery
+    case unknown
+
+    var curveSource: MonitorFanCurveSource {
+        self == .battery ? .battery : .adapter
+    }
+}
+
+enum MonitorFanCurveSource: String, Codable, CaseIterable, Sendable {
+    case adapter
+    case battery
+}
+
 struct MonitorFanCurvePoint: Codable, Equatable, Sendable, Identifiable {
     var temperature: Double
     var rpm: Double
@@ -70,8 +85,12 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
     /// 手动控制区的每风扇模式。只保存 automatic 和 manual。
     var manualModes: [String: MonitorFanMode] = [:]
     var syncFans: Bool = false
-    /// 风扇序号对应的多点曲线。缺少某台风扇时，使用起转/全速两点曲线。
+    /// 当前电源来源。用于选择插电或电池曲线。
+    var powerSource: MonitorFanPowerSource = .adapter
+    /// 插电时每台风扇的多点曲线。缺少某台风扇时，使用起转/全速两点曲线。
     var curves: [String: [MonitorFanCurvePoint]] = [:]
+    /// 电池时每台风扇的多点曲线。缺少某台风扇时，沿用同风扇的插电曲线。
+    var batteryCurves: [String: [MonitorFanCurvePoint]] = [:]
     /// CPU、GPU 或电池来源对应的温度到风扇百分比控制点。
     var temperatureRules: [String: [MonitorFanTemperatureRulePoint]] = [:]
 
@@ -86,7 +105,9 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         manualRPM: [String: Double] = [:],
         manualModes: [String: MonitorFanMode] = [:],
         syncFans: Bool = false,
+        powerSource: MonitorFanPowerSource = .adapter,
         curves: [String: [MonitorFanCurvePoint]] = [:],
+        batteryCurves: [String: [MonitorFanCurvePoint]] = [:],
         temperatureRules: [String: [MonitorFanTemperatureRulePoint]] = [:]
     ) {
         self.enabled = enabled
@@ -97,7 +118,9 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         self.manualRPM = manualRPM
         self.manualModes = manualModes
         self.syncFans = syncFans
+        self.powerSource = powerSource
         self.curves = curves
+        self.batteryCurves = batteryCurves
         self.temperatureRules = temperatureRules
     }
 
@@ -110,7 +133,9 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         case manualRPM
         case manualModes
         case syncFans
+        case powerSource
         case curves
+        case batteryCurves
         case temperatureRules
     }
 
@@ -129,9 +154,17 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
             forKey: .manualModes
         ) ?? [:]
         syncFans = try container.decodeIfPresent(Bool.self, forKey: .syncFans) ?? false
+        powerSource = try container.decodeIfPresent(
+            MonitorFanPowerSource.self,
+            forKey: .powerSource
+        ) ?? .adapter
         curves = try container.decodeIfPresent(
             [String: [MonitorFanCurvePoint]].self,
             forKey: .curves
+        ) ?? [:]
+        batteryCurves = try container.decodeIfPresent(
+            [String: [MonitorFanCurvePoint]].self,
+            forKey: .batteryCurves
         ) ?? [:]
         temperatureRules = try container.decodeIfPresent(
             [String: [MonitorFanTemperatureRulePoint]].self,
@@ -149,7 +182,9 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         try container.encode(manualRPM, forKey: .manualRPM)
         try container.encode(manualModes, forKey: .manualModes)
         try container.encode(syncFans, forKey: .syncFans)
+        try container.encode(powerSource, forKey: .powerSource)
         try container.encode(curves, forKey: .curves)
+        try container.encode(batteryCurves, forKey: .batteryCurves)
         try container.encode(temperatureRules, forKey: .temperatureRules)
     }
 
@@ -191,17 +226,27 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         }
         copy.manualModes = normalizedModes
 
-        var normalizedCurves: [String: [MonitorFanCurvePoint]] = [:]
-        for (key, points) in curves {
-            guard let fanIndex = Int(key), fanIndex >= 0 else { continue }
-            let minimum = max(0, fanMinimums[fanIndex] ?? 0)
-            let maximum = max(minimum, fanMaximums[fanIndex] ?? MonitorFanPolicy.maximumRPM)
-            let normalizedPoints = MonitorFanCurve.normalized(points, minimumRPM: minimum, maximumRPM: maximum)
-            if normalizedPoints.count >= 2 {
-                normalizedCurves[key] = normalizedPoints
+        func normalizedCurveMap(
+            _ source: [String: [MonitorFanCurvePoint]]
+        ) -> [String: [MonitorFanCurvePoint]] {
+            var result: [String: [MonitorFanCurvePoint]] = [:]
+            for (key, points) in source {
+                guard let fanIndex = Int(key), fanIndex >= 0 else { continue }
+                let minimum = max(0, fanMinimums[fanIndex] ?? 0)
+                let maximum = max(minimum, fanMaximums[fanIndex] ?? MonitorFanPolicy.maximumRPM)
+                let normalizedPoints = MonitorFanCurve.normalized(
+                    points,
+                    minimumRPM: minimum,
+                    maximumRPM: maximum
+                )
+                if normalizedPoints.count >= 2 {
+                    result[key] = normalizedPoints
+                }
             }
+            return result
         }
-        copy.curves = normalizedCurves
+        copy.curves = normalizedCurveMap(curves)
+        copy.batteryCurves = normalizedCurveMap(batteryCurves)
 
         var normalizedRules: [String: [MonitorFanTemperatureRulePoint]] = [:]
         for (source, points) in temperatureRules {
@@ -238,13 +283,44 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         )
     }
 
-    /// 返回指定风扇的曲线。没有自定义曲线时，沿用起转/全速两点曲线。
+    func customCurves(for source: MonitorFanCurveSource) -> [String: [MonitorFanCurvePoint]] {
+        source == .battery ? batteryCurves : curves
+    }
+
+    func hasCustomCurve(for fanIndex: Int, source: MonitorFanCurveSource) -> Bool {
+        (customCurves(for: source)[String(fanIndex)]?.count ?? 0) >= 2
+    }
+
+    func effectiveCurveSource(for fanIndex: Int) -> MonitorFanCurveSource {
+        if powerSource == .battery, hasCustomCurve(for: fanIndex, source: .battery) {
+            return .battery
+        }
+        return .adapter
+    }
+
+    /// 返回 helper 当前应使用的曲线。电池曲线缺少某台风扇时，沿用该风扇的插电曲线。
+    var activePowerCurves: [String: [MonitorFanCurvePoint]] {
+        guard powerSource == .battery else { return curves }
+        var resolved = curves
+        for (key, points) in batteryCurves {
+            resolved[key] = points
+        }
+        return resolved
+    }
+
+    /// 返回指定风扇的曲线。电池曲线缺少该风扇时，回退到插电曲线。
     func curvePoints(
         for fanIndex: Int,
         minimumRPM: Double,
-        maximumRPM: Double
+        maximumRPM: Double,
+        source: MonitorFanCurveSource? = nil
     ) -> [MonitorFanCurvePoint] {
-        if let points = curves[String(fanIndex)], points.count >= 2 {
+        let curveSource = source ?? powerSource.curveSource
+        let key = String(fanIndex)
+        if let points = customCurves(for: curveSource)[key], points.count >= 2 {
+            return points
+        }
+        if curveSource == .battery, let points = curves[key], points.count >= 2 {
             return points
         }
         return [
@@ -257,13 +333,15 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         fanIndex: Int,
         temperature: Double,
         minimumRPM: Double,
-        maximumRPM: Double
+        maximumRPM: Double,
+        source: MonitorFanCurveSource? = nil
     ) -> Double {
         MonitorFanCurve.target(
             points: curvePoints(
                 for: fanIndex,
                 minimumRPM: minimumRPM,
-                maximumRPM: maximumRPM
+                maximumRPM: maximumRPM,
+                source: source
             ),
             temperature: temperature,
             minimumRPM: minimumRPM,
@@ -315,9 +393,10 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
             .joined(separator: ",")
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
-        let curveText = curves.isEmpty
+        let selectedCurves = activePowerCurves
+        let curveText = selectedCurves.isEmpty
             ? ""
-            : (try? encoder.encode(curves)).flatMap { String(data: $0, encoding: .utf8) } ?? ""
+            : (try? encoder.encode(selectedCurves)).flatMap { String(data: $0, encoding: .utf8) } ?? ""
         let manualModeText = manualModes.isEmpty
             ? ""
             : (try? encoder.encode(manualModes)).flatMap { String(data: $0, encoding: .utf8) } ?? ""

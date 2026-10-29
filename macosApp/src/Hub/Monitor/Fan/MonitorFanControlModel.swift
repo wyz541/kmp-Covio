@@ -148,6 +148,7 @@ final class MonitorFanControlModel: ObservableObject {
         configuration.enabled = true
         configuration.selectedSensorKeys = sensorKeys
         configuration.curves.removeAll()
+        configuration.batteryCurves.removeAll()
         persist()
         apply(reading: reading)
     }
@@ -164,11 +165,16 @@ final class MonitorFanControlModel: ObservableObject {
     func setCurve(
         fanIndex: Int?,
         points: [MonitorFanCurvePoint],
+        source: MonitorFanCurveSource,
         reading: MonitorFanReading
     ) {
         let indices = fanIndex.map { [$0] } ?? reading.units.map(\.index)
         for index in indices {
-            configuration.curves[String(index)] = points
+            if source == .battery {
+                configuration.batteryCurves[String(index)] = points
+            } else {
+                configuration.curves[String(index)] = points
+            }
         }
         let minimums = Dictionary(uniqueKeysWithValues: reading.units.map {
             ($0.index, $0.minimumRPM)
@@ -187,13 +193,63 @@ final class MonitorFanControlModel: ObservableObject {
     }
 
     /// 清除自定义曲线，恢复当前起转/全速两点曲线。
-    func clearCurve(fanIndex: Int?, reading: MonitorFanReading) {
+    func clearCurve(
+        fanIndex: Int?,
+        source: MonitorFanCurveSource,
+        reading: MonitorFanReading
+    ) {
         let indices = fanIndex.map { [$0] } ?? reading.units.map(\.index)
         for index in indices {
-            configuration.curves.removeValue(forKey: String(index))
+            if source == .battery {
+                configuration.batteryCurves.removeValue(forKey: String(index))
+            } else {
+                configuration.curves.removeValue(forKey: String(index))
+            }
         }
         persist()
         if configuration.enabled, configuration.mode == .curve {
+            apply(reading: reading)
+        }
+    }
+
+    func copyAdapterCurvesToBattery(reading: MonitorFanReading) {
+        for fan in reading.units {
+            configuration.batteryCurves[String(fan.index)] = configuration.curvePoints(
+                for: fan.index,
+                minimumRPM: fan.minimumRPM,
+                maximumRPM: fan.maximumRPM,
+                source: .adapter
+            )
+        }
+        configuration = configuration.normalized(
+            fanMinimums: Dictionary(uniqueKeysWithValues: reading.units.map {
+                ($0.index, $0.minimumRPM)
+            }),
+            fanMaximums: Dictionary(uniqueKeysWithValues: reading.units.map {
+                ($0.index, $0.maximumRPM)
+            })
+        )
+        persist()
+        if configuration.enabled, configuration.mode == .curve {
+            apply(reading: reading)
+        }
+    }
+
+    func updatePowerSource(
+        _ source: MonitorFanPowerSource,
+        reading: MonitorFanReading
+    ) {
+        guard configuration.powerSource != source else { return }
+        curveApplyTask?.cancel()
+        configuration.powerSource = source
+        persist()
+        guard configuration.enabled,
+              configuration.mode == .curve,
+              configuration.enabledTemperatureSources.isEmpty
+        else { return }
+        if busy {
+            scheduleCurveApply(reading: reading)
+        } else {
             apply(reading: reading)
         }
     }

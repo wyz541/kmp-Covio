@@ -9,12 +9,15 @@ struct MonitorFanCurveEditor: View {
     let reading: MonitorFanReading
     let configuration: MonitorFanConfiguration
     let language: AppLanguage
+    let powerSource: MonitorFanPowerSource
     let interactive: Bool
     let busy: Bool
-    let onCommit: (Int?, [MonitorFanCurvePoint]) -> Void
-    let onClear: (Int?) -> Void
+    let onCommit: (Int?, MonitorFanCurveSource, [MonitorFanCurvePoint]) -> Void
+    let onClear: (Int?, MonitorFanCurveSource) -> Void
+    let onCopyAdapterCurves: () -> Void
 
     @State private var selectedFanIndex: Int?
+    @State private var selectedCurveSource: MonitorFanCurveSource?
     @State private var selectedPointIndex = 0
     @State private var draftPoints: [MonitorFanCurvePoint] = []
     @State private var draggingPointIndex: Int?
@@ -31,6 +34,11 @@ struct MonitorFanCurveEditor: View {
                     .foregroundStyle(MacTheme.textSecondary)
             }
 
+            powerStatus
+            curveSourcePicker
+            if editingCurveSource == .battery, hasBatteryCurveFallback {
+                batteryFallback
+            }
             fanPicker
             chartWithInteraction
             pointSelector
@@ -50,9 +58,72 @@ struct MonitorFanCurveEditor: View {
             selectedPointIndex = 0
             syncDraft()
         }
+        .onChange(of: selectedCurveSource) { _, _ in
+            selectedPointIndex = 0
+            syncDraft()
+        }
+        .onChange(of: powerSource) { _, source in
+            if selectedCurveSource == nil {
+                selectedCurveSource = source.curveSource
+            }
+        }
         .onChange(of: configuration) { _, _ in
             syncDraft()
         }
+    }
+
+    private var powerStatus: some View {
+        HStack(spacing: 6) {
+            Label {
+                Text(powerSourceTitle)
+                    .lineLimit(1)
+            } icon: {
+                Image(systemName: powerSourceIcon)
+            }
+            .foregroundStyle(MacTheme.textSecondary)
+            Spacer(minLength: 0)
+            Text(activeCurveText)
+                .foregroundStyle(MacTheme.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .font(.system(size: 8, weight: .medium))
+    }
+
+    private var curveSourcePicker: some View {
+        Picker(ContractCopy.copyMonitorFanCurveSource.text(for: language), selection: Binding(
+            get: { editingCurveSource },
+            set: { selectedCurveSource = $0 }
+        )) {
+            Text(ContractCopy.copyMonitorFanCurveSourceAdapter.text(for: language))
+                .tag(MonitorFanCurveSource.adapter)
+            Text(ContractCopy.copyMonitorFanCurveSourceBattery.text(for: language))
+                .tag(MonitorFanCurveSource.battery)
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .disabled(busy)
+    }
+
+    private var batteryFallback: some View {
+        HStack(spacing: 8) {
+            Text(ContractCopy.copyMonitorFanBatteryCurveFallback.text(for: language))
+                .font(.system(size: 8, weight: .medium))
+                .foregroundStyle(MacTheme.warningText)
+            Spacer(minLength: 0)
+            Button(ContractCopy.copyMonitorFanCopyAdapterCurve.text(for: language)) {
+                onCopyAdapterCurves()
+                syncDraft()
+            }
+            .buttonStyle(.link)
+            .font(.system(size: 8, weight: .semibold))
+            .disabled(busy)
+        }
+        .padding(7)
+        .background(
+            MacTheme.warningBackground.opacity(0.62),
+            in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+        )
     }
 
     private var fanPicker: some View {
@@ -67,6 +138,71 @@ struct MonitorFanCurveEditor: View {
         .pickerStyle(.segmented)
         .labelsHidden()
         .disabled(busy)
+    }
+
+    private var editingCurveSource: MonitorFanCurveSource {
+        selectedCurveSource ?? powerSource.curveSource
+    }
+
+    private var editingFanIndices: [Int] {
+        selectedFanIndex.map { [$0] } ?? reading.units.map(\.index)
+    }
+
+    private var hasBatteryCurveFallback: Bool {
+        editingFanIndices.contains { fanIndex in
+            !configuration.hasCustomCurve(for: fanIndex, source: .battery)
+        }
+    }
+
+    private var clearCurveTitle: String {
+        editingCurveSource == .battery
+            ? ContractCopy.copyMonitorFanClearBatteryCurve.text(for: language)
+            : ContractCopy.copyMonitorFanResetCurve.text(for: language)
+    }
+
+    private var canClearCurve: Bool {
+        editingCurveSource == .adapter || editingFanIndices.contains { fanIndex in
+            configuration.hasCustomCurve(for: fanIndex, source: .battery)
+        }
+    }
+
+    private var activeCurveText: String {
+        guard powerSource == .battery else {
+            return ContractCopy.copyMonitorFanActiveCurveAdapter.text(for: language)
+        }
+        let indices = reading.units.map(\.index)
+        let batteryCount = indices.filter {
+            configuration.hasCustomCurve(for: $0, source: .battery)
+        }.count
+        if batteryCount == 0 {
+            return ContractCopy.copyMonitorFanActiveCurveAdapter.text(for: language)
+        }
+        if batteryCount == indices.count {
+            return ContractCopy.copyMonitorFanActiveCurveBattery.text(for: language)
+        }
+        return ContractCopy.copyMonitorFanActiveCurveMixed.text(for: language)
+    }
+
+    private var powerSourceTitle: String {
+        switch powerSource {
+        case .adapter:
+            ContractCopy.copyMonitorFanPowerSourceAdapter.text(for: language)
+        case .battery:
+            ContractCopy.copyMonitorFanPowerSourceBattery.text(for: language)
+        case .unknown:
+            ContractCopy.copyMonitorFanPowerSourceUnknown.text(for: language)
+        }
+    }
+
+    private var powerSourceIcon: String {
+        switch powerSource {
+        case .adapter:
+            "powerplug"
+        case .battery:
+            "battery.75percent"
+        case .unknown:
+            "questionmark.circle"
+        }
     }
 
     private var chart: some View {
@@ -216,13 +352,13 @@ struct MonitorFanCurveEditor: View {
                 .disabled(busy)
             }
 
-            Button(ContractCopy.copyMonitorFanResetCurve.text(for: language)) {
-                onClear(selectedFanIndex)
+            Button(clearCurveTitle) {
+                onClear(selectedFanIndex, editingCurveSource)
                 syncDraft()
             }
             .buttonStyle(.link)
             .font(.system(size: 9))
-            .disabled(busy)
+            .disabled(busy || !canClearCurve)
         }
     }
 
@@ -248,8 +384,9 @@ struct MonitorFanCurveEditor: View {
     }
 
     private func syncDraft() {
+        let sourceCurves = configuration.customCurves(for: editingCurveSource)
         let fanIndex = selectedFanIndex
-            ?? reading.units.first(where: { configuration.curves[String($0.index)] != nil })?.index
+            ?? reading.units.first(where: { sourceCurves[String($0.index)] != nil })?.index
             ?? reading.units.first?.index
             ?? 0
         let fan = reading.units.first(where: { $0.index == fanIndex })
@@ -258,7 +395,8 @@ struct MonitorFanCurveEditor: View {
         draftPoints = configuration.curvePoints(
             for: fanIndex,
             minimumRPM: minimum,
-            maximumRPM: maximum
+            maximumRPM: maximum,
+            source: editingCurveSource
         )
         selectedPointIndex = min(selectedPointIndex, max(0, draftPoints.count - 1))
     }
@@ -311,7 +449,7 @@ struct MonitorFanCurveEditor: View {
     private func commitDraft() {
         let sorted = draftPoints.sorted { $0.temperature < $1.temperature }
         draftPoints = sorted
-        onCommit(selectedFanIndex, sorted)
+        onCommit(selectedFanIndex, editingCurveSource, sorted)
     }
 
     private func dragGesture(proxy: ChartProxy, geometry: GeometryProxy) -> some Gesture {

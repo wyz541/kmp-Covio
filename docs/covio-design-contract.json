@@ -4680,6 +4680,54 @@
       "en": "Drag points or use the sliders.",
       "zh-Hans": "拖动控制点，或使用滑杆编辑。"
     },
+    "copy/monitor/fan/curve-source-adapter": {
+      "en": "Plugged-in curve",
+      "zh-Hans": "插电曲线"
+    },
+    "copy/monitor/fan/curve-source": {
+      "en": "Curve source",
+      "zh-Hans": "曲线电源"
+    },
+    "copy/monitor/fan/curve-source-battery": {
+      "en": "Battery curve",
+      "zh-Hans": "电池曲线"
+    },
+    "copy/monitor/fan/power-source-adapter": {
+      "en": "Current: power adapter",
+      "zh-Hans": "当前：插电"
+    },
+    "copy/monitor/fan/power-source-battery": {
+      "en": "Current: battery",
+      "zh-Hans": "当前：电池"
+    },
+    "copy/monitor/fan/power-source-unknown": {
+      "en": "Current: power source unknown",
+      "zh-Hans": "当前：电源未知"
+    },
+    "copy/monitor/fan/active-curve-adapter": {
+      "en": "Active curve: plugged-in",
+      "zh-Hans": "生效曲线：插电"
+    },
+    "copy/monitor/fan/active-curve-battery": {
+      "en": "Active curve: battery",
+      "zh-Hans": "生效曲线：电池"
+    },
+    "copy/monitor/fan/active-curve-mixed": {
+      "en": "Active curve: battery with plugged-in fallback",
+      "zh-Hans": "生效曲线：电池，部分风扇回退插电"
+    },
+    "copy/monitor/fan/copy-adapter-curve": {
+      "en": "Copy plugged-in curve to battery",
+      "zh-Hans": "复制插电曲线到电池"
+    },
+    "copy/monitor/fan/battery-curve-fallback": {
+      "en": "Battery curve is empty. Covio uses the plugged-in curve.",
+      "zh-Hans": "电池曲线为空。Covio 使用插电曲线。"
+    },
+    "copy/monitor/fan/clear-battery-curve": {
+      "en": "Clear battery curve",
+      "zh-Hans": "清空电池曲线"
+    },
     "copy/monitor/fan/control-point": {
       "en": "Control point %d",
       "zh-Hans": "控制点 %d"

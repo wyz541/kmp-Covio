@@ -543,13 +543,22 @@ struct MonitorFanPopover: View {
             reading: reading,
             configuration: model.configuration,
             language: language,
+            powerSource: model.configuration.powerSource,
             interactive: !rendersForSnapshot,
             busy: model.busy,
-            onCommit: { fanIndex, points in
-                model.setCurve(fanIndex: fanIndex, points: points, reading: reading)
+            onCommit: { fanIndex, source, points in
+                model.setCurve(
+                    fanIndex: fanIndex,
+                    points: points,
+                    source: source,
+                    reading: reading
+                )
             },
-            onClear: { fanIndex in
-                model.clearCurve(fanIndex: fanIndex, reading: reading)
+            onClear: { fanIndex, source in
+                model.clearCurve(fanIndex: fanIndex, source: source, reading: reading)
+            },
+            onCopyAdapterCurves: {
+                model.copyAdapterCurvesToBattery(reading: reading)
             }
         )
     }

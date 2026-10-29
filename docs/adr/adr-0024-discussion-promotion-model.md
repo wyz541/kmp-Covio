@@ -73,3 +73,17 @@ GitHub 不支持 Discussion 作为 Issue 的原生 parent。此方案不能满�
 - [研发工作流](../process/workflow.md)
 - [工作流调研](../research/workflow-research.md)
 - GitHub issue #445
+
+## 补充（2026-10-29）
+
+Parent Feature 的 child 类型增加 Verify。
+
+1. Research、Task 与 Verify 都是 Parent Feature 的 sub-issue。
+2. Verify 与 Task 同级，不是 Task 的 child。
+3. Task 的产出是代码和一个 PR。
+4. Verify 的产出是验收证据。Verify 不要求分支和 PR。
+5. Verify 使用 `blocked by` 指向被验收的 Task。
+6. 单个 PR 的 `Visual verification` 和 `Proof` 仍写在 PR。
+7. 跨多个 Task 或 PR、需要真机、需要发布前复验或需要长期证据时，才创建 Verify issue。
+
+补充不改变原决策。它只补齐 Parent Feature 下的验证对象。

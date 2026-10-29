@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """校验 UI 证据的位置与模板结构。
 
-规则来源：ADR-0023。
+规则来源：ADR-0023 与 ADR-0024。
 Issue 阶段只写目标和表现预期。UI 代码变更的真机截图写入 PR。
+Parent Feature 使用同级 Research、Task 与 Verify sub-issue。
 """
 
 from pathlib import Path
@@ -11,6 +12,9 @@ import sys
 ROOT = Path(__file__).resolve().parent.parent
 ISSUE_TEMPLATES = tuple(sorted((ROOT / ".github" / "ISSUE_TEMPLATE").glob("*.yml")))
 PR_TEMPLATE = ROOT / ".github" / "pull_request_template.md"
+FEATURE_TEMPLATE = ROOT / ".github" / "ISSUE_TEMPLATE" / "feature.yml"
+TASK_TEMPLATE = ROOT / ".github" / "ISSUE_TEMPLATE" / "task.yml"
+VERIFY_TEMPLATE = ROOT / ".github" / "ISSUE_TEMPLATE" / "verify.yml"
 WORKFLOW = ROOT / "docs" / "process" / "workflow.md"
 AGENTS = ROOT / "AGENTS.md"
 PREVIEW_README = ROOT / "docs" / "design" / "previews" / "README.md"
@@ -60,9 +64,37 @@ def main() -> int:
             "UI 代码变更的 `Visual verification` 只写在 PR",
             "PR 正文嵌入同一文件的固定 commit GitHub 图片地址",
             "UI 代码 PR 缺少截图或图片链接失效时，不得转入 ready 或合并",
+            "Research、Task 与 Verify 都是 Parent Feature 的 sub-issue",
+            "Verify 与 Task 同级",
+            "Verify 不要求分支和 PR",
         ),
     )
-    require_text(AGENTS, ("PR 必须使用 `Visual verification`", "PR 不得转入 ready 或合并"))
+    require_text(
+        FEATURE_TEMPLATE,
+        (
+            "Research、Task 与 Verify 都是 Parent Feature 的 sub-issue",
+            "Verify 与 Task 同级",
+        ),
+    )
+    require_text(TASK_TEMPLATE, ("另建 Verify sub-issue",))
+    require_text(
+        VERIFY_TEMPLATE,
+        (
+            'labels: ["verify"]',
+            "label: 验收场景",
+            "label: 证据要求",
+            "Verify 与 Task 同级",
+        ),
+    )
+    require_text(
+        AGENTS,
+        (
+            "PR 必须使用 `Visual verification`",
+            "PR 不得转入 ready 或合并",
+            "Verify 与 Task 同级",
+            "Verify 的产出是验收证据",
+        ),
+    )
     require_text(PREVIEW_README, ("PR 的 `Visual verification`",))
     require_text(ADR, ("- Status：accepted", "## 决策", "PR 必须提供 `Visual verification`"))
 
@@ -72,7 +104,7 @@ def main() -> int:
         print(f"{len(errors)} 条问题。", file=sys.stderr)
         return 1
 
-    print("工作流校验通过：Issue 写预期，PR 写真机 Visual verification。")
+    print("工作流校验通过：Research、Task、Verify 层级正确，PR 写 Visual verification。")
     return 0
 
 

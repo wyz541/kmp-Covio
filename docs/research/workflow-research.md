@@ -4,18 +4,19 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | `1.1` |
+| 文档版本 | `1.2` |
 | 状态 | 初稿，可评审 |
 | 日期 | `2026-10-29` |
 | 适用对象 | 维护人、负责人 |
 | 作用 | 支撑 [流程文件](../process/workflow.md) 的机制选择 |
 | 问题类别 | 轻量团队的 issue 驱动流程设计 |
 
-本文件回答三个问题。
+本文件回答四个问题。
 
 1. 调研（spike）应当有什么结构。
 2. 决策对象在工具里没有原生承载时，怎么回链。
 3. 开放式想法如何从 Discussion 转入可追踪的 Issue 层级。
+4. PR 证据与 Feature 级验收如何分属不同对象。
 
 流程文件的正文是规范。本文件只记录规范的依据和缺口。
 
@@ -30,7 +31,8 @@
 | C-5 | 本流程只能用 GitHub 原生能力。能力边界见第 2.4 节。 | 高 |
 | C-6 | 个人账号没有 issue types 与 issue fields。对象只能靠标签区分，字段只能靠 Project 字段承载。 | 高 |
 | C-7 | Discussion 适合开放探索。问题、负责人、时间盒和预期产出收敛后，应转入 Issue。 | 中高 |
-| C-8 | Discussion 不能成为原生 parent。Parent Feature 必须用 Issue 承载 Research 与 Task 的层级。 | 高 |
+| C-8 | Discussion 不能成为原生 parent。Parent Feature 必须用 Issue 承载 Research、Task 与 Verify 的层级。 | 高 |
+| C-9 | PR 证据与 Feature 级验收是两种对象。跨 Task 的验收应使用与 Task 同级的 Verify sub-issue。 | 高 |
 
 ## 2. 依据
 
@@ -107,6 +109,21 @@ GitHub 的原生 parent 只能是 Issue。Discussion 只能作为来源节点，
 
 截至 2026-10-29，仓库已启用 Discussions，但 Discussion 总数为 0。实际采用情况需要继续观察。
 
+### 2.6 Verify 的层级（C-9）
+
+PR 的 `Visual verification` 和 `Proof` 只覆盖当前 PR。它们不能表达跨多个 Task 的端到端验收，也不能长期保存 Feature 级结果。
+
+本流程因此增加 Verify sub-issue。Verify 与 Task 同级，都是 Parent Feature 的 child。Verify 的完成条件是验收场景通过且证据写回正文。Verify 不要求分支和 PR。
+
+只在以下任一情况创建 Verify。
+
+1. 验收跨越多个 Task 或 PR。
+2. 验收需要真机、外接设备、人工交互或不易复现的环境。
+3. 验收需要在合并后或发布前再次执行。
+4. 证据需要独立保存并长期追踪。
+
+单个 Task 的 UI 和测试证据仍写在 PR。这样避免同一份证据在 Task 与 PR 中重复维护。
+
 ## 3. 来源等级
 
 | 等级 | 来源 | 用途 | 置信度 |
@@ -132,6 +149,7 @@ GitHub 的原生 parent 只能是 Issue。Discussion 只能作为来源节点，
 - 文本回链没有强校验。写错编号不会被工具拦住。缓解办法是每周检查第 1 条、第 4 条与第 5 条。
 - `decision: pending` 依赖人主动回填。没有自动化手段可以强制。
 - Parent Feature 在决策前创建，可能被误解为已经承诺实施。缓解办法是每周检查与表单说明。
+- Verify 与 Task 的边界依赖负责人判断。范围过宽时会产生重复验收；范围过窄时会遗漏端到端结果。缓解办法是使用第 2.6 节的四个创建条件。
 
 ## 6. 复核方法
 

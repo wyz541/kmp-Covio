@@ -25,6 +25,7 @@
 | ![分层玻璃 popover 亮色](previews/441-fan-popover-light-after-3.png) | ![分层玻璃 popover 深色](previews/441-fan-popover-dark-after-3.png) |
 | ![温度来源规则亮色](previews/474-monitor-fan-temperature-rules-light-after-4.png) | ![温度来源规则深色](previews/474-monitor-fan-temperature-rules-dark-after-4.png) |
 | ![插电与电池曲线亮色](previews/334-fan-power-curves-light-after-2.png) | ![插电与电池曲线深色](previews/334-fan-power-curves-dark-after-2.png) |
+| ![传感器名称筛选亮色](previews/338-fan-sensors-light-after-4.png) | ![传感器名称筛选深色](previews/338-fan-sensors-dark-after-4.png) |
 
 ## 3. 三段式结构
 
@@ -119,6 +120,10 @@ Liquid Glass 不用于内容层。
 
 控制温度下降不超过 1.5 °C 时保留前一控制温度。
 温度上升立即生效。此规则减少阈值附近的转速抖动。
+
+控制传感器列表包含 64 个显式键名的中英文名称。
+未知键继续使用前缀名称，无法推断时显示原始键名。
+传感器区支持按名称或四个字符的键名筛选。
 
 ### 温度来源规则
 

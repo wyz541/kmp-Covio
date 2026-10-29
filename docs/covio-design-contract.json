@@ -4840,6 +4840,18 @@
       "en": "Control sensors",
       "zh-Hans": "控制传感器"
     },
+    "copy/monitor/fan/sensor-filter": {
+      "en": "Filter sensors",
+      "zh-Hans": "筛选传感器"
+    },
+    "copy/monitor/fan/sensor-filter-empty": {
+      "en": "No matching sensors",
+      "zh-Hans": "没有匹配的传感器"
+    },
+    "copy/monitor/fan/sensor-library-hint": {
+      "en": "64 sensors have names. Unknown keys show the raw key.",
+      "zh-Hans": "64 个传感器有名称。未知键显示原始键。"
+    },
     "copy/monitor/fan/temperature-sources": {
       "en": "Temperature sources",
       "zh-Hans": "温度来源"

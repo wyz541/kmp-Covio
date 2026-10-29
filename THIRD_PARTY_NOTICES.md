@@ -37,6 +37,7 @@ SOFTWARE.
 Covio adapts the SMC access, fan writer and temperature-sensor logic from MacFanControl.
 
 - Source: https://github.com/skydeadpeng/MacFanControl
+- Fixed revision: `e5bf78238f7c62b122834a291b15369cb3eb7043`
 - Copyright: Copyright (c) 2026 skydeadpeng
 - License: MIT
 

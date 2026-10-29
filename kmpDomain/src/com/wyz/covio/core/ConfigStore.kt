@@ -33,7 +33,7 @@ class ConfigStore(
 ) {
     fun load(): AppConfig {
         if (!fileSystem.exists(path.toPath())) {
-            val config = AppConfig()
+            val config = AppConfig().normalized()
             save(config)
             return config
         }
@@ -145,13 +145,38 @@ class ConfigStore(
             ),
         )
 
+        val legacyKeepsAwakeOnAdapter = bool(
+            "disableLidSleepInCharging",
+            defaults.disableLidSleepInCharging,
+        )
+        val legacyKeepsAwakeOnBattery = bool(
+            "disableLidSleepOnBattery",
+            defaults.disableLidSleepOnBattery,
+        )
         val displayRoot = root["display"] as? JsonObject
-        val displayDefaults = DisplayConfig.fromLegacy(decodedPower)
+        val displayDefaults = DisplayConfig.fromLegacy(
+            power = decodedPower,
+            keepsAwakeOnAdapter = legacyKeepsAwakeOnAdapter,
+            keepsAwakeOnBattery = legacyKeepsAwakeOnBattery,
+        )
         val decodedDisplay = displayRoot?.let { display ->
             fun displayBool(name: String, fallback: Boolean): Boolean =
                 display[name]?.jsonPrimitive?.booleanOrNull ?: fallback
             fun displayInt(name: String, fallback: Int): Int =
                 display[name]?.jsonPrimitive?.intOrNull ?: fallback
+            val keepAwakeWhenLidClosed = displayBool(
+                "keepAwakeWhenLidClosed",
+                displayDefaults.keepAwakeWhenLidClosed,
+            )
+            val policy = display["closedLidPowerPolicy"]?.let { value ->
+                runCatching {
+                    json.decodeFromJsonElement(ClosedLidPowerPolicy.serializer(), value)
+                }.getOrNull()
+            } ?: if (keepAwakeWhenLidClosed) {
+                displayDefaults.closedLidPowerPolicy
+            } else {
+                ClosedLidPowerPolicy.SLEEP
+            }
             val mode = display["closedLidDisplayMode"]?.let { value ->
                 runCatching {
                     json.decodeFromJsonElement(ClosedLidDisplayMode.serializer(), value)
@@ -159,10 +184,8 @@ class ConfigStore(
             } ?: displayDefaults.closedLidDisplayMode
             DisplayConfig(
                 schemaVersion = displayInt("schemaVersion", displayDefaults.schemaVersion),
-                keepAwakeWhenLidClosed = displayBool(
-                    "keepAwakeWhenLidClosed",
-                    displayDefaults.keepAwakeWhenLidClosed,
-                ),
+                keepAwakeWhenLidClosed = keepAwakeWhenLidClosed,
+                closedLidPowerPolicy = policy,
                 closedLidDisplayMode = mode,
                 pauseWhenExternalDisplayConnected = displayBool(
                     "pauseWhenExternalDisplayConnected",
@@ -180,8 +203,8 @@ class ConfigStore(
             lowBatteryCapacity = int("lowBatteryCapacity", defaults.lowBatteryCapacity),
             lowTimeRemainingMinutes = int("lowTimeRemaining", defaults.lowTimeRemainingMinutes),
             disableIdleSleepInCharging = bool("disableIdleSleepInCharging", defaults.disableIdleSleepInCharging),
-            disableLidSleepInCharging = bool("disableLidSleepInCharging", defaults.disableLidSleepInCharging),
-            disableLidSleepOnBattery = bool("disableLidSleepOnBattery", defaults.disableLidSleepOnBattery),
+            disableLidSleepInCharging = legacyKeepsAwakeOnAdapter,
+            disableLidSleepOnBattery = legacyKeepsAwakeOnBattery,
             darkWakeAwarenessEnabled = bool("darkWakeAwarenessEnabled", defaults.darkWakeAwarenessEnabled),
             lidSleepImmediateOnClose = bool("lidSleepImmediateOnClose", defaults.lidSleepImmediateOnClose),
             notificationsEnabled = bool("notificationsEnabled", defaults.notificationsEnabled),

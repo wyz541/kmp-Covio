@@ -38,7 +38,15 @@ final class AppRuntime {
     var languagePreference: AppLanguagePreference { AppLanguagePreference.fromCode(config.language) }
     /// 屏幕 card 的持久化设置。
     var displayConfig: DisplayConfig {
-        config.display ?? DisplayConfig.companion.fromLegacy(power: config.power)
+        config.display ?? DisplayConfig.companion.fromLegacy(
+            power: config.power,
+            keepsAwakeOnAdapter: config.disableLidSleepInCharging,
+            keepsAwakeOnBattery: config.disableLidSleepOnBattery
+        )
+    }
+    /// Screen card 的单一合盖保持策略。
+    var closedLidPowerPolicy: ClosedLidPowerPolicy {
+        displayConfig.closedLidPowerPolicy
     }
 
     let logger: AppLogger
@@ -311,6 +319,11 @@ final class AppRuntime {
             attachmentStore: agentAttachments
         )
 
+        let resolvedDisplayConfig = loaded.display ?? DisplayConfig.companion.fromLegacy(
+            power: loaded.power,
+            keepsAwakeOnAdapter: loaded.disableLidSleepInCharging,
+            keepsAwakeOnBattery: loaded.disableLidSleepOnBattery
+        )
         let engine = Engine(
             initialConfig: loaded,
             power: power,
@@ -347,6 +360,7 @@ final class AppRuntime {
             observationSource: resolvedPowerObservation,
             historyStore: resolvedPowerHistory,
             config: loaded.power,
+            displayConfig: resolvedDisplayConfig,
             sleepProtectionEnabled: loaded.enabled,
             closedLidBrightnessBackend: closedLidBrightnessBackend,
             closedLidBrightnessStore: closedLidBrightnessStore
@@ -692,15 +706,6 @@ final class AppRuntime {
         updatePower { copyPower($0, keepAwakeOnBattery: enabled) }
     }
 
-    func setPowerAllowClosedLid(_ enabled: Bool) {
-        guard enabled ? powerRuntime.helperStatus == .match : true else { return }
-        setDisplayKeepAwakeWhenLidClosed(enabled)
-    }
-
-    func setPowerPauseClosedLidWithExternalDisplay(_ enabled: Bool) {
-        setDisplayPauseWithExternalDisplay(enabled)
-    }
-
     func setPowerBatteryFloor(_ percent: Int) {
         let floor = min(max(percent, 0), 95)
         updatePower {
@@ -724,53 +729,74 @@ final class AppRuntime {
         updatePower { copyPower($0, closedLidTimeCapMinutes: Int32(min(max(minutes, 30), 1_440))) }
     }
 
-    func setPowerClosedLidZeroBrightness(_ enabled: Bool) {
-        setDisplayClosedLidMode(enabled ? .blackScreenPipeline : .displayOff)
-    }
-
-    func setDisplayKeepAwakeWhenLidClosed(_ enabled: Bool) {
-        guard enabled ? powerRuntime.helperStatus == .match : true else { return }
-        updateDisplay { display in
-            var mode = display.closedLidDisplayMode
-            if enabled, mode == .system {
-                mode = powerRuntime.closedLidZeroBrightnessAvailability.isAvailable
-                    ? .blackScreenPipeline
-                    : .displayOff
-            }
-            return DisplayConfig(
-                schemaVersion: display.schemaVersion,
-                keepAwakeWhenLidClosed: enabled,
-                closedLidDisplayMode: mode,
-                pauseWhenExternalDisplayConnected: display.pauseWhenExternalDisplayConnected
-            )
-        }
+    func setClosedLidPowerPolicy(_ policy: ClosedLidPowerPolicy) {
+        _ = applyClosedLidPolicy(policy)
     }
 
     func setDisplayClosedLidMode(_ mode: ClosedLidDisplayMode) {
-        if mode == .blackScreenPipeline {
-            guard powerRuntime.helperStatus == .match,
-                  powerRuntime.closedLidZeroBrightnessAvailability.isAvailable
-            else { return }
-        }
-        updateDisplay { display in
-            DisplayConfig(
-                schemaVersion: display.schemaVersion,
-                keepAwakeWhenLidClosed: mode == .system
-                    ? false
-                    : true,
-                closedLidDisplayMode: mode,
-                pauseWhenExternalDisplayConnected: display.pauseWhenExternalDisplayConnected
-            )
-        }
+        let policy = mode == .system
+            ? .sleep
+            : (closedLidPowerPolicy == .sleep ? .adapter : closedLidPowerPolicy)
+        _ = applyClosedLidPolicy(policy, mode: mode)
     }
 
     func setDisplayPauseWithExternalDisplay(_ enabled: Bool) {
-        updateDisplay { display in
-            DisplayConfig(
+        _ = applyClosedLidPolicy(closedLidPowerPolicy, pauseWithExternalDisplay: enabled)
+    }
+
+    @discardableResult
+    private func applyClosedLidPolicy(
+        _ policy: ClosedLidPowerPolicy,
+        mode requestedMode: ClosedLidDisplayMode? = nil,
+        pauseWithExternalDisplay: Bool? = nil
+    ) -> Bool {
+        if policy != .sleep, powerRuntime.helperStatus != .match {
+            statusMessage = ContractCopy.copyToastError.text(for: language)
+            return false
+        }
+        if requestedMode == .blackScreenPipeline,
+           (!powerRuntime.closedLidZeroBrightnessAvailability.isAvailable) {
+            statusMessage = ContractCopy.copyToastError.text(for: language)
+            return false
+        }
+        return updateConfigDraft { draft in
+            let display = draft.display
+                ?? DisplayConfig.companion.fromLegacy(
+                    power: draft.power,
+                    keepsAwakeOnAdapter: draft.disableLidSleepInCharging,
+                    keepsAwakeOnBattery: draft.disableLidSleepOnBattery
+                )
+            let mode: ClosedLidDisplayMode
+            if let requestedMode, requestedMode != .system {
+                mode = requestedMode
+            } else if policy == .sleep, requestedMode == nil {
+                mode = display.closedLidDisplayMode
+            } else if policy == .sleep {
+                mode = .system
+            } else if display.closedLidDisplayMode == .system {
+                mode = powerRuntime.closedLidZeroBrightnessAvailability.isAvailable
+                    ? .blackScreenPipeline
+                    : .displayOff
+            } else {
+                mode = display.closedLidDisplayMode
+            }
+            draft.display = DisplayConfig(
                 schemaVersion: display.schemaVersion,
-                keepAwakeWhenLidClosed: display.keepAwakeWhenLidClosed,
-                closedLidDisplayMode: display.closedLidDisplayMode,
-                pauseWhenExternalDisplayConnected: enabled
+                keepAwakeWhenLidClosed: policy.keepsAwake,
+                closedLidPowerPolicy: policy,
+                closedLidDisplayMode: mode,
+                pauseWhenExternalDisplayConnected: pauseWithExternalDisplay
+                    ?? display.pauseWhenExternalDisplayConnected
+            )
+            draft.disableLidSleepInCharging = policy.keepsAwakeOnAdapter
+            draft.disableLidSleepOnBattery = policy.keepsAwakeOnBattery
+            draft.lidSleepImmediateOnClose = true
+            draft.power = copyPower(
+                draft.power,
+                allowClosedLid: policy.keepsAwake,
+                pauseClosedLidWithExternalDisplay: pauseWithExternalDisplay
+                    ?? display.pauseWhenExternalDisplayConnected,
+                closedLidZeroBrightness: mode == .blackScreenPipeline
             )
         }
     }
@@ -782,19 +808,7 @@ final class AppRuntime {
         NSWorkspace.shared.open(url)
     }
 
-    /// 打开前先确认 helper 在。helper 不在时它改不了 `pmset`，界面会显示成功但实际没生效。
-    func setDisableLidWhileCharging(_ enabled: Bool) {
-        guard enabled ? lidPolicyAvailable() : true else { return }
-        write { $0.disableLidSleepInCharging = enabled }
-    }
-
-    func setDisableLidOnBattery(_ enabled: Bool) {
-        guard enabled ? lidPolicyAvailable() : true else { return }
-        write { $0.disableLidSleepOnBattery = enabled }
-    }
-
     func setDarkWakeAwareness(_ enabled: Bool) { write { $0.darkWakeAwarenessEnabled = enabled } }
-    func setImmediateLidSleep(_ enabled: Bool) { write { $0.lidSleepImmediateOnClose = enabled } }
     func setNotifications(_ enabled: Bool) { write { $0.notificationsEnabled = enabled } }
     func setUpdateChecks(_ enabled: Bool) { write { $0.updateCheckEnabled = enabled } }
     func setSleepMode(_ mode: Int32) { write { $0.hibernateMode = KotlinInt(int: mode) } }
@@ -871,7 +885,16 @@ final class AppRuntime {
         config = defaults
         clipboardBridge.config = defaults
         _ = engine.updateConfig(newConfig: defaults)
-        powerRuntime.updateConfig(defaults.power, sleepProtectionEnabled: defaults.enabled)
+        powerRuntime.updateConfig(
+            defaults.power,
+            displayConfig: defaults.display
+                ?? DisplayConfig.companion.fromLegacy(
+                    power: defaults.power,
+                    keepsAwakeOnAdapter: defaults.disableLidSleepInCharging,
+                    keepsAwakeOnBattery: defaults.disableLidSleepOnBattery
+                ),
+            sleepProtectionEnabled: defaults.enabled
+        )
         reconcileChargeLimit()
         syncState()
         statusMessage = ContractCopy.copyDialogResetTitle.text(for: language)
@@ -1182,7 +1205,11 @@ final class AppRuntime {
             configStore.save(config: previous)
             _ = engine.updateConfig(newConfig: previous)
         }
-        powerRuntime.updateConfig(config.power, sleepProtectionEnabled: config.enabled)
+        powerRuntime.updateConfig(
+            config.power,
+            displayConfig: displayConfig,
+            sleepProtectionEnabled: config.enabled
+        )
         syncState()
         return success
     }
@@ -1190,21 +1217,6 @@ final class AppRuntime {
     private func updatePower(_ change: (PowerConfig) -> PowerConfig) {
         write {
             $0.power = Self.powerWithEnabled(change($0.power).normalized(), enabled: $0.enabled)
-        }
-    }
-
-    private func updateDisplay(_ change: (DisplayConfig) -> DisplayConfig) {
-        write { draft in
-            let current = draft.display
-                ?? DisplayConfig.companion.fromLegacy(power: draft.power)
-            let next = change(current).normalized()
-            draft.display = next
-            draft.power = copyPower(
-                draft.power,
-                allowClosedLid: next.keepAwakeWhenLidClosed,
-                pauseClosedLidWithExternalDisplay: next.pauseWhenExternalDisplayConnected,
-                closedLidZeroBrightness: next.closedLidDisplayMode == .blackScreenPipeline
-            )
         }
     }
 

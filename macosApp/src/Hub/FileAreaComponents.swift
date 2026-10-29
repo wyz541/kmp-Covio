@@ -501,7 +501,6 @@ struct FileKeyboardActionMenuView: View {
         }
         .padding(6)
         .frame(width: 160)
-        .popoverGlassSurface(cornerRadius: 10, layer: .outer)
         .onAppear {
             Task { @MainActor in
                 await Task.yield()

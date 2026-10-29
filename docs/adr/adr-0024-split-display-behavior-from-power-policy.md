@@ -36,6 +36,10 @@ Power card 同时承载供电状态、睡眠租约、自动规则、合盖 Helpe
 10. `PowerConfig` 保留为运行时兼容镜像。
 11. 新配置以 `DisplayConfig` 为权威来源。
 12. 显示功耗只在存在可靠测量来源时显示。没有来源时显示“不可用”。
+13. `DisplayConfig.closedLidPowerPolicy` 保存唯一的合盖电源条件。
+14. 合盖策略只有睡眠、接通电源、使用电池和始终四种值。
+15. 旧 `disableLidSleepInCharging`、`disableLidSleepOnBattery` 只作迁移输入和兼容镜像。
+16. `lidSleepImmediateOnClose` 不再提供独立入口，并固定为开启。
 
 ## 后果
 
@@ -51,10 +55,12 @@ Power card 同时承载供电状态、睡眠租约、自动规则、合盖 Helpe
 - 配置文件中同时存在新配置和兼容镜像。
 - 写入显示设置时要同步两个模型。
 - 屏幕 card 增加一个 Monitor 网格卡片。
+- 自动合盖租约由 `PowerRuntime` 按当前电源状态申请或释放。
 
 ### 风险
 
-- 两个配置模型可能漂移。缓解：写入集中到 `AppRuntime.updateDisplay`，读取时以 `display` 为准。
+- 两个配置模型可能漂移。缓解：写入集中到 `AppRuntime.applyClosedLidPolicy`，读取时以 `display` 为准。
+- 策略字段与旧镜像可能漂移。缓解：`AppConfig.normalized()` 从策略重写全部旧镜像。
 - 私有亮度接口可能失效。缓解：保留可用性检查、恢复记录和公开关屏回退。
 - 显示器功耗没有可靠来源。缓解：显示“不可用”，不使用估算值。
 

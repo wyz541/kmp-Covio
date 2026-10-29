@@ -963,7 +963,6 @@ struct MonitorPowerDetailPanel: View {
         }
         .padding(MacTheme.space4)
         .frame(width: 560, height: detailHeight)
-        .popoverGlassSurface(cornerRadius: 16, layer: .outer)
     }
 
     @ViewBuilder
@@ -1516,7 +1515,7 @@ private struct MonitorPowerDetailSection<Content: View>: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .popoverGlassSurface(cornerRadius: 9, layer: .inset)
+        .popoverContentSurface(cornerRadius: 9)
     }
 }
 

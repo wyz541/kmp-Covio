@@ -185,7 +185,7 @@ struct PowerManagementView: View {
             if let message = safetyVetoMessage {
                 MacAlert(message: message, kind: .warning, language: language)
             }
-            if let error = model.executionError {
+            if let error = powerExecutionError {
                 MacAlert(message: executionErrorText(error), kind: .error, language: language)
             } else if let outcome {
                 MacAlert(message: outcome.message, kind: outcome.kind, language: language)
@@ -573,26 +573,13 @@ struct PowerManagementView: View {
                 )
             )
         }
-        if !model.appState.lidSleepAvailable,
-           model.sessionMode != .lid {
-            result.append(
-                PowerReason(
-                    id: "engine-lid",
-                    title: ContractCopy.copyPowerSessionLid.text(for: language),
-                    detail: model.appState.lidCancelRemainingSeconds.map {
-                        SettingsFormat.duration(seconds: $0.int64Value, language: language)
-                    }
-                )
-            )
-        }
         return result
     }
 
     private var sessionIsActive: Bool {
         model.hasManualSession ||
             model.decision.preventUserIdleSystemSleep ||
-            model.decision.preventUserIdleDisplaySleep ||
-            model.decision.preventLidSleep
+            model.decision.preventUserIdleDisplaySleep
     }
 
     private var sessionPillLabel: String {
@@ -676,28 +663,23 @@ struct PowerManagementView: View {
         if !model.powerConfig.enabled {
             return ContractCopy.copyPowerRulesOff.text(for: language)
         }
-        if model.helperStatus == .match && model.helperServiceState == .enabled {
-            return ContractCopy.copyPowerStatusGuardReady.text(for: language)
-        }
-        return ContractCopy.copyPowerStatusGuardMissing.text(for: language)
+        return ContractCopy.copyPowerRulesOn.text(for: language)
     }
 
     private var powerStatusPillSymbol: String {
-        if !model.powerConfig.enabled {
-            return "power"
-        }
-        return model.helperStatus == .match && model.helperServiceState == .enabled
-            ? "checkmark.shield.fill"
-            : "exclamationmark.shield.fill"
+        model.powerConfig.enabled ? "checkmark.shield.fill" : "power"
     }
 
     private var powerStatusPillTint: Color {
-        if !model.powerConfig.enabled {
-            return MacTheme.textSecondary
+        model.powerConfig.enabled ? MacTheme.successText : MacTheme.textSecondary
+    }
+
+    private var powerExecutionError: String? {
+        guard let error = model.executionError else { return nil }
+        if error == "helper-unavailable" || error == "lid-hold-not-applied" {
+            return nil
         }
-        return model.helperStatus == .match && model.helperServiceState == .enabled
-            ? MacTheme.successText
-            : MacTheme.warningText
+        return error
     }
 
     private var sessionSetupStatusText: String {
@@ -927,7 +909,7 @@ private struct PowerSettingsCard<Content: View>: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(MacTheme.space4)
-        .popoverGlassSurface(cornerRadius: MacTheme.cardRadius, layer: .inset)
+        .popoverContentSurface()
         .accessibilityElement(children: .contain)
     }
 }
@@ -938,42 +920,26 @@ struct MonitorGlassActionButton: View {
     var isEnabled = true
     let action: () -> Void
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var isHovering = false
     @FocusState private var isFocused: Bool
 
     var body: some View {
         Button(action: action) {
             Label(title, systemImage: symbol)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(MacTheme.textPrimary)
-                .padding(.horizontal, MacTheme.space4)
+                .padding(.horizontal, MacTheme.space2)
                 .frame(minHeight: 44)
                 .contentShape(Capsule())
         }
-        .buttonStyle(MonitorGlassActionButtonStyle(reduceMotion: reduceMotion))
-        .glassEffect(.regular.interactive(), in: .capsule)
+        .buttonStyle(.glass)
+        .controlSize(.large)
         .overlay(
             Capsule()
                 .strokeBorder(isFocused ? MacTheme.focusRing : .clear, lineWidth: 2)
         )
-        .brightness(isHovering && isEnabled ? 0.06 : 0)
         .focused($isFocused)
         .disabled(!isEnabled)
         .opacity(isEnabled ? 1 : 0.55)
-        .onHover { isHovering = $0 }
         .accessibilityLabel(title)
-    }
-}
-
-private struct MonitorGlassActionButtonStyle: ButtonStyle {
-    let reduceMotion: Bool
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .opacity(configuration.isPressed ? 0.78 : 1)
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 
@@ -1034,6 +1000,7 @@ protocol PowerManagementModel: AnyObject {
     var language: AppLanguage { get }
     var sleepProtectionEnabled: Bool { get }
     var displayConfig: DisplayConfig { get }
+    var closedLidPowerPolicy: ClosedLidPowerPolicy { get }
     var powerConfig: PowerConfig { get }
     var observation: PowerObservation { get }
     var snapshot: PowerSnapshot { get }
@@ -1055,14 +1022,11 @@ protocol PowerManagementModel: AnyObject {
     func setPowerEnabled(_ enabled: Bool)
     func setPowerKeepAwakeOnAdapter(_ enabled: Bool)
     func setPowerKeepAwakeOnBattery(_ enabled: Bool)
-    func setPowerAllowClosedLid(_ enabled: Bool)
-    func setPowerClosedLidZeroBrightness(_ enabled: Bool)
-    func setPowerPauseClosedLidWithExternalDisplay(_ enabled: Bool)
     func setPowerYieldOnLowPowerMode(_ enabled: Bool)
     func setPowerHeatGuard(_ enabled: Bool)
     func setPowerBatteryFloor(_ percent: Int)
     func setPowerClosedLidTimeCapMinutes(_ minutes: Int)
-    func setDisplayKeepAwakeWhenLidClosed(_ enabled: Bool)
+    func setClosedLidPowerPolicy(_ policy: ClosedLidPowerPolicy)
     func setDisplayClosedLidMode(_ mode: ClosedLidDisplayMode)
     func setDisplayPauseWithExternalDisplay(_ enabled: Bool)
     func startSession(mode: PowerRuntime.SessionMode, duration: PowerRuntime.SessionDuration) -> Bool

@@ -15,12 +15,6 @@ enum SettingsRowID {
     static let batteryCapacity = "battery.capacity"
     static let batteryTime = "battery.time"
 
-    // 合盖
-    static let lidInstant = "lid.instant"
-    static let lidPrevent = "lid.prevent"
-    static let lidPower = "lid.power"
-    static let lidBattery = "lid.battery"
-
     // 闲置
     static let idlePrevent = "idle.prevent"
     static let idleCharging = "idle.charging"
@@ -65,7 +59,7 @@ struct SettingsCatalogEntry: Sendable, Equatable {
 /// 每加一行设置，这里要加一条，并在页面上加 `.settingsRowAnchor(_:)`。
 /// `SettingsCatalogTests` 会检查锚点不重复、每节都有行。
 enum SettingsCatalog {
-    static let entries: [SettingsCatalogEntry] = overview + battery + lid + idle + clipboard + general
+    static let entries: [SettingsCatalogEntry] = overview + battery + idle + clipboard + general
 
     private static let overview: [SettingsCatalogEntry] = [
         SettingsCatalogEntry(
@@ -105,37 +99,6 @@ enum SettingsCatalog {
             title: ContractCopy.copyBatteryTimeThreshold,
             summary: nil,
             keywords: ["battery", "time", "remaining", "minutes", "电池", "剩余", "时间", "分钟"]
-        ),
-    ]
-
-    private static let lid: [SettingsCatalogEntry] = [
-        SettingsCatalogEntry(
-            rowID: SettingsRowID.lidInstant,
-            section: .lid,
-            title: ContractCopy.copyLidInstantSleep,
-            summary: ContractCopy.copyPageLidSummary,
-            keywords: ["lid", "close", "immediate", "sleep", "合盖", "立即", "睡眠"]
-        ),
-        SettingsCatalogEntry(
-            rowID: SettingsRowID.lidPrevent,
-            section: .lid,
-            title: ContractCopy.copyLidPreventSleep,
-            summary: nil,
-            keywords: ["lid", "prevent", "awake", "合盖", "阻止", "不睡"]
-        ),
-        SettingsCatalogEntry(
-            rowID: SettingsRowID.lidPower,
-            section: .lid,
-            title: ContractCopy.copyLidPowerRules,
-            summary: nil,
-            keywords: ["lid", "charging", "power", "adapter", "合盖", "充电", "电源"]
-        ),
-        SettingsCatalogEntry(
-            rowID: SettingsRowID.lidBattery,
-            section: .lid,
-            title: ContractCopy.copyLidBatteryRules,
-            summary: nil,
-            keywords: ["lid", "battery", "rule", "合盖", "电池", "规则"]
         ),
     ]
 

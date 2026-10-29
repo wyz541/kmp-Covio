@@ -490,12 +490,7 @@ class Engine(
         if (!helperReady()) return false
         val battery = snapshot.battery
         if (battery != null && lowBatterySleepRequired(battery)) return false
-        val powerPolicy = when {
-            battery?.state?.isCharging == true -> config.disableLidSleepInCharging
-            battery?.isDischarging == true -> config.disableLidSleepOnBattery
-            else -> false
-        }
-        return manualLidHold || powerLidHold || lidCancelAtMillis != null || powerPolicy
+        return manualLidHold || powerLidHold || lidCancelAtMillis != null
     }
 
     private fun helperReady(): Boolean = runCatching {

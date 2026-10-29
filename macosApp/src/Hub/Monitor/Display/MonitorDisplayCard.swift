@@ -273,7 +273,7 @@ private struct MonitorDisplayDetailPanel: View {
 
     private var panelHeight: CGFloat {
         let available = NSScreen.main?.visibleFrame.height ?? 800
-        return min(620, max(420, available - 140))
+        return min(548, max(420, available - 140))
     }
 
     var body: some View {
@@ -282,7 +282,7 @@ private struct MonitorDisplayDetailPanel: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: MacTheme.space3) {
                     if let powerModel {
-                        actionsCard(model: powerModel)
+                        quickActions(model: powerModel)
                         closedLidCard(model: powerModel)
                         Text(ContractCopy.copyMonitorDisplaySafetyNote.text(for: language))
                             .font(.caption)
@@ -295,8 +295,7 @@ private struct MonitorDisplayDetailPanel: View {
             .scrollIndicators(.automatic)
         }
         .padding(MacTheme.space4)
-        .frame(width: 560, height: panelHeight)
-        .popoverGlassSurface(cornerRadius: 16, layer: .outer)
+        .frame(width: 520, height: panelHeight)
     }
 
     private var header: some View {
@@ -321,29 +320,26 @@ private struct MonitorDisplayDetailPanel: View {
         .frame(height: 26)
     }
 
-    private func actionsCard(model: any PowerManagementModel) -> some View {
-        DisplaySettingsCard {
-            DisplaySectionHeader(
-                title: ContractCopy.copyMonitorDisplayActionsTitle.text(for: language),
-                symbol: "switch.2"
-            )
+    private func quickActions(model: any PowerManagementModel) -> some View {
+        GlassEffectContainer(spacing: MacTheme.space2) {
             HStack(spacing: MacTheme.space2) {
-                MacButton(
+                MonitorGlassActionButton(
                     title: ContractCopy.copyMonitorDisplayActionSleep.text(for: language),
-                    kind: .secondary,
-                    minimumHitHeight: 44
+                    symbol: "display"
                 ) {
                     model.displaySleepNow()
                 }
-                MacButton(
+                MonitorGlassActionButton(
                     title: ContractCopy.copyMonitorDisplayActionSettings.text(for: language),
-                    kind: .secondary,
-                    minimumHitHeight: 44
+                    symbol: "gearshape"
                 ) {
                     model.openDisplaySettings()
                 }
+                Spacer(minLength: 0)
             }
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(ContractCopy.copyMonitorDisplayActionsTitle.text(for: language))
     }
 
     private func closedLidCard(model: any PowerManagementModel) -> some View {
@@ -367,75 +363,85 @@ private struct MonitorDisplayDetailPanel: View {
                     language: language
                 )
             }
-
-            MacSettingRow(
-                title: ContractCopy.copyMonitorDisplayKeepAwake.text(for: language),
-                description: ContractCopy.copyMonitorDisplayKeepAwakeHint.text(for: language)
-            ) {
-                MacSwitch(
-                    label: ContractCopy.copyMonitorDisplayKeepAwake.text(for: language),
-                    isOn: Binding(
-                        get: { model.displayConfig.keepAwakeWhenLidClosed },
-                        set: { model.setDisplayKeepAwakeWhenLidClosed($0) }
-                    ),
-                    isEnabled: model.helperStatus == .match || !model.displayConfig.keepAwakeWhenLidClosed,
-                    size: .regular
-                )
+            if let error = closedLidRuntimeError(model) {
+                MacAlert(message: error, kind: .error, language: language)
             }
 
-            Divider().overlay(MacTheme.divider)
-
-            MacSettingRow(title: ContractCopy.copyMonitorDisplayMode.text(for: language)) {
+            MacSettingRow(
+                title: ContractCopy.copyLidHoldPolicy.text(for: language),
+                description: ContractCopy.copyLidHoldPolicyHint.text(for: language)
+            ) {
                 Picker(
-                    ContractCopy.copyMonitorDisplayMode.text(for: language),
+                    ContractCopy.copyLidHoldPolicy.text(for: language),
                     selection: Binding(
-                        get: { effectiveMode(for: model) },
-                        set: { mode in
-                            if mode == .system {
-                                model.setDisplayKeepAwakeWhenLidClosed(false)
-                            } else {
-                                model.setDisplayClosedLidMode(mode)
-                            }
-                        }
+                        get: { model.closedLidPowerPolicy },
+                        set: { model.setClosedLidPowerPolicy($0) }
                     )
                 ) {
-                    Text(ContractCopy.copyMonitorDisplayModeSystem.text(for: language))
-                        .tag(ClosedLidDisplayMode.system)
-                    Text(ContractCopy.copyMonitorDisplayModeOff.text(for: language))
-                        .tag(ClosedLidDisplayMode.displayOff)
-                    Text(ContractCopy.copyMonitorDisplayModeBlack.text(for: language))
-                        .tag(ClosedLidDisplayMode.blackScreenPipeline)
+                    ForEach(
+                        [ClosedLidPowerPolicy.sleep, .adapter, .battery, .any],
+                        id: \.stableID
+                    ) { policy in
+                        Text(policy.title.text(for: language))
+                            .tag(policy)
+                    }
                 }
                 .pickerStyle(.menu)
                 .labelsHidden()
-                .frame(minWidth: 230, alignment: .trailing)
-                .disabled(
-                    !model.displayConfig.keepAwakeWhenLidClosed ||
-                        model.helperStatus != .match
+                .frame(minWidth: 250, alignment: .trailing)
+            }
+
+            if model.closedLidPowerPolicy == .battery || model.closedLidPowerPolicy == .any {
+                MacAlert(
+                    message: ContractCopy.copyLidWarning.text(for: language),
+                    kind: .warning,
+                    language: language
                 )
             }
 
-            if !model.closedLidZeroBrightnessAvailability.isAvailable {
-                Text(ContractCopy.copyPowerRulesClosedLidZeroBrightnessUnavailable.text(for: language))
-                    .font(.caption)
-                    .foregroundStyle(MacTheme.warningText)
-            }
+            if model.closedLidPowerPolicy.keepsAwake {
+                Divider().overlay(MacTheme.divider)
 
-            Divider().overlay(MacTheme.divider)
+                MacSettingRow(title: ContractCopy.copyMonitorDisplayMode.text(for: language)) {
+                    Picker(
+                        ContractCopy.copyMonitorDisplayMode.text(for: language),
+                        selection: Binding(
+                            get: { effectiveMode(for: model) },
+                            set: { model.setDisplayClosedLidMode($0) }
+                        )
+                    ) {
+                        Text(ContractCopy.copyMonitorDisplayModeOff.text(for: language))
+                            .tag(ClosedLidDisplayMode.displayOff)
+                        Text(ContractCopy.copyMonitorDisplayModeBlack.text(for: language))
+                            .tag(ClosedLidDisplayMode.blackScreenPipeline)
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .frame(minWidth: 210, alignment: .trailing)
+                    .disabled(model.helperStatus != .match)
+                }
 
-            MacSettingRow(
-                title: ContractCopy.copyPowerRulesExternalDisplay.text(for: language),
-                description: ContractCopy.copyPowerRulesExternalDisplayHint.text(for: language)
-            ) {
-                MacSwitch(
-                    label: ContractCopy.copyPowerRulesExternalDisplay.text(for: language),
-                    isOn: Binding(
-                        get: { model.displayConfig.pauseWhenExternalDisplayConnected },
-                        set: { model.setDisplayPauseWithExternalDisplay($0) }
-                    ),
-                    isEnabled: model.displayConfig.keepAwakeWhenLidClosed &&
-                        model.helperStatus == .match
-                )
+                if !model.closedLidZeroBrightnessAvailability.isAvailable {
+                    Text(ContractCopy.copyPowerRulesClosedLidZeroBrightnessUnavailable.text(for: language))
+                        .font(.caption)
+                        .foregroundStyle(MacTheme.warningText)
+                }
+
+                Divider().overlay(MacTheme.divider)
+
+                MacSettingRow(
+                    title: ContractCopy.copyPowerRulesExternalDisplay.text(for: language),
+                    description: ContractCopy.copyPowerRulesExternalDisplayHint.text(for: language)
+                ) {
+                    MacSwitch(
+                        label: ContractCopy.copyPowerRulesExternalDisplay.text(for: language),
+                        isOn: Binding(
+                            get: { model.displayConfig.pauseWhenExternalDisplayConnected },
+                            set: { model.setDisplayPauseWithExternalDisplay($0) }
+                        ),
+                        isEnabled: model.helperStatus == .match
+                    )
+                }
             }
 
             Divider().overlay(MacTheme.divider)
@@ -449,11 +455,6 @@ private struct MonitorDisplayDetailPanel: View {
                     kind: .warning,
                     language: language
                 )
-            }
-
-            if model.displayConfig.keepAwakeWhenLidClosed {
-                Divider().overlay(MacTheme.divider)
-                sessionRow(model: model)
             }
         }
     }
@@ -486,37 +487,6 @@ private struct MonitorDisplayDetailPanel: View {
         }
     }
 
-    private func sessionRow(model: any PowerManagementModel) -> some View {
-        HStack(alignment: .center, spacing: MacTheme.space3) {
-            VStack(alignment: .leading, spacing: MacTheme.space1) {
-                Text(ContractCopy.copyPowerSectionClosedLid.text(for: language))
-                    .font(.callout.weight(.semibold))
-                    .foregroundStyle(MacTheme.textPrimary)
-                Text(sessionStatusText(model))
-                    .font(.caption)
-                    .foregroundStyle(MacTheme.textSecondary)
-            }
-            Spacer(minLength: MacTheme.space2)
-            if model.hasManualSession, model.sessionMode == .lid {
-                MonitorGlassActionButton(
-                    title: ContractCopy.copyPowerSessionEnd.text(for: language),
-                    symbol: "stop.fill"
-                ) {
-                    model.endSession()
-                }
-            } else {
-                MonitorGlassActionButton(
-                    title: ContractCopy.copyMonitorDisplaySessionStart.text(for: language),
-                    symbol: "play.fill",
-                    isEnabled: canStartClosedLidSession(model)
-                ) {
-                    _ = model.startSession(mode: .lid, duration: .untilOff)
-                }
-            }
-        }
-        .frame(minHeight: 44)
-    }
-
     private var displaySymbol: String {
         switch display.state {
         case .active: "display"
@@ -533,24 +503,22 @@ private struct MonitorDisplayDetailPanel: View {
             : model.displayConfig.closedLidDisplayMode
     }
 
-    private func canStartClosedLidSession(_ model: any PowerManagementModel) -> Bool {
-        model.sleepProtectionEnabled &&
-            model.powerConfig.enabled &&
-            model.displayConfig.keepAwakeWhenLidClosed &&
-            model.helperStatus == .match
-    }
-
-    private func sessionStatusText(_ model: any PowerManagementModel) -> String {
-        if model.hasManualSession, model.sessionMode == .lid {
-            return model.remainingSeconds.map {
-                "\(ContractCopy.copyPowerSessionExpires.text(for: language)) \(SettingsFormat.duration(seconds: $0, language: language))"
-            } ?? ContractCopy.copyPowerSessionActive.text(for: language)
-        }
-        return ContractCopy.copyPowerSessionInactive.text(for: language)
-    }
-
     private func helperNeedsAction(_ model: any PowerManagementModel) -> Bool {
         model.helperStatus != .match || model.helperServiceState != .enabled
+    }
+
+    private func closedLidRuntimeError(_ model: any PowerManagementModel) -> String? {
+        guard let error = model.executionError,
+              error != model.closedLidZeroBrightnessError
+        else { return nil }
+        return switch error {
+        case "helper-unavailable":
+            ContractCopy.copyPowerAlertHelperMissing.text(for: language)
+        case "lid-hold-not-applied":
+            ContractCopy.copyPowerErrorLidNotApplied.text(for: language)
+        default:
+            error
+        }
     }
 
     private func helperValue(_ model: any PowerManagementModel) -> String {
@@ -597,7 +565,7 @@ private struct DisplaySettingsCard<Content: View>: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(MacTheme.space4)
-        .popoverGlassSurface(cornerRadius: MacTheme.cardRadius, layer: .inset)
+        .popoverContentSurface()
         .accessibilityElement(children: .contain)
     }
 }

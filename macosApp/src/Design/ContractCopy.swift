@@ -583,16 +583,20 @@ enum ContractCopy {
     static let copyIdleRemaining = LocalizedCopy(key: "copy/idle/remaining", en: "Remaining time", zhHans: "剩余时间")
     /// `copy/idle/while-charging`
     static let copyIdleWhileCharging = LocalizedCopy(key: "copy/idle/while-charging", en: "Prevent sleep while charging", zhHans: "充电时阻止睡眠")
-    /// `copy/lid/battery-rules`
-    static let copyLidBatteryRules = LocalizedCopy(key: "copy/lid/battery-rules", en: "Battery rules", zhHans: "电池规则")
-    /// `copy/lid/instant-sleep`
-    static let copyLidInstantSleep = LocalizedCopy(key: "copy/lid/instant-sleep", en: "Sleep immediately when the lid closes", zhHans: "合盖后立即睡眠")
-    /// `copy/lid/power-rules`
-    static let copyLidPowerRules = LocalizedCopy(key: "copy/lid/power-rules", en: "Power rules", zhHans: "接电源规则")
-    /// `copy/lid/prevent-sleep`
-    static let copyLidPreventSleep = LocalizedCopy(key: "copy/lid/prevent-sleep", en: "Prevent sleep after the lid closes", zhHans: "合盖后阻止睡眠")
+    /// `copy/lid/hold-policy`
+    static let copyLidHoldPolicy = LocalizedCopy(key: "copy/lid/hold-policy", en: "Closed-lid behavior", zhHans: "合盖行为")
+    /// `copy/lid/hold-policy/adapter`
+    static let copyLidHoldPolicyAdapter = LocalizedCopy(key: "copy/lid/hold-policy/adapter", en: "Keep awake on power adapter", zhHans: "接通电源时保持运行")
+    /// `copy/lid/hold-policy/any`
+    static let copyLidHoldPolicyAny = LocalizedCopy(key: "copy/lid/hold-policy/any", en: "Always keep awake", zhHans: "始终保持运行")
+    /// `copy/lid/hold-policy/battery`
+    static let copyLidHoldPolicyBattery = LocalizedCopy(key: "copy/lid/hold-policy/battery", en: "Keep awake on battery", zhHans: "使用电池时保持运行")
+    /// `copy/lid/hold-policy/hint`
+    static let copyLidHoldPolicyHint = LocalizedCopy(key: "copy/lid/hold-policy/hint", en: "macOS still controls screen locking and authentication.", zhHans: "macOS 仍会独立执行锁屏和身份验证。")
+    /// `copy/lid/hold-policy/sleep`
+    static let copyLidHoldPolicySleep = LocalizedCopy(key: "copy/lid/hold-policy/sleep", en: "Sleep when the lid closes", zhHans: "合盖时睡眠")
     /// `copy/lid/warning`
-    static let copyLidWarning = LocalizedCopy(key: "copy/lid/warning", en: "Warning: this option increases battery drain.", zhHans: "警告：此选项会增加电池耗电。")
+    static let copyLidWarning = LocalizedCopy(key: "copy/lid/warning", en: "This option increases battery drain.", zhHans: "此选项会增加电池耗电。")
     /// `copy/macos27-alignment/measurement`
     static let copyMacos27AlignmentMeasurement = LocalizedCopy(key: "copy/macos27-alignment/measurement", en: "Measurement Comparison", zhHans: "测量值对照")
     /// `copy/macos27-alignment/static-verified`
@@ -692,7 +696,7 @@ enum ContractCopy {
     /// `copy/monitor/display/mode`
     static let copyMonitorDisplayMode = LocalizedCopy(key: "copy/monitor/display/mode", en: "Screen when lid closes", zhHans: "合盖时的屏幕")
     /// `copy/monitor/display/mode-black`
-    static let copyMonitorDisplayModeBlack = LocalizedCopy(key: "copy/monitor/display/mode-black", en: "Black screen, display link active", zhHans: "黑屏并保持显示链路")
+    static let copyMonitorDisplayModeBlack = LocalizedCopy(key: "copy/monitor/display/mode-black", en: "Black screen, display active", zhHans: "黑屏并保持显示链路")
     /// `copy/monitor/display/mode-off`
     static let copyMonitorDisplayModeOff = LocalizedCopy(key: "copy/monitor/display/mode-off", en: "Turn display off", zhHans: "关闭显示器")
     /// `copy/monitor/display/mode-system`
@@ -1123,8 +1127,6 @@ enum ContractCopy {
     static let copyNavGeneral = LocalizedCopy(key: "copy/nav/general", en: "General", zhHans: "通用")
     /// `copy/nav/idle`
     static let copyNavIdle = LocalizedCopy(key: "copy/nav/idle", en: "Idle", zhHans: "闲置")
-    /// `copy/nav/lid`
-    static let copyNavLid = LocalizedCopy(key: "copy/nav/lid", en: "Lid", zhHans: "合盖")
     /// `copy/nav/overview`
     static let copyNavOverview = LocalizedCopy(key: "copy/nav/overview", en: "Overview", zhHans: "概览")
     /// `copy/nav/quit`
@@ -1243,24 +1245,6 @@ enum ContractCopy {
     static let copyPageIdleSummary = LocalizedCopy(key: "copy/page/idle/summary", en: "Control sleep behavior while the Mac is idle.", zhHans: "控制 Mac 闲置时的睡眠行为。")
     /// `copy/page/idle/title`
     static let copyPageIdleTitle = LocalizedCopy(key: "copy/page/idle/title", en: "Idle", zhHans: "闲置")
-    /// `copy/page/lid/state/disabled`
-    static let copyPageLidStateDisabled = LocalizedCopy(key: "copy/page/lid/state/disabled", en: "05 · Lid - Disabled", zhHans: "05 · Lid - 不可用")
-    /// `copy/page/lid/state/empty`
-    static let copyPageLidStateEmpty = LocalizedCopy(key: "copy/page/lid/state/empty", en: "05 · Lid - Empty", zhHans: "05 · Lid - 无项目")
-    /// `copy/page/lid/state/error`
-    static let copyPageLidStateError = LocalizedCopy(key: "copy/page/lid/state/error", en: "05 · Lid - Error", zhHans: "05 · Lid - 操作失败")
-    /// `copy/page/lid/state/loading`
-    static let copyPageLidStateLoading = LocalizedCopy(key: "copy/page/lid/state/loading", en: "05 · Lid - Loading", zhHans: "05 · Lid - 正在加载")
-    /// `copy/page/lid/state/normal`
-    static let copyPageLidStateNormal = LocalizedCopy(key: "copy/page/lid/state/normal", en: "05 · Lid - Normal", zhHans: "05 · Lid - 就绪")
-    /// `copy/page/lid/state/success`
-    static let copyPageLidStateSuccess = LocalizedCopy(key: "copy/page/lid/state/success", en: "05 · Lid - Success", zhHans: "05 · Lid - 已完成")
-    /// `copy/page/lid/state/warning`
-    static let copyPageLidStateWarning = LocalizedCopy(key: "copy/page/lid/state/warning", en: "05 · Lid - Warning", zhHans: "05 · Lid - 需要检查")
-    /// `copy/page/lid/summary`
-    static let copyPageLidSummary = LocalizedCopy(key: "copy/page/lid/summary", en: "Control sleep behavior when the lid closes.", zhHans: "控制合盖后的睡眠行为。")
-    /// `copy/page/lid/title`
-    static let copyPageLidTitle = LocalizedCopy(key: "copy/page/lid/title", en: "Lid", zhHans: "合盖")
     /// `copy/page/overview/state/disabled`
     static let copyPageOverviewStateDisabled = LocalizedCopy(key: "copy/page/overview/state/disabled", en: "03 · Overview - Disabled", zhHans: "03 · Overview - 不可用")
     /// `copy/page/overview/state/empty`
@@ -1382,7 +1366,7 @@ enum ContractCopy {
     /// `copy/power/section/automatic`
     static let copyPowerSectionAutomatic = LocalizedCopy(key: "copy/power/section/automatic", en: "Automatically keep awake", zhHans: "自动保持唤醒")
     /// `copy/power/section/closed-lid`
-    static let copyPowerSectionClosedLid = LocalizedCopy(key: "copy/power/section/closed-lid", en: "Closed-lid sessions", zhHans: "合盖会话")
+    static let copyPowerSectionClosedLid = LocalizedCopy(key: "copy/power/section/closed-lid", en: "Closed-lid settings", zhHans: "合盖设置")
     /// `copy/power/section/history`
     static let copyPowerSectionHistory = LocalizedCopy(key: "copy/power/section/history", en: "Recent activity", zhHans: "最近活动")
     /// `copy/power/section/rules`
@@ -1434,7 +1418,7 @@ enum ContractCopy {
     /// `copy/power/session/start`
     static let copyPowerSessionStart = LocalizedCopy(key: "copy/power/session/start", en: "Start", zhHans: "开始")
     /// `copy/power/session/start-hint`
-    static let copyPowerSessionStartHint = LocalizedCopy(key: "copy/power/session/start-hint", en: "Start a session before closing the lid.", zhHans: "合盖前先启动会话。")
+    static let copyPowerSessionStartHint = LocalizedCopy(key: "copy/power/session/start-hint", en: "Start a timed system or display hold.", zhHans: "按需保持系统或屏幕唤醒。")
     /// `copy/power/session/system`
     static let copyPowerSessionSystem = LocalizedCopy(key: "copy/power/session/system", en: "System", zhHans: "仅系统")
     /// `copy/power/status/adapter`
@@ -1901,10 +1885,12 @@ enum ContractCopy {
         copyIdlePreventIdle,
         copyIdleRemaining,
         copyIdleWhileCharging,
-        copyLidBatteryRules,
-        copyLidInstantSleep,
-        copyLidPowerRules,
-        copyLidPreventSleep,
+        copyLidHoldPolicy,
+        copyLidHoldPolicyAdapter,
+        copyLidHoldPolicyAny,
+        copyLidHoldPolicyBattery,
+        copyLidHoldPolicyHint,
+        copyLidHoldPolicySleep,
         copyLidWarning,
         copyMacos27AlignmentMeasurement,
         copyMacos27AlignmentStaticVerified,
@@ -2171,7 +2157,6 @@ enum ContractCopy {
         copyNavClipboard,
         copyNavGeneral,
         copyNavIdle,
-        copyNavLid,
         copyNavOverview,
         copyNavQuit,
         copyNavRailLabel,
@@ -2231,15 +2216,6 @@ enum ContractCopy {
         copyPageIdleStateWarning,
         copyPageIdleSummary,
         copyPageIdleTitle,
-        copyPageLidStateDisabled,
-        copyPageLidStateEmpty,
-        copyPageLidStateError,
-        copyPageLidStateLoading,
-        copyPageLidStateNormal,
-        copyPageLidStateSuccess,
-        copyPageLidStateWarning,
-        copyPageLidSummary,
-        copyPageLidTitle,
         copyPageOverviewStateDisabled,
         copyPageOverviewStateEmpty,
         copyPageOverviewStateError,

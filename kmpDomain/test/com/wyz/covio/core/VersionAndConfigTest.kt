@@ -29,6 +29,8 @@ class VersionAndConfigTest {
             assertTrue(defaults.chargeLimitEnabled)
             assertEquals(70, defaults.chargeLimitPercent)
             assertTrue(defaults.power.closedLidZeroBrightness)
+            assertEquals(ClosedLidPowerPolicy.ADAPTER, defaults.display?.closedLidPowerPolicy)
+            assertTrue(defaults.lidSleepImmediateOnClose)
             assertTrue(path.exists)
         }
 
@@ -44,6 +46,8 @@ class VersionAndConfigTest {
             assertFalse(loaded.enabled)
             assertTrue(loaded.disableLidSleepInCharging)
             assertFalse(loaded.disableLidSleepOnBattery)
+            assertEquals(ClosedLidPowerPolicy.ADAPTER, loaded.display?.closedLidPowerPolicy)
+            assertTrue(loaded.lidSleepImmediateOnClose)
             assertTrue(loaded.darkWakeAwarenessEnabled)
 
             store.save(loaded)
@@ -62,10 +66,41 @@ class VersionAndConfigTest {
             val loaded = store.load()
             assertEquals(3, loaded.schemaVersion)
             assertTrue(loaded.disableLidSleepOnBattery)
+            assertEquals(ClosedLidPowerPolicy.BATTERY, loaded.display?.closedLidPowerPolicy)
+            assertTrue(loaded.lidSleepImmediateOnClose)
             assertFalse(loaded.darkWakeAwarenessEnabled)
             assertFalse(loaded.shelfEnabled)
             assertFalse(loaded.screenshotInboxEnabled)
             assertFalse(loaded.shelfSoundsEnabled)
+        }
+
+    @Test
+    fun `closed lid policy owns legacy lid mirrors`() =
+        withTemporaryDirectory("config") { directory ->
+            val path = directory.resolve("config.json")
+            path.writeText(
+                """
+                {
+                    "disableLidSleepInCharging": true,
+                    "disableLidSleepOnBattery": true,
+                    "lidSleepImmediateOnClose": false,
+                    "display": {
+                        "schemaVersion": 2,
+                        "keepAwakeWhenLidClosed": true,
+                        "closedLidPowerPolicy": "sleep",
+                        "closedLidDisplayMode": "displayOff",
+                        "pauseWhenExternalDisplayConnected": true
+                    }
+                }
+                """.trimIndent(),
+            )
+
+            val loaded = ConfigStore(path.toString()).load()
+
+            assertEquals(ClosedLidPowerPolicy.SLEEP, loaded.display?.closedLidPowerPolicy)
+            assertFalse(loaded.disableLidSleepInCharging)
+            assertFalse(loaded.disableLidSleepOnBattery)
+            assertTrue(loaded.lidSleepImmediateOnClose)
         }
 
     @Test
@@ -276,7 +311,8 @@ class VersionAndConfigTest {
             assertFalse(loaded.disableLidSleepInCharging)
             assertTrue(loaded.disableLidSleepOnBattery)
             assertFalse(loaded.darkWakeAwarenessEnabled)
-            assertFalse(loaded.lidSleepImmediateOnClose)
+            assertTrue(loaded.lidSleepImmediateOnClose)
+            assertEquals(ClosedLidPowerPolicy.BATTERY, loaded.display?.closedLidPowerPolicy)
             assertFalse(loaded.notificationsEnabled)
             assertFalse(loaded.updateCheckEnabled)
             assertEquals(48, loaded.updateCheckIntervalHours)

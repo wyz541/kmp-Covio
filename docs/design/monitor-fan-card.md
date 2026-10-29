@@ -53,10 +53,10 @@ SMC 键只在读取器初始化时枚举一次。
 ## 5. popover
 
 popover 固定宽度 420 点、固定高度 760 点。
-popover 外层使用 regular Liquid Glass。
-警告区、控制区、风扇区和传感器区使用 clear Liquid Glass。
-clear 层提供细高光和层次，不重复外层模糊。
-减少透明度或增强对比时，外层和内容区回退为不透明 surface。
+popover 外壳使用系统原生 regular Liquid Glass。
+警告区、控制区、风扇区和传感器区使用标准 thin material。
+Liquid Glass 不用于内容层。
+减少透明度或增强对比时，内容区回退为不透明 surface。
 头部固定，详情内容在头部下方滚动。
 
 1. 控制温度和接管状态。

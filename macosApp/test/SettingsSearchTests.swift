@@ -24,7 +24,7 @@ final class SettingsCatalogTests: XCTestCase {
         }
     }
 
-    /// 目录表里的分节覆盖六个分节，且顺序与 `SettingsSection.allCases` 一致。
+    /// 目录表里的分节覆盖五个分节，且顺序与 `SettingsSection.allCases` 一致。
     func testSectionOrderFollowsTheSectionList() {
         var seen: [SettingsSection] = []
         for entry in SettingsCatalog.entries where seen.last != entry.section {
@@ -53,10 +53,6 @@ final class SettingsCatalogTests: XCTestCase {
             SettingsRowID.batteryEnabled,
             SettingsRowID.batteryCapacity,
             SettingsRowID.batteryTime,
-            SettingsRowID.lidInstant,
-            SettingsRowID.lidPrevent,
-            SettingsRowID.lidPower,
-            SettingsRowID.lidBattery,
             SettingsRowID.idlePrevent,
             SettingsRowID.idleCharging,
             SettingsRowID.idleCancel,
@@ -132,7 +128,7 @@ final class SettingsSearchIndexTests: XCTestCase {
 
     /// 结果按分节顺序返回。
     func testResultsFollowTheSectionOrder() {
-        // 「电池」同时命中电池节的标题与合盖页电池规则的标题。
+        // 「电池」命中电池节的标题与阈值设置。
         let hits = SettingsSearchIndex.search("电池", language: .simplifiedChinese)
         XCTAssertGreaterThan(hits.count, 1)
 
@@ -150,7 +146,7 @@ final class SettingsSearchIndexTests: XCTestCase {
 
     /// 命中带着所属分节，跳转时直接用它。
     func testHitCarriesTheSection() {
-        let hits = SettingsSearchIndex.search("lid", language: .english)
+        let hits = SettingsSearchIndex.search("helper", language: .english)
         XCTAssertFalse(hits.isEmpty)
         for hit in hits {
             XCTAssertEqual(hit.section, hit.entry.section)
@@ -186,7 +182,7 @@ final class SettingsRowAnchorCoverageTests: XCTestCase {
         let declared = try declaredRowIDNames()
         let anchored = try anchoredRowIDNames()
 
-        XCTAssertGreaterThan(declared.count, 20, "没读到 SettingsRowID 的声明")
+        XCTAssertGreaterThan(declared.count, 15, "没读到 SettingsRowID 的声明")
         XCTAssertFalse(anchored.isEmpty, "没读到任何锚点")
 
         let missing = declared.subtracting(anchored).sorted()

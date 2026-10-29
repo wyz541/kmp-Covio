@@ -4,9 +4,9 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | `5.0` |
+| 文档版本 | `5.1` |
 | 状态 | 已实现；Power 与屏幕职责已拆分，等待组合视觉验收 |
-| 日期 | `2026-10-28` |
+| 日期 | `2026-10-29` |
 | Issue | #150、#154、#155、#190、#203、#398、#424、#434、#441 |
 | Feature | #148 |
 | 上游决策 | ADR-0011、ADR-0012、ADR-0022、ADR-0024 |
@@ -17,10 +17,14 @@
 Power 设置放在 `Monitor` 页签 Power card 的第三段浮层中。
 用户从卡片打开浮层，在 `详情 / 电源` 之间切换。
 `电源` 按 macOS 设置页的阅读顺序组织，不使用并列设置卡。
-合盖屏幕行为和持久化屏幕配置由屏幕 card 管理，见 `monitor-display-card.md`。
+全部合盖系统睡眠、合盖屏幕行为和持久化配置由屏幕 card 管理，见 `monitor-display-card.md`。
+`Settings > Lid` 不再提供重复入口。
+
+Power card 保留空闲睡眠、安全护栏、电池和温度策略。
 
 本设计不增加第七个页签。
-浮层读取真实系统观察、策略结果与 helper 状态。
+电源浮层读取真实系统观察和电源策略结果。
+屏幕 card 显示合盖 helper 的状态与修复入口。
 浮层通过 `AppRuntime` 写入持久化的 `PowerConfig`。
 
 `AppConfig.enabled` 是睡眠保护总开关。
@@ -72,13 +76,12 @@ Power 设置放在 `Monitor` 页签 Power card 的第三段浮层中。
 卡片内边距使用 `token/space/4`。
 `电源` 页只保留一个主要阅读列。
 任何设置卡都不与其他设置卡并排。
-popover 外层使用 regular Liquid Glass。
-内容卡叠加 clear Liquid Glass。
-clear 层提供细高光和空间层次，不重复外层模糊。
-减少透明度或增强对比时，外层和内容卡改用不透明 `surface`。
-增强对比时，外层描边使用 1.5 点，内容卡描边使用 1 点。
-会话主操作使用 regular interactive Liquid Glass capsule。
-玻璃材质用于 popover 外层和开始、结束功能控件。
+popover 外壳使用系统原生 regular Liquid Glass。
+内容卡使用标准 thin material，不使用 Liquid Glass。
+减少透明度或增强对比时，内容卡改用不透明 `surface`。
+增强对比时，内容卡描边使用 1 点。
+会话主操作使用原生 `.glass` 按钮样式。
+Liquid Glass 只用于 popover 外壳和交互控件。
 
 ### macOS 设计依据
 
@@ -90,7 +93,7 @@ clear 层提供细高光和空间层次，不重复外层模糊。
 | 减少设置数量 | 会话类型和时长使用菜单选择，不使用两排胶囊选项 |
 | 区分状态和设置 | 状态使用摘要和徽标；设置使用原生开关、菜单和步进器 |
 | 保留键盘和读屏路径 | 所有控件使用可见标签、原生焦点顺序和无障碍名称 |
-| 区分玻璃层级 | popover 使用 regular Liquid Glass；内容卡使用 clear Liquid Glass；开始和结束使用交互式 Liquid Glass |
+| 区分材质层级 | popover 外壳使用系统 Liquid Glass；内容卡使用标准材质；开始和结束使用原生 GlassButtonStyle |
 | 区分主从开关 | 总开关使用常规 switch；单行子设置使用 mini switch |
 
 ## 状态模型
@@ -127,18 +130,18 @@ stateDiagram-v2
 8. 状态变化后，读屏要播报新状态和原因。
 9. 当前会话运行时，主操作显示为结束按钮。
 10. 最近活动默认收起，展开后按时间顺序显示事件。
-11. 开始、结束和 helper 修复按钮使用 44 点命中高度。
+11. 开始和结束按钮使用 44 点命中高度。
 12. 自定义按钮提供 hover、pressed 和 keyboard focus 状态。
 13. 自动保持规则生效时，会话状态显示“运行中”，不显示“没有会话”。
-14. 开始和结束按钮使用 regular interactive Liquid Glass capsule。
-15. 合盖屏幕设置、外接屏暂停和零亮度失败在屏幕 card popover 中显示。
+14. 开始和结束按钮使用原生 `.glass` 按钮样式。
+15. 合盖策略、屏幕设置、外接屏暂停和零亮度失败在屏幕 card popover 中显示。
 
 ## 无障碍
 
 1. 状态同时使用文字和形状。
 2. 不只靠颜色区分供电、警告和失败。
 3. 所有按钮命中区不小于 24 点。
-4. 开始、结束和 helper 修复按钮命中高度不小于 44 点。
+4. 开始和结束按钮命中高度不小于 44 点。
 5. 分段控件支持键盘焦点。
 6. 规则开关有完整读屏名称。
 7. 减少动态效果时停止非必要缩放和状态动画。
@@ -155,11 +158,11 @@ stateDiagram-v2
 2. 不显示外接屏 DDC 控制。
 3. 不显示充电上限。
 4. 不显示锁屏和屏保控制。
-5. 不把 helper 缺失显示为“运行中”。
+5. 电源页不把 helper 缺失显示为“运行中”。
 6. 不把未知状态显示为正常。
 7. 不隐藏电池下限、温度保护和合盖时长。
 8. 总开关关闭时，`电源` 页必须显示原因并禁用会话启动。
-9. helper 返回成功但系统状态未生效时，页面必须显示失败。
+9. helper 返回成功但系统状态未生效时，屏幕 card 必须显示失败。
 10. 合盖时长、电池下限、低电量模式和温度保护继续由 Power 策略执行。
 11. 合盖屏幕模式、外接屏暂停和零亮度失败由屏幕 card 显示。
 12. 私有符号、版本、写入或回读失败时显示失败，并回退公开关屏。
@@ -170,7 +173,7 @@ stateDiagram-v2
 2. 电池、适配器、热状态和低电量模式已接入。
 3. 系统与屏幕保持唤醒已接入 IOKit 断言。
 4. 手动会话、自动规则和安全否决使用同一份策略结果。
-5. helper 缺失、外部 `SleepDisabled` 冲突和执行错误有可见提示。
+5. 外部 `SleepDisabled` 冲突和电源执行错误有可见提示。
 6. 页面支持页内滚动，内容不因固定高度而裁切。
 7. 最近活动显示最近 24 小时的真实事件。
 8. 历史文件最多保留 200 条事件和 7 天。
@@ -181,7 +184,10 @@ stateDiagram-v2
 13. #434 增加增强对比、减少透明度和 44 点命中区。
 14. #441 将合盖屏幕、外接屏暂停和零亮度设置迁入屏幕 card。
 15. #441 为屏幕设置增加独立 `DisplayConfig` 和旧配置迁移。
-16. #441 将所有 popover 改为分层 Liquid Glass，内容卡使用 clear 层。
+16. #441 将 popover 外壳交给系统 Liquid Glass；内容卡使用标准材质，避免内容层重复应用 Liquid Glass。
+17. #441 删除 `Settings > Lid` 的重复开关，合盖行为统一由屏幕 card 管理。
+18. #441 让 `DisplayConfig.closedLidPowerPolicy` 成为唯一合盖策略来源；旧字段只作迁移与兼容镜像。
+19. #441 取消独立的“合盖后立即睡眠”开关；没有合盖租约时统一立即睡眠。
 
 ## 预览
 
@@ -209,7 +215,11 @@ stateDiagram-v2
 
 Power popover 不再显示合盖屏幕、外接屏暂停和零亮度设置。
 
-![Power popover after the display split](previews/441-power-popover-light-after-3.png)
+![Power popover light after ownership cleanup](previews/441-power-popover-light-after-4.png)
+
+深色：
+
+![Power popover dark after ownership cleanup](previews/441-power-popover-dark-after-4.png)
 
 ## 视觉验收
 
@@ -249,6 +259,6 @@ Power popover 不再显示合盖屏幕、外接屏暂停和零亮度设置。
 | --- | --- | --- |
 | 真实剩余时间口径 | 已定稿 | 使用系统剩余时间，缺失时显示未知 |
 | 合盖时长默认值 | 已定稿 | 默认 240 分钟 |
-| helper 安装入口位置 | 已定稿 | 屏幕 card 与设置页都可安装 |
+| helper 安装入口位置 | 已定稿 | 屏幕 card 提供安装与修复入口 |
 | agent 会话是否进入首版 | 已定稿 | 不增加独立 agent 入口；运行时保留 `AGENT` 租约来源 |
 | 电源历史 | 已实现 | 有界持久化与页面接入 |

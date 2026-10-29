@@ -84,6 +84,7 @@ final class PowerPreviewModel: PowerManagementModel {
     var sleepProtectionEnabled = true
     var powerConfig: PowerConfig
     var displayConfig: DisplayConfig
+    var closedLidPowerPolicy: ClosedLidPowerPolicy
     var observation: PowerObservation
     var snapshot: PowerSnapshot
     var decision: PowerDecision
@@ -119,7 +120,13 @@ final class PowerPreviewModel: PowerManagementModel {
             closedLidZeroBrightness: true
         )
         powerConfig = previewPower
-        displayConfig = DisplayConfig.companion.fromLegacy(power: previewPower)
+        let previewDisplay = DisplayConfig.companion.fromLegacy(
+            power: previewPower,
+            keepsAwakeOnAdapter: false,
+            keepsAwakeOnBattery: false
+        )
+        displayConfig = previewDisplay
+        closedLidPowerPolicy = previewDisplay.closedLidPowerPolicy
         let sampleObservation = PowerObservation(
             batteryPercent: KotlinInt(int: 84),
             hasBattery: KotlinBoolean(bool: true),
@@ -179,28 +186,43 @@ final class PowerPreviewModel: PowerManagementModel {
     }
     func setPowerKeepAwakeOnAdapter(_ enabled: Bool) { powerConfig = copyPower(adapter: enabled) }
     func setPowerKeepAwakeOnBattery(_ enabled: Bool) { powerConfig = copyPower(battery: enabled) }
-    func setPowerAllowClosedLid(_ enabled: Bool) { setDisplayKeepAwakeWhenLidClosed(enabled) }
-    func setPowerClosedLidZeroBrightness(_ enabled: Bool) {
-        setDisplayClosedLidMode(enabled ? .blackScreenPipeline : .displayOff)
-    }
-    func setPowerPauseClosedLidWithExternalDisplay(_ enabled: Bool) {
-        setDisplayPauseWithExternalDisplay(enabled)
-    }
     func setPowerYieldOnLowPowerMode(_ enabled: Bool) { powerConfig = copyPower(lowPower: enabled) }
     func setPowerHeatGuard(_ enabled: Bool) { powerConfig = copyPower(heat: enabled) }
     func setPowerBatteryFloor(_ percent: Int) { powerConfig = copyPower(floor: Int32(percent)) }
     func setPowerClosedLidTimeCapMinutes(_ minutes: Int) { powerConfig = copyPower(cap: Int32(minutes)) }
-    func setDisplayKeepAwakeWhenLidClosed(_ enabled: Bool) {
-        displayConfig = copyDisplay(keepAwake: enabled)
-        powerConfig = copyPower(lid: enabled)
+    func setClosedLidPowerPolicy(_ policy: ClosedLidPowerPolicy) {
+        closedLidPowerPolicy = policy
+        let mode: ClosedLidDisplayMode
+        if !policy.keepsAwake {
+            mode = displayConfig.closedLidDisplayMode
+        } else if displayConfig.closedLidDisplayMode == .system {
+            mode = .blackScreenPipeline
+        } else {
+            mode = displayConfig.closedLidDisplayMode
+        }
+        displayConfig = copyDisplay(policy: policy, mode: mode)
+        powerConfig = copyPower(lid: policy.keepsAwake, zeroBrightness: mode == .blackScreenPipeline)
+        closedLidZeroBrightnessPhase = mode == .blackScreenPipeline ? .ready : .disabled
+        decision = PowerDecision(
+            preventUserIdleSystemSleep: policy.keepsAwake,
+            preventUserIdleDisplaySleep: false,
+            preventLidSleep: policy.keepsAwake,
+            appliedLeaseLevel: policy.keepsAwake ? .closedLid : nil,
+            activeLeaseIds: policy.keepsAwake ? ["power/closed-lid/policy"] : [],
+            automaticRuleApplied: false,
+            safetyVetoes: [],
+            batteryGuardLatched: false
+        )
     }
     func setDisplayClosedLidMode(_ mode: ClosedLidDisplayMode) {
-        displayConfig = copyDisplay(keepAwake: mode != .system, mode: mode)
-        powerConfig = copyPower(
-            lid: mode != .system,
-            zeroBrightness: mode == .blackScreenPipeline
-        )
-        closedLidZeroBrightnessPhase = mode == .blackScreenPipeline ? .ready : .disabled
+        if mode == .system {
+            setClosedLidPowerPolicy(.sleep)
+        } else {
+            let policy = closedLidPowerPolicy == .sleep ? .adapter : closedLidPowerPolicy
+            setClosedLidPowerPolicy(policy)
+            displayConfig = copyDisplay(mode: mode)
+            powerConfig = copyPower(zeroBrightness: mode == .blackScreenPipeline)
+        }
     }
     func setDisplayPauseWithExternalDisplay(_ enabled: Bool) {
         displayConfig = copyDisplay(pauseWithExternal: enabled)
@@ -285,13 +307,15 @@ final class PowerPreviewModel: PowerManagementModel {
     }
 
     private func copyDisplay(
-        keepAwake: Bool? = nil,
+        policy: ClosedLidPowerPolicy? = nil,
         mode: ClosedLidDisplayMode? = nil,
         pauseWithExternal: Bool? = nil
     ) -> DisplayConfig {
-        DisplayConfig(
+        let nextPolicy = policy ?? displayConfig.closedLidPowerPolicy
+        return DisplayConfig(
             schemaVersion: displayConfig.schemaVersion,
-            keepAwakeWhenLidClosed: keepAwake ?? displayConfig.keepAwakeWhenLidClosed,
+            keepAwakeWhenLidClosed: nextPolicy.keepsAwake,
+            closedLidPowerPolicy: nextPolicy,
             closedLidDisplayMode: mode ?? displayConfig.closedLidDisplayMode,
             pauseWhenExternalDisplayConnected: pauseWithExternal
                 ?? displayConfig.pauseWhenExternalDisplayConnected

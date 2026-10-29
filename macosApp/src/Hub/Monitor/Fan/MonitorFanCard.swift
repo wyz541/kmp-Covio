@@ -289,7 +289,6 @@ struct MonitorFanPopover: View {
             }
         }
         .padding(16)
-        .popoverGlassSurface(cornerRadius: 16, layer: .outer)
         .tint(MonitorCardKind.fan.accent)
         .onAppear {
             model.refreshAvailability()
@@ -387,9 +386,8 @@ struct MonitorFanPopover: View {
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .popoverGlassSurface(
+        .popoverContentSurface(
             cornerRadius: 9,
-            layer: .inset,
             tint: MacTheme.warningText.opacity(0.12)
         )
     }
@@ -410,7 +408,7 @@ struct MonitorFanPopover: View {
             }
         }
         .padding(10)
-        .popoverGlassSurface(cornerRadius: 12, layer: .inset)
+        .popoverContentSurface()
     }
 
     @ViewBuilder
@@ -675,7 +673,7 @@ struct MonitorFanPopover: View {
             }
         }
         .padding(10)
-        .popoverGlassSurface(cornerRadius: 12, layer: .inset)
+        .popoverContentSurface()
     }
 
     private var sensorSection: some View {
@@ -714,7 +712,7 @@ struct MonitorFanPopover: View {
             }
         }
         .padding(10)
-        .popoverGlassSurface(cornerRadius: 12, layer: .inset)
+        .popoverContentSurface()
     }
 
     private var warning: some View {

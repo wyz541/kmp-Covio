@@ -3164,7 +3164,6 @@
       "rows": [
         "03 · Overview",
         "04 · Battery",
-        "05 · Lid",
         "06 · Idle",
         "07 · Top Shelf Settings",
         "08 · General"
@@ -3295,69 +3294,6 @@
           "state": "DISABLED",
           "description": "The control or page is unavailable.",
           "copyKey": "copy/page/battery/state/disabled"
-        },
-        {
-          "cellKey": "state/page/lid/normal",
-          "pageKey": "page/lid",
-          "pageTitle": "05 · Lid",
-          "boardId": "8303:68506",
-          "state": "NORMAL",
-          "description": "Default content with valid values.",
-          "copyKey": "copy/page/lid/state/normal"
-        },
-        {
-          "cellKey": "state/page/lid/empty",
-          "pageKey": "page/lid",
-          "pageTitle": "05 · Lid",
-          "boardId": "8303:68506",
-          "state": "EMPTY",
-          "description": "No result or no configured item.",
-          "copyKey": "copy/page/lid/state/empty"
-        },
-        {
-          "cellKey": "state/page/lid/loading",
-          "pageKey": "page/lid",
-          "pageTitle": "05 · Lid",
-          "boardId": "8303:68506",
-          "state": "LOADING",
-          "description": "Data or an operation is in progress.",
-          "copyKey": "copy/page/lid/state/loading"
-        },
-        {
-          "cellKey": "state/page/lid/success",
-          "pageKey": "page/lid",
-          "pageTitle": "05 · Lid",
-          "boardId": "8303:68506",
-          "state": "SUCCESS",
-          "description": "The operation completed.",
-          "copyKey": "copy/page/lid/state/success"
-        },
-        {
-          "cellKey": "state/page/lid/warning",
-          "pageKey": "page/lid",
-          "pageTitle": "05 · Lid",
-          "boardId": "8303:68506",
-          "state": "WARNING",
-          "description": "The user must review a risk or degraded condition.",
-          "copyKey": "copy/page/lid/state/warning"
-        },
-        {
-          "cellKey": "state/page/lid/error",
-          "pageKey": "page/lid",
-          "pageTitle": "05 · Lid",
-          "boardId": "8303:68506",
-          "state": "ERROR",
-          "description": "The operation failed or a value is invalid.",
-          "copyKey": "copy/page/lid/state/error"
-        },
-        {
-          "cellKey": "state/page/lid/disabled",
-          "pageKey": "page/lid",
-          "pageTitle": "05 · Lid",
-          "boardId": "8303:68506",
-          "state": "DISABLED",
-          "description": "The control or page is unavailable.",
-          "copyKey": "copy/page/lid/state/disabled"
         },
         {
           "cellKey": "state/page/idle/normal",
@@ -5013,7 +4949,7 @@
       "zh-Hans": "关闭显示器"
     },
     "copy/monitor/display/mode-black": {
-      "en": "Black screen, display link active",
+      "en": "Black screen, display active",
       "zh-Hans": "黑屏并保持显示链路"
     },
     "copy/monitor/display/session-start": {
@@ -5460,25 +5396,33 @@
       "en": "Prevent sleep while charging",
       "zh-Hans": "充电时阻止睡眠"
     },
-    "copy/lid/battery-rules": {
-      "en": "Battery rules",
-      "zh-Hans": "电池规则"
+    "copy/lid/hold-policy": {
+      "en": "Closed-lid behavior",
+      "zh-Hans": "合盖行为"
     },
-    "copy/lid/instant-sleep": {
-      "en": "Sleep immediately when the lid closes",
-      "zh-Hans": "合盖后立即睡眠"
+    "copy/lid/hold-policy/adapter": {
+      "en": "Keep awake on power adapter",
+      "zh-Hans": "接通电源时保持运行"
     },
-    "copy/lid/power-rules": {
-      "en": "Power rules",
-      "zh-Hans": "接电源规则"
+    "copy/lid/hold-policy/any": {
+      "en": "Always keep awake",
+      "zh-Hans": "始终保持运行"
     },
-    "copy/lid/prevent-sleep": {
-      "en": "Prevent sleep after the lid closes",
-      "zh-Hans": "合盖后阻止睡眠"
+    "copy/lid/hold-policy/battery": {
+      "en": "Keep awake on battery",
+      "zh-Hans": "使用电池时保持运行"
+    },
+    "copy/lid/hold-policy/hint": {
+      "en": "macOS still controls screen locking and authentication.",
+      "zh-Hans": "macOS 仍会独立执行锁屏和身份验证。"
+    },
+    "copy/lid/hold-policy/sleep": {
+      "en": "Sleep when the lid closes",
+      "zh-Hans": "合盖时睡眠"
     },
     "copy/lid/warning": {
-      "en": "Warning: this option increases battery drain.",
-      "zh-Hans": "警告：此选项会增加电池耗电。"
+      "en": "This option increases battery drain.",
+      "zh-Hans": "此选项会增加电池耗电。"
     },
     "copy/macos27-alignment/measurement": {
       "en": "Measurement Comparison",
@@ -5507,10 +5451,6 @@
     "copy/nav/idle": {
       "en": "Idle",
       "zh-Hans": "闲置"
-    },
-    "copy/nav/lid": {
-      "en": "Lid",
-      "zh-Hans": "合盖"
     },
     "copy/nav/quit": {
       "en": "Quit Covio",
@@ -5743,42 +5683,6 @@
     "copy/page/idle/title": {
       "en": "Idle",
       "zh-Hans": "闲置"
-    },
-    "copy/page/lid/state/disabled": {
-      "en": "05 · Lid - Disabled",
-      "zh-Hans": "05 · Lid - 不可用"
-    },
-    "copy/page/lid/state/empty": {
-      "en": "05 · Lid - Empty",
-      "zh-Hans": "05 · Lid - 无项目"
-    },
-    "copy/page/lid/state/error": {
-      "en": "05 · Lid - Error",
-      "zh-Hans": "05 · Lid - 操作失败"
-    },
-    "copy/page/lid/state/loading": {
-      "en": "05 · Lid - Loading",
-      "zh-Hans": "05 · Lid - 正在加载"
-    },
-    "copy/page/lid/state/normal": {
-      "en": "05 · Lid - Normal",
-      "zh-Hans": "05 · Lid - 就绪"
-    },
-    "copy/page/lid/state/success": {
-      "en": "05 · Lid - Success",
-      "zh-Hans": "05 · Lid - 已完成"
-    },
-    "copy/page/lid/state/warning": {
-      "en": "05 · Lid - Warning",
-      "zh-Hans": "05 · Lid - 需要检查"
-    },
-    "copy/page/lid/summary": {
-      "en": "Control sleep behavior when the lid closes.",
-      "zh-Hans": "控制合盖后的睡眠行为。"
-    },
-    "copy/page/lid/title": {
-      "en": "Lid",
-      "zh-Hans": "合盖"
     },
     "copy/page/overview/state/disabled": {
       "en": "03 · Overview - Disabled",
@@ -6245,8 +6149,8 @@
       "zh-Hans": "自动保持唤醒"
     },
     "copy/power/section/closed-lid": {
-      "en": "Closed-lid sessions",
-      "zh-Hans": "合盖会话"
+      "en": "Closed-lid settings",
+      "zh-Hans": "合盖设置"
     },
     "copy/power/section/safety": {
       "en": "Safety guards",
@@ -6321,8 +6225,8 @@
       "zh-Hans": "时长"
     },
     "copy/power/session/start-hint": {
-      "en": "Start a session before closing the lid.",
-      "zh-Hans": "合盖前先启动会话。"
+      "en": "Start a timed system or display hold.",
+      "zh-Hans": "按需保持系统或屏幕唤醒。"
     },
     "copy/power/session/display": {
       "en": "System + display",

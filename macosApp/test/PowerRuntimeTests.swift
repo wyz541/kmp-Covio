@@ -57,6 +57,160 @@ final class PowerRuntimeTests: XCTestCase {
         XCTAssertTrue(runtime.recentHistory.contains { $0.kind == .holdStarted })
     }
 
+    func testAdapterClosedLidPolicyCreatesAnAutomaticLidLease() {
+        fixture.privileged.match = true
+        observation.value = makeObservation(powerState: .acPower, batteryPercent: 80, hasBattery: true)
+        runtime = makeRuntime(
+            config: makeConfig(),
+            displayConfig: makeDisplayConfig(policy: .adapter)
+        )
+
+        runtime.start()
+
+        XCTAssertTrue(runtime.decision.preventLidSleep)
+        XCTAssertTrue(fixture.privileged.sleepDisabled)
+        XCTAssertTrue(runtime.leases.contains { $0.source == .rule && $0.level == .closedLid })
+
+        observation.value = makeObservation(powerState: .discharging, batteryPercent: 70, hasBattery: true)
+        runtime.refresh()
+
+        XCTAssertFalse(runtime.decision.preventLidSleep)
+        XCTAssertFalse(fixture.privileged.sleepDisabled)
+    }
+
+    func testBatteryClosedLidPolicyHoldsOnBatteryPower() {
+        fixture.privileged.match = true
+        observation.value = makeObservation(powerState: .discharging, batteryPercent: 70, hasBattery: true)
+        runtime = makeRuntime(
+            config: makeConfig(),
+            displayConfig: makeDisplayConfig(policy: .battery)
+        )
+
+        runtime.start()
+
+        XCTAssertTrue(runtime.decision.preventLidSleep)
+        XCTAssertTrue(fixture.privileged.sleepDisabled)
+    }
+
+    func testExternalDisplayPausesAutomaticClosedLidLease() {
+        fixture.privileged.match = true
+        observation.value = makeObservation(
+            powerState: .acPower,
+            batteryPercent: 80,
+            hasBattery: true,
+            externalDisplayCount: 1
+        )
+        runtime = makeRuntime(
+            config: makeConfig(),
+            displayConfig: makeDisplayConfig(policy: .adapter, pauseWithExternalDisplay: true)
+        )
+
+        runtime.start()
+
+        XCTAssertFalse(runtime.decision.preventLidSleep)
+        XCTAssertFalse(fixture.privileged.sleepDisabled)
+        XCTAssertTrue(runtime.leases.isEmpty)
+    }
+
+    func testSleepPolicyDoesNotCreateAClosedLidLease() {
+        fixture.privileged.match = true
+        observation.value = makeObservation(powerState: .acPower, batteryPercent: 80, hasBattery: true)
+        runtime = makeRuntime(
+            config: makeConfig(),
+            displayConfig: makeDisplayConfig(policy: .sleep)
+        )
+
+        runtime.start()
+
+        XCTAssertFalse(runtime.decision.preventLidSleep)
+        XCTAssertFalse(fixture.privileged.sleepDisabled)
+        XCTAssertFalse(runtime.leases.contains { $0.level == .closedLid })
+    }
+
+    func testExternalDisplayReleasesAndRestoresTheAutomaticClosedLidLease() {
+        fixture.privileged.match = true
+        observation.value = makeObservation(powerState: .acPower, batteryPercent: 80, hasBattery: true)
+        runtime = makeRuntime(
+            config: makeConfig(),
+            displayConfig: makeDisplayConfig(policy: .adapter, pauseWithExternalDisplay: true)
+        )
+        runtime.start()
+        XCTAssertTrue(runtime.decision.preventLidSleep)
+
+        observation.value = makeObservation(
+            powerState: .acPower,
+            batteryPercent: 80,
+            hasBattery: true,
+            externalDisplayCount: 1
+        )
+        runtime.refresh()
+        XCTAssertFalse(runtime.decision.preventLidSleep)
+        XCTAssertFalse(fixture.privileged.sleepDisabled)
+
+        observation.value = makeObservation(powerState: .acPower, batteryPercent: 80, hasBattery: true)
+        runtime.refresh()
+        XCTAssertTrue(runtime.decision.preventLidSleep)
+        XCTAssertTrue(fixture.privileged.sleepDisabled)
+    }
+
+    func testChangingTheClosedLidPolicyReleasesTheAutomaticLease() {
+        fixture.privileged.match = true
+        observation.value = makeObservation(powerState: .acPower, batteryPercent: 80, hasBattery: true)
+        runtime = makeRuntime(
+            config: makeConfig(),
+            displayConfig: makeDisplayConfig(policy: .adapter)
+        )
+        runtime.start()
+        XCTAssertTrue(runtime.decision.preventLidSleep)
+
+        runtime.updateConfig(
+            makeConfig(),
+            displayConfig: makeDisplayConfig(policy: .sleep),
+            sleepProtectionEnabled: true
+        )
+
+        XCTAssertFalse(runtime.decision.preventLidSleep)
+        XCTAssertFalse(fixture.privileged.sleepDisabled)
+        XCTAssertFalse(runtime.leases.contains { $0.level == .closedLid })
+    }
+
+    func testBatteryGuardReleasesTheAutomaticClosedLidLease() {
+        fixture.privileged.match = true
+        observation.value = makeObservation(powerState: .discharging, batteryPercent: 80, hasBattery: true)
+        runtime = makeRuntime(
+            config: makeConfig(batteryFloorPercent: 15),
+            displayConfig: makeDisplayConfig(policy: .battery)
+        )
+        runtime.start()
+        XCTAssertTrue(runtime.decision.preventLidSleep)
+
+        observation.value = makeObservation(powerState: .discharging, batteryPercent: 10, hasBattery: true)
+        runtime.refresh()
+
+        XCTAssertFalse(runtime.decision.preventLidSleep)
+        XCTAssertFalse(fixture.privileged.sleepDisabled)
+        XCTAssertTrue(runtime.decision.safetyVetoes.contains(.batteryFloor))
+    }
+
+    func testHelperLossReleasesTheAutomaticClosedLidLease() {
+        fixture.privileged.match = true
+        observation.value = makeObservation(powerState: .acPower, batteryPercent: 80, hasBattery: true)
+        runtime = makeRuntime(
+            config: makeConfig(),
+            displayConfig: makeDisplayConfig(policy: .adapter)
+        )
+        runtime.start()
+        XCTAssertTrue(runtime.decision.preventLidSleep)
+
+        fixture.privileged.match = false
+        runtime.refreshHelperStatusNow()
+
+        XCTAssertEqual(runtime.helperStatus, .missing)
+        XCTAssertFalse(runtime.decision.preventLidSleep)
+        XCTAssertFalse(runtime.leases.contains { $0.level == .closedLid })
+        XCTAssertEqual(runtime.executionError, "helper-unavailable")
+    }
+
     func testAdapterTransitionsAndSleepEventsArePersisted() {
         observation.value = makeObservation(powerState: .acPower, batteryPercent: 80, hasBattery: true)
         runtime = makeRuntime(config: makeConfig())
@@ -258,7 +412,10 @@ final class PowerRuntimeTests: XCTestCase {
         fixture.privileged.match = true
         fixture.privileged.disableSleepResults = [false, true]
         observation.value = makeObservation(powerState: .acPower, batteryPercent: 80, hasBattery: true)
-        runtime = makeRuntime(config: makeConfig())
+        runtime = makeRuntime(
+            config: makeConfig(),
+            displayConfig: makeDisplayConfig(policy: .sleep)
+        )
         runtime.start()
 
         XCTAssertFalse(runtime.startSession(mode: .lid, duration: .oneHour))
@@ -364,6 +521,7 @@ final class PowerRuntimeTests: XCTestCase {
         observationSource: FakePowerObservationSource? = nil,
         brightnessBackend: FakeClosedLidBrightnessBackend? = nil,
         brightnessStore: FakeClosedLidBrightnessRecoveryStore? = nil,
+        displayConfig: DisplayConfig? = nil,
         sleepProtectionEnabled: Bool = true,
         nowEpochSeconds: @escaping () -> Int64 = { 1_000 }
     ) -> PowerRuntime {
@@ -373,6 +531,7 @@ final class PowerRuntimeTests: XCTestCase {
             observationSource: observationSource ?? observation,
             historyStore: historyStore,
             config: config,
+            displayConfig: displayConfig,
             sleepProtectionEnabled: sleepProtectionEnabled,
             closedLidBrightnessBackend: brightnessBackend ?? self.brightnessBackend,
             closedLidBrightnessStore: brightnessStore ?? self.brightnessStore,
@@ -385,16 +544,30 @@ final class PowerRuntimeTests: XCTestCase {
         batteryPercent: Int,
         hasBattery: Bool,
         thermalState: ThermalState = .nominal,
-        lidState: LidState = .open
+        lidState: LidState = .open,
+        externalDisplayCount: Int = 0
     ) -> PowerObservation {
         PowerObservation(
             batteryPercent: KotlinInt(int: Int32(batteryPercent)),
             hasBattery: KotlinBoolean(bool: hasBattery),
             powerState: powerState,
-            externalDisplayCount: KotlinInt(int: 0),
+            externalDisplayCount: KotlinInt(int: Int32(externalDisplayCount)),
             lidState: lidState,
             thermalState: thermalState,
             lowPowerModeEnabled: KotlinBoolean(bool: false)
+        )
+    }
+
+    private func makeDisplayConfig(
+        policy: ClosedLidPowerPolicy,
+        pauseWithExternalDisplay: Bool = true
+    ) -> DisplayConfig {
+        DisplayConfig(
+            schemaVersion: 2,
+            keepAwakeWhenLidClosed: policy.keepsAwake,
+            closedLidPowerPolicy: policy,
+            closedLidDisplayMode: policy.keepsAwake ? .blackScreenPipeline : .system,
+            pauseWhenExternalDisplayConnected: pauseWithExternalDisplay
         )
     }
 

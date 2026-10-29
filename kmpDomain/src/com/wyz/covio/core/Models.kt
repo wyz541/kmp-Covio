@@ -44,7 +44,14 @@ data class AppConfig(
 ) {
     fun normalized(): AppConfig {
         val normalizedPower = power.normalized()
-        val normalizedDisplay = (display ?: DisplayConfig.fromLegacy(normalizedPower)).normalized()
+        val normalizedDisplay = (
+            display ?: DisplayConfig.fromLegacy(
+                power = normalizedPower,
+                keepsAwakeOnAdapter = disableLidSleepInCharging,
+                keepsAwakeOnBattery = disableLidSleepOnBattery,
+            )
+        ).normalized()
+        val closedLidPolicy = normalizedDisplay.closedLidPowerPolicy
         return copy(
             schemaVersion = 3,
             lowBatteryCapacity = lowBatteryCapacity.coerceIn(0, 100),
@@ -57,6 +64,10 @@ data class AppConfig(
             shelfEnabled = false,
             screenshotInboxEnabled = false,
             shelfSoundsEnabled = false,
+            disableLidSleepInCharging = closedLidPolicy.keepsAwakeOnAdapter,
+            disableLidSleepOnBattery = closedLidPolicy.keepsAwakeOnBattery,
+            // 合盖但未持有租约时立即睡眠。旧独立开关不再改变这项行为。
+            lidSleepImmediateOnClose = true,
             power = normalizedPower.copy(
                 allowClosedLid = normalizedDisplay.keepAwakeWhenLidClosed,
                 pauseClosedLidWithExternalDisplay = normalizedDisplay.pauseWhenExternalDisplayConnected,

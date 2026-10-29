@@ -136,6 +136,17 @@ class HelperWireTest {
                 ),
             ),
         )
+        assertNull(
+            HelperWire.validate(
+                request(
+                    HelperWire.COMMAND_FAN_CONTROL_CONFIGURE,
+                    valid + (
+                        "temperatureRules" to
+                            """{"battery":[{"celsius":32.0,"fanPercent":30.0},{"celsius":34.0,"fanPercent":50.0}]}"""
+                        ),
+                ),
+            ),
+        )
         assertEquals(
             "Fan control must be enabled",
             HelperWire.validate(
@@ -193,6 +204,24 @@ class HelperWireTest {
                 request(
                     HelperWire.COMMAND_FAN_CONTROL_CONFIGURE,
                     valid + ("manualModes" to "{\n}"),
+                ),
+            ),
+        )
+        assertEquals(
+            "Fan temperature rules are too long",
+            HelperWire.validate(
+                request(
+                    HelperWire.COMMAND_FAN_CONTROL_CONFIGURE,
+                    valid + ("temperatureRules" to "x".repeat(4_097)),
+                ),
+            ),
+        )
+        assertEquals(
+            "Invalid fan temperature rules",
+            HelperWire.validate(
+                request(
+                    HelperWire.COMMAND_FAN_CONTROL_CONFIGURE,
+                    valid + ("temperatureRules" to "{\n}"),
                 ),
             ),
         )

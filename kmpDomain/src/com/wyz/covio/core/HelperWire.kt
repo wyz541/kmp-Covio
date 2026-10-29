@@ -226,6 +226,11 @@ object HelperWire {
             if (curves.any { it == '\u0000' || it == '\n' || it == '\r' }) {
                 return "Invalid fan curve list"
             }
+            val temperatureRules = request.payload["temperatureRules"].orEmpty()
+            if (temperatureRules.length > 4_096) return "Fan temperature rules are too long"
+            if (temperatureRules.any { it == '\u0000' || it == '\n' || it == '\r' }) {
+                return "Invalid fan temperature rules"
+            }
             for (pair in manual.split(',').filter { it.isNotBlank() }) {
                 val parts = pair.split(':', limit = 2)
                 if (parts.size != 2) return "Invalid fan RPM"

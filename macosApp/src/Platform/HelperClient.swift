@@ -386,6 +386,7 @@ struct FanControlHelperStatus: Equatable, Sendable {
     let controlTemperature: Double?
     let leaseRemainingSeconds: Int
     let error: String?
+    var sourceTemperatures: [String: Double] = [:]
 }
 
 struct FanControlCommandResult: Equatable, Sendable {
@@ -437,12 +438,17 @@ extension HelperClient {
     }
 
     private static func fanControlStatus(from result: [String: String]) -> FanControlHelperStatus {
-        FanControlHelperStatus(
+        let sourceTemperatures = result["sourceTemperatures"]
+            .flatMap { $0.data(using: .utf8) }
+            .flatMap { try? JSONDecoder().decode([String: Double].self, from: $0) }
+            ?? [:]
+        return FanControlHelperStatus(
             active: result["active"] == "true",
             mode: result["mode"] ?? "system",
             controlTemperature: result["controlTemperature"].flatMap(Double.init),
             leaseRemainingSeconds: result["leaseRemainingSeconds"].flatMap(Int.init) ?? 0,
-            error: result["error"]
+            error: result["error"],
+            sourceTemperatures: sourceTemperatures
         )
     }
 }

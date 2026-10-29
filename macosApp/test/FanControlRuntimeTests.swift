@@ -101,6 +101,144 @@ final class FanControlRuntimeTests: XCTestCase {
         XCTAssertEqual(status(runtime)["controlTemperature"], "68.40")
     }
 
+    func testTemperatureRulesUseWidestFanRequest() throws {
+        let reader = FakeFanReader()
+        let writer = FakeFanWriter()
+        let runtime = makeRuntime(reader: reader, writer: writer)
+        reader.snapshot = SMCFanReadingSnapshot(
+            temperatures: [
+                SMCTemperatureReading(key: "TCMz", celsius: 70),
+                SMCTemperatureReading(key: "Tg0D", celsius: 50),
+                SMCTemperatureReading(key: "TB0T", celsius: 32),
+            ],
+            fans: [
+                SMCFanReading(
+                    index: 0,
+                    rpm: 1_000,
+                    minimumRPM: 1_000,
+                    maximumRPM: 5_000,
+                    targetRPM: 0,
+                    mode: 0
+                ),
+                SMCFanReading(
+                    index: 1,
+                    rpm: 1_200,
+                    minimumRPM: 1_200,
+                    maximumRPM: 6_000,
+                    targetRPM: 0,
+                    mode: 0
+                ),
+            ]
+        )
+        let configuration = MonitorFanConfiguration(
+            enabled: true,
+            mode: .curve,
+            temperatureRules: [
+                "cpu": [
+                    .init(celsius: 60, fanPercent: 20),
+                    .init(celsius: 80, fanPercent: 60),
+                ],
+                "gpu": [
+                    .init(celsius: 40, fanPercent: 10),
+                    .init(celsius: 60, fanPercent: 30),
+                ],
+                "battery": [
+                    .init(celsius: 32, fanPercent: 30),
+                    .init(celsius: 34, fanPercent: 50),
+                ],
+            ]
+        )
+
+        let reply = runtime.handle(request(
+            HelperWire.shared.COMMAND_FAN_CONTROL_CONFIGURE,
+            payload: configuration.helperPayload()
+        ))
+
+        XCTAssertEqual(reply?.ok, true)
+        XCTAssertEqual(writer.targets[0], 2_600)
+        XCTAssertEqual(writer.targets[1], 3_120)
+        let sourceText = try XCTUnwrap(status(runtime)["sourceTemperatures"])
+        let sourceValues = try JSONDecoder().decode(
+            [String: Double].self,
+            from: Data(sourceText.utf8)
+        )
+        XCTAssertEqual(sourceValues["cpu"], 70)
+        XCTAssertEqual(sourceValues["gpu"], 50)
+        XCTAssertEqual(sourceValues["battery"], 32)
+    }
+
+    func testTemperatureRulesFailOverToAnAvailableSource() {
+        let reader = FakeFanReader()
+        let writer = FakeFanWriter()
+        let runtime = makeRuntime(reader: reader, writer: writer)
+        reader.snapshot = SMCFanReadingSnapshot(
+            temperatures: [
+                SMCTemperatureReading(key: "TA0P", celsius: 25),
+                SMCTemperatureReading(key: "TB0T", celsius: 32),
+            ],
+            fans: [
+                SMCFanReading(
+                    index: 0,
+                    rpm: 1_000,
+                    minimumRPM: 1_000,
+                    maximumRPM: 5_000,
+                    targetRPM: 0,
+                    mode: 0
+                ),
+            ]
+        )
+        let configuration = MonitorFanConfiguration(
+            enabled: true,
+            mode: .curve,
+            temperatureRules: [
+                "gpu": [
+                    .init(celsius: 40, fanPercent: 10),
+                    .init(celsius: 60, fanPercent: 30),
+                ],
+                "battery": [
+                    .init(celsius: 32, fanPercent: 30),
+                    .init(celsius: 34, fanPercent: 50),
+                ],
+            ]
+        )
+
+        _ = runtime.handle(request(
+            HelperWire.shared.COMMAND_FAN_CONTROL_CONFIGURE,
+            payload: configuration.helperPayload()
+        ))
+
+        XCTAssertEqual(writer.targets[0], 2_200)
+        XCTAssertEqual(status(runtime)["active"], "true")
+    }
+
+    func testTemperatureRulesRestoreWhenEveryConfiguredSourceIsMissing() {
+        let reader = FakeFanReader()
+        let writer = FakeFanWriter()
+        let runtime = makeRuntime(reader: reader, writer: writer)
+        reader.snapshot = snapshot(temperature: 25, key: "TA0P")
+        let configuration = MonitorFanConfiguration(
+            enabled: true,
+            mode: .curve,
+            temperatureRules: [
+                "battery": [
+                    .init(celsius: 32, fanPercent: 30),
+                    .init(celsius: 34, fanPercent: 50),
+                ],
+            ]
+        )
+
+        _ = runtime.handle(request(
+            HelperWire.shared.COMMAND_FAN_CONTROL_CONFIGURE,
+            payload: configuration.helperPayload()
+        ))
+        runtime.driveControlCycle()
+        runtime.driveControlCycle()
+
+        XCTAssertEqual(writer.releaseAllCalls, 1)
+        XCTAssertEqual(status(runtime)["state"], "error")
+        XCTAssertEqual(status(runtime)["active"], "false")
+    }
+
     @MainActor
     func testHelperStatusErrorIsVisibleWithoutACommandMessage() {
         let model = MonitorFanControlModel(
@@ -159,9 +297,12 @@ final class FanControlRuntimeTests: XCTestCase {
         return reply?.result ?? [:]
     }
 
-    private func snapshot(temperature: Double) -> SMCFanReadingSnapshot {
+    private func snapshot(
+        temperature: Double,
+        key: String = "TCMz"
+    ) -> SMCFanReadingSnapshot {
         SMCFanReadingSnapshot(
-            temperatures: [SMCTemperatureReading(key: "TCMz", celsius: temperature)],
+            temperatures: [SMCTemperatureReading(key: key, celsius: temperature)],
             fans: [
                 SMCFanReading(
                     index: 0,

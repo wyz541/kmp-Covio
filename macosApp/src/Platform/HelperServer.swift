@@ -33,6 +33,7 @@ enum HelperServer {
         signal(SIGPIPE, SIG_IGN)
         let log = HelperLog()
         let fanControlRuntime = FanControlRuntime(log: log)
+        defer { fanControlRuntime.shutdown() }
         resumeSharedChargeLimitRuntime(log: log)
         var terminationSources: [DispatchSourceSignal] = []
         for number in [SIGTERM, SIGINT] {

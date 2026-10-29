@@ -1,6 +1,29 @@
 import Foundation
 import kmpDomain
 
+protocol FanControlTemperatureReading {
+    func read(sensorKeys: Set<String>?) -> SMCFanReadingSnapshot
+}
+
+protocol FanControlFanWriting: AnyObject {
+    var holdingCount: Int { get }
+
+    func isHolding(_ index: Int) -> Bool
+    func hold(_ index: Int) throws
+    func ensureHeld(_ index: Int) throws
+    func writeTarget(_ index: Int, rpm: Double) throws
+    func release(_ index: Int) throws
+    func releaseAll() throws
+}
+
+extension SMCFanReader: FanControlTemperatureReading {}
+extension StatsFanControl: FanControlFanWriting {}
+
+struct FanControlHardware {
+    let reader: any FanControlTemperatureReading
+    let writer: any FanControlFanWriting
+}
+
 /// The root helper owns the curve timer. The app only renews a short lease.
 /// If Covio exits or crashes, the helper restores system control automatically.
 final class FanControlRuntime: @unchecked Sendable {
@@ -13,9 +36,11 @@ final class FanControlRuntime: @unchecked Sendable {
 
     private let queue = DispatchQueue(label: "com.wyz.covio.fan-control")
     private let log: HelperLog?
-    private var access: SMCAccess?
-    private var reader: SMCFanReader?
-    private var writer: StatsFanControl?
+    private let now: () -> Date
+    private let schedulesTimer: Bool
+    private let hardwareFactory: () throws -> FanControlHardware
+    private var reader: (any FanControlTemperatureReading)?
+    private var writer: (any FanControlFanWriting)?
     private var configuration: MonitorFanConfiguration?
     private var timer: DispatchSourceTimer?
     private var state: State = .system
@@ -26,8 +51,16 @@ final class FanControlRuntime: @unchecked Sendable {
     private var lastError: String?
     private var controlTemperature: Double?
 
-    init(log: HelperLog? = nil) {
+    init(
+        log: HelperLog? = nil,
+        now: @escaping () -> Date = Date.init,
+        schedulesTimer: Bool = true,
+        hardwareFactory: (() throws -> FanControlHardware)? = nil
+    ) {
         self.log = log
+        self.now = now
+        self.schedulesTimer = schedulesTimer
+        self.hardwareFactory = hardwareFactory ?? Self.defaultHardware
     }
 
     func handle(_ request: HelperRequest) -> HelperReply? {
@@ -65,6 +98,13 @@ final class FanControlRuntime: @unchecked Sendable {
         }
     }
 
+    /// Drives one control cycle. The timer uses the same path; tests disable the timer and call it directly.
+    func driveControlCycle() {
+        queue.sync {
+            applyControl()
+        }
+    }
+
     private func configure(_ request: HelperRequest) -> HelperReply {
         guard let parsed = parseConfiguration(request.payload) else {
             return HelperWire.shared.failure(
@@ -76,7 +116,7 @@ final class FanControlRuntime: @unchecked Sendable {
             return restore(requestId: request.requestId, error: nil)
         }
 
-        let hardware: (SMCFanReader, StatsFanControl)
+        let hardware: FanControlHardware
         do {
             hardware = try hardwareOrThrow()
         } catch {
@@ -88,7 +128,7 @@ final class FanControlRuntime: @unchecked Sendable {
             )
         }
 
-        let fanSnapshot = hardware.0.read()
+        let fanSnapshot = hardware.reader.read(sensorKeys: nil)
         guard !fanSnapshot.fans.isEmpty else {
             return HelperWire.shared.failure(
                 requestId: request.requestId,
@@ -128,7 +168,7 @@ final class FanControlRuntime: @unchecked Sendable {
         stopTimer()
         configuration = normalized
         state = .applying
-        leaseDeadline = Date().addingTimeInterval(MonitorFanPolicy.leaseSeconds)
+        leaseDeadline = now().addingTimeInterval(MonitorFanPolicy.leaseSeconds)
         heldTemperature = nil
         controlTemperature = nil
         lastTargets.removeAll(keepingCapacity: true)
@@ -137,10 +177,10 @@ final class FanControlRuntime: @unchecked Sendable {
 
         do {
             for fan in controlledFans {
-                try hardware.1.hold(fan.index)
+                try hardware.writer.hold(fan.index)
             }
         } catch {
-            try? hardware.1.releaseAll()
+            try? hardware.writer.releaseAll()
             configuration = nil
             state = .error
             lastError = String(describing: error)
@@ -151,7 +191,7 @@ final class FanControlRuntime: @unchecked Sendable {
             )
         }
 
-        writer = hardware.1
+        writer = hardware.writer
         guard !controlledFans.isEmpty else {
             state = .system
             leaseDeadline = .distantPast
@@ -167,7 +207,7 @@ final class FanControlRuntime: @unchecked Sendable {
         guard state == .controlled || state == .applying else {
             return statusReply(requestId: requestId)
         }
-        leaseDeadline = Date().addingTimeInterval(MonitorFanPolicy.leaseSeconds)
+        leaseDeadline = now().addingTimeInterval(MonitorFanPolicy.leaseSeconds)
         return statusReply(requestId: requestId)
     }
 
@@ -192,6 +232,7 @@ final class FanControlRuntime: @unchecked Sendable {
     }
 
     private func startTimer() {
+        guard schedulesTimer else { return }
         let source = DispatchSource.makeTimerSource(queue: queue)
         source.schedule(
             deadline: .now() + .milliseconds(100),
@@ -211,7 +252,7 @@ final class FanControlRuntime: @unchecked Sendable {
 
     private func applyControl() {
         guard state == .controlled, let configuration else { return }
-        if Date() >= leaseDeadline {
+        if now() >= leaseDeadline {
             _ = restore(requestId: "lease-expired", error: nil)
             log?.info("Fan control lease expired; restored system control")
             return
@@ -293,18 +334,22 @@ final class FanControlRuntime: @unchecked Sendable {
         }
     }
 
-    private func hardwareOrThrow() throws -> (SMCFanReader, StatsFanControl) {
+    private func hardwareOrThrow() throws -> FanControlHardware {
         if let reader, let writer {
-            return (reader, writer)
+            return FanControlHardware(reader: reader, writer: writer)
         }
+        let hardware = try hardwareFactory()
+        reader = hardware.reader
+        writer = hardware.writer
+        return hardware
+    }
+
+    private static func defaultHardware() throws -> FanControlHardware {
         let access = try SMCAccess()
         let keys = access.allKeys()
         let newReader = SMCFanReader(access: access, allKeys: keys)
         let newWriter = StatsFanControl(access: access, allKeys: keys)
-        self.access = access
-        reader = newReader
-        writer = newWriter
-        return (newReader, newWriter)
+        return FanControlHardware(reader: newReader, writer: newWriter)
     }
 
     private func parseConfiguration(_ payload: [String: String]) -> MonitorFanConfiguration? {
@@ -381,7 +426,7 @@ final class FanControlRuntime: @unchecked Sendable {
             "active": state == .controlled ? "true" : "false",
             "mode": configuration?.mode.rawValue ?? "system",
             "leaseRemainingSeconds": String(
-                max(0, Int(leaseDeadline.timeIntervalSinceNow.rounded(.up)))
+                max(0, Int(leaseDeadline.timeIntervalSince(now()).rounded(.up)))
             ),
         ]
         if let controlTemperature {

@@ -18,6 +18,7 @@ final class MonitorFanControlModel: ObservableObject {
     @Published private(set) var message: String?
 
     var hasPendingManualWrite: Bool { manualApplyTask != nil }
+    var visibleErrorMessage: String? { message ?? helperStatus?.error }
 
     private let client: HelperClient
     private let defaults: UserDefaults

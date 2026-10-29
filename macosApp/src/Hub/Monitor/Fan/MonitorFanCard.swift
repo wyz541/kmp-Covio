@@ -723,7 +723,7 @@ struct MonitorFanPopover: View {
                 Text(ContractCopy.copyMonitorFanWarning.text(for: language))
                     .font(.system(size: 9, weight: .medium))
                     .foregroundStyle(MacTheme.textSecondary)
-                if let message = model.message {
+                if let message = model.visibleErrorMessage {
                     Text(message)
                         .font(.system(size: 9, weight: .medium))
                         .foregroundStyle(MacTheme.errorText)

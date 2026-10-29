@@ -564,6 +564,21 @@ final class MonitorFanTests: XCTestCase {
         XCTAssertEqual(normalized.map(\.fanPercent), [30, 50, 100])
     }
 
+    func testDenseTemperatureRuleHasNoInvalidSliderRange() {
+        let points = [
+            MonitorFanTemperatureRulePoint(celsius: 32, fanPercent: 30),
+            MonitorFanTemperatureRulePoint(celsius: 34, fanPercent: 40),
+            MonitorFanTemperatureRulePoint(celsius: 36, fanPercent: 50),
+        ]
+        let range = MonitorFanTemperatureRule.editableTemperatureRange(
+            index: 1,
+            points: points
+        )
+
+        XCTAssertEqual(range.lowerBound, 34)
+        XCTAssertEqual(range.upperBound, 34)
+    }
+
     func testConfigurationNormalizesTemperatureRules() {
         let configuration = MonitorFanConfiguration(
             temperatureRules: [
@@ -618,5 +633,118 @@ final class MonitorFanTests: XCTestCase {
 
         XCTAssertEqual(decoded["battery"]?.map(\.celsius), [32, 34])
         XCTAssertEqual(decoded["battery"]?.map(\.fanPercent), [30, 50])
+    }
+
+    func testTemperatureSourceDefaultsMatchBatteryWorkflow() {
+        XCTAssertEqual(
+            MonitorFanTemperatureRule.defaultPoints(for: .battery).map(\.celsius),
+            [32, 34]
+        )
+        XCTAssertEqual(
+            MonitorFanTemperatureRule.defaultPoints(for: .battery).map(\.fanPercent),
+            [30, 50]
+        )
+        XCTAssertEqual(
+            MonitorFanTemperatureRule.defaultPoints(for: .cpu).map(\.celsius),
+            [60, 80]
+        )
+        XCTAssertEqual(
+            MonitorFanTemperatureRule.defaultPoints(for: .gpu).map(\.celsius),
+            [40, 60]
+        )
+    }
+
+    func testControlTemperatureUsesOnlyEnabledRuleSources() {
+        let reading = MonitorFanReading(
+            temperatures: [
+                .init(key: "TCMz", celsius: 72),
+                .init(key: "Tg0D", celsius: 64),
+                .init(key: "TB0T", celsius: 34),
+            ],
+            units: []
+        )
+        let legacy = MonitorFanConfiguration(selectedSensorKeys: ["TCMz"])
+        let battery = MonitorFanConfiguration(
+            selectedSensorKeys: ["TCMz"],
+            temperatureRules: ["battery": MonitorFanTemperatureRule.defaultPoints(for: .battery)]
+        )
+        let unavailable = MonitorFanConfiguration(
+            temperatureRules: ["gpu": MonitorFanTemperatureRule.defaultPoints(for: .gpu)]
+        )
+
+        XCTAssertEqual(legacy.controlTemperature(in: reading), 72)
+        XCTAssertEqual(battery.controlTemperature(in: reading), 34)
+        XCTAssertNil(
+            unavailable.controlTemperature(in: MonitorFanReading(
+                temperatures: [.init(key: "TCMz", celsius: 72)],
+                units: []
+            ))
+        )
+    }
+
+    func testMergedTemperatureRuleUsesHighestSourceRequest() {
+        let configuration = MonitorFanConfiguration(
+            temperatureRules: [
+                "battery": MonitorFanTemperatureRule.defaultPoints(for: .battery),
+                "cpu": MonitorFanTemperatureRule.defaultPoints(for: .cpu),
+            ]
+        )
+
+        XCTAssertEqual(
+            configuration.mergedTargetPercent(sourceTemperatures: [
+                .battery: 33,
+                .cpu: 70,
+            ]),
+            45
+        )
+        XCTAssertEqual(
+            configuration.mergedTargetPercent(sourceTemperatures: [.battery: 34]),
+            50
+        )
+        XCTAssertNil(
+            configuration.mergedTargetPercent(sourceTemperatures: [.gpu: 70])
+        )
+    }
+
+    @MainActor
+    func testTemperatureRuleEditsPersistAcrossModelReloads() {
+        let suiteName = "MonitorFanTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let reading = MonitorFanReading(
+            temperatures: [.init(key: "TB0T", celsius: 33)],
+            units: [
+                .init(index: 0, rpm: 2_000, minimumRPM: 1_200, maximumRPM: 5_800, targetRPM: 2_000, mode: 1),
+            ]
+        )
+        let model = MonitorFanControlModel(defaults: defaults)
+
+        model.setTemperatureSource(.battery, enabled: true, reading: reading)
+        XCTAssertEqual(
+            model.configuration.temperatureRules["battery"]?.map(\.celsius),
+            [32, 34]
+        )
+
+        model.setTemperatureRulePoints(
+            [
+                .init(celsius: 31, fanPercent: 25),
+                .init(celsius: 35, fanPercent: 55),
+            ],
+            source: .battery,
+            reading: reading,
+            applyImmediately: true
+        )
+
+        let reloaded = MonitorFanControlModel(defaults: defaults)
+        XCTAssertEqual(
+            reloaded.configuration.temperatureRules["battery"],
+            [
+                .init(celsius: 31, fanPercent: 25),
+                .init(celsius: 35, fanPercent: 55),
+            ]
+        )
+
+        reloaded.setTemperatureSource(.battery, enabled: false, reading: reading)
+        XCTAssertNil(reloaded.configuration.temperatureRules["battery"])
     }
 }

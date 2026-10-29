@@ -23,6 +23,7 @@
 | ![手动同步亮色](previews/362-fan-manual-sync-light-after-1.png) | ![手动同步深色](previews/362-fan-manual-sync-dark-after-1.png) |
 | ![手动风扇模式亮色](previews/366-fan-manual-stats-light-after-1.png) | ![手动风扇模式深色](previews/366-fan-manual-stats-dark-after-1.png) |
 | ![分层玻璃 popover 亮色](previews/441-fan-popover-light-after-3.png) | ![分层玻璃 popover 深色](previews/441-fan-popover-dark-after-3.png) |
+| ![温度来源规则亮色](previews/474-monitor-fan-temperature-rules-light-after-4.png) | ![温度来源规则深色](previews/474-monitor-fan-temperature-rules-dark-after-4.png) |
 
 ## 3. 三段式结构
 
@@ -115,6 +116,23 @@ Liquid Glass 不用于内容层。
 
 曲线模式可以配置 `CPU`、`GPU` 和 `battery` 三个温度来源。
 每个来源保存 2 到 8 个温度控制点。每个控制点包含摄氏度和风扇百分比。
+
+编辑区为每个来源显示开关、当前温度和可用状态。
+启用来显示该来源计算出的百分比请求。
+每个启用来显示独立温度与百分比滑杆，也可直接输入数值。
+不可用来源显示「不可用」，不显示 `0°C`。
+来源没有有效控制点时，首次启用写入默认两点。
+
+| 来源 | 默认控制点 |
+| --- | --- |
+| CPU | `60°C → 30%`、`80°C → 60%` |
+| GPU | `40°C → 20%`、`60°C → 50%` |
+| 电池 | `32°C → 30%`、`34°C → 50%` |
+
+启用至少一个来源后，旧 RPM 曲线隐藏。
+关闭全部来源后，旧 RPM 曲线恢复显示。
+目标摘要显示每台风扇合并后的请求百分比和 RPM。
+目标摘要不把结果归因于单一来源。
 
 每个来源取该组有效 SMC 传感器的最大值。
 相邻控制点至少相差 2 °C。

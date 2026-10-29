@@ -216,7 +216,26 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
     }
 
     func controlTemperature(in reading: MonitorFanReading) -> Double? {
-        reading.controlTemperature(selectedKeys: Set(selectedSensorKeys))
+        let sources = enabledTemperatureSources
+        if !sources.isEmpty {
+            let readings = temperatureSourceReadings(in: reading)
+            return sources.compactMap { readings[$0] }.max()
+        }
+        return reading.controlTemperature(selectedKeys: Set(selectedSensorKeys))
+    }
+
+    var enabledTemperatureSources: [MonitorFanTemperatureSource] {
+        MonitorFanTemperatureSource.allCases.filter(hasTemperatureRules(for:))
+    }
+
+    func temperatureSourceReadings(
+        in reading: MonitorFanReading
+    ) -> [MonitorFanTemperatureSource: Double] {
+        SMCFanReader.temperatureSourceReadings(
+            for: reading.temperatures.map {
+                SMCTemperatureReading(key: $0.key, celsius: $0.celsius)
+            }
+        )
     }
 
     /// 返回指定风扇的曲线。没有自定义曲线时，沿用起转/全速两点曲线。
@@ -264,6 +283,19 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
             return nil
         }
         return MonitorFanTemperatureRule.targetPercent(points: points, temperature: temperature)
+    }
+
+    func mergedTargetPercent(
+        sourceTemperatures: [MonitorFanTemperatureSource: Double]
+    ) -> Double? {
+        var requests: [Double] = []
+        for source in enabledTemperatureSources {
+            guard let temperature = sourceTemperatures[source],
+                  let percent = targetPercent(for: source, temperature: temperature)
+            else { continue }
+            requests.append(percent)
+        }
+        return requests.max()
     }
 
     /// 手动模式下，未保存的 fan 默认使用手动控制。
@@ -352,6 +384,28 @@ enum MonitorFanPolicy {
 }
 
 enum MonitorFanTemperatureRule {
+    static func defaultPoints(
+        for source: MonitorFanTemperatureSource
+    ) -> [MonitorFanTemperatureRulePoint] {
+        switch source {
+        case .cpu:
+            [
+                MonitorFanTemperatureRulePoint(celsius: 60, fanPercent: 30),
+                MonitorFanTemperatureRulePoint(celsius: 80, fanPercent: 60),
+            ]
+        case .gpu:
+            [
+                MonitorFanTemperatureRulePoint(celsius: 40, fanPercent: 20),
+                MonitorFanTemperatureRulePoint(celsius: 60, fanPercent: 50),
+            ]
+        case .battery:
+            [
+                MonitorFanTemperatureRulePoint(celsius: 32, fanPercent: 30),
+                MonitorFanTemperatureRulePoint(celsius: 34, fanPercent: 50),
+            ]
+        }
+    }
+
     static func targetPercent(
         points: [MonitorFanTemperatureRulePoint],
         temperature: Double
@@ -373,6 +427,26 @@ enum MonitorFanTemperatureRule {
             } ?? last.fanPercent
         }
         return min(100, max(0, value))
+    }
+
+    static func editableTemperatureRange(
+        index: Int,
+        points: [MonitorFanTemperatureRulePoint]
+    ) -> ClosedRange<Double> {
+        guard points.indices.contains(index) else {
+            return MonitorFanPolicy.minimumRuleCelsius...MonitorFanPolicy.maximumRuleCelsius
+        }
+        let spacing = MonitorFanPolicy.minimumRuleTemperatureSpan
+        let lower = index > points.startIndex
+            ? points[index - 1].celsius + spacing
+            : MonitorFanPolicy.minimumRuleCelsius
+        let upper = index < points.index(before: points.endIndex)
+            ? points[index + 1].celsius - spacing
+            : MonitorFanPolicy.maximumRuleCelsius
+        if lower >= upper {
+            return points[index].celsius...points[index].celsius
+        }
+        return lower...upper
     }
 
     static func normalized(

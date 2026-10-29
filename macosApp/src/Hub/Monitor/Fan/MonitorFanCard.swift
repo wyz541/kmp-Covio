@@ -315,7 +315,8 @@ struct MonitorFanPopover: View {
             controls
             Divider()
             fanSection
-            if model.configuration.enabled {
+            if model.configuration.enabled,
+               model.configuration.enabledTemperatureSources.isEmpty {
                 sensorSection
             }
         }
@@ -329,12 +330,7 @@ struct MonitorFanPopover: View {
                     .font(.system(size: 30, weight: .semibold, design: .rounded))
                     .foregroundStyle(MacTheme.textPrimary)
                     .monospacedDigit()
-                Text(String(
-                    format: ContractCopy.copyMonitorFanControlSummary.text(for: language),
-                    model.configuration.selectedSensorKeys.isEmpty
-                        ? reading.temperatures.count
-                        : model.configuration.selectedSensorKeys.count
-                ))
+                Text(controlSummaryText)
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(MacTheme.textSecondary)
             }
@@ -400,8 +396,11 @@ struct MonitorFanPopover: View {
                 modeControl
 
                 if model.configuration.mode == .curve {
-                    presetRow
-                    curveEditor
+                    temperatureRuleEditor
+                    if model.configuration.enabledTemperatureSources.isEmpty {
+                        presetRow
+                        curveEditor
+                    }
                 } else {
                     manualControls
                 }
@@ -552,6 +551,43 @@ struct MonitorFanPopover: View {
             onClear: { fanIndex in
                 model.clearCurve(fanIndex: fanIndex, reading: reading)
             }
+        )
+    }
+
+    private var temperatureRuleEditor: some View {
+        MonitorFanTemperatureRuleEditor(
+            reading: reading,
+            configuration: model.configuration,
+            helperSourceTemperatures: model.helperStatus?.sourceTemperatures ?? [:],
+            language: language,
+            busy: model.busy,
+            onToggleSource: { source, enabled in
+                model.setTemperatureSource(source, enabled: enabled, reading: reading)
+            },
+            onChangePoints: { source, points, applyImmediately in
+                model.setTemperatureRulePoints(
+                    points,
+                    source: source,
+                    reading: reading,
+                    applyImmediately: applyImmediately
+                )
+            }
+        )
+    }
+
+    private var controlSummaryText: String {
+        let sourceCount = model.configuration.enabledTemperatureSources.count
+        if sourceCount > 0 {
+            return String(
+                format: ContractCopy.copyMonitorFanSourceSummary.text(for: language),
+                sourceCount
+            )
+        }
+        return String(
+            format: ContractCopy.copyMonitorFanControlSummary.text(for: language),
+            model.configuration.selectedSensorKeys.isEmpty
+                ? reading.temperatures.count
+                : model.configuration.selectedSensorKeys.count
         )
     }
 

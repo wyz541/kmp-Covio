@@ -63,7 +63,7 @@ Power card 保留空闲睡眠、安全护栏、电池和温度策略。
 
 | 区域 | 位置 | 内容 |
 | --- | --- | --- |
-| 当前供电 | 浮层顶部整行 | 总开关、供电方式、电量、外接屏、热状态、低电量模式 |
+| 当前供电 | 浮层顶部整行 | 总开关、供电方式、电量、热状态、低电量模式 |
 | 保持唤醒 | 浮层第二段整行 | 会话类型、时长、活动原因、开始或结束动作 |
 | 安全与自动规则 | 浮层第三段整行 | 自动规则；安全护栏使用展开区 |
 | 最近活动 | 浮层底部整行 | 最近 24 小时的供电、睡眠、唤醒和护栏事件 |
@@ -213,13 +213,13 @@ stateDiagram-v2
 
 ### #441 后的 Power popover
 
-Power popover 不再显示合盖屏幕、外接屏暂停和零亮度设置。
+Power popover 不再显示外接屏数量、合盖屏幕、外接屏暂停和零亮度设置。
 
-![Power popover light after ownership cleanup](previews/441-power-popover-light-after-4.png)
+![Power popover light after ownership cleanup](previews/441-power-popover-light-after-5.png)
 
 深色：
 
-![Power popover dark after ownership cleanup](previews/441-power-popover-dark-after-4.png)
+![Power popover dark after ownership cleanup](previews/441-power-popover-dark-after-5.png)
 
 ## 视觉验收
 
@@ -229,7 +229,7 @@ Power popover 不再显示合盖屏幕、外接屏暂停和零亮度设置。
 4. 会话类型只显示“仅系统”和“系统与屏幕”。
 5. 五种时长可点击。
 6. “安全护栏”可展开和收起。
-7. Power 页面不再显示合盖屏幕、外接屏暂停和零亮度开关。
+7. Power 页面不再显示外接屏数量、合盖屏幕、外接屏暂停和零亮度开关。
 8. Power 页面保留电池下限、低电量模式、温度保护和合盖时长。
 9. 开始和结束动作能改变状态。
 10. 外部冲突、热警告和无电池状态有明确文字。

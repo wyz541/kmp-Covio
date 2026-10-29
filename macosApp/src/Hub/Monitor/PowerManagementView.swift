@@ -135,10 +135,6 @@ struct PowerManagementView: View {
 
             HStack(alignment: .top, spacing: MacTheme.space5) {
                 PowerStatusMetric(
-                    title: ContractCopy.copyPowerStatusExternalDisplay.text(for: language),
-                    value: externalDisplayValue
-                )
-                PowerStatusMetric(
                     title: ContractCopy.copyMonitorThermal.text(for: language),
                     value: thermalValue
                 )
@@ -604,12 +600,26 @@ struct PowerManagementView: View {
 
     private var safetyVetoMessage: String? {
         var seen = Set<String>()
-        let messages = model.decision.safetyVetoes.compactMap { veto -> String? in
+        let messages = powerSafetyVetoes.compactMap { veto -> String? in
             let text = vetoText(veto)
             guard seen.insert(text).inserted else { return nil }
             return text
         }
         return messages.isEmpty ? nil : messages.joined(separator: "\n")
+    }
+
+    private var powerSafetyVetoes: [SafetyVeto] {
+        model.decision.safetyVetoes.filter { veto in
+            switch veto {
+            case .closedLidDisabled,
+                 .helperUnavailable,
+                 .externalDisplayConnected,
+                 .externalDisplayUnknown:
+                false
+            default:
+                true
+            }
+        }
     }
 
     private var powerHeadline: String {
@@ -722,16 +732,6 @@ struct PowerManagementView: View {
         default:
             return ContractCopy.copyMonitorStateUnknown.text(for: language)
         }
-    }
-
-    private var externalDisplayValue: String {
-        guard let count = model.observation.externalDisplayCount?.intValue else {
-            return ContractCopy.copyMonitorStateUnknown.text(for: language)
-        }
-        guard count > 0 else {
-            return ContractCopy.copyPowerStatusNoExternalDisplay.text(for: language)
-        }
-        return "\(count)"
     }
 
     private var thermalValue: String {

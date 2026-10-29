@@ -572,7 +572,10 @@ struct MonitorFanPreviewRoot: View {
                     .init(temperature: 78, rpm: 4_300),
                     .init(temperature: 92, rpm: 6_000),
                 ],
-            ]
+            ],
+            temperatureRules: Self.scenario == "temperature-rules"
+                ? ["battery": MonitorFanTemperatureRule.defaultPoints(for: .battery)]
+                : [:]
         ),
         availability: .ready,
         helperStatus: FanControlHelperStatus(
@@ -582,7 +585,10 @@ struct MonitorFanPreviewRoot: View {
                 : "curve",
             controlTemperature: 65.9,
             leaseRemainingSeconds: 20,
-            error: Self.previewError
+            error: Self.previewError,
+            sourceTemperatures: Self.scenario == "temperature-rules"
+                ? ["battery": 35.1]
+                : [:]
         )
     )
 

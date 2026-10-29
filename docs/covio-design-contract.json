@@ -4792,6 +4792,50 @@
       "en": "Control sensors",
       "zh-Hans": "控制传感器"
     },
+    "copy/monitor/fan/temperature-sources": {
+      "en": "Temperature sources",
+      "zh-Hans": "温度来源"
+    },
+    "copy/monitor/fan/source-summary": {
+      "en": "Control temperature · %d sources",
+      "zh-Hans": "控制温度 · %d 个来源取最大"
+    },
+    "copy/monitor/fan/source-cpu": {
+      "en": "CPU temperature",
+      "zh-Hans": "CPU 温度"
+    },
+    "copy/monitor/fan/source-gpu": {
+      "en": "GPU temperature",
+      "zh-Hans": "GPU 温度"
+    },
+    "copy/monitor/fan/source-battery": {
+      "en": "Battery temperature",
+      "zh-Hans": "电池温度"
+    },
+    "copy/monitor/fan/source-unavailable": {
+      "en": "Unavailable",
+      "zh-Hans": "不可用"
+    },
+    "copy/monitor/fan/source-fan-percent": {
+      "en": "Fan %d%%",
+      "zh-Hans": "风扇 %d%%"
+    },
+    "copy/monitor/fan/source-fan-percent-label": {
+      "en": "Fan percentage",
+      "zh-Hans": "风扇百分比"
+    },
+    "copy/monitor/fan/source-request": {
+      "en": "%d%% request",
+      "zh-Hans": "%d%% 请求"
+    },
+    "copy/monitor/fan/add-temperature-point": {
+      "en": "Add temperature point",
+      "zh-Hans": "添加温度点"
+    },
+    "copy/monitor/fan/source-hint": {
+      "en": "Each source uses its hottest sensor. The highest fan request wins.",
+      "zh-Hans": "每个来源取最高传感器。风扇采用最高请求。"
+    },
     "copy/monitor/fan/restore-system": {
       "en": "Restore system control",
       "zh-Hans": "恢复系统控制"

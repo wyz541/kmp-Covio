@@ -25,6 +25,7 @@ final class MonitorFanControlModel: ObservableObject {
     private var didAdoptSensors = false
     private var skipsAvailabilityRefresh = false
     private var manualApplyTask: Task<Void, Never>?
+    private var curveApplyTask: Task<Void, Never>?
 
     private static let preferencesKey = "monitor.fan.control.v1"
 
@@ -100,6 +101,7 @@ final class MonitorFanControlModel: ObservableObject {
     }
 
     func setEnabled(_ enabled: Bool, reading: MonitorFanReading) {
+        curveApplyTask?.cancel()
         configuration.enabled = enabled
         if enabled, configuration.mode.isAutomatic {
             configuration.mode = .curve
@@ -120,6 +122,7 @@ final class MonitorFanControlModel: ObservableObject {
 
     func setMode(_ mode: MonitorFanMode, reading: MonitorFanReading) {
         manualApplyTask?.cancel()
+        curveApplyTask?.cancel()
         configuration.mode = mode
         configuration.enabled = !mode.isAutomatic
         if mode == .manual {
@@ -137,6 +140,7 @@ final class MonitorFanControlModel: ObservableObject {
 
     func applyPreset(_ preset: MonitorFanConfiguration, reading: MonitorFanReading) {
         manualApplyTask?.cancel()
+        curveApplyTask?.cancel()
         let sensorKeys = configuration.selectedSensorKeys
         configuration.startCelsius = preset.startCelsius
         configuration.fullCelsius = preset.fullCelsius
@@ -255,8 +259,57 @@ final class MonitorFanControlModel: ObservableObject {
         }
     }
 
+    func setTemperatureSource(
+        _ source: MonitorFanTemperatureSource,
+        enabled: Bool,
+        reading: MonitorFanReading
+    ) {
+        curveApplyTask?.cancel()
+        if enabled {
+            if !configuration.hasTemperatureRules(for: source) {
+                configuration.temperatureRules[source.rawValue] =
+                    MonitorFanTemperatureRule.defaultPoints(for: source)
+            }
+        } else {
+            configuration.temperatureRules.removeValue(forKey: source.rawValue)
+        }
+        persist()
+        if configuration.enabled, configuration.mode == .curve {
+            apply(reading: reading)
+        }
+    }
+
+    func setTemperatureRulePoints(
+        _ points: [MonitorFanTemperatureRulePoint],
+        source: MonitorFanTemperatureSource,
+        reading: MonitorFanReading,
+        applyImmediately: Bool
+    ) {
+        guard points.count >= 2 else { return }
+        configuration.temperatureRules[source.rawValue] = points
+        let minimums = Dictionary(uniqueKeysWithValues: reading.units.map {
+            ($0.index, $0.minimumRPM)
+        })
+        let maximums = Dictionary(uniqueKeysWithValues: reading.units.map {
+            ($0.index, $0.maximumRPM)
+        })
+        configuration = configuration.normalized(
+            fanMinimums: minimums,
+            fanMaximums: maximums
+        )
+        persist()
+        guard configuration.enabled, configuration.mode == .curve else { return }
+        if applyImmediately {
+            curveApplyTask?.cancel()
+            apply(reading: reading)
+        } else {
+            scheduleCurveApply(reading: reading)
+        }
+    }
+
     func restore() {
         manualApplyTask?.cancel()
+        curveApplyTask?.cancel()
         guard !busy else { return }
         if skipsAvailabilityRefresh {
             configuration.enabled = false
@@ -394,6 +447,34 @@ final class MonitorFanControlModel: ObservableObject {
             }
             self.apply(reading: reading)
             self.manualApplyTask = nil
+        }
+    }
+
+    private func scheduleCurveApply(reading: MonitorFanReading) {
+        curveApplyTask?.cancel()
+        curveApplyTask = Task { [weak self] in
+            do {
+                try await Task.sleep(for: .milliseconds(350))
+            } catch {
+                return
+            }
+            guard let self else { return }
+            while self.busy {
+                do {
+                    try await Task.sleep(for: .milliseconds(100))
+                } catch {
+                    return
+                }
+            }
+            guard !Task.isCancelled,
+                  self.configuration.enabled,
+                  self.configuration.mode == .curve
+            else {
+                self.curveApplyTask = nil
+                return
+            }
+            self.apply(reading: reading)
+            self.curveApplyTask = nil
         }
     }
 }

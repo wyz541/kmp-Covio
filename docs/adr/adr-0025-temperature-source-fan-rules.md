@@ -5,7 +5,7 @@
 - Date：2026-10-29
 - Supersedes：none
 - Implements：#330
-- 相关：#470、#471、#332、#334
+- 相关：#470、#471、#332、#334、#473、#474、#475、#478
 
 ## 背景
 
@@ -99,7 +99,7 @@ Research #471 还确认现有 root helper 可以复用。风扇写入、租约�
 | 项目 | 状态 | 确认方法 |
 | --- | --- | --- |
 | M2、M3、M4、M5 与 Intel 的完整来源键表 | pending | 用真机传感器列表建立机型矩阵 |
-| 默认电池控制点是否作为预设提供 | pending | UI 设计评审后决定 |
+| 默认电池控制点是否作为预设提供 | resolved | #474 决定不增加预设按钮；首次启用电池来源时写入 `32°C → 30%` 和 `34°C → 50%` |
 | 来源规则与 #334 电源来源曲线的组合方式 | pending | #334 实现前补充兼容规则 |
 
 ## 参考
@@ -110,6 +110,7 @@ Research #471 还确认现有 root helper 可以复用。风扇写入、租约�
 - [Engine Task #473](https://github.com/wyz541/kmp-Covio/issues/473)
 - [UI Task #474](https://github.com/wyz541/kmp-Covio/issues/474)
 - [Verify #475](https://github.com/wyz541/kmp-Covio/issues/475)
+- [Failure Handling #478](https://github.com/wyz541/kmp-Covio/issues/478)
 - [风扇控制能力补齐](../design/fan-control-capabilities.md)
 - [Monitor 风扇卡片](../design/monitor-fan-card.md)
 - [MacFanControl 传感器表](https://github.com/skydeadpeng/MacFanControl/blob/e5bf78238f7c62b122834a291b15369cb3eb7043/Sources/SMCKit/Sensors.swift)

@@ -370,8 +370,8 @@ final class PowerRuntime {
         if observation.lidState == .open {
             automaticClosedLidCapLatched = false
         }
-        let automaticLease = automaticClosedLidLease
-        let automaticCapReleased = automaticLease.map { lease in
+        let automaticLidLease = automaticClosedLidLease
+        let automaticCapReleased = automaticLidLease.map { lease in
             lease.createdAtEpochSeconds > 0 &&
                 now - lease.createdAtEpochSeconds >= Int64(config.closedLidTimeCapMinutes) * 60
         } ?? false
@@ -450,17 +450,21 @@ final class PowerRuntime {
         } else {
             executionError = nil
         }
-        if config.closedLidZeroBrightness,
+        if displayConfig.closedLidDisplayMode == .blackScreenPipeline,
            closedLidZeroBrightnessPhase == .failed,
            let error = closedLidZeroBrightnessError {
             executionError = error
         }
     }
 
-    private var automaticClosedLidLease: HoldLease? {
-        leases.first {
+    private var automaticClosedLidLeases: [HoldLease] {
+        leases.filter {
             $0.source == .rule && $0.reason == Self.automaticClosedLidReason
         }
+    }
+
+    private var automaticClosedLidLease: HoldLease? {
+        automaticClosedLidLeases.first { $0.level == .closedLid }
     }
 
     private var closedLidPowerPolicy: ClosedLidPowerPolicy {
@@ -478,29 +482,53 @@ final class PowerRuntime {
         return true
     }
 
+    private var wantsAutomaticClosedLidDisplayLease: Bool {
+        guard wantsAutomaticClosedLidLease else { return false }
+        guard displayConfig.closedLidDisplayMode == .blackScreenPipeline else { return false }
+        guard observation.lidState == .closed else { return false }
+        return closedLidZeroBrightnessAvailability.isAvailable
+    }
+
     /// 返回是否有租约变化。调用方在无安全否决时调用。
     private func reconcileAutomaticClosedLidLease(now: Int64) -> Bool {
-        let exists = automaticClosedLidLease != nil
-        guard wantsAutomaticClosedLidLease, !automaticClosedLidCapLatched else {
-            guard exists else { return false }
-            leases.removeAll {
-                $0.source == .rule && $0.reason == Self.automaticClosedLidReason
+        var desired: [(id: String, level: HoldLeaseLevel, detail: String)] = []
+        if wantsAutomaticClosedLidLease, !automaticClosedLidCapLatched {
+            desired.append((Self.automaticClosedLidLeaseID, .closedLid, "closed-lid-policy"))
+            if wantsAutomaticClosedLidDisplayLease {
+                desired.append((Self.automaticClosedLidDisplayLeaseID, .systemAndDisplay, "closed-lid-display"))
             }
-            return true
         }
-        guard !exists else { return false }
-        leases.append(
-            HoldLease(
-                id: Self.automaticClosedLidLeaseID,
-                level: .closedLid,
-                source: .rule,
-                reason: Self.automaticClosedLidReason,
-                createdAtEpochSeconds: now,
-                expiresAtEpochSeconds: nil
+
+        let existing = automaticClosedLidLeases
+        let capStart = existing.map(\.createdAtEpochSeconds).min() ?? now
+        let capEnd = capStart + Int64(config.closedLidTimeCapMinutes) * 60
+        let desiredIDs = Set(desired.map(\.id))
+        let stale = existing.filter { lease in
+            !desiredIDs.contains(lease.id) ||
+                lease.expiresAtEpochSeconds?.int64Value != capEnd
+        }
+        if !stale.isEmpty {
+            let staleIDs = Set(stale.map(\.id))
+            leases.removeAll { staleIDs.contains($0.id) }
+        }
+
+        var changed = !stale.isEmpty
+        let remainingIDs = Set(automaticClosedLidLeases.map(\.id))
+        for lease in desired where !remainingIDs.contains(lease.id) {
+            leases.append(
+                HoldLease(
+                    id: lease.id,
+                    level: lease.level,
+                    source: .rule,
+                    reason: Self.automaticClosedLidReason,
+                    createdAtEpochSeconds: capStart,
+                    expiresAtEpochSeconds: KotlinLong(longLong: capEnd)
+                )
             )
-        )
-        recordHistory(.holdStarted, detail: "closed-lid-policy", at: now)
-        return true
+            recordHistory(.holdStarted, detail: lease.detail, at: now)
+            changed = true
+        }
+        return changed
     }
 
     /// 由 Sleep watcher 或测试调用。系统将要睡眠时记录一条事件。
@@ -661,7 +689,8 @@ final class PowerRuntime {
     }
 
     private func applyClosedLidZeroBrightness(decision: PowerDecision) {
-        let wantsPrivatePath = config.closedLidZeroBrightness && decision.preventLidSleep
+        let blackScreenRequested = displayConfig.closedLidDisplayMode == .blackScreenPipeline
+        let wantsPrivatePath = blackScreenRequested && decision.preventLidSleep
         let externalDisplayCount = observation.externalDisplayCount?.intValue
         let canOwnDisplay = wantsPrivatePath &&
             closedLidZeroBrightnessAvailability.isAvailable &&
@@ -676,7 +705,7 @@ final class PowerRuntime {
         }
 
         let evaluation = closedLidBrightnessController.evaluate(
-            enabled: config.closedLidZeroBrightness,
+            enabled: blackScreenRequested,
             sessionActive: decision.preventLidSleep,
             lidState: observation.lidState,
             externalDisplayCount: externalDisplayCount
@@ -755,6 +784,7 @@ final class PowerRuntime {
 
     private static let sessionReason = "power-session"
     private static let automaticClosedLidLeaseID = "power/closed-lid/policy"
+    private static let automaticClosedLidDisplayLeaseID = "power/closed-lid/display"
     private static let automaticClosedLidReason = "Closed-lid policy"
     private static let helperUnavailableError = "helper-unavailable"
     private static let masterOffError = "sleep-protection-disabled"

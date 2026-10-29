@@ -429,7 +429,7 @@ final class MonitorFanTests: XCTestCase {
                 enabled: true,
                 mode: .manual,
                 manualRPM: ["0": 2_200, "1": 2_300],
-                manualModes: ["0": .manual, "1": .automatic],
+                manualModes: ["0": .automatic, "1": .automatic],
                 syncFans: false
             ),
             availability: .ready
@@ -440,7 +440,7 @@ final class MonitorFanTests: XCTestCase {
         XCTAssertEqual(model.configuration.mode, .manual)
         XCTAssertEqual(model.configuration.manualRPM["0"], 2_200)
         XCTAssertEqual(model.configuration.manualRPM["1"], 6_000)
-        XCTAssertEqual(model.manualMode(for: 0), .manual)
+        XCTAssertEqual(model.manualMode(for: 0), .automatic)
         XCTAssertEqual(model.manualMode(for: 1), .manual)
     }
 

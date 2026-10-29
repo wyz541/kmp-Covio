@@ -127,7 +127,7 @@ Liquid Glass 不用于内容层。
 
 | 亮色 | 深色 |
 | --- | --- |
-| ![全速动作亮色](previews/337-fan-full-speed-light-after-1.png) | ![全速动作深色](previews/337-fan-full-speed-dark-after-1.png) |
+| ![全速动作亮色](previews/337-fan-full-speed-light-after-2.png) | ![全速动作深色](previews/337-fan-full-speed-dark-after-2.png) |
 
 控制温度下降不超过 1.5 °C 时保留前一控制温度。
 温度上升立即生效。此规则减少阈值附近的转速抖动。

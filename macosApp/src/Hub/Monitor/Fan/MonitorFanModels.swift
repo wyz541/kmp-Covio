@@ -47,6 +47,19 @@ struct MonitorFanCurvePoint: Codable, Equatable, Sendable, Identifiable {
     var id: String { "\(temperature)-\(rpm)" }
 }
 
+enum MonitorFanTemperatureSource: String, Codable, CaseIterable, Sendable {
+    case cpu
+    case gpu
+    case battery
+}
+
+struct MonitorFanTemperatureRulePoint: Codable, Equatable, Sendable, Identifiable {
+    var celsius: Double
+    var fanPercent: Double
+
+    var id: String { "\(celsius)-\(fanPercent)" }
+}
+
 struct MonitorFanConfiguration: Codable, Equatable, Sendable {
     var enabled: Bool = false
     var mode: MonitorFanMode = .automatic
@@ -59,6 +72,8 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
     var syncFans: Bool = false
     /// 风扇序号对应的多点曲线。缺少某台风扇时，使用起转/全速两点曲线。
     var curves: [String: [MonitorFanCurvePoint]] = [:]
+    /// CPU、GPU 或电池来源对应的温度到风扇百分比控制点。
+    var temperatureRules: [String: [MonitorFanTemperatureRulePoint]] = [:]
 
     static let defaultValue = MonitorFanConfiguration()
 
@@ -71,7 +86,8 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         manualRPM: [String: Double] = [:],
         manualModes: [String: MonitorFanMode] = [:],
         syncFans: Bool = false,
-        curves: [String: [MonitorFanCurvePoint]] = [:]
+        curves: [String: [MonitorFanCurvePoint]] = [:],
+        temperatureRules: [String: [MonitorFanTemperatureRulePoint]] = [:]
     ) {
         self.enabled = enabled
         self.mode = mode
@@ -82,6 +98,7 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         self.manualModes = manualModes
         self.syncFans = syncFans
         self.curves = curves
+        self.temperatureRules = temperatureRules
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -94,6 +111,7 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         case manualModes
         case syncFans
         case curves
+        case temperatureRules
     }
 
     init(from decoder: Decoder) throws {
@@ -115,6 +133,10 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
             [String: [MonitorFanCurvePoint]].self,
             forKey: .curves
         ) ?? [:]
+        temperatureRules = try container.decodeIfPresent(
+            [String: [MonitorFanTemperatureRulePoint]].self,
+            forKey: .temperatureRules
+        ) ?? [:]
     }
 
     func encode(to encoder: Encoder) throws {
@@ -128,6 +150,7 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         try container.encode(manualModes, forKey: .manualModes)
         try container.encode(syncFans, forKey: .syncFans)
         try container.encode(curves, forKey: .curves)
+        try container.encode(temperatureRules, forKey: .temperatureRules)
     }
 
     func normalized(fanMinimums: [Int: Double] = [:], fanMaximums: [Int: Double] = [:]) -> Self {
@@ -179,6 +202,16 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
             }
         }
         copy.curves = normalizedCurves
+
+        var normalizedRules: [String: [MonitorFanTemperatureRulePoint]] = [:]
+        for (source, points) in temperatureRules {
+            guard MonitorFanTemperatureSource(rawValue: source) != nil else { continue }
+            let normalizedPoints = MonitorFanTemperatureRule.normalized(points)
+            if normalizedPoints.count >= 2 {
+                normalizedRules[source] = normalizedPoints
+            }
+        }
+        copy.temperatureRules = normalizedRules
         return copy
     }
 
@@ -219,6 +252,20 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         )
     }
 
+    func hasTemperatureRules(for source: MonitorFanTemperatureSource) -> Bool {
+        (temperatureRules[source.rawValue]?.count ?? 0) >= 2
+    }
+
+    func targetPercent(
+        for source: MonitorFanTemperatureSource,
+        temperature: Double
+    ) -> Double? {
+        guard let points = temperatureRules[source.rawValue], points.count >= 2 else {
+            return nil
+        }
+        return MonitorFanTemperatureRule.targetPercent(points: points, temperature: temperature)
+    }
+
     /// 手动模式下，未保存的 fan 默认使用手动控制。
     func controlMode(for fanIndex: Int) -> MonitorFanMode {
         guard mode == .manual else { return mode }
@@ -242,6 +289,9 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         let manualModeText = manualModes.isEmpty
             ? ""
             : (try? encoder.encode(manualModes)).flatMap { String(data: $0, encoding: .utf8) } ?? ""
+        let temperatureRuleText = temperatureRules.isEmpty
+            ? ""
+            : (try? encoder.encode(temperatureRules)).flatMap { String(data: $0, encoding: .utf8) } ?? ""
         return [
             "enabled": enabled ? "true" : "false",
             "mode": mode == .automatic ? "auto" : mode.rawValue,
@@ -251,6 +301,7 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
             "manualRPM": rpm,
             "manualModes": manualModeText,
             "curves": curveText,
+            "temperatureRules": temperatureRuleText,
         ]
     }
 
@@ -265,6 +316,10 @@ enum MonitorFanPolicy {
     static let minimumCurveCelsius = 40.0
     static let maximumFullCelsius = 105.0
     static let maximumCurvePointCount = 8
+    static let minimumRuleCelsius = 20.0
+    static let maximumRuleCelsius = 105.0
+    static let minimumRuleTemperatureSpan = 2.0
+    static let maximumRulePointCount = 8
     static let minimumTemperatureSpan = 5.0
     static let hysteresisCelsius = 1.5
     static let maximumSensorCount = 32
@@ -296,6 +351,65 @@ enum MonitorFanPolicy {
     )
 }
 
+enum MonitorFanTemperatureRule {
+    static func targetPercent(
+        points: [MonitorFanTemperatureRulePoint],
+        temperature: Double
+    ) -> Double {
+        let sorted = normalized(points)
+        guard let first = sorted.first, let last = sorted.last else { return 0 }
+        let value: Double
+        if temperature <= first.celsius {
+            value = first.fanPercent
+        } else if temperature >= last.celsius {
+            value = last.fanPercent
+        } else {
+            value = zip(sorted, sorted.dropFirst()).first { left, right in
+                temperature <= right.celsius
+            }.map { left, right in
+                let span = max(0.001, right.celsius - left.celsius)
+                let fraction = (temperature - left.celsius) / span
+                return left.fanPercent + (right.fanPercent - left.fanPercent) * fraction
+            } ?? last.fanPercent
+        }
+        return min(100, max(0, value))
+    }
+
+    static func normalized(
+        _ points: [MonitorFanTemperatureRulePoint]
+    ) -> [MonitorFanTemperatureRulePoint] {
+        var byTemperature: [Double: MonitorFanTemperatureRulePoint] = [:]
+        for point in points where point.celsius.isFinite && point.fanPercent.isFinite {
+            let celsius = min(
+                MonitorFanPolicy.maximumRuleCelsius,
+                max(MonitorFanPolicy.minimumRuleCelsius, point.celsius.rounded())
+            )
+            let percent = min(100, max(0, point.fanPercent.rounded()))
+            byTemperature[celsius] = MonitorFanTemperatureRulePoint(
+                celsius: celsius,
+                fanPercent: percent
+            )
+        }
+        let sorted = byTemperature.values.sorted { $0.celsius < $1.celsius }
+        var spaced: [MonitorFanTemperatureRulePoint] = []
+        for point in sorted {
+            if let previous = spaced.last,
+               point.celsius - previous.celsius < MonitorFanPolicy.minimumRuleTemperatureSpan {
+                continue
+            }
+            spaced.append(point)
+        }
+        guard spaced.count > MonitorFanPolicy.maximumRulePointCount else {
+            return spaced
+        }
+        let lastIndex = spaced.count - 1
+        let interval = Double(lastIndex) / Double(MonitorFanPolicy.maximumRulePointCount - 1)
+        return (0..<MonitorFanPolicy.maximumRulePointCount).map { slot in
+            spaced[Int((Double(slot) * interval).rounded())]
+        }
+    }
+}
+
 enum MonitorFanSpeedSync {
     /// 把源风扇的转速位置映射到每台风扇自己的硬件范围。
     static func targets(
@@ -314,6 +428,19 @@ enum MonitorFanSpeedSync {
             targets[fan.index] = target.rounded()
         }
         return targets
+    }
+}
+
+enum MonitorFanPercent {
+    static func rpm(
+        percent: Double,
+        minimumRPM: Double,
+        maximumRPM: Double
+    ) -> Double {
+        let safeMinimum = max(0, minimumRPM)
+        let safeMaximum = max(safeMinimum, maximumRPM)
+        let fraction = min(100, max(0, percent)) / 100
+        return safeMinimum + (safeMaximum - safeMinimum) * fraction
     }
 }
 

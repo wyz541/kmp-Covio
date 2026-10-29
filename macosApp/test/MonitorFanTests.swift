@@ -499,4 +499,124 @@ final class MonitorFanTests: XCTestCase {
         XCTAssertEqual(payload["sensors"], "TCMz,TG0D")
         XCTAssertEqual(payload["manualRPM"], "0:2200,1:2400")
     }
+
+    func testTemperatureSourceMappingUsesPlatformSpecificGPUKeys() {
+        let sensors = [
+            SMCTemperatureReading(key: "TCMz", celsius: 65),
+            SMCTemperatureReading(key: "Tp01", celsius: 60),
+            SMCTemperatureReading(key: "Tg0D", celsius: 48),
+            SMCTemperatureReading(key: "TG0D", celsius: 33),
+            SMCTemperatureReading(key: "TB0T", celsius: 31.2),
+            SMCTemperatureReading(key: "TB2T", celsius: 31.4),
+        ]
+
+        let appleSilicon = SMCFanReader.temperatureSourceReadings(
+            for: sensors,
+            appleSilicon: true
+        )
+        XCTAssertEqual(appleSilicon[.cpu], 65)
+        XCTAssertEqual(appleSilicon[.gpu], 48)
+        XCTAssertEqual(appleSilicon[.battery], 31.4)
+
+        let intel = SMCFanReader.temperatureSourceReadings(
+            for: sensors,
+            appleSilicon: false
+        )
+        XCTAssertEqual(intel[.cpu], 65)
+        XCTAssertEqual(intel[.gpu], 33)
+        XCTAssertEqual(intel[.battery], 31.4)
+    }
+
+    func testTemperatureRuleInterpolatesAndClampsPercent() {
+        let points = [
+            MonitorFanTemperatureRulePoint(celsius: 32, fanPercent: 30),
+            MonitorFanTemperatureRulePoint(celsius: 34, fanPercent: 50),
+        ]
+
+        XCTAssertEqual(
+            MonitorFanTemperatureRule.targetPercent(points: points, temperature: 32),
+            30
+        )
+        XCTAssertEqual(
+            MonitorFanTemperatureRule.targetPercent(points: points, temperature: 33),
+            40,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            MonitorFanTemperatureRule.targetPercent(points: points, temperature: 40),
+            50
+        )
+        XCTAssertEqual(
+            MonitorFanTemperatureRule.targetPercent(points: points, temperature: 20),
+            30
+        )
+    }
+
+    func testTemperatureRuleNormalizationSortsSpacesAndClamps() {
+        let normalized = MonitorFanTemperatureRule.normalized([
+            .init(celsius: 34, fanPercent: 50),
+            .init(celsius: 31.5, fanPercent: 30),
+            .init(celsius: 33, fanPercent: 40),
+            .init(celsius: 110, fanPercent: 120),
+        ])
+
+        XCTAssertEqual(normalized.map(\.celsius), [32, 34, 105])
+        XCTAssertEqual(normalized.map(\.fanPercent), [30, 50, 100])
+    }
+
+    func testConfigurationNormalizesTemperatureRules() {
+        let configuration = MonitorFanConfiguration(
+            temperatureRules: [
+                "battery": [
+                    .init(celsius: 32, fanPercent: 30),
+                    .init(celsius: 34, fanPercent: 50),
+                ],
+                "gpu": [
+                    .init(celsius: 60, fanPercent: 30),
+                ],
+                "unknown": [
+                    .init(celsius: 40, fanPercent: 20),
+                    .init(celsius: 50, fanPercent: 30),
+                ],
+            ]
+        ).normalized()
+
+        XCTAssertEqual(Array(configuration.temperatureRules.keys), ["battery"])
+        XCTAssertTrue(configuration.hasTemperatureRules(for: .battery))
+        XCTAssertFalse(configuration.hasTemperatureRules(for: .gpu))
+    }
+
+    func testTemperatureRulePercentMapsToEachFanRange() {
+        XCTAssertEqual(
+            MonitorFanPercent.rpm(percent: 30, minimumRPM: 1499, maximumRPM: 5348),
+            2653.7,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            MonitorFanPercent.rpm(percent: 50, minimumRPM: 1499, maximumRPM: 5776),
+            3637.5,
+            accuracy: 0.001
+        )
+    }
+
+    func testHelperPayloadRoundTripsTemperatureRules() throws {
+        let payload = MonitorFanConfiguration(
+            enabled: true,
+            mode: .curve,
+            temperatureRules: [
+                "battery": [
+                    .init(celsius: 32, fanPercent: 30),
+                    .init(celsius: 34, fanPercent: 50),
+                ],
+            ]
+        ).helperPayload()
+        let text = try XCTUnwrap(payload["temperatureRules"])
+        let decoded = try JSONDecoder().decode(
+            [String: [MonitorFanTemperatureRulePoint]].self,
+            from: Data(text.utf8)
+        )
+
+        XCTAssertEqual(decoded["battery"]?.map(\.celsius), [32, 34])
+        XCTAssertEqual(decoded["battery"]?.map(\.fanPercent), [30, 50])
+    }
 }

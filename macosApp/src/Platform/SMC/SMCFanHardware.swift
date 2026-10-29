@@ -46,6 +46,44 @@ final class SMCFanReader {
         temperatureKeys = keys.filter { $0.description.hasPrefix("T") }
     }
 
+    static func temperatureSourceReadings(
+        for sensors: [SMCTemperatureReading],
+        appleSilicon: Bool = StatsFanControl.isAppleSilicon
+    ) -> [MonitorFanTemperatureSource: Double] {
+        var values: [MonitorFanTemperatureSource: Double] = [:]
+        for sensor in sensors {
+            guard let source = temperatureSource(for: sensor.key, appleSilicon: appleSilicon) else {
+                continue
+            }
+            values[source] = max(values[source] ?? sensor.celsius, sensor.celsius)
+        }
+        return values
+    }
+
+    static func temperatureSource(
+        for key: String,
+        appleSilicon: Bool
+    ) -> MonitorFanTemperatureSource? {
+        if key == "TB0T" || key == "TB1T" || key == "TB2T" || key == "TB3T" {
+            return .battery
+        }
+
+        if appleSilicon {
+            if key.hasPrefix("Tg") { return .gpu }
+        } else if key.hasPrefix("TG") || key == "TCGC" {
+            return .gpu
+        }
+
+        let isNumericCore = key.count == 4
+            && key.hasPrefix("TC")
+            && key.dropFirst(2).allSatisfy(\.isNumber)
+        if key == "TCMz" || key == "TCMb" || key.hasPrefix("Tp")
+            || key.hasPrefix("Te") || key.hasPrefix("Tf") || isNumericCore {
+            return .cpu
+        }
+        return nil
+    }
+
     static func controlSensorKeys(for sensors: [SMCTemperatureReading], allKeys: [String]) -> [String] {
         let available = Set(allKeys)
         let coreKeys = allKeys.filter { key in

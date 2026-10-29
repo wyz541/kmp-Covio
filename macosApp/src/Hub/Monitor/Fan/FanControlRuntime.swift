@@ -46,10 +46,12 @@ final class FanControlRuntime: @unchecked Sendable {
     private var state: State = .system
     private var leaseDeadline = Date.distantPast
     private var heldTemperature: Double?
+    private var heldSourceTemperatures: [MonitorFanTemperatureSource: Double] = [:]
     private var lastTargets: [Int: Double] = [:]
     private var consecutiveFailures = 0
     private var lastError: String?
     private var controlTemperature: Double?
+    private var sourceTemperatures: [MonitorFanTemperatureSource: Double] = [:]
 
     init(
         log: HelperLog? = nil,
@@ -170,7 +172,9 @@ final class FanControlRuntime: @unchecked Sendable {
         state = .applying
         leaseDeadline = now().addingTimeInterval(MonitorFanPolicy.leaseSeconds)
         heldTemperature = nil
+        heldSourceTemperatures.removeAll(keepingCapacity: true)
         controlTemperature = nil
+        sourceTemperatures.removeAll(keepingCapacity: true)
         lastTargets.removeAll(keepingCapacity: true)
         consecutiveFailures = 0
         lastError = nil
@@ -224,7 +228,9 @@ final class FanControlRuntime: @unchecked Sendable {
         state = restoreError == nil ? .system : .error
         leaseDeadline = .distantPast
         heldTemperature = nil
+        heldSourceTemperatures.removeAll(keepingCapacity: true)
         controlTemperature = nil
+        sourceTemperatures.removeAll(keepingCapacity: true)
         lastTargets.removeAll(keepingCapacity: true)
         consecutiveFailures = 0
         lastError = restoreError
@@ -259,25 +265,65 @@ final class FanControlRuntime: @unchecked Sendable {
         }
         guard let reader, let writer else { return }
 
+        let usesTemperatureRules = configuration.mode == .curve
+            && !configuration.temperatureRules.isEmpty
         let selected = Set(configuration.selectedSensorKeys)
-        let snapshot = reader.read(sensorKeys: selected.isEmpty ? nil : selected)
+        let sensorKeys = usesTemperatureRules ? nil : (selected.isEmpty ? nil : selected)
+        let snapshot = reader.read(sensorKeys: sensorKeys)
         guard !snapshot.fans.isEmpty else {
             registerFailure("Fan readings are unavailable")
             return
         }
 
         var stableTemperature: Double?
+        var fanRequests: [Int: [Double]] = [:]
         if configuration.mode == .curve {
-            guard let currentTemperature = snapshot.temperatures.map(\.celsius).max() else {
-                registerFailure("Control temperature is unavailable")
-                return
+            if usesTemperatureRules {
+                let readings = SMCFanReader.temperatureSourceReadings(
+                    for: snapshot.temperatures
+                )
+                var stableBySource: [MonitorFanTemperatureSource: Double] = [:]
+                for source in MonitorFanTemperatureSource.allCases
+                    where configuration.hasTemperatureRules(for: source) {
+                    guard let current = readings[source] else { continue }
+                    let stable = MonitorFanCurve.heldTemperature(
+                        current: current,
+                        previous: heldSourceTemperatures[source]
+                    )
+                    heldSourceTemperatures[source] = stable
+                    stableBySource[source] = stable
+                    guard let percent = configuration.targetPercent(
+                        for: source,
+                        temperature: stable
+                    ) else { continue }
+                    for fan in snapshot.fans {
+                        let rpm = MonitorFanPercent.rpm(
+                            percent: percent,
+                            minimumRPM: fan.minimumRPM,
+                            maximumRPM: fan.maximumRPM
+                        )
+                        fanRequests[fan.index, default: []].append(rpm)
+                    }
+                }
+                guard !fanRequests.isEmpty else {
+                    registerFailure("Control temperature is unavailable")
+                    return
+                }
+                sourceTemperatures = stableBySource
+                controlTemperature = stableBySource.values.max()
+            } else {
+                guard let currentTemperature = snapshot.temperatures.map(\.celsius).max() else {
+                    registerFailure("Control temperature is unavailable")
+                    return
+                }
+                stableTemperature = MonitorFanCurve.heldTemperature(
+                    current: currentTemperature,
+                    previous: heldTemperature
+                )
+                heldTemperature = stableTemperature
+                controlTemperature = stableTemperature
+                sourceTemperatures.removeAll(keepingCapacity: true)
             }
-            stableTemperature = MonitorFanCurve.heldTemperature(
-                current: currentTemperature,
-                previous: heldTemperature
-            )
-            heldTemperature = stableTemperature
-            controlTemperature = stableTemperature
         }
 
         do {
@@ -293,6 +339,8 @@ final class FanControlRuntime: @unchecked Sendable {
                 let target: Double
                 if configuration.mode == .manual {
                     target = configuration.manualRPM[String(fan.index)] ?? fan.minimumRPM
+                } else if !fanRequests.isEmpty {
+                    target = fanRequests[fan.index]?.max() ?? fan.minimumRPM
                 } else {
                     target = configuration.target(
                         fanIndex: fan.index,
@@ -316,7 +364,9 @@ final class FanControlRuntime: @unchecked Sendable {
                 state = .system
                 leaseDeadline = .distantPast
                 heldTemperature = nil
+                heldSourceTemperatures.removeAll(keepingCapacity: true)
                 controlTemperature = nil
+                sourceTemperatures.removeAll(keepingCapacity: true)
             }
             consecutiveFailures = 0
             lastError = nil
@@ -408,6 +458,19 @@ final class FanControlRuntime: @unchecked Sendable {
             manualModes = decoded
         }
 
+        var temperatureRules: [String: [MonitorFanTemperatureRulePoint]] = [:]
+        if let rulesText = payload["temperatureRules"], !rulesText.isEmpty {
+            guard let data = rulesText.data(using: .utf8),
+                  let decoded = try? JSONDecoder().decode(
+                      [String: [MonitorFanTemperatureRulePoint]].self,
+                      from: data
+                  )
+            else {
+                return nil
+            }
+            temperatureRules = decoded
+        }
+
         return MonitorFanConfiguration(
             enabled: true,
             mode: mode,
@@ -416,7 +479,8 @@ final class FanControlRuntime: @unchecked Sendable {
             selectedSensorKeys: sensors,
             manualRPM: manualRPM,
             manualModes: manualModes,
-            curves: curves
+            curves: curves,
+            temperatureRules: temperatureRules
         )
     }
 
@@ -431,6 +495,17 @@ final class FanControlRuntime: @unchecked Sendable {
         ]
         if let controlTemperature {
             result["controlTemperature"] = String(format: "%.2f", controlTemperature)
+        }
+        if !sourceTemperatures.isEmpty {
+            let values = Dictionary(uniqueKeysWithValues: sourceTemperatures.map {
+                ($0.key.rawValue, $0.value)
+            })
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.sortedKeys]
+            if let data = try? encoder.encode(values),
+               let text = String(data: data, encoding: .utf8) {
+                result["sourceTemperatures"] = text
+            }
         }
         if let lastError {
             result["error"] = lastError

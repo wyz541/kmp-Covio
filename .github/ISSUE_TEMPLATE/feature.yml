@@ -1,12 +1,13 @@
 name: Feature
-description: Parent Feature。用原生 sub-issue 跟踪 Research 和 Task。
+description: Parent Feature。用原生 sub-issue 跟踪 Research、Task 和 Verify。
 labels: ["feature"]
 body:
   - type: markdown
     attributes:
       value: |
         本表单创建 Parent Feature。Parent Feature 是工作容器，不表示已经承诺实施。
-        Parent Feature 可以在调研结论产生前创建。先挂 Research sub-issue，再在调研后挂 Task sub-issue。
+        Parent Feature 可以在调研结论产生前创建。Research、Task 与 Verify 都是 Parent Feature 的 sub-issue。
+        Verify 与 Task 同级。Verify 不是 Task 的 child。
         需要先调研、需要 2 个以上 PR、预计超过 5 个工作日，或需要先改设计时，使用本表单。
         标题写成「动词 对象」，例如「Add the workbench store」。
         UI issue 写可判断的表现预期，不在 issue 等待 After 截图。
@@ -102,6 +103,8 @@ body:
     attributes:
       value: |
         建好之后在 Project 里补 Start date 与 Target date。这两个字段只在 Project 维护，不写进正文。
-        创建后先添加 Research sub-issue。调研结束后，再添加 Task sub-issue。
+        有调研时先添加 Research sub-issue，调研结束后再添加 Task sub-issue。
+        需要跨 Task 的真机或端到端验收时，再添加 Verify sub-issue，并用 `blocked by` 指向被验收的 Task。
         Sub-issues 是层级与进度的唯一来源，不在正文维护第二份清单。
         Task sub-issue 使用 `blocked by` 指向 Research issue 或前置 Task。
+        Verify 的产出是证据，不要求 PR。单个 PR 的 UI 证据仍写在 PR 的 `Visual verification`。

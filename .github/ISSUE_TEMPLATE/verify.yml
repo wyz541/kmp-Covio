@@ -1,0 +1,77 @@
+name: Verify
+description: Parent Feature 的验收 sub-issue。产出是可复核的端到端证据。
+labels: ["verify"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Verify 与 Research、Task 都是 Parent Feature 的 sub-issue。
+        Verify 与 Task 同级，不是 Task 的 child。
+        创建后回到 Parent Feature，在 `Sub-issues` 中添加本 issue。
+        创建后用 GitHub 原生 `blocked by` 关联被验收的 Task。
+        Verify 不要求一条分支和一个 PR。证据写在 issue 正文。
+        单个 PR 的 UI 证据仍写在 PR 的 `Visual verification`。
+        单元测试与 CI 仍写在 PR 的 `Proof`。
+        验收规则见 [研发工作流](../../docs/process/workflow.md) 的 S5。
+
+  - type: textarea
+    id: target
+    attributes:
+      label: 验收目标
+      description: 写本次要确认的用户结果或系统行为。不写实现步骤。
+      placeholder: |
+        例如：确认充电上限在拔插电源、睡眠唤醒和恢复默认后都保持正确状态。
+    validations:
+      required: true
+
+  - type: textarea
+    id: scenarios
+    attributes:
+      label: 验收场景
+      description: 一行一个。每个场景必须可判定。
+      placeholder: |
+        - 场景：<前置条件> → <操作> → <预期结果>
+        - 场景：<前置条件> → <操作> → <预期结果>
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: 环境与前置条件
+      description: 写明设备、macOS 版本、硬件、网络或特定数据条件。
+      placeholder: |
+        - 设备：<型号>
+        - 系统：macOS <version>
+        - 前置条件：<条件>
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 证据要求
+      description: 写完成时必须保存的截图、日志、命令输出或真机结果。
+      placeholder: |
+        - 真机截图
+        - 命令与完整输出
+        - 失败与恢复结果
+    validations:
+      required: true
+
+  - type: dropdown
+    id: estimated_days
+    attributes:
+      label: 预计工期
+      options:
+        - 1 天
+        - 2 天
+        - 3 天
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        结题时把实际证据和结论补到 issue 正文，再关闭 issue。
+        所有验收场景通过时使用 `completed`。场景失败时保留 issue 为 open，或重新打开。

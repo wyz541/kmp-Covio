@@ -20,7 +20,8 @@ Covio 是 macOS 菜单栏应用。界面是 SwiftUI 宿主，放在 `macosApp/`�
 Discussion（开放探索）
   └─ 收敛后 → Parent Feature（Issue）
                  ├─ Research sub-issue
-                 └─ Task sub-issue → PR
+                 ├─ Task sub-issue → PR
+                 └─ Verify sub-issue → 验收证据
 
 答案明确的小功能 → task issue → PR
 ```
@@ -31,13 +32,14 @@ Discussion（开放探索）
 
 ## 3. Parent Feature 与小功能
 
-需要跟踪的调研或大功能建一个 Parent Feature，用 GitHub 原生 sub-issue 关联 Research 与 Task。
+需要跟踪的调研或大功能建一个 Parent Feature，用 GitHub 原生 sub-issue 关联 Research、Task 与 Verify。
 进度由 GitHub 自动汇总。不要另外维护进度表。
 小功能建一个 issue，直接做。
 
 一个 task sub-issue 的粒度是一个会话能做完，对应一条分支和一个 PR。
 Research 是 sub-issue，但产出是结论，不要求分支和 PR。
-Research 和 Task 都可使用 `research` 或 `task` 标签，以标签区分对象。
+Verify 与 Task 同级，是 Parent Feature 的 sub-issue。Verify 的产出是验收证据，不要求分支和 PR。
+Research、Task 和 Verify 分别使用 `research`、`task`、`verify` 标签。
 
 ## 4. 工作流
 
@@ -50,13 +52,14 @@ Research 和 Task 都可使用 `research` 或 `task` 标签，以标签区分对
 5. 调研结论写在 issue 正文，不写评论。正文含结论、依据和后续动作。结论未写回正文前不关 issue。
 6. 长期决策进 S4。写新 ADR 走 PR，合并前 Status 改成 `accepted`。
 7. 需要跟踪的工作走 S5 建 Parent Feature。Research 完成后，再拆 Task sub-issue。每个 Task 写一行验收标准，工期 1 到 3 天。
-8. UI issue 的正文必须写 `表现预期`，不要求 After 截图。实现完成后，PR 必须使用 `Visual verification`，亮色和深色各放一组 `Before`/`After` 表。
-9. 引用另一个对象时走 S6。值未定时写 `pending`，5 个工作日内回填。
-10. 对象用标签区分。建 issue 时带对应的标签：Parent Feature `feature`，调研 sub-issue `research`，小功能与 Task sub-issue `task`。
-11. 个人账号没有 issue types 与 issue fields。不要用 `--type`，也不要找 issue fields。
+8. 跨多个 Task 或 PR 的真机、端到端或发布前验收建 Verify sub-issue。Verify 与 Task 同级，并用 `blocked by` 指向被验收的 Task。
+9. UI issue 的正文必须写 `表现预期`，不要求 After 截图。单个 PR 必须使用 `Visual verification`，亮色和深色各放一组 `Before`/`After` 表。跨 PR 的最终 UI 验收写在 Verify issue，并链接 PR 证据。
+10. 引用另一个对象时走 S6。值未定时写 `pending`，5 个工作日内回填。
+11. 对象用标签区分。Parent Feature 用 `feature`，调研 sub-issue 用 `research`，小功能与 Task sub-issue 用 `task`，验收 sub-issue 用 `verify`。
+12. 个人账号没有 issue types 与 issue fields。不要用 `--type`，也不要找 issue fields。
    字段用 Project 8 的字段，名字见 `docs/process/project-fields.md`。
    Start date 与 Target date 只在 Project 里维护，不写进 issue 正文。
-12. 需要你在 Web 界面操作的步骤，写明操作位置，不要跳过。
+13. 需要你在 Web 界面操作的步骤，写明操作位置，不要跳过。
 
 ## 5. 文档
 

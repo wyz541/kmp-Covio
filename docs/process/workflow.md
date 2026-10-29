@@ -2,7 +2,7 @@
 
 **把想法变成可追踪的 issue。七步，只用 GitHub 原生能力。**
 
-版本 0.12 · 2026-10-29
+版本 0.13 · 2026-10-29
 
 ---
 
@@ -19,14 +19,14 @@
 **前置（一次性）。**
 
 1. 启用 Discussions，保留默认的 `Ideas` 与 `Q&A` 分类。
-2. 建标签 `idea`、`research`、`feature`、`task`。
+2. 建标签 `idea`、`research`、`feature`、`task`、`verify`。
 3. 建 1 个 Project，挂上本仓库。字段与视图见 S7。
 
 **本仓库的完成状态：**
 
 | 项 | 状态 | 办法 |
 |---|---|---|
-| 标签 `idea`、`research`、`feature`、`task` | 已完成 | `gh label create` |
+| 标签 `idea`、`research`、`feature`、`task`、`verify` | 已完成 | `gh label create` |
 | Discussions | 已完成 | 仓库 Settings 页 |
 | Project | 已完成 | [Project 8](https://github.com/users/wyz541/projects/8) |
 | Project 字段名 | 已核对 | 见 [Project 字段](project-fields.md) |
@@ -59,16 +59,19 @@ flowchart LR
   A -->|答案已知，小功能| T0["Task issue"]
   P -->|答案未知| R["S2 Research sub-issue"]
   P -->|答案已知| G["S5 Task sub-issues"]
+  P -.独立验收.-> V["S5 Verify sub-issue"]
   R --> C["S3 结论写回 issue"]
   C -->|否决| X["关闭 Parent Feature"]
   C -->|长期决策| E["S4 ADR"]
   C -->|可以实施| G
   E --> G
   G --> H["PR"]
+  V -.blocked by.-> G
+  V --> Q["验收证据"]
   T0 --> H
 ```
 
-主线是 `Discussion → Parent Feature → Research sub-issue → Task sub-issue → PR`。Research 和 Task 都是 Parent Feature 的 sub-issue，靠标签与完成标准区分。答案已知的小功能可以直接建 task issue。S6 与 S7 贯穿全部步骤。
+主线是 `Discussion → Parent Feature → Research sub-issue → Task sub-issue → PR`。Research、Task 与 Verify 都是 Parent Feature 的 sub-issue，靠标签与完成标准区分。Verify 与 Task 同级，不是 Task 的 child。答案已知的小功能可以直接建 task issue。S6 与 S7 贯穿全部步骤。
 
 **Parent Feature 是工作容器，不表示已经承诺实施。** 调研结论可以在 S3 否决 Parent Feature。
 
@@ -179,19 +182,32 @@ flowchart LR
 4. 需要回答未知问题时，先创建 Research sub-issue，进入 S2。Parent Feature 暂时只跟踪 Research。
 5. Research 完成后，把实施工作拆成 task sub-issue。每个 task 加标签 `task`，写验收标准，预计工期 1 到 3 天。
 6. 从 Research 产生的 task，用 `blocked by` 指向 Research issue。其他技术顺序也用 `blocked by` 记录。
-7. UI issue 写 `表现预期`。UI 决策可在 issue 的 `预览` 段放候选方案。UI 代码变更的真机截图在 PR 补齐。
+7. 需要独立验收时，建 Verify sub-issue。Verify 与 Task 同级，并用 `blocked by` 指向被验收的 Task。
+8. Verify 使用 `.github/ISSUE_TEMPLATE/verify.yml`，加标签 `verify`。填写验收场景、环境、依赖和证据要求。
+9. UI issue 写 `表现预期`。UI 决策可在 issue 的 `预览` 段放候选方案。代码交付后，单个 PR 的真机证据仍写在 PR 的 `Visual verification`。
+
+Verify 不要求分支和 PR。完成条件是验收场景通过，并且证据写回 Verify 正文。
+
+**何时建 Verify：** 满足以下任一条。
+
+1. 验收跨越多个 Task 或 PR。
+2. 验收需要真机、外接设备、人工交互或不易复现的环境。
+3. 验收需要在合并后或发布前再次执行。
+4. 验收证据需要独立保存并长期追踪。
+
+单个 Task 的验收能在对应 PR 的 `Proof` 或 `Visual verification` 中完成时，不建 Verify issue。
 
 **判断「大功能」：** 需要 2 个以上 PR；预计超过 5 个工作日；需要先改设计。满足任一条就建 Parent Feature。需要调研的工作直接创建 Parent Feature，不等待最终规模判断。
 
 **层级：** 不超过 3 层，从 Feature 数起。工具支持 8 层，但第 4 层开始没人看。层级不表示工期。
 
-**完成标准：** Parent Feature 至少有一个 Research 或 Task sub-issue。每个 task 都有验收标准，且工期不超过 3 天。涉及 UI 变化时，正文写有可判断的表现预期。
+**完成标准：** Parent Feature 至少有一个 Research、Task 或 Verify sub-issue。每个 task 都有验收标准，且工期不超过 3 天。涉及 UI 变化时，正文写有可判断的表现预期。Parent Feature 交付前，所有 Task 已合并，所有适用的 Verify 已通过。
 
-**小功能：** 答案明确且一个会话能完成时，建 task issue，不需要 Parent Feature。小功能涉及 UI 代码变更时，实现完成后把真机证据写入对应 PR。
+**小功能：** 答案明确且一个会话能完成时，建 task issue，不需要 Parent Feature。单个 Task 的验收证据写在对应 PR。跨多个 Task、需要真机或需要发布前复验时，再建 Verify。
 
 **规则：** issue 不要求写满需求。issue 是讨论的起点，细节在评论与 PR 里补齐。同一条信息只维护一处，不建并行的 PRD。
 
-> **注意：** Research 和 Task 都可以分配给负责人。执行顺序只用 `blocked by` 表达，不用 assignee 表达。
+> **注意：** Research、Task 和 Verify 都可以分配给负责人。执行顺序只用 `blocked by` 表达，不用 assignee 表达。
 
 **取消工作时：**
 
@@ -213,7 +229,7 @@ flowchart LR
 
 **规则：** 未定的值写 `pending`，5 个工作日内回填。本仓库引用写 `#123`，跨仓库写 `owner/repo#123`。每行只放一个引用。
 
-Research 与 Parent Feature 的原生 sub-issue 关系是唯一层级来源。不要再在 Research 正文重复写 Parent Feature 编号。
+Research、Task、Verify 与 Parent Feature 的原生 sub-issue 关系是唯一层级来源。不要在 sub-issue 正文重复写 Parent Feature 编号。
 
 **检索：**
 
@@ -259,11 +275,12 @@ GitHub 的 issue 搜索不保证支持标点。命令里只写关键词 `decisio
 | Parent Feature | Issue | `feature` | 无 |
 | 调研 | Parent Feature 的 sub-issue | `research` | `research:` |
 | 小功能或实施任务 | Issue 或 Parent Feature 的 sub-issue | `task` | 无 |
+| 验收 | Parent Feature 的 sub-issue | `verify` | `verify:` |
 | 决策 | 仓库文件 | `docs/adr/` | 无 |
 
 GitHub 默认只有 task、bug、feature 三种 issue type，且只在组织账号可用。本流程不依赖 type。区分对象看标签。
 
-**Research 与 Task 的差异：** 两者都可以是 sub-issue。Research 的产出是结论，Task 的产出是 PR。
+**三类 sub-issue 的差异：** Research 的产出是结论，Task 的产出是 PR，Verify 的产出是验收证据。Verify 与 Task 同级。
 
 ### 字段
 
@@ -294,6 +311,8 @@ GitHub 默认只有 task、bug、feature 三种 issue type，且只在组织账�
 
 **完成标准：** 负责人识别测试层级，PR 记录命令和结果，合并前所需层级全部通过。
 
+跨多个 Task 的端到端验收不写在单个 PR 的 `Proof` 里。负责人建 Verify sub-issue，并把各 PR 的测试证据链接到 Verify。单个 PR 的自动测试仍写在 PR。
+
 ### UI 证据与 Visual verification
 
 **何时用：** issue 涉及 UI 决策，或 PR 涉及 UI 代码变更。
@@ -304,6 +323,7 @@ UI 决策可以在 issue 的 `预览` 段放候选方案。
 候选方案不等于真机验收。
 UI 代码变更只有在实现后才能生成 After 截图。
 因此，UI 代码变更的 `Visual verification` 只写在 PR。
+跨多个 PR 的最终 UI 验收写在 Verify issue。Verify 可以链接各 PR 的截图，不复制图片证据。
 
 PR 使用以下固定格式：
 
@@ -346,7 +366,8 @@ repo/
 │  ├─ ISSUE_TEMPLATE/
 │  │  ├─ feature.yml
 │  │  ├─ research.yml
-│  │  └─ task.yml
+│  │  ├─ task.yml
+│  │  └─ verify.yml
 │  └─ pull_request_template.md    ← PR 的 Visual verification
 └─ docs/
    ├─ adr/
@@ -376,9 +397,10 @@ repo/
 3. 跑 `gh issue list --label research --state open`，找出创建超过 3 个工作日的。提醒负责人结题，不代为关闭。
 4. 检查打开超过 30 天的 Discussion。提醒提交人收敛、转 Issue，或关闭。
 5. 检查 Research issue 是否都有 Parent Feature。缺父级时补齐原生 sub-issue 关系。
-6. 检查 Parent Feature 的 Sub-issues progress。进度停滞时问一次原因。
-7. 检查已合并的 ADR 是否仍带 `proposed`。带的话说明作者漏改，通知负责人。
-8. 检查 roadmap 视图的 Target date。日期过期就改或删。
+6. 检查 Verify issue 是否都有 Parent Feature 和 `blocked by`。缺少层级或依赖时补齐。
+7. 检查 Parent Feature 的 Sub-issues progress。进度停滞时问一次原因。
+8. 检查已合并的 ADR 是否仍带 `proposed`。带的话说明作者漏改，通知负责人。
+9. 检查 roadmap 视图的 Target date。日期过期就改或删。
 
 ---
 

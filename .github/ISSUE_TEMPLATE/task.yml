@@ -1,5 +1,5 @@
 name: Task
-description: 小功能或 Parent Feature 的实施 sub-issue。一个会话能做完。
+description: 小功能或 Parent Feature 的实现 sub-issue。一个会话能做完。
 labels: ["task"]
 body:
   - type: markdown
@@ -8,6 +8,8 @@ body:
         一个 issue 对应一条分支和一个 PR。
         Parent Feature 的 Task 使用 GitHub 原生 sub-issue 关系关联。
         从 Research 产生的 Task 用 `blocked by` 指向 Research issue。
+        Task 只负责实现和单个 PR 的交付证据。
+        如果验收跨越多个 Task 或 PR，需要真机、发布前验证或长期证据，另建 Verify sub-issue，不把 Task 扩大成 Feature 验收。
         标题写成「动词 对象」。
         UI issue 写可判断的验收标准和表现预期。
         真机截图写在实现后的 PR 的 `Visual verification`。

@@ -747,4 +747,231 @@ final class MonitorFanTests: XCTestCase {
         reloaded.setTemperatureSource(.battery, enabled: false, reading: reading)
         XCTAssertNil(reloaded.configuration.temperatureRules["battery"])
     }
+
+    func testBatteryCurveOverridesAdapterAndFallsBackPerFan() {
+        let adapter0 = [
+            MonitorFanCurvePoint(temperature: 40, rpm: 1_200),
+            MonitorFanCurvePoint(temperature: 90, rpm: 5_000),
+        ]
+        let adapter1 = [
+            MonitorFanCurvePoint(temperature: 45, rpm: 1_300),
+            MonitorFanCurvePoint(temperature: 95, rpm: 6_000),
+        ]
+        let battery0 = [
+            MonitorFanCurvePoint(temperature: 50, rpm: 1_500),
+            MonitorFanCurvePoint(temperature: 85, rpm: 4_800),
+        ]
+        let configuration = MonitorFanConfiguration(
+            powerSource: .battery,
+            curves: ["0": adapter0, "1": adapter1],
+            batteryCurves: ["0": battery0]
+        )
+
+        XCTAssertEqual(
+            configuration.curvePoints(for: 0, minimumRPM: 1_200, maximumRPM: 5_000),
+            battery0
+        )
+        XCTAssertEqual(
+            configuration.curvePoints(for: 1, minimumRPM: 1_300, maximumRPM: 6_000),
+            adapter1
+        )
+        XCTAssertEqual(configuration.effectiveCurveSource(for: 0), .battery)
+        XCTAssertEqual(configuration.effectiveCurveSource(for: 1), .adapter)
+    }
+
+    func testBatteryHelperPayloadMergesBatteryCurveOverAdapterFallback() throws {
+        let adapter0 = [
+            MonitorFanCurvePoint(temperature: 40, rpm: 1_200),
+            MonitorFanCurvePoint(temperature: 90, rpm: 5_000),
+        ]
+        let adapter1 = [
+            MonitorFanCurvePoint(temperature: 45, rpm: 1_300),
+            MonitorFanCurvePoint(temperature: 95, rpm: 6_000),
+        ]
+        let battery0 = [
+            MonitorFanCurvePoint(temperature: 50, rpm: 1_500),
+            MonitorFanCurvePoint(temperature: 85, rpm: 4_800),
+        ]
+        let configuration = MonitorFanConfiguration(
+            enabled: true,
+            mode: .curve,
+            powerSource: .battery,
+            curves: ["0": adapter0, "1": adapter1],
+            batteryCurves: ["0": battery0]
+        )
+        let text = try XCTUnwrap(configuration.helperPayload()["curves"])
+        let decoded = try JSONDecoder().decode(
+            [String: [MonitorFanCurvePoint]].self,
+            from: Data(text.utf8)
+        )
+
+        XCTAssertEqual(decoded["0"], battery0)
+        XCTAssertEqual(decoded["1"], adapter1)
+
+        var adapterConfiguration = configuration
+        adapterConfiguration.powerSource = .adapter
+        let adapterText = try XCTUnwrap(adapterConfiguration.helperPayload()["curves"])
+        let adapterDecoded = try JSONDecoder().decode(
+            [String: [MonitorFanCurvePoint]].self,
+            from: Data(adapterText.utf8)
+        )
+
+        XCTAssertEqual(adapterDecoded["0"], adapter0)
+        XCTAssertEqual(adapterDecoded["1"], adapter1)
+    }
+
+    func testPowerCurvesRoundTripAndLegacyConfigurationUsesAdapter() throws {
+        let original = MonitorFanConfiguration(
+            enabled: true,
+            mode: .curve,
+            powerSource: .battery,
+            curves: [
+                "0": [
+                    .init(temperature: 40, rpm: 1_200),
+                    .init(temperature: 90, rpm: 5_000),
+                ],
+            ],
+            batteryCurves: [
+                "0": [
+                    .init(temperature: 50, rpm: 1_500),
+                    .init(temperature: 85, rpm: 4_800),
+                ],
+            ]
+        )
+        let decoded = try JSONDecoder().decode(
+            MonitorFanConfiguration.self,
+            from: JSONEncoder().encode(original)
+        )
+        let legacy = try JSONDecoder().decode(
+            MonitorFanConfiguration.self,
+            from: Data(#"{"enabled":true,"mode":"curve"}"#.utf8)
+        )
+
+        XCTAssertEqual(decoded, original)
+        XCTAssertEqual(legacy.powerSource, .adapter)
+        XCTAssertTrue(legacy.batteryCurves.isEmpty)
+    }
+
+    @MainActor
+    func testCopyAdapterCurvesToBatteryCopiesCustomAndFallbackCurves() {
+        let reading = MonitorFanReading(
+            temperatures: [.init(key: "TCMz", celsius: 65)],
+            units: [
+                .init(index: 0, rpm: 2_200, minimumRPM: 1_200, maximumRPM: 5_000, targetRPM: 2_200, mode: 1),
+                .init(index: 1, rpm: 2_300, minimumRPM: 1_300, maximumRPM: 6_000, targetRPM: 2_300, mode: 1),
+            ]
+        )
+        let custom = [
+            MonitorFanCurvePoint(temperature: 45, rpm: 1_400),
+            MonitorFanCurvePoint(temperature: 90, rpm: 4_900),
+        ]
+        let model = MonitorFanControlModel(
+            previewConfiguration: MonitorFanConfiguration(
+                startCelsius: 58,
+                fullCelsius: 86,
+                curves: ["0": custom]
+            ),
+            availability: .ready
+        )
+
+        model.copyAdapterCurvesToBattery(reading: reading)
+
+        XCTAssertEqual(model.configuration.batteryCurves["0"], custom)
+        XCTAssertEqual(
+            model.configuration.batteryCurves["1"],
+            [
+                .init(temperature: 58, rpm: 1_300),
+                .init(temperature: 86, rpm: 6_000),
+            ]
+        )
+    }
+
+    @MainActor
+    func testCurveEditsTargetTheSelectedPowerSource() {
+        let reading = MonitorFanReading(
+            temperatures: [.init(key: "TCMz", celsius: 65)],
+            units: [
+                .init(index: 0, rpm: 2_200, minimumRPM: 1_200, maximumRPM: 5_000, targetRPM: 2_200, mode: 1),
+            ]
+        )
+        let adapter = [
+            MonitorFanCurvePoint(temperature: 45, rpm: 1_400),
+            MonitorFanCurvePoint(temperature: 90, rpm: 4_900),
+        ]
+        let battery = [
+            MonitorFanCurvePoint(temperature: 50, rpm: 1_600),
+            MonitorFanCurvePoint(temperature: 88, rpm: 4_700),
+        ]
+        let model = MonitorFanControlModel(
+            previewConfiguration: MonitorFanConfiguration(curves: ["0": adapter]),
+            availability: .ready
+        )
+
+        model.setCurve(fanIndex: 0, points: battery, source: .battery, reading: reading)
+
+        XCTAssertEqual(model.configuration.curves["0"], adapter)
+        XCTAssertEqual(model.configuration.batteryCurves["0"], battery)
+
+        model.clearCurve(fanIndex: 0, source: .battery, reading: reading)
+
+        XCTAssertEqual(model.configuration.curves["0"], adapter)
+        XCTAssertNil(model.configuration.batteryCurves["0"])
+    }
+
+    @MainActor
+    func testPowerSourceSelectionPersists() {
+        let suiteName = "MonitorFanTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let reading = MonitorFanReading(
+            temperatures: [.init(key: "TCMz", celsius: 65)],
+            units: [
+                .init(index: 0, rpm: 2_200, minimumRPM: 1_200, maximumRPM: 5_000, targetRPM: 2_200, mode: 1),
+            ]
+        )
+        let model = MonitorFanControlModel(defaults: defaults)
+
+        model.updatePowerSource(.battery, reading: reading)
+
+        XCTAssertEqual(model.configuration.powerSource, .battery)
+        XCTAssertEqual(MonitorFanControlModel(defaults: defaults).configuration.powerSource, .battery)
+    }
+
+    func testSnapshotMapsPowerSupplyToFanCurveSource() {
+        func snapshot(_ supply: MonitorSnapshot.Power.Supply) -> MonitorSnapshot {
+            MonitorSnapshot(
+                cpu: nil,
+                gpu: nil,
+                memory: nil,
+                disk: nil,
+                network: nil,
+                battery: nil,
+                power: MonitorSnapshot.Power(
+                    supply: supply,
+                    hasBattery: true,
+                    batteryPercent: 70,
+                    temperatureCelsius: 30,
+                    watts: 20,
+                    averageWatts: 18,
+                    remainingSeconds: nil,
+                    chargePowerWatts: nil,
+                    timeToFullSeconds: nil,
+                    batteryHealthPercent: 90,
+                    topApps: [],
+                    events: [],
+                    batteryDataAvailable: true,
+                    powerDataAvailable: true,
+                    energyDataAvailable: true
+                ),
+                display: nil,
+                fan: nil,
+                thermal: .nominal,
+                sampledAt: Date()
+            )
+        }
+
+        XCTAssertEqual(snapshot(.adapter).fanPowerSource, .adapter)
+        XCTAssertEqual(snapshot(.charging).fanPowerSource, .adapter)
+        XCTAssertEqual(snapshot(.battery).fanPowerSource, .battery)
+    }
 }

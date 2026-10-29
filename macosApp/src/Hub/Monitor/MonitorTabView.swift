@@ -116,6 +116,9 @@ struct MonitorTabView: View {
             guard !Task.isCancelled else { break }
             await MainActor.run {
                 snapshot = next
+                if let fan = next.fan {
+                    fanControlModel.updatePowerSource(next.fanPowerSource, reading: fan)
+                }
                 history.append(
                     next,
                     fanControlTemperature: next.fan.flatMap {
@@ -138,6 +141,9 @@ struct MonitorTabView: View {
             guard !Task.isCancelled else { break }
             await MainActor.run {
                 snapshot = snapshot.replacingPower(power)
+                if let fan = snapshot.fan {
+                    fanControlModel.updatePowerSource(snapshot.fanPowerSource, reading: fan)
+                }
                 powerHistory.append(power)
             }
             do {

@@ -727,6 +727,12 @@ enum ContractCopy {
     static let copyMonitorFanA11yOpen = LocalizedCopy(key: "copy/monitor/fan/a11y-open", en: "Open fan controls", zhHans: "打开风扇控制")
     /// `copy/monitor/fan/a11y-status`
     static let copyMonitorFanA11yStatus = LocalizedCopy(key: "copy/monitor/fan/a11y-status", en: "Fan control status", zhHans: "风扇控制状态")
+    /// `copy/monitor/fan/active-curve-adapter`
+    static let copyMonitorFanActiveCurveAdapter = LocalizedCopy(key: "copy/monitor/fan/active-curve-adapter", en: "Active curve: plugged-in", zhHans: "生效曲线：插电")
+    /// `copy/monitor/fan/active-curve-battery`
+    static let copyMonitorFanActiveCurveBattery = LocalizedCopy(key: "copy/monitor/fan/active-curve-battery", en: "Active curve: battery", zhHans: "生效曲线：电池")
+    /// `copy/monitor/fan/active-curve-mixed`
+    static let copyMonitorFanActiveCurveMixed = LocalizedCopy(key: "copy/monitor/fan/active-curve-mixed", en: "Active curve: battery with plugged-in fallback", zhHans: "生效曲线：电池，部分风扇回退插电")
     /// `copy/monitor/fan/actual`
     static let copyMonitorFanActual = LocalizedCopy(key: "copy/monitor/fan/actual", en: "Actual", zhHans: "当前")
     /// `copy/monitor/fan/add-point`
@@ -743,16 +749,28 @@ enum ContractCopy {
     static let copyMonitorFanAutomatic = LocalizedCopy(key: "copy/monitor/fan/automatic", en: "Automatic", zhHans: "自动")
     /// `copy/monitor/fan/balanced`
     static let copyMonitorFanBalanced = LocalizedCopy(key: "copy/monitor/fan/balanced", en: "Balanced", zhHans: "均衡")
+    /// `copy/monitor/fan/battery-curve-fallback`
+    static let copyMonitorFanBatteryCurveFallback = LocalizedCopy(key: "copy/monitor/fan/battery-curve-fallback", en: "Battery curve is empty. Covio uses the plugged-in curve.", zhHans: "电池曲线为空。Covio 使用插电曲线。")
+    /// `copy/monitor/fan/clear-battery-curve`
+    static let copyMonitorFanClearBatteryCurve = LocalizedCopy(key: "copy/monitor/fan/clear-battery-curve", en: "Clear battery curve", zhHans: "清空电池曲线")
     /// `copy/monitor/fan/control-point`
     static let copyMonitorFanControlPoint = LocalizedCopy(key: "copy/monitor/fan/control-point", en: "Control point %d", zhHans: "控制点 %d")
     /// `copy/monitor/fan/control-sensors`
     static let copyMonitorFanControlSensors = LocalizedCopy(key: "copy/monitor/fan/control-sensors", en: "Control sensors", zhHans: "控制传感器")
     /// `copy/monitor/fan/control-summary`
     static let copyMonitorFanControlSummary = LocalizedCopy(key: "copy/monitor/fan/control-summary", en: "Control temperature · %d sensors", zhHans: "控制温度 · %d 个传感器取最大")
+    /// `copy/monitor/fan/copy-adapter-curve`
+    static let copyMonitorFanCopyAdapterCurve = LocalizedCopy(key: "copy/monitor/fan/copy-adapter-curve", en: "Copy plugged-in curve to battery", zhHans: "复制插电曲线到电池")
     /// `copy/monitor/fan/curve`
     static let copyMonitorFanCurve = LocalizedCopy(key: "copy/monitor/fan/curve", en: "Temperature curve", zhHans: "温控曲线")
     /// `copy/monitor/fan/curve-hint`
     static let copyMonitorFanCurveHint = LocalizedCopy(key: "copy/monitor/fan/curve-hint", en: "Drag points or use the sliders.", zhHans: "拖动控制点，或使用滑杆编辑。")
+    /// `copy/monitor/fan/curve-source`
+    static let copyMonitorFanCurveSource = LocalizedCopy(key: "copy/monitor/fan/curve-source", en: "Curve source", zhHans: "曲线电源")
+    /// `copy/monitor/fan/curve-source-adapter`
+    static let copyMonitorFanCurveSourceAdapter = LocalizedCopy(key: "copy/monitor/fan/curve-source-adapter", en: "Plugged-in curve", zhHans: "插电曲线")
+    /// `copy/monitor/fan/curve-source-battery`
+    static let copyMonitorFanCurveSourceBattery = LocalizedCopy(key: "copy/monitor/fan/curve-source-battery", en: "Battery curve", zhHans: "电池曲线")
     /// `copy/monitor/fan/delete-point`
     static let copyMonitorFanDeletePoint = LocalizedCopy(key: "copy/monitor/fan/delete-point", en: "Delete point", zhHans: "删除控制点")
     /// `copy/monitor/fan/details`
@@ -777,6 +795,12 @@ enum ContractCopy {
     static let copyMonitorFanManualRpm = LocalizedCopy(key: "copy/monitor/fan/manual-rpm", en: "Manual RPM", zhHans: "手动转速")
     /// `copy/monitor/fan/owned`
     static let copyMonitorFanOwned = LocalizedCopy(key: "copy/monitor/fan/owned", en: "Covio control", zhHans: "Covio 已接管")
+    /// `copy/monitor/fan/power-source-adapter`
+    static let copyMonitorFanPowerSourceAdapter = LocalizedCopy(key: "copy/monitor/fan/power-source-adapter", en: "Current: power adapter", zhHans: "当前：插电")
+    /// `copy/monitor/fan/power-source-battery`
+    static let copyMonitorFanPowerSourceBattery = LocalizedCopy(key: "copy/monitor/fan/power-source-battery", en: "Current: battery", zhHans: "当前：电池")
+    /// `copy/monitor/fan/power-source-unknown`
+    static let copyMonitorFanPowerSourceUnknown = LocalizedCopy(key: "copy/monitor/fan/power-source-unknown", en: "Current: power source unknown", zhHans: "当前：电源未知")
     /// `copy/monitor/fan/quiet`
     static let copyMonitorFanQuiet = LocalizedCopy(key: "copy/monitor/fan/quiet", en: "Quiet", zhHans: "安静")
     /// `copy/monitor/fan/read-failed`
@@ -1979,6 +2003,9 @@ enum ContractCopy {
         copyMonitorFanA11yCurve,
         copyMonitorFanA11yOpen,
         copyMonitorFanA11yStatus,
+        copyMonitorFanActiveCurveAdapter,
+        copyMonitorFanActiveCurveBattery,
+        copyMonitorFanActiveCurveMixed,
         copyMonitorFanActual,
         copyMonitorFanAddPoint,
         copyMonitorFanAddTemperaturePoint,
@@ -1987,11 +2014,17 @@ enum ContractCopy {
         copyMonitorFanAutoCurve,
         copyMonitorFanAutomatic,
         copyMonitorFanBalanced,
+        copyMonitorFanBatteryCurveFallback,
+        copyMonitorFanClearBatteryCurve,
         copyMonitorFanControlPoint,
         copyMonitorFanControlSensors,
         copyMonitorFanControlSummary,
+        copyMonitorFanCopyAdapterCurve,
         copyMonitorFanCurve,
         copyMonitorFanCurveHint,
+        copyMonitorFanCurveSource,
+        copyMonitorFanCurveSourceAdapter,
+        copyMonitorFanCurveSourceBattery,
         copyMonitorFanDeletePoint,
         copyMonitorFanDetails,
         copyMonitorFanEnable,
@@ -2004,6 +2037,9 @@ enum ContractCopy {
         copyMonitorFanManual,
         copyMonitorFanManualRpm,
         copyMonitorFanOwned,
+        copyMonitorFanPowerSourceAdapter,
+        copyMonitorFanPowerSourceBattery,
+        copyMonitorFanPowerSourceUnknown,
         copyMonitorFanQuiet,
         copyMonitorFanReadFailed,
         copyMonitorFanResetCurve,

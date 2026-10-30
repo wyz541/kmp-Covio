@@ -523,8 +523,8 @@ enum MonitorFanPreviewFixtures {
                 .init(key: "TD3P", celsius: 48.6),
             ],
             units: [
-                .init(index: 0, rpm: 2_789, minimumRPM: 1_200, maximumRPM: 5_800, targetRPM: 2_588, mode: 1),
-                .init(index: 1, rpm: 2_954, minimumRPM: 1_300, maximumRPM: 6_000, targetRPM: 2_709, mode: 1),
+                .init(index: 0, rpm: 2_789, minimumRPM: 1_500, maximumRPM: 5_348, targetRPM: 2_588, mode: 1),
+                .init(index: 1, rpm: 2_954, minimumRPM: 1_500, maximumRPM: 5_776, targetRPM: 2_709, mode: 1),
             ]
         )
     }
@@ -540,12 +540,30 @@ struct MonitorFanPreviewRoot: View {
         scenario == "error" ? "Fan control write failed" : nil
     }
 
+    static var renderHeight: CGFloat {
+        if scenario == "system-control" {
+            return 280
+        }
+        if scenario == "temperature-rules-advanced" {
+            return 820
+        }
+        return 360
+    }
+
+    private static var usesTemperatureRules: Bool {
+        scenario == "temperature-rules" || scenario == "temperature-rules-advanced"
+    }
+
+    private static var controlsFans: Bool {
+        scenario != "error" && scenario != "system-control"
+    }
+
     @StateObject private var model = MonitorFanControlModel(
         previewConfiguration: MonitorFanConfiguration(
-            enabled: Self.scenario != "error",
+            enabled: Self.controlsFans,
             mode: Self.scenario == "manual-sync"
                 ? .manual
-                : .curve,
+                : Self.scenario == "system-control" ? .automatic : .curve,
             startCelsius: 58,
             fullCelsius: 86,
             selectedSensorKeys: ["TCMz", "TC0P"],
@@ -558,13 +576,13 @@ struct MonitorFanPreviewRoot: View {
                     .init(temperature: 45, rpm: 1_200),
                     .init(temperature: 62, rpm: 2_200),
                     .init(temperature: 78, rpm: 3_900),
-                    .init(temperature: 92, rpm: 5_800),
+                    .init(temperature: 92, rpm: 5_348),
                 ],
                 "1": [
                     .init(temperature: 45, rpm: 1_300),
                     .init(temperature: 62, rpm: 2_400),
                     .init(temperature: 78, rpm: 4_300),
-                    .init(temperature: 92, rpm: 6_000),
+                    .init(temperature: 92, rpm: 5_776),
                 ],
             ],
             batteryCurves: Self.scenario == "power-curves"
@@ -573,30 +591,30 @@ struct MonitorFanPreviewRoot: View {
                         .init(temperature: 50, rpm: 1_200),
                         .init(temperature: 70, rpm: 2_200),
                         .init(temperature: 86, rpm: 3_900),
-                        .init(temperature: 100, rpm: 5_800),
+                        .init(temperature: 100, rpm: 5_348),
                     ],
                     "1": [
                         .init(temperature: 50, rpm: 1_300),
                         .init(temperature: 70, rpm: 2_600),
                         .init(temperature: 86, rpm: 4_400),
-                        .init(temperature: 100, rpm: 6_000),
+                        .init(temperature: 100, rpm: 5_776),
                     ],
                 ]
                 : [:],
-            temperatureRules: Self.scenario == "temperature-rules"
+            temperatureRules: Self.usesTemperatureRules
                 ? ["battery": MonitorFanTemperatureRule.defaultPoints(for: .battery)]
                 : [:]
         ),
         availability: .ready,
         helperStatus: FanControlHelperStatus(
-            active: Self.scenario != "error",
+            active: Self.controlsFans,
             mode: Self.scenario == "manual-sync"
                 ? "manual"
-                : "curve",
+                : Self.scenario == "system-control" ? "system" : "curve",
             controlTemperature: 65.9,
             leaseRemainingSeconds: 20,
             error: Self.previewError,
-            sourceTemperatures: Self.scenario == "temperature-rules"
+            sourceTemperatures: Self.usesTemperatureRules
                 ? ["battery": 35.1]
                 : [:]
         )
@@ -609,9 +627,10 @@ struct MonitorFanPreviewRoot: View {
             model: model,
             scrollsContent: Self.scenario == "sensors",
             rendersForSnapshot: true,
-            sensorsInitiallyExpanded: Self.scenario == "sensors"
+            sensorsInitiallyExpanded: Self.scenario == "sensors",
+            advancedInitiallyExpanded: Self.scenario == "temperature-rules-advanced"
         )
-        .frame(width: 420, height: 760, alignment: .topLeading)
+        .frame(width: 420, alignment: .topLeading)
         .background(MacTheme.surface)
     }
 }
@@ -741,7 +760,7 @@ enum MonitorFanDetailRenderer {
         return await MonitorFanPreviewSnapshot.write(
             MonitorFanPreviewRoot()
                 .environment(\.colorScheme, dark ? .dark : .light),
-            size: CGSize(width: 420, height: 760),
+            size: CGSize(width: 420, height: MonitorFanPreviewRoot.renderHeight),
             path: path,
             dark: dark
         )

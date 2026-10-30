@@ -38,6 +38,11 @@ struct MonitorFanTemperatureRuleEditor: View {
                     .multilineTextAlignment(.trailing)
             }
 
+            if !configuration.enabledTemperatureSources.isEmpty,
+               !omittedThermalSources.isEmpty {
+                sourceCoverageWarning
+            }
+
             ForEach(MonitorFanTemperatureSource.allCases, id: \.self) { source in
                 sourceEditor(source)
             }
@@ -46,6 +51,33 @@ struct MonitorFanTemperatureRuleEditor: View {
                 mergedTargetSummary
             }
         }
+    }
+
+    private var omittedThermalSources: [MonitorFanTemperatureSource] {
+        let enabled = Set(configuration.enabledTemperatureSources)
+        return [MonitorFanTemperatureSource.cpu, .gpu].filter { !enabled.contains($0) }
+    }
+
+    private var sourceCoverageWarning: some View {
+        let names = omittedThermalSources.map(sourceTitle)
+        let separator = language == .english ? ", " : "、"
+        return Label {
+            Text(String(
+                format: ContractCopy.copyMonitorFanSourceCoverageWarning.text(for: language),
+                names.joined(separator: separator)
+            ))
+            .font(.system(size: 9, weight: .medium))
+            .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: "exclamationmark.triangle.fill")
+        }
+        .foregroundStyle(MacTheme.errorText)
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .popoverContentSurface(
+            cornerRadius: 7,
+            tint: MacTheme.errorText.opacity(0.10)
+        )
     }
 
     private func sourceEditor(_ source: MonitorFanTemperatureSource) -> some View {
@@ -194,11 +226,9 @@ struct MonitorFanTemperatureRuleEditor: View {
 
             let temperatureRange = temperatureRange(for: index, points: points)
             if temperatureRange.lowerBound < temperatureRange.upperBound {
-                sliderRow(
-                    title: ContractCopy.copyMonitorFanTemperature.text(for: language),
+                temperatureSliderRow(
                     value: temperatureBinding(source: source, index: index, points: points),
                     range: temperatureRange,
-                    step: 1,
                     accessibilityLabel: "\(sourceTitle(source)) \(controlPointTitle(index)) \(ContractCopy.copyMonitorFanTemperature.text(for: language))",
                     accessibilityValue: "\(Int(point.celsius.rounded())) °C",
                     onEditingChanged: { editing in
@@ -214,11 +244,8 @@ struct MonitorFanTemperatureRuleEditor: View {
                 )
             }
 
-            sliderRow(
-                title: ContractCopy.copyMonitorFanSourceFanPercentLabel.text(for: language),
+            percentSliderRow(
                 value: percentBinding(source: source, index: index, points: points),
-                range: 0...100,
-                step: 1,
                 accessibilityLabel: "\(sourceTitle(source)) \(controlPointTitle(index)) \(ContractCopy.copyMonitorFanSourceFanPercentLabel.text(for: language))",
                 accessibilityValue: "\(Int(point.fanPercent.rounded()))%",
                 onEditingChanged: { editing in
@@ -236,24 +263,94 @@ struct MonitorFanTemperatureRuleEditor: View {
         )
     }
 
-    private func sliderRow(
-        title: String,
+    private func temperatureSliderRow(
         value: Binding<Double>,
         range: ClosedRange<Double>,
-        step: Double,
         accessibilityLabel: String,
         accessibilityValue: String,
         onEditingChanged: @escaping (Bool) -> Void
     ) -> some View {
-        HStack(spacing: 6) {
-            Text(title)
-                .font(.system(size: 8, weight: .medium))
-                .foregroundStyle(MacTheme.textSecondary)
-                .frame(width: 58, alignment: .leading)
-            Slider(value: value, in: range, step: step, onEditingChanged: onEditingChanged)
+        let midpoint = ((range.lowerBound + range.upperBound) / 2).rounded()
+        return HStack(alignment: .top, spacing: 6) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(ContractCopy.copyMonitorFanTemperature.text(for: language))
+                    .font(.system(size: 8, weight: .medium))
+                    .foregroundStyle(MacTheme.textSecondary)
+                Text(ContractCopy.copyMonitorFanTemperatureTick.text(for: language))
+                    .font(.system(size: 7, weight: .medium))
+                    .foregroundStyle(MacTheme.textSecondary)
+            }
+            .frame(width: 58, alignment: .leading)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Slider(
+                    value: value,
+                    in: range,
+                    onEditingChanged: onEditingChanged
+                )
                 .disabled(busy)
                 .accessibilityLabel(accessibilityLabel)
                 .accessibilityValue(accessibilityValue)
+
+                HStack(spacing: 0) {
+                    Text(MonitorFanFormat.celsius(range.lowerBound))
+                    Spacer(minLength: 0)
+                    Text(MonitorFanFormat.celsius(midpoint))
+                    Spacer(minLength: 0)
+                    Text(MonitorFanFormat.celsius(range.upperBound))
+                }
+                .font(.system(size: 7, weight: .medium, design: .rounded))
+                .foregroundStyle(MacTheme.textSecondary)
+                .monospacedDigit()
+                .accessibilityHidden(true)
+            }
+        }
+    }
+
+    private func percentSliderRow(
+        value: Binding<Double>,
+        accessibilityLabel: String,
+        accessibilityValue: String,
+        onEditingChanged: @escaping (Bool) -> Void
+    ) -> some View {
+        HStack(alignment: .top, spacing: 6) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(ContractCopy.copyMonitorFanSourceFanPercentLabel.text(for: language))
+                    .font(.system(size: 8, weight: .medium))
+                    .foregroundStyle(MacTheme.textSecondary)
+                Text(ContractCopy.copyMonitorFanPercentTick.text(for: language))
+                    .font(.system(size: 7, weight: .medium))
+                    .foregroundStyle(MacTheme.textSecondary)
+            }
+            .frame(width: 58, alignment: .leading)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Slider(
+                    value: value,
+                    in: 0...100,
+                    step: MonitorFanPolicy.rulePercentStep,
+                    onEditingChanged: onEditingChanged
+                )
+                .disabled(busy)
+                .accessibilityLabel(accessibilityLabel)
+                .accessibilityValue(accessibilityValue)
+
+                HStack(spacing: 0) {
+                    Text("0%")
+                    Spacer(minLength: 0)
+                    Text("25%")
+                    Spacer(minLength: 0)
+                    Text("50%")
+                    Spacer(minLength: 0)
+                    Text("75%")
+                    Spacer(minLength: 0)
+                    Text("100%")
+                }
+                .font(.system(size: 7, weight: .medium, design: .rounded))
+                .foregroundStyle(MacTheme.textSecondary)
+                .monospacedDigit()
+                .accessibilityHidden(true)
+            }
         }
     }
 
@@ -418,9 +515,8 @@ struct MonitorFanTemperatureRuleEditor: View {
             range.upperBound,
             max(range.lowerBound, (celsius ?? points[index].celsius).rounded())
         )
-        updated[index].fanPercent = min(
-            100,
-            max(0, (percent ?? points[index].fanPercent).rounded())
+        updated[index].fanPercent = MonitorFanTemperatureRule.snappedPercent(
+            percent ?? points[index].fanPercent
         )
         onChangePoints(source, updated, false)
     }
@@ -467,7 +563,9 @@ struct MonitorFanTemperatureRuleEditor: View {
         sorted.insert(
             MonitorFanTemperatureRulePoint(
                 celsius: ((before.celsius + after.celsius) / 2).rounded(),
-                fanPercent: ((before.fanPercent + after.fanPercent) / 2).rounded()
+                fanPercent: MonitorFanTemperatureRule.snappedPercent(
+                    (before.fanPercent + after.fanPercent) / 2
+                )
             ),
             at: insertAt
         )

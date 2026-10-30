@@ -739,12 +739,14 @@ enum ContractCopy {
     static let copyMonitorFanAddPoint = LocalizedCopy(key: "copy/monitor/fan/add-point", en: "Add point", zhHans: "添加控制点")
     /// `copy/monitor/fan/add-temperature-point`
     static let copyMonitorFanAddTemperaturePoint = LocalizedCopy(key: "copy/monitor/fan/add-temperature-point", en: "Add temperature point", zhHans: "添加温度点")
+    /// `copy/monitor/fan/advanced`
+    static let copyMonitorFanAdvanced = LocalizedCopy(key: "copy/monitor/fan/advanced", en: "Advanced settings", zhHans: "高级设置")
     /// `copy/monitor/fan/all-fans`
     static let copyMonitorFanAllFans = LocalizedCopy(key: "copy/monitor/fan/all-fans", en: "All fans", zhHans: "全部风扇")
     /// `copy/monitor/fan/applying`
     static let copyMonitorFanApplying = LocalizedCopy(key: "copy/monitor/fan/applying", en: "Applying", zhHans: "正在接管")
     /// `copy/monitor/fan/auto-curve`
-    static let copyMonitorFanAutoCurve = LocalizedCopy(key: "copy/monitor/fan/auto-curve", en: "Auto curve", zhHans: "自动曲线")
+    static let copyMonitorFanAutoCurve = LocalizedCopy(key: "copy/monitor/fan/auto-curve", en: "Covio curve", zhHans: "Covio 曲线")
     /// `copy/monitor/fan/automatic`
     static let copyMonitorFanAutomatic = LocalizedCopy(key: "copy/monitor/fan/automatic", en: "Automatic", zhHans: "自动")
     /// `copy/monitor/fan/balanced`
@@ -757,8 +759,12 @@ enum ContractCopy {
     static let copyMonitorFanControlPoint = LocalizedCopy(key: "copy/monitor/fan/control-point", en: "Control point %d", zhHans: "控制点 %d")
     /// `copy/monitor/fan/control-sensors`
     static let copyMonitorFanControlSensors = LocalizedCopy(key: "copy/monitor/fan/control-sensors", en: "Control sensors", zhHans: "控制传感器")
+    /// `copy/monitor/fan/control-source`
+    static let copyMonitorFanControlSource = LocalizedCopy(key: "copy/monitor/fan/control-source", en: "Control source: %@", zhHans: "控温来源：%@")
     /// `copy/monitor/fan/control-summary`
-    static let copyMonitorFanControlSummary = LocalizedCopy(key: "copy/monitor/fan/control-summary", en: "Control temperature · %d sensors", zhHans: "控制温度 · %d 个传感器取最大")
+    static let copyMonitorFanControlSummary = LocalizedCopy(key: "copy/monitor/fan/control-summary", en: "Control sensors: %d · highest wins", zhHans: "控制传感器：%d 个取最高")
+    /// `copy/monitor/fan/control-temperature`
+    static let copyMonitorFanControlTemperature = LocalizedCopy(key: "copy/monitor/fan/control-temperature", en: "Control temperature", zhHans: "控制温度")
     /// `copy/monitor/fan/copy-adapter-curve`
     static let copyMonitorFanCopyAdapterCurve = LocalizedCopy(key: "copy/monitor/fan/copy-adapter-curve", en: "Copy plugged-in curve to battery", zhHans: "复制插电曲线到电池")
     /// `copy/monitor/fan/curve`
@@ -801,6 +807,8 @@ enum ContractCopy {
     static let copyMonitorFanManualRpm = LocalizedCopy(key: "copy/monitor/fan/manual-rpm", en: "Manual RPM", zhHans: "手动转速")
     /// `copy/monitor/fan/owned`
     static let copyMonitorFanOwned = LocalizedCopy(key: "copy/monitor/fan/owned", en: "Covio control", zhHans: "Covio 已接管")
+    /// `copy/monitor/fan/percent-tick`
+    static let copyMonitorFanPercentTick = LocalizedCopy(key: "copy/monitor/fan/percent-tick", en: "5% per tick", zhHans: "每格 5%")
     /// `copy/monitor/fan/power-source-adapter`
     static let copyMonitorFanPowerSourceAdapter = LocalizedCopy(key: "copy/monitor/fan/power-source-adapter", en: "Current: power adapter", zhHans: "当前：插电")
     /// `copy/monitor/fan/power-source-battery`
@@ -827,6 +835,10 @@ enum ContractCopy {
     static let copyMonitorFanSensorLibraryHint = LocalizedCopy(key: "copy/monitor/fan/sensor-library-hint", en: "64 sensors have names. Unknown keys show the raw key.", zhHans: "64 个传感器有名称。未知键显示原始键。")
     /// `copy/monitor/fan/source-battery`
     static let copyMonitorFanSourceBattery = LocalizedCopy(key: "copy/monitor/fan/source-battery", en: "Battery temperature", zhHans: "电池温度")
+    /// `copy/monitor/fan/source-coverage-compact`
+    static let copyMonitorFanSourceCoverageCompact = LocalizedCopy(key: "copy/monitor/fan/source-coverage-compact", en: "Safety sources not participating: %d", zhHans: "安全来源未参与：%d 个")
+    /// `copy/monitor/fan/source-coverage-warning`
+    static let copyMonitorFanSourceCoverageWarning = LocalizedCopy(key: "copy/monitor/fan/source-coverage-warning", en: "Not participating: %@. Covio will not raise fan requests for these temperatures.", zhHans: "未参与控温：%@。Covio 不会按这些温度提高风扇请求。")
     /// `copy/monitor/fan/source-cpu`
     static let copyMonitorFanSourceCpu = LocalizedCopy(key: "copy/monitor/fan/source-cpu", en: "CPU temperature", zhHans: "CPU 温度")
     /// `copy/monitor/fan/source-fan-percent`
@@ -836,13 +848,13 @@ enum ContractCopy {
     /// `copy/monitor/fan/source-gpu`
     static let copyMonitorFanSourceGpu = LocalizedCopy(key: "copy/monitor/fan/source-gpu", en: "GPU temperature", zhHans: "GPU 温度")
     /// `copy/monitor/fan/source-hint`
-    static let copyMonitorFanSourceHint = LocalizedCopy(key: "copy/monitor/fan/source-hint", en: "Each source uses its hottest sensor. The highest fan request wins.", zhHans: "每个来源取最高传感器。风扇采用最高请求。")
+    static let copyMonitorFanSourceHint = LocalizedCopy(key: "copy/monitor/fan/source-hint", en: "Each source uses its hottest sensor. The highest fan request wins.", zhHans: "每个来源取最热传感器。风扇采用最高请求。")
     /// `copy/monitor/fan/source-request`
     static let copyMonitorFanSourceRequest = LocalizedCopy(key: "copy/monitor/fan/source-request", en: "%d%% request", zhHans: "%d%% 请求")
     /// `copy/monitor/fan/source-summary`
-    static let copyMonitorFanSourceSummary = LocalizedCopy(key: "copy/monitor/fan/source-summary", en: "Control temperature · %d sources", zhHans: "控制温度 · %d 个来源取最大")
+    static let copyMonitorFanSourceSummary = LocalizedCopy(key: "copy/monitor/fan/source-summary", en: "%d control sources · highest wins", zhHans: "%d 个控温来源取最高")
     /// `copy/monitor/fan/source-unavailable`
-    static let copyMonitorFanSourceUnavailable = LocalizedCopy(key: "copy/monitor/fan/source-unavailable", en: "Unavailable", zhHans: "不可用")
+    static let copyMonitorFanSourceUnavailable = LocalizedCopy(key: "copy/monitor/fan/source-unavailable", en: "No sensor found", zhHans: "未检测到传感器")
     /// `copy/monitor/fan/start-caption`
     static let copyMonitorFanStartCaption = LocalizedCopy(key: "copy/monitor/fan/start-caption", en: "%d °C starts ramping", zhHans: "%d °C 开始升温")
     /// `copy/monitor/fan/start-temperature`
@@ -855,12 +867,22 @@ enum ContractCopy {
     static let copyMonitorFanSystemAuto = LocalizedCopy(key: "copy/monitor/fan/system-auto", en: "System automatic", zhHans: "系统自动")
     /// `copy/monitor/fan/system-control`
     static let copyMonitorFanSystemControl = LocalizedCopy(key: "copy/monitor/fan/system-control", en: "System control", zhHans: "系统控制")
+    /// `copy/monitor/fan/system-control-body`
+    static let copyMonitorFanSystemControlBody = LocalizedCopy(key: "copy/monitor/fan/system-control-body", en: "Switching to Covio curve or manual speed lets Covio take control.", zhHans: "切换到 Covio 曲线或手动转速后，Covio 会接管。")
+    /// `copy/monitor/fan/system-control-title`
+    static let copyMonitorFanSystemControlTitle = LocalizedCopy(key: "copy/monitor/fan/system-control-title", en: "macOS is controlling the fans", zhHans: "macOS 正在控制风扇")
+    /// `copy/monitor/fan/takeover-body`
+    static let copyMonitorFanTakeoverBody = LocalizedCopy(key: "copy/monitor/fan/takeover-body", en: "Covio is controlling the fans. Writing fan speed changes hardware behavior. System control resumes after Covio quits, crashes, or the lease expires.", zhHans: "Covio 正在控制风扇。写入转速会改变硬件行为。退出、崩溃或租约过期后，系统会恢复控制。")
+    /// `copy/monitor/fan/takeover-title`
+    static let copyMonitorFanTakeoverTitle = LocalizedCopy(key: "copy/monitor/fan/takeover-title", en: "System fan control is paused", zhHans: "系统风扇控制已暂停")
     /// `copy/monitor/fan/target`
     static let copyMonitorFanTarget = LocalizedCopy(key: "copy/monitor/fan/target", en: "Target", zhHans: "目标")
     /// `copy/monitor/fan/temperature`
     static let copyMonitorFanTemperature = LocalizedCopy(key: "copy/monitor/fan/temperature", en: "Temperature", zhHans: "温度")
     /// `copy/monitor/fan/temperature-sources`
     static let copyMonitorFanTemperatureSources = LocalizedCopy(key: "copy/monitor/fan/temperature-sources", en: "Temperature sources", zhHans: "温度来源")
+    /// `copy/monitor/fan/temperature-tick`
+    static let copyMonitorFanTemperatureTick = LocalizedCopy(key: "copy/monitor/fan/temperature-tick", en: "1 °C per step", zhHans: "每格 1 °C")
     /// `copy/monitor/fan/title`
     static let copyMonitorFanTitle = LocalizedCopy(key: "copy/monitor/fan/title", en: "Fan", zhHans: "风扇")
     /// `copy/monitor/fan/turbo`
@@ -870,7 +892,7 @@ enum ContractCopy {
     /// `copy/monitor/fan/unit`
     static let copyMonitorFanUnit = LocalizedCopy(key: "copy/monitor/fan/unit", en: "Fan %d", zhHans: "风扇 %d")
     /// `copy/monitor/fan/warning`
-    static let copyMonitorFanWarning = LocalizedCopy(key: "copy/monitor/fan/warning", en: "Writing fan speed changes hardware behavior. Covio restores system control when it exits.", zhHans: "写入风扇转速会改变硬件行为。Covio 退出时恢复系统控制。")
+    static let copyMonitorFanWarning = LocalizedCopy(key: "copy/monitor/fan/warning", en: "Writing fan speed changes hardware behavior.", zhHans: "写入风扇转速会改变硬件行为。")
     /// `copy/monitor/gpu/device`
     static let copyMonitorGpuDevice = LocalizedCopy(key: "copy/monitor/gpu/device", en: "Device", zhHans: "设备")
     /// `copy/monitor/gpu/memory`
@@ -2023,6 +2045,7 @@ enum ContractCopy {
         copyMonitorFanActual,
         copyMonitorFanAddPoint,
         copyMonitorFanAddTemperaturePoint,
+        copyMonitorFanAdvanced,
         copyMonitorFanAllFans,
         copyMonitorFanApplying,
         copyMonitorFanAutoCurve,
@@ -2032,7 +2055,9 @@ enum ContractCopy {
         copyMonitorFanClearBatteryCurve,
         copyMonitorFanControlPoint,
         copyMonitorFanControlSensors,
+        copyMonitorFanControlSource,
         copyMonitorFanControlSummary,
+        copyMonitorFanControlTemperature,
         copyMonitorFanCopyAdapterCurve,
         copyMonitorFanCurve,
         copyMonitorFanCurveHint,
@@ -2054,6 +2079,7 @@ enum ContractCopy {
         copyMonitorFanManual,
         copyMonitorFanManualRpm,
         copyMonitorFanOwned,
+        copyMonitorFanPercentTick,
         copyMonitorFanPowerSourceAdapter,
         copyMonitorFanPowerSourceBattery,
         copyMonitorFanPowerSourceUnknown,
@@ -2067,6 +2093,8 @@ enum ContractCopy {
         copyMonitorFanSensorFilterEmpty,
         copyMonitorFanSensorLibraryHint,
         copyMonitorFanSourceBattery,
+        copyMonitorFanSourceCoverageCompact,
+        copyMonitorFanSourceCoverageWarning,
         copyMonitorFanSourceCpu,
         copyMonitorFanSourceFanPercent,
         copyMonitorFanSourceFanPercentLabel,
@@ -2081,9 +2109,14 @@ enum ContractCopy {
         copyMonitorFanSyncHint,
         copyMonitorFanSystemAuto,
         copyMonitorFanSystemControl,
+        copyMonitorFanSystemControlBody,
+        copyMonitorFanSystemControlTitle,
+        copyMonitorFanTakeoverBody,
+        copyMonitorFanTakeoverTitle,
         copyMonitorFanTarget,
         copyMonitorFanTemperature,
         copyMonitorFanTemperatureSources,
+        copyMonitorFanTemperatureTick,
         copyMonitorFanTitle,
         copyMonitorFanTurbo,
         copyMonitorFanUnavailable,

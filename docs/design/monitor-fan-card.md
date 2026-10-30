@@ -24,6 +24,9 @@
 | ![手动风扇模式亮色](previews/366-fan-manual-stats-light-after-1.png) | ![手动风扇模式深色](previews/366-fan-manual-stats-dark-after-1.png) |
 | ![分层玻璃 popover 亮色](previews/441-fan-popover-light-after-3.png) | ![分层玻璃 popover 深色](previews/441-fan-popover-dark-after-3.png) |
 | ![温度来源规则亮色](previews/474-monitor-fan-temperature-rules-light-after-4.png) | ![温度来源规则深色](previews/474-monitor-fan-temperature-rules-dark-after-4.png) |
+| ![接管恢复亮色](previews/491-fan-takeover-light-after-1.png) | ![接管恢复深色](previews/491-fan-takeover-dark-after-1.png) |
+| ![系统控制亮色](previews/491-fan-system-control-light-after-1.png) | ![系统控制深色](previews/491-fan-system-control-dark-after-1.png) |
+| ![高级设置亮色](previews/491-fan-takeover-advanced-light-after-1.png) | ![高级设置深色](previews/491-fan-takeover-advanced-dark-after-1.png) |
 | ![插电与电池曲线亮色](previews/334-fan-power-curves-light-after-2.png) | ![插电与电池曲线深色](previews/334-fan-power-curves-dark-after-2.png) |
 | ![传感器名称筛选亮色](previews/338-fan-sensors-light-after-4.png) | ![传感器名称筛选深色](previews/338-fan-sensors-dark-after-4.png) |
 
@@ -47,7 +50,7 @@ popover 打开期间，工作台保持展开。最后一个 popover 关闭后，
 | 风扇当前转速 | `F%dAc` | 最多每 2 秒 |
 | 风扇目标转速 | `F%dTg` | 最多每 2 秒 |
 | 风扇最小和最大转速 | `F%dMn`、`F%dMx` | 最多每 2 秒 |
-| 控制温度 | 已选传感器读数的最大值 | 跟随采样 |
+| 控制温度 | 已启用温度来源的最热读数；没有来源时使用已选传感器最大值 | 跟随采样 |
 | CPU 占用 | `host_processor_info` | 接入 Monitor 页采样周期 |
 
 SMC 键只在读取器初始化时枚举一次。
@@ -55,20 +58,25 @@ SMC 键只在读取器初始化时枚举一次。
 
 ## 5. popover
 
-popover 固定宽度 420 点、固定高度 760 点。
+popover 固定宽度 420 点。
+系统自动状态高度为 300 点。
+Covio 曲线折叠状态高度为 470 点。
+高级区展开高度为 820 点。
+手动状态高度为 760 点。
 popover 外壳使用系统原生 regular Liquid Glass。
-警告区、控制区、风扇区和传感器区使用标准 thin material。
+警告区、控制区和传感器区使用标准 thin material。
 Liquid Glass 不用于内容层。
 减少透明度或增强对比时，内容区回退为不透明 surface。
 头部固定，详情内容在头部下方滚动。
 
-1. 控制温度和接管状态。
-2. Covio 特权支持不可用时的能力级提示。
-3. 安全说明和恢复系统控制。
-4. 启用风扇控制开关。
-5. 曲线或手动转速。
-6. 风扇实际转速和目标转速。
-7. 控制传感器。
+1. 每台风扇的当前转速和目标转速。
+2. 控制温度和控温来源。
+3. Covio 特权支持不可用时的能力级提示。
+4. 接管安全提示和恢复系统控制。
+5. 系统自动、Covio 曲线和手动转速三选一模式。
+6. 默认折叠的高级设置。
+7. 曲线控制点或手动转速。
+8. 控制传感器。
 
 系统自动模式只释放风扇控制，不运行温度曲线。
 曲线模式才持有风扇并写入目标转速。
@@ -162,11 +170,58 @@ Liquid Glass 不用于内容层。
 相邻控制点至少相差 2 °C。
 控制点在相邻点之间线性插值。
 
+温度来源百分比范围为 `0%` 到 `100%`。
+百分比滑杆以 `5%` 为一格。
+百分比输入和存储值对齐到最近的 `5%`。
+滑杆下方标注 `0%`、`25%`、`50%`、`75%`、`100%`。
+
+原生快照使用 MacBook Pro `MacBookPro18,2` 的实测范围。
+
+| 风扇 | 最小转速 | 最大转速 | 50% 目标 |
+| --- | ---: | ---: | ---: |
+| 风扇 1 | `1500 RPM` | `5348 RPM` | `3424 RPM` |
+| 风扇 2 | `1500 RPM` | `5776 RPM` | `3638 RPM` |
+
+SMC 最大转速读取失败时先重试。
+重试失败后使用该风扇最近一次有效上限。
+首次读取没有有效上限时，不生成该风扇的可写范围。
+
 多个来源同时启用时，每台风扇取各来源请求百分比的最大值。
 百分比按该风扇的 `Mn + (Mx - Mn) × 百分比` 换算为 RPM。
 
 来源规则为空时，继续使用旧的控制传感器和多点 RPM 曲线。
 来源规则存在时，规则优先于旧的多点 RPM 曲线。
+
+### 控制层级与恢复
+
+Popover 首屏逐台风扇显示当前 RPM 和目标 RPM。
+控制温度和控温来源显示在风扇转速下方。
+单一温度来源显示来源名称，多来源显示来源数量。
+首屏不再显示重复的接管状态圆点。
+
+控制区使用一个三选一模式选择器。
+模式为「系统自动」、「Covio 曲线」和「手动转速」。
+切换到系统自动会恢复系统控制。
+不再使用「启用风扇控制」开关。
+不再显示与首屏重复的底部风扇汇总。
+
+接管状态下，详情区显示「系统风扇控制已暂停」。
+提示说明 Covio 退出、崩溃或租约过期后恢复系统控制。
+「恢复系统控制」显示为高对比完整按钮。
+按钮位于接管提示内，并支持键盘聚焦。
+
+未接管状态下，详情区显示「macOS 正在控制风扇」。
+未接管状态不显示硬件行为警告。
+未接管状态不显示「恢复系统控制」按钮。
+切换到 Covio 曲线或手动转速后，Covio 开始接管。
+
+温度来源规则启用后，高级区默认折叠。
+高级区标题显示当前 Covio 曲线或手动转速。
+展开高级区后，用户可以编辑温度来源、控制点和同步设置。
+
+CPU 或 GPU 没有参与温度来源规则时，高级区显示警告。
+警告列出未参与控温的来源。
+警告说明 Covio 不会按这些温度提高风扇请求。
 
 ## 6. Helper 与安全
 

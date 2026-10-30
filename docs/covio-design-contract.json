@@ -4752,13 +4752,29 @@
       "en": "Fan temperature curve",
       "zh-Hans": "风扇温控曲线"
     },
+    "copy/monitor/fan/control-source": {
+      "en": "Control source: %@",
+      "zh-Hans": "控温来源：%@"
+    },
     "copy/monitor/fan/control-summary": {
-      "en": "Control temperature · %d sensors",
-      "zh-Hans": "控制温度 · %d 个传感器取最大"
+      "en": "Control sensors: %d · highest wins",
+      "zh-Hans": "控制传感器：%d 个取最高"
+    },
+    "copy/monitor/fan/control-temperature": {
+      "en": "Control temperature",
+      "zh-Hans": "控制温度"
     },
     "copy/monitor/fan/system-control": {
       "en": "System control",
       "zh-Hans": "系统控制"
+    },
+    "copy/monitor/fan/system-control-body": {
+      "en": "Switching to Covio curve or manual speed lets Covio take control.",
+      "zh-Hans": "切换到 Covio 曲线或手动转速后，Covio 会接管。"
+    },
+    "copy/monitor/fan/system-control-title": {
+      "en": "macOS is controlling the fans",
+      "zh-Hans": "macOS 正在控制风扇"
     },
     "copy/monitor/fan/owned": {
       "en": "Covio control",
@@ -4772,6 +4788,10 @@
       "en": "Fan data unavailable",
       "zh-Hans": "风扇数据不可用"
     },
+    "copy/monitor/fan/advanced": {
+      "en": "Advanced settings",
+      "zh-Hans": "高级设置"
+    },
     "copy/monitor/fan/details": {
       "en": "Fan control",
       "zh-Hans": "风扇控制"
@@ -4781,8 +4801,8 @@
       "zh-Hans": "启用风扇控制"
     },
     "copy/monitor/fan/auto-curve": {
-      "en": "Auto curve",
-      "zh-Hans": "自动曲线"
+      "en": "Covio curve",
+      "zh-Hans": "Covio 曲线"
     },
     "copy/monitor/fan/system-auto": {
       "en": "System automatic",
@@ -4872,9 +4892,13 @@
       "en": "Temperature sources",
       "zh-Hans": "温度来源"
     },
+    "copy/monitor/fan/temperature-tick": {
+      "en": "1 °C per step",
+      "zh-Hans": "每格 1 °C"
+    },
     "copy/monitor/fan/source-summary": {
-      "en": "Control temperature · %d sources",
-      "zh-Hans": "控制温度 · %d 个来源取最大"
+      "en": "%d control sources · highest wins",
+      "zh-Hans": "%d 个控温来源取最高"
     },
     "copy/monitor/fan/source-cpu": {
       "en": "CPU temperature",
@@ -4889,8 +4913,8 @@
       "zh-Hans": "电池温度"
     },
     "copy/monitor/fan/source-unavailable": {
-      "en": "Unavailable",
-      "zh-Hans": "不可用"
+      "en": "No sensor found",
+      "zh-Hans": "未检测到传感器"
     },
     "copy/monitor/fan/source-fan-percent": {
       "en": "Fan %d%%",
@@ -4899,6 +4923,10 @@
     "copy/monitor/fan/source-fan-percent-label": {
       "en": "Fan percentage",
       "zh-Hans": "风扇百分比"
+    },
+    "copy/monitor/fan/percent-tick": {
+      "en": "5% per tick",
+      "zh-Hans": "每格 5%"
     },
     "copy/monitor/fan/source-request": {
       "en": "%d%% request",
@@ -4910,7 +4938,15 @@
     },
     "copy/monitor/fan/source-hint": {
       "en": "Each source uses its hottest sensor. The highest fan request wins.",
-      "zh-Hans": "每个来源取最高传感器。风扇采用最高请求。"
+      "zh-Hans": "每个来源取最热传感器。风扇采用最高请求。"
+    },
+    "copy/monitor/fan/source-coverage-compact": {
+      "en": "Safety sources not participating: %d",
+      "zh-Hans": "安全来源未参与：%d 个"
+    },
+    "copy/monitor/fan/source-coverage-warning": {
+      "en": "Not participating: %@. Covio will not raise fan requests for these temperatures.",
+      "zh-Hans": "未参与控温：%@。Covio 不会按这些温度提高风扇请求。"
     },
     "copy/monitor/fan/restore-system": {
       "en": "Restore system control",
@@ -4936,9 +4972,17 @@
       "en": "Target",
       "zh-Hans": "目标"
     },
+    "copy/monitor/fan/takeover-body": {
+      "en": "Covio is controlling the fans. Writing fan speed changes hardware behavior. System control resumes after Covio quits, crashes, or the lease expires.",
+      "zh-Hans": "Covio 正在控制风扇。写入转速会改变硬件行为。退出、崩溃或租约过期后，系统会恢复控制。"
+    },
+    "copy/monitor/fan/takeover-title": {
+      "en": "System fan control is paused",
+      "zh-Hans": "系统风扇控制已暂停"
+    },
     "copy/monitor/fan/warning": {
-      "en": "Writing fan speed changes hardware behavior. Covio restores system control when it exits.",
-      "zh-Hans": "写入风扇转速会改变硬件行为。Covio 退出时恢复系统控制。"
+      "en": "Writing fan speed changes hardware behavior.",
+      "zh-Hans": "写入风扇转速会改变硬件行为。"
     },
     "copy/monitor/fan/unit": {
       "en": "Fan %d",

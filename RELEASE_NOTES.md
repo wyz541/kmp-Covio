@@ -1,4 +1,4 @@
-# Covio 0.6.0（内测 build 11）
+# Covio 0.6.0（内测 build 12）
 
 Covio 0.6.0 是内测版。
 此版本不用于公开分发。
@@ -15,35 +15,48 @@ Covio 0.6.0 是内测版。
 模型在用户确认后下载、校验并登记。
 本版不构建离线模型 DMG。
 
-## 从 build 10 到 build 11 的变化
+## 从 build 11 到 build 12 的变化
 
-### 全局 Helper
+### 风扇控制
 
-- Helper 收敛为 Covio 的全局运行能力。
-- Overview 不再显示 helper 卡、版本、安装或卸载入口。
-- Settings 搜索不再返回 helper、助手或 privileged 设置项。
-- Display 不再显示独立的 helper 行和安装或修复按钮。
-- Fan 不再显示独立的 helper 安装或修复按钮。
-- Fan 控制读取同一个 AppRuntime helper 状态。
-- Lid、Display、Fan 和充电上限只显示能力级状态。
-- 安装、升级、签名校验和恢复仍由全局 helper 路径负责。
+- 温度滑杆显示每个控制点的真实范围。
+- 温度滑杆显示起点、中点和终点。
+- 温度输入继续使用 `1 °C` 步进。
+- 风扇百分比滑杆改为 `5%` 步进。
+- 百分比输入、存储值和新增控制点对齐到最近的 `5%`。
+- 百分比滑杆显示 `0%`、`25%`、`50%`、`75%` 和 `100%` 刻度。
+- 高级设置显示“每格 1 °C”和“每格 5%”。
+- 预览范围改为 MacBook Pro `MacBookPro18,2` 的实测值。
+- 风扇 1 的范围为 `1500–5348 RPM`。
+- 风扇 2 的范围为 `1500–5776 RPM`。
+- 50% 目标显示为风扇 1 `3424 RPM` 和风扇 2 `3638 RPM`。
+- 最大转速读取增加重试。
+- 重试失败后沿用最近一次有效上限。
+- 首次没有有效上限时，不生成该风扇的可写范围。
 
 ### 用户界面
 
-- 用户不需要理解 helper、LaunchDaemon 或特权服务。
-- 功能不可用时显示“Covio 系统支持不可用”或“需要 Covio 系统支持”。
-- 技术错误继续写入日志，供诊断使用。
-- 亮色和深色界面保持原有布局，不新增替代 helper 卡片。
+- 首屏保留当前 RPM、目标 RPM、模式和直接恢复入口。
+- 温度来源和控制点默认折叠到“高级设置”。
+- CPU 或 GPU 未参与控温时，折叠行显示安全警告。
+- 系统自动状态不显示硬件写入警告，并使用较矮的 Popover。
+- 风扇接管与恢复操作使用更清楚的状态和按钮文案。
+
+### 构建与验证
+
+- 本机开发构建固定使用 `Covio Dev` 证书。
+- 构建和测试脚本检查 App 与嵌套代码的签名身份。
+- 签名身份变化时，TCC 权限可能反复请求；新检查会阻止这种回归。
 
 ## 验证
 
 - Kotlin 共享测试在 JVM 和 macOS Arm64 上通过。
-- macOS XCTest：`982` 项通过，`3` 项跳过，`0` 失败。
+- macOS XCTest：`986` 项通过，`3` 项跳过，`0` 失败。
 - `bash scripts/test-all.sh` 通过。
-- Settings 搜索测试确认 helper 不再作为设置项出现。
-- Fan 状态映射测试覆盖全局 helper 的 ready、missing、outdated 和 unavailable 状态。
-- 真机亮色和深色截图覆盖 Display 详情浮层 Before/After。
-- GitHub Actions：Contract and scripts、Kotlin、macOS SwiftUI 全部通过。
+- 风扇温度范围、5% 步进、最大转速回退和恢复入口由自动化测试覆盖。
+- 本地签名、helper、嵌套动态库和 `kmpDomain.framework` 的严格校验通过。
+- 真机亮色和深色截图覆盖风扇接管、系统自动和高级设置状态。
+- 真机验收覆盖 MacBook Pro `MacBookPro18,2` 的风扇 RPM 范围。
 
 ## 安装
 

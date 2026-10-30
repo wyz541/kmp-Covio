@@ -32,6 +32,7 @@ final class SMCFanReader {
     private let temperatureKeys: [SMCAccessKey]
     private let availableKeys: Set<String>
     private let appleSilicon: Bool
+    private var lastValidFanMaximums: [Int: Double] = [:]
 
     convenience init() throws {
         let access = try SMCAccess()
@@ -135,8 +136,13 @@ final class SMCFanReader {
         var fans: [SMCFanReading] = []
         fans.reserveCapacity(count)
         for index in 0..<count {
-            let minimum = readFanDouble(index: index, suffix: "Mn") ?? 0
-            let maximum = readFanDouble(index: index, suffix: "Mx") ?? 0
+            let minimum = readFanDouble(index: index, suffix: "Mn", attempts: 2) ?? 0
+            let maximumSample = readFanDouble(index: index, suffix: "Mx", attempts: 3)
+            let maximum = Self.validFanMaximum(maximumSample, minimum: minimum)
+                ?? lastValidFanMaximums[index]
+            guard let maximum else { continue }
+            lastValidFanMaximums[index] = maximum
+
             var rpm = readFanDouble(index: index, suffix: "Ac") ?? 0
             if minimum > 500, rpm < minimum * 0.5 {
                 for _ in 0..<2 {
@@ -149,7 +155,7 @@ final class SMCFanReader {
                 index: index,
                 rpm: max(0, rpm),
                 minimumRPM: max(0, minimum),
-                maximumRPM: max(minimum, maximum),
+                maximumRPM: maximum,
                 targetRPM: max(0, readFanDouble(index: index, suffix: "Tg") ?? 0),
                 mode: readFanMode(index: index) ?? -1
             ))
@@ -185,9 +191,30 @@ final class SMCFanReader {
         )?.rawValue
     }
 
-    private func readFanDouble(index: Int, suffix: String) -> Double? {
+    static func validFanMaximum(_ value: Double?, minimum: Double) -> Double? {
+        guard let value,
+              value.isFinite,
+              value > max(0, minimum),
+              value <= MonitorFanPolicy.maximumRPM
+        else { return nil }
+        return value
+    }
+
+    private func readFanDouble(
+        index: Int,
+        suffix: String,
+        attempts: Int = 1
+    ) -> Double? {
         guard let key = SMCAccessKey("F\(index)\(suffix)") else { return nil }
-        return try? smc.readDouble(key)
+        for attempt in 0..<max(1, attempts) {
+            if let value = try? smc.readDouble(key) {
+                return value
+            }
+            if attempt + 1 < attempts {
+                Thread.sleep(forTimeInterval: 0.03)
+            }
+        }
+        return nil
     }
 
 }

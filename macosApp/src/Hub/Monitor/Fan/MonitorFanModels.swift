@@ -431,6 +431,7 @@ enum MonitorFanPolicy {
     static let maximumRuleCelsius = 105.0
     static let minimumRuleTemperatureSpan = 2.0
     static let maximumRulePointCount = 8
+    static let rulePercentStep = 5.0
     static let minimumTemperatureSpan = 5.0
     static let hysteresisCelsius = 1.5
     static let maximumSensorCount = 32
@@ -485,6 +486,13 @@ enum MonitorFanTemperatureRule {
         }
     }
 
+    static func snappedPercent(_ value: Double) -> Double {
+        guard value.isFinite else { return 0 }
+        let clamped = min(100, max(0, value))
+        let step = MonitorFanPolicy.rulePercentStep
+        return min(100, max(0, (clamped / step).rounded() * step))
+    }
+
     static func targetPercent(
         points: [MonitorFanTemperatureRulePoint],
         temperature: Double
@@ -537,7 +545,7 @@ enum MonitorFanTemperatureRule {
                 MonitorFanPolicy.maximumRuleCelsius,
                 max(MonitorFanPolicy.minimumRuleCelsius, point.celsius.rounded())
             )
-            let percent = min(100, max(0, point.fanPercent.rounded()))
+            let percent = MonitorFanTemperatureRule.snappedPercent(point.fanPercent)
             byTemperature[celsius] = MonitorFanTemperatureRulePoint(
                 celsius: celsius,
                 fanPercent: percent

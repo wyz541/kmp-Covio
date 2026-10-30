@@ -807,6 +807,8 @@ enum ContractCopy {
     static let copyMonitorFanManualRpm = LocalizedCopy(key: "copy/monitor/fan/manual-rpm", en: "Manual RPM", zhHans: "手动转速")
     /// `copy/monitor/fan/owned`
     static let copyMonitorFanOwned = LocalizedCopy(key: "copy/monitor/fan/owned", en: "Covio control", zhHans: "Covio 已接管")
+    /// `copy/monitor/fan/percent-tick`
+    static let copyMonitorFanPercentTick = LocalizedCopy(key: "copy/monitor/fan/percent-tick", en: "5% per tick", zhHans: "每格 5%")
     /// `copy/monitor/fan/power-source-adapter`
     static let copyMonitorFanPowerSourceAdapter = LocalizedCopy(key: "copy/monitor/fan/power-source-adapter", en: "Current: power adapter", zhHans: "当前：插电")
     /// `copy/monitor/fan/power-source-battery`
@@ -2075,6 +2077,7 @@ enum ContractCopy {
         copyMonitorFanManual,
         copyMonitorFanManualRpm,
         copyMonitorFanOwned,
+        copyMonitorFanPercentTick,
         copyMonitorFanPowerSourceAdapter,
         copyMonitorFanPowerSourceBattery,
         copyMonitorFanPowerSourceUnknown,

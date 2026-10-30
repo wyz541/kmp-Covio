@@ -705,6 +705,29 @@ final class MonitorFanTests: XCTestCase {
         XCTAssertEqual(MonitorFanFormat.targetRPM(nil), "—")
     }
 
+    func testTemperatureRulePercentUsesFivePercentSteps() {
+        XCTAssertEqual(MonitorFanPolicy.rulePercentStep, 5)
+        XCTAssertEqual(MonitorFanTemperatureRule.snappedPercent(33), 35)
+        XCTAssertEqual(MonitorFanTemperatureRule.snappedPercent(42), 40)
+        XCTAssertEqual(MonitorFanTemperatureRule.snappedPercent(98), 100)
+    }
+
+    func testFanPreviewUsesRealMacHardwareRanges() {
+        let units = MonitorFanPreviewFixtures.reading.units
+
+        XCTAssertEqual(units[0].minimumRPM, 1_500)
+        XCTAssertEqual(units[0].maximumRPM, 5_348)
+        XCTAssertEqual(units[1].minimumRPM, 1_500)
+        XCTAssertEqual(units[1].maximumRPM, 5_776)
+    }
+
+    func testFanMaximumValidationRejectsInvalidRanges() {
+        XCTAssertEqual(SMCFanReader.validFanMaximum(5_348, minimum: 1_500), 5_348)
+        XCTAssertNil(SMCFanReader.validFanMaximum(nil, minimum: 1_500))
+        XCTAssertNil(SMCFanReader.validFanMaximum(1_500, minimum: 1_500))
+        XCTAssertNil(SMCFanReader.validFanMaximum(15_001, minimum: 1_500))
+    }
+
     func testTemperatureRuleInterpolatesAndClampsPercent() {
         let points = [
             MonitorFanTemperatureRulePoint(celsius: 32, fanPercent: 30),

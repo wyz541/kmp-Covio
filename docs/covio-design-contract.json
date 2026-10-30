@@ -4920,6 +4920,10 @@
       "en": "Fan percentage",
       "zh-Hans": "风扇百分比"
     },
+    "copy/monitor/fan/percent-tick": {
+      "en": "5% per tick",
+      "zh-Hans": "每格 5%"
+    },
     "copy/monitor/fan/source-request": {
       "en": "%d%% request",
       "zh-Hans": "%d%% 请求"

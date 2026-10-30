@@ -523,8 +523,8 @@ enum MonitorFanPreviewFixtures {
                 .init(key: "TD3P", celsius: 48.6),
             ],
             units: [
-                .init(index: 0, rpm: 2_789, minimumRPM: 1_200, maximumRPM: 5_800, targetRPM: 2_588, mode: 1),
-                .init(index: 1, rpm: 2_954, minimumRPM: 1_300, maximumRPM: 6_000, targetRPM: 2_709, mode: 1),
+                .init(index: 0, rpm: 2_789, minimumRPM: 1_500, maximumRPM: 5_348, targetRPM: 2_588, mode: 1),
+                .init(index: 1, rpm: 2_954, minimumRPM: 1_500, maximumRPM: 5_776, targetRPM: 2_709, mode: 1),
             ]
         )
     }
@@ -576,13 +576,13 @@ struct MonitorFanPreviewRoot: View {
                     .init(temperature: 45, rpm: 1_200),
                     .init(temperature: 62, rpm: 2_200),
                     .init(temperature: 78, rpm: 3_900),
-                    .init(temperature: 92, rpm: 5_800),
+                    .init(temperature: 92, rpm: 5_348),
                 ],
                 "1": [
                     .init(temperature: 45, rpm: 1_300),
                     .init(temperature: 62, rpm: 2_400),
                     .init(temperature: 78, rpm: 4_300),
-                    .init(temperature: 92, rpm: 6_000),
+                    .init(temperature: 92, rpm: 5_776),
                 ],
             ],
             batteryCurves: Self.scenario == "power-curves"
@@ -591,13 +591,13 @@ struct MonitorFanPreviewRoot: View {
                         .init(temperature: 50, rpm: 1_200),
                         .init(temperature: 70, rpm: 2_200),
                         .init(temperature: 86, rpm: 3_900),
-                        .init(temperature: 100, rpm: 5_800),
+                        .init(temperature: 100, rpm: 5_348),
                     ],
                     "1": [
                         .init(temperature: 50, rpm: 1_300),
                         .init(temperature: 70, rpm: 2_600),
                         .init(temperature: 86, rpm: 4_400),
-                        .init(temperature: 100, rpm: 6_000),
+                        .init(temperature: 100, rpm: 5_776),
                     ],
                 ]
                 : [:],

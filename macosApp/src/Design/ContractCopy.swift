@@ -881,6 +881,8 @@ enum ContractCopy {
     static let copyMonitorFanTemperature = LocalizedCopy(key: "copy/monitor/fan/temperature", en: "Temperature", zhHans: "温度")
     /// `copy/monitor/fan/temperature-sources`
     static let copyMonitorFanTemperatureSources = LocalizedCopy(key: "copy/monitor/fan/temperature-sources", en: "Temperature sources", zhHans: "温度来源")
+    /// `copy/monitor/fan/temperature-tick`
+    static let copyMonitorFanTemperatureTick = LocalizedCopy(key: "copy/monitor/fan/temperature-tick", en: "1 °C per step", zhHans: "每格 1 °C")
     /// `copy/monitor/fan/title`
     static let copyMonitorFanTitle = LocalizedCopy(key: "copy/monitor/fan/title", en: "Fan", zhHans: "风扇")
     /// `copy/monitor/fan/turbo`
@@ -2114,6 +2116,7 @@ enum ContractCopy {
         copyMonitorFanTarget,
         copyMonitorFanTemperature,
         copyMonitorFanTemperatureSources,
+        copyMonitorFanTemperatureTick,
         copyMonitorFanTitle,
         copyMonitorFanTurbo,
         copyMonitorFanUnavailable,

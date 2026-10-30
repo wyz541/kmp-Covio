@@ -226,11 +226,9 @@ struct MonitorFanTemperatureRuleEditor: View {
 
             let temperatureRange = temperatureRange(for: index, points: points)
             if temperatureRange.lowerBound < temperatureRange.upperBound {
-                sliderRow(
-                    title: ContractCopy.copyMonitorFanTemperature.text(for: language),
+                temperatureSliderRow(
                     value: temperatureBinding(source: source, index: index, points: points),
                     range: temperatureRange,
-                    step: 1,
                     accessibilityLabel: "\(sourceTitle(source)) \(controlPointTitle(index)) \(ContractCopy.copyMonitorFanTemperature.text(for: language))",
                     accessibilityValue: "\(Int(point.celsius.rounded())) °C",
                     onEditingChanged: { editing in
@@ -265,24 +263,47 @@ struct MonitorFanTemperatureRuleEditor: View {
         )
     }
 
-    private func sliderRow(
-        title: String,
+    private func temperatureSliderRow(
         value: Binding<Double>,
         range: ClosedRange<Double>,
-        step: Double,
         accessibilityLabel: String,
         accessibilityValue: String,
         onEditingChanged: @escaping (Bool) -> Void
     ) -> some View {
-        HStack(spacing: 6) {
-            Text(title)
-                .font(.system(size: 8, weight: .medium))
-                .foregroundStyle(MacTheme.textSecondary)
-                .frame(width: 58, alignment: .leading)
-            Slider(value: value, in: range, step: step, onEditingChanged: onEditingChanged)
+        let midpoint = ((range.lowerBound + range.upperBound) / 2).rounded()
+        return HStack(alignment: .top, spacing: 6) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(ContractCopy.copyMonitorFanTemperature.text(for: language))
+                    .font(.system(size: 8, weight: .medium))
+                    .foregroundStyle(MacTheme.textSecondary)
+                Text(ContractCopy.copyMonitorFanTemperatureTick.text(for: language))
+                    .font(.system(size: 7, weight: .medium))
+                    .foregroundStyle(MacTheme.textSecondary)
+            }
+            .frame(width: 58, alignment: .leading)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Slider(
+                    value: value,
+                    in: range,
+                    onEditingChanged: onEditingChanged
+                )
                 .disabled(busy)
                 .accessibilityLabel(accessibilityLabel)
                 .accessibilityValue(accessibilityValue)
+
+                HStack(spacing: 0) {
+                    Text(MonitorFanFormat.celsius(range.lowerBound))
+                    Spacer(minLength: 0)
+                    Text(MonitorFanFormat.celsius(midpoint))
+                    Spacer(minLength: 0)
+                    Text(MonitorFanFormat.celsius(range.upperBound))
+                }
+                .font(.system(size: 7, weight: .medium, design: .rounded))
+                .foregroundStyle(MacTheme.textSecondary)
+                .monospacedDigit()
+                .accessibilityHidden(true)
+            }
         }
     }
 

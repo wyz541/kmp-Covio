@@ -4892,6 +4892,10 @@
       "en": "Temperature sources",
       "zh-Hans": "温度来源"
     },
+    "copy/monitor/fan/temperature-tick": {
+      "en": "1 °C per step",
+      "zh-Hans": "每格 1 °C"
+    },
     "copy/monitor/fan/source-summary": {
       "en": "%d control sources · highest wins",
       "zh-Hans": "%d 个控温来源取最高"

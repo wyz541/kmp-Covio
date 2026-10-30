@@ -61,7 +61,8 @@ SMC 键只在读取器初始化时枚举一次。
 popover 固定宽度 420 点。
 系统自动状态高度为 300 点。
 Covio 曲线折叠状态高度为 470 点。
-高级区展开或手动状态高度为 760 点。
+高级区展开高度为 820 点。
+手动状态高度为 760 点。
 popover 外壳使用系统原生 regular Liquid Glass。
 警告区、控制区和传感器区使用标准 thin material。
 Liquid Glass 不用于内容层。

@@ -287,10 +287,13 @@ struct MonitorFanPopover: View {
         if model.configuration.mode == .automatic {
             return 280
         }
+        if advancedExpanded {
+            return 820
+        }
         if model.configuration.mode == .manual {
             return 760
         }
-        return advancedExpanded ? 760 : 360
+        return 360
     }
 
     private var omittedThermalSourceCount: Int {

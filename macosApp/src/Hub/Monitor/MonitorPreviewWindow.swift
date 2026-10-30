@@ -545,7 +545,7 @@ struct MonitorFanPreviewRoot: View {
             return 280
         }
         if scenario == "temperature-rules-advanced" {
-            return 760
+            return 820
         }
         return 360
     }

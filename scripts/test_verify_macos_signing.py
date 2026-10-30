@@ -89,9 +89,27 @@ class VerifyMacOSSigningTests(unittest.TestCase):
         parsed = signing.parse_signing_identity(".", AD_HOC_REPORT, AD_HOC_REQUIREMENT)
         self.assertEqual(signing.stable_identity_errors([parsed], False), [])
 
-    def test_adhoc_identity_without_requirement_explains_the_signature(self):
-        with self.assertRaisesRegex(signing.SigningError, "ad-hoc signature"):
-            signing.parse_signing_identity(".", AD_HOC_REPORT, AD_HOC_WITHOUT_REQUIREMENT)
+    def test_adhoc_identity_without_requirement_is_allowed_without_strict_check(self):
+        parsed = signing.parse_signing_identity(
+            ".", AD_HOC_REPORT, AD_HOC_WITHOUT_REQUIREMENT
+        )
+        self.assertEqual(parsed.designated_requirement, "")
+        self.assertEqual(signing.stable_identity_errors([parsed], False), [])
+
+    def test_adhoc_identity_without_requirement_fails_strict_check(self):
+        parsed = signing.parse_signing_identity(
+            ".", AD_HOC_REPORT, AD_HOC_WITHOUT_REQUIREMENT
+        )
+        errors = signing.stable_identity_errors([parsed], True)
+        self.assertTrue(any("signed ad-hoc" in error for error in errors))
+        self.assertTrue(any("no designated requirement" in error for error in errors))
+
+    def test_certificate_without_requirement_fails_strict_check(self):
+        parsed = signing.parse_signing_identity(
+            ".", STABLE_REPORT, AD_HOC_WITHOUT_REQUIREMENT
+        )
+        errors = signing.stable_identity_errors([parsed], True)
+        self.assertTrue(any("no designated requirement" in error for error in errors))
 
     def test_cdhash_requirement_fails_even_with_certificate_authority(self):
         parsed = identity(requirement='cdhash H"' + "a" * 40 + '"')

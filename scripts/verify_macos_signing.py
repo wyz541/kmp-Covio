@@ -92,15 +92,9 @@ def parse_signing_identity(
         r"^designated =>\s*(.+)$", requirement_report, re.MULTILINE
     )
     if requirement_match is None:
-        suffix = " (ad-hoc signature)" if signature == "adhoc" else ""
-        raise SigningError(
-            f"{relative_path}: codesign output has no designated requirement{suffix}"
-        )
-    requirement = requirement_match.group(1).strip()
-    if not requirement:
-        raise SigningError(
-            f"{relative_path}: codesign output has an empty designated requirement"
-        )
+        requirement = ""
+    else:
+        requirement = requirement_match.group(1).strip()
 
     cdhash = _report_field(signing_report, "CDHash") or ""
     return SigningIdentity(
@@ -188,7 +182,9 @@ def stable_identity_errors(
         elif not identity.authority:
             errors.append(f"{name} has no signing Authority")
 
-        if "cdhash" in identity.designated_requirement.lower():
+        if not identity.designated_requirement:
+            errors.append(f"{name} has no designated requirement")
+        elif "cdhash" in identity.designated_requirement.lower():
             errors.append(
                 f"{name} designated requirement depends on CDHash instead of a certificate"
             )

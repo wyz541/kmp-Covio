@@ -1,4 +1,4 @@
-# Covio 0.6.0（内测 build 10）
+# Covio 0.6.0（内测 build 11）
 
 Covio 0.6.0 是内测版。
 此版本不用于公开分发。
@@ -15,42 +15,35 @@ Covio 0.6.0 是内测版。
 模型在用户确认后下载、校验并登记。
 本版不构建离线模型 DMG。
 
-## 从 build 9 到 build 10 的变化
+## 从 build 10 到 build 11 的变化
 
-### 风扇温控
+### 全局 Helper
 
-- CPU、GPU 和电池可以作为独立温度来源。
-- 每个来源可以启用或停用，并保存自己的温度控制点。
-- 同一来源取有效传感器读数的最大值。
-- 多个来源同时启用时，每台风扇采用最高请求。
-- 电池来源支持 `32°C → 30%` 和 `34°C → 50%` 等低阈值规则。
-- 温控规则继续使用 1 秒控制循环和 `1.5°C` 回滞。
-- 已启用来源连续 3 次读取失败后，helper 恢复系统控制。
+- Helper 收敛为 Covio 的全局运行能力。
+- Overview 不再显示 helper 卡、版本、安装或卸载入口。
+- Settings 搜索不再返回 helper、助手或 privileged 设置项。
+- Display 不再显示独立的 helper 行和安装或修复按钮。
+- Fan 不再显示独立的 helper 安装或修复按钮。
+- Fan 控制读取同一个 AppRuntime helper 状态。
+- Lid、Display、Fan 和充电上限只显示能力级状态。
+- 安装、升级、签名校验和恢复仍由全局 helper 路径负责。
 
-### 风扇曲线
+### 用户界面
 
-- 自动曲线支持插电和电池两套配置。
-- 当前生效曲线随电源来源切换。
-- 旧 RPM 曲线继续兼容已有配置。
-
-### 传感器与手动操作
-
-- 控制传感器显示可读名称，并支持按名称筛选。
-- 未知传感器键继续显示原始键名。
-- 手动模式支持单风扇全速和全部风扇全速。
-- 单风扇全速在同步关闭时只修改目标风扇。
-- 全部风扇全速逐台使用各自硬件上限。
-- 一键恢复自动曲线不改变系统自动控制入口。
+- 用户不需要理解 helper、LaunchDaemon 或特权服务。
+- 功能不可用时显示“Covio 系统支持不可用”或“需要 Covio 系统支持”。
+- 技术错误继续写入日志，供诊断使用。
+- 亮色和深色界面保持原有布局，不新增替代 helper 卡片。
 
 ## 验证
 
 - Kotlin 共享测试在 JVM 和 macOS Arm64 上通过。
-- macOS XCTest：`981` 项通过，`3` 项跳过，`0` 失败。
+- macOS XCTest：`982` 项通过，`3` 项跳过，`0` 失败。
 - `bash scripts/test-all.sh` 通过。
-- 温度来源合并、电源曲线、传感器失败回退和全速动作由自动化测试覆盖。
-- 真机验证覆盖电池温度来源、CPU 与电池多来源合并、风扇恢复系统控制。
-- 全速真机验证：风扇 1 目标 `5348 RPM`，风扇 2 目标 `5776 RPM`。
-- 退出 Covio 后，helper 返回 `active=false`、`mode=system`。
+- Settings 搜索测试确认 helper 不再作为设置项出现。
+- Fan 状态映射测试覆盖全局 helper 的 ready、missing、outdated 和 unavailable 状态。
+- 真机亮色和深色截图覆盖 Display 详情浮层 Before/After。
+- GitHub Actions：Contract and scripts、Kotlin、macOS SwiftUI 全部通过。
 
 ## 安装
 
@@ -72,7 +65,7 @@ xattr -dr com.apple.quarantine /Applications/Covio.app
 ## 内测说明
 
 - 使用测试 Mac。
-- 风扇控制会写入 SMC 值，并需要特权 helper。
+- 风扇控制会写入 SMC 值，并需要全局特权 helper。
 - 合盖保持会增加电池消耗。
 - 更新检查读取 GitHub Releases 页面。
 - 更新检查忽略 pre-release。

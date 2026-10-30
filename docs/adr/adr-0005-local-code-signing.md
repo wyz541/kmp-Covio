@@ -83,6 +83,27 @@ CODE_SIGN_STYLE = Manual
 
 Xcode 图形界面里构建走 `Covio.xcscheme` 的 Build 预动作，也会调用脚本。因此每个 worktree 的第一次构建都会补上这个文件，不需要手动步骤。
 
+## 开发签名自动检查
+
+构建脚本与测试脚本在产物生成后调用 `scripts/verify_macos_signing.py`。检查覆盖主应用、helper 与嵌入框架。
+
+本机有 `Signing.local.xcconfig` 时，检查要求非 ad-hoc 签名，并拒绝只绑定 cdhash 的 Designated Requirement。构建与测试各用一份基线。第一次成功检查把构建身份写到 `build/xcode-dd/development-signing-Debug-build.json`，把测试身份写到 `build/xcode-dd/development-signing-Debug-test.json`。后续构建比较每个嵌套代码对象的 `Identifier` 与 `designated =>`。`CDHash` 不参与比较。
+
+CI 没有签名证书，因此构建保持 ad-hoc。检查在没有本机覆盖文件或基线时只验证签名完整性，不要求固定身份。显式传入 `--require-stable` 时，ad-hoc 产物会失败。
+
+开发者可以手动运行：
+
+```bash
+python3 -I scripts/verify_macos_signing.py \
+  build/xcode-dd/Build/Products/Debug/Covio.app \
+  --require-stable \
+  --baseline build/xcode-dd/development-signing-Debug-build.json
+```
+
+证书或 Bundle ID 有意变更时，先确认变更目标，再删除 `build/xcode-dd/development-signing-Debug-build.json` 与 `build/xcode-dd/development-signing-Debug-test.json`。其他情况不要删除基线。
+
+开发授权验收使用固定路径。构建产物固定为 `build/xcode-dd/Build/Products/Debug/Covio.app`，安装验收固定为 `/Applications/Covio.app`。不要在同一授权周期内切换多个 app 副本。启动并授权一次后，重新构建并覆盖同一路径，确认系统不再要求同一权限。权限测试使用临时目录或测试夹具，不访问真实 Desktop。
+
 ## 后果
 
 ### 正面

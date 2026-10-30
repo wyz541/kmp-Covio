@@ -362,6 +362,27 @@ To keep the grant across builds, pin a code-signing certificate:
 `macosApp/Signing.local.xcconfig` is in `.gitignore`.
 CI has no certificate, so CI uses the ad-hoc default.
 
+The build and test scripts verify the main app and its nested code.
+When a local certificate is configured, the check compares the signing identity with the previous development build.
+The first build creates `build/xcode-dd/development-signing-Debug-build.json`.
+Delete this baseline only when a certificate or Bundle ID change is intentional.
+
+Run the check directly with:
+
+```sh
+python3 -I scripts/verify_macos_signing.py \
+  build/xcode-dd/Build/Products/Debug/Covio.app \
+  --require-stable \
+  --baseline build/xcode-dd/development-signing-Debug-build.json
+```
+
+The `CDHash` can change after a rebuild.
+The `Identifier` and `designated =>` value must stay the same.
+Keep the development app at one path during the authorization test.
+The canonical install path is `/Applications/Covio.app`.
+Do not switch between separate app copies.
+Use temporary fixtures for permission tests, not the real Desktop.
+
 The SwiftUI host is on macOS only.
 It uses the same `config.json` as the Compose version.
 The two versions use different lock files, so both can run at the same time.

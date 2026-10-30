@@ -49,5 +49,16 @@ xcodebuild \
   COVIO_RELEASE_ID="$RELEASE_ID" \
   test
 
+APP="$DERIVED_DATA/Build/Products/$CONFIGURATION/Covio.app"
+SIGNING_BASELINE="$DERIVED_DATA/development-signing-$CONFIGURATION-test.json"
+if [[ -f "$ROOT/macosApp/Signing.local.xcconfig" || -f "$SIGNING_BASELINE" ]]; then
+  python3 -I "$ROOT/scripts/verify_macos_signing.py" \
+    "$APP" \
+    --require-stable \
+    --baseline "$SIGNING_BASELINE"
+else
+  python3 -I "$ROOT/scripts/verify_macos_signing.py" "$APP"
+fi
+
 bash "$ROOT/scripts/verify-helper-daemon.sh" \
-  "$ROOT/build/xcode-dd/Build/Products/$CONFIGURATION/Covio.app"
+  "$APP"

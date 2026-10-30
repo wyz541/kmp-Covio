@@ -51,4 +51,14 @@ if [[ ! -d "$APP" ]]; then
   exit 1
 fi
 
+SIGNING_BASELINE="$DERIVED_DATA/development-signing-$CONFIGURATION-build.json"
+if [[ -f "$ROOT/macosApp/Signing.local.xcconfig" || -f "$SIGNING_BASELINE" ]]; then
+  python3 -I "$ROOT/scripts/verify_macos_signing.py" \
+    "$APP" \
+    --require-stable \
+    --baseline "$SIGNING_BASELINE"
+else
+  python3 -I "$ROOT/scripts/verify_macos_signing.py" "$APP"
+fi
+
 printf 'Built %s\n' "$APP"

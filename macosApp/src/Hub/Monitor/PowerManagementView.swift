@@ -1033,8 +1033,6 @@ protocol PowerManagementModel: AnyObject {
     func endSession()
     func displaySleepNow()
     func openDisplaySettings()
-    func installHelper()
-    func openHelperApproval()
 }
 
 extension AppRuntime: PowerManagementModel {

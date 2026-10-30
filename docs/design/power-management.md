@@ -24,7 +24,13 @@ Power card 保留空闲睡眠、安全护栏、电池和温度策略。
 
 本设计不增加第七个页签。
 电源浮层读取真实系统观察和电源策略结果。
-屏幕 card 显示合盖 helper 的状态与修复入口。
+屏幕 card 只在特权能力不可用时显示能力级提示。
+屏幕 card 不提供 helper 的独立安装、版本或修复入口。
+
+| 主题 | Before | After |
+| --- | --- | --- |
+| 亮色 | ![Helper 行 Before](previews/490-global-helper-display-light-before-1.png) | ![Helper 行 After](previews/490-global-helper-display-light-after-1.png) |
+| 深色 | ![Helper 行 Before](previews/490-global-helper-display-dark-before-1.png) | ![Helper 行 After](previews/490-global-helper-display-dark-after-1.png) |
 浮层通过 `AppRuntime` 写入持久化的 `PowerConfig`。
 
 `AppConfig.enabled` 是睡眠保护总开关。

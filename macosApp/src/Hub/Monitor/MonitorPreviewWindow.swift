@@ -267,14 +267,6 @@ final class PowerPreviewModel: PowerManagementModel {
         )
     }
 
-    func installHelper() {
-        helperStatus = .match
-        helperServiceState = .enabled
-        statusMessage = ContractCopy.copyOverviewHelperInstalled.text(for: language)
-    }
-
-    func openHelperApproval() {}
-
     func displaySleepNow() {}
 
     func openDisplaySettings() {}
@@ -614,7 +606,6 @@ struct MonitorFanPreviewRoot: View {
         MonitorFanPopover(
             reading: MonitorFanPreviewFixtures.reading,
             language: .simplifiedChinese,
-            runtime: nil,
             model: model,
             scrollsContent: Self.scenario == "sensors",
             rendersForSnapshot: true,
@@ -653,7 +644,6 @@ struct MonitorFanCardPreviewRoot: View {
             temperatureHistory: [61.2, 62.8, 64.1, 63.6, 64.8, 65.9],
             rpmHistory: [1_920, 2_040, 2_260, 2_380, 2_560, 2_789],
             language: .simplifiedChinese,
-            runtime: nil,
             model: model
         )
         .frame(width: 296, height: HubMetrics.monitorCardHeight)

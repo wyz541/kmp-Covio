@@ -61,7 +61,7 @@ struct MonitorTabView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .task {
-            fanControlModel.refreshAvailability()
+            fanControlModel.updateGlobalHelperStatus(runtime?.helperStatus ?? powerModel?.helperStatus)
             guard runsSampling else { return }
             await runSamples()
         }
@@ -73,6 +73,9 @@ struct MonitorTabView: View {
             if let reportModel = runtime?.monitorHistoryReport {
                 MonitorReportView(model: reportModel, language: language)
             }
+        }
+        .onChange(of: runtime?.helperStatus) { _, _ in
+            fanControlModel.updateGlobalHelperStatus(runtime?.helperStatus ?? powerModel?.helperStatus)
         }
     }
 
@@ -295,7 +298,6 @@ struct MonitorTabView: View {
                 temperatureHistory: history.fanTemperature,
                 rpmHistory: history.fanRPM,
                 language: language,
-                runtime: runtime,
                 model: fanControlModel,
                 popoverCoordinator: popoverCoordinator
             )

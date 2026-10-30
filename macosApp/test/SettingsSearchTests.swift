@@ -49,7 +49,6 @@ final class SettingsCatalogTests: XCTestCase {
     func testAnchorConstantsMatchTheCatalog() {
         let constants: [String] = [
             SettingsRowID.overviewMaster,
-            SettingsRowID.overviewHelper,
             SettingsRowID.batteryEnabled,
             SettingsRowID.batteryCapacity,
             SettingsRowID.batteryTime,
@@ -93,10 +92,11 @@ final class SettingsSearchIndexTests: XCTestCase {
         XCTAssertTrue(hits.contains { $0.rowID == SettingsRowID.generalSleepMode })
     }
 
-    /// 命中说明。
-    func testMatchesTheSummary() {
-        let hits = SettingsSearchIndex.search("privileged", language: .english)
-        XCTAssertTrue(hits.contains { $0.rowID == SettingsRowID.overviewHelper })
+    /// Helper 是全局运行能力，不作为用户可搜索的设置项出现。
+    func testHelperIsNotAUserFacingSetting() {
+        XCTAssertTrue(SettingsSearchIndex.search("helper", language: .english).isEmpty)
+        XCTAssertTrue(SettingsSearchIndex.search("助手", language: .simplifiedChinese).isEmpty)
+        XCTAssertTrue(SettingsSearchIndex.search("privileged", language: .english).isEmpty)
     }
 
     /// 命中关键词。关键词里同时有中文与英文，两种界面语言都能用。
@@ -146,7 +146,7 @@ final class SettingsSearchIndexTests: XCTestCase {
 
     /// 命中带着所属分节，跳转时直接用它。
     func testHitCarriesTheSection() {
-        let hits = SettingsSearchIndex.search("helper", language: .english)
+        let hits = SettingsSearchIndex.search("hibernate", language: .english)
         XCTAssertFalse(hits.isEmpty)
         for hit in hits {
             XCTAssertEqual(hit.section, hit.entry.section)

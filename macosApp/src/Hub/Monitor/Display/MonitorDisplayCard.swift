@@ -446,8 +446,6 @@ private struct MonitorDisplayDetailPanel: View {
 
             Divider().overlay(MacTheme.divider)
 
-            helperRow(model: model)
-
             if let error = model.closedLidZeroBrightnessError, !error.isEmpty,
                model.displayConfig.closedLidDisplayMode == .blackScreenPipeline {
                 MacAlert(
@@ -455,34 +453,6 @@ private struct MonitorDisplayDetailPanel: View {
                     kind: .warning,
                     language: language
                 )
-            }
-        }
-    }
-
-    private func helperRow(model: any PowerManagementModel) -> some View {
-        MacSettingRow(
-            title: ContractCopy.copyPowerStatusHelper.text(for: language),
-            description: ContractCopy.copyPowerStatusHelperHint.text(for: language)
-        ) {
-            HStack(spacing: MacTheme.space2) {
-                Text(helperValue(model))
-                    .font(.callout)
-                    .foregroundStyle(helperNeedsAction(model) ? MacTheme.warningText : MacTheme.textSecondary)
-                    .lineLimit(1)
-                if helperNeedsAction(model) {
-                    MacButton(
-                        title: helperActionTitle(model),
-                        kind: .primary,
-                        isEnabled: !model.busy,
-                        minimumHitHeight: 44
-                    ) {
-                        if model.helperServiceState == .requiresApproval {
-                            model.openHelperApproval()
-                        } else {
-                            model.installHelper()
-                        }
-                    }
-                }
             }
         }
     }
@@ -503,10 +473,6 @@ private struct MonitorDisplayDetailPanel: View {
             : model.displayConfig.closedLidDisplayMode
     }
 
-    private func helperNeedsAction(_ model: any PowerManagementModel) -> Bool {
-        model.helperStatus != .match || model.helperServiceState != .enabled
-    }
-
     private func closedLidRuntimeError(_ model: any PowerManagementModel) -> String? {
         guard let error = model.executionError,
               error != model.closedLidZeroBrightnessError
@@ -521,21 +487,6 @@ private struct MonitorDisplayDetailPanel: View {
         }
     }
 
-    private func helperValue(_ model: any PowerManagementModel) -> String {
-        if model.helperStatus == .match, model.helperServiceState == .enabled {
-            return ContractCopy.copyOverviewHelperInstalled.text(for: language)
-        }
-        if model.helperServiceState == .requiresApproval {
-            return ContractCopy.copyHelperServiceRequiresApproval.text(for: language)
-        }
-        return ContractCopy.copyOverviewHelperMissing.text(for: language)
-    }
-
-    private func helperActionTitle(_ model: any PowerManagementModel) -> String {
-        model.helperServiceState == .requiresApproval
-            ? ContractCopy.copyClipboardActionOpenSettings.text(for: language)
-            : ContractCopy.copyOverviewHelperInstall.text(for: language)
-    }
 }
 
 private struct DisplaySectionHeader: View {

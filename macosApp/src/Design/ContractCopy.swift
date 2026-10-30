@@ -254,13 +254,13 @@ enum ContractCopy {
     /// `copy/component/window-shell/toolbar`
     static let copyComponentWindowShellToolbar = LocalizedCopy(key: "copy/component/window-shell/toolbar", en: "Toolbar", zhHans: "工具栏")
     /// `copy/dialog/helper-install/body`
-    static let copyDialogHelperInstallBody = LocalizedCopy(key: "copy/dialog/helper-install/body", en: "Covio needs the helper for sleep control.", zhHans: "Covio 需要助手来控制睡眠。")
+    static let copyDialogHelperInstallBody = LocalizedCopy(key: "copy/dialog/helper-install/body", en: "Covio needs system support for privileged controls.", zhHans: "Covio 需要系统支持来完成特权控制。")
     /// `copy/dialog/helper-install/title`
-    static let copyDialogHelperInstallTitle = LocalizedCopy(key: "copy/dialog/helper-install/title", en: "Install helper", zhHans: "安装助手")
+    static let copyDialogHelperInstallTitle = LocalizedCopy(key: "copy/dialog/helper-install/title", en: "Repair Covio support", zhHans: "修复 Covio 支持")
     /// `copy/dialog/helper-unavailable/body`
-    static let copyDialogHelperUnavailableBody = LocalizedCopy(key: "copy/dialog/helper-unavailable/body", en: "Start the helper, then try again.", zhHans: "启动助手，然后重试。")
+    static let copyDialogHelperUnavailableBody = LocalizedCopy(key: "copy/dialog/helper-unavailable/body", en: "Covio system support is unavailable. Reinstall Covio and try again.", zhHans: "Covio 系统支持暂不可用。请重新安装 Covio 后重试。")
     /// `copy/dialog/helper-unavailable/title`
-    static let copyDialogHelperUnavailableTitle = LocalizedCopy(key: "copy/dialog/helper-unavailable/title", en: "Helper unavailable", zhHans: "助手不可用")
+    static let copyDialogHelperUnavailableTitle = LocalizedCopy(key: "copy/dialog/helper-unavailable/title", en: "Covio support unavailable", zhHans: "Covio 支持不可用")
     /// `copy/dialog/reset/body`
     static let copyDialogResetBody = LocalizedCopy(key: "copy/dialog/reset/body", en: "This action removes all local Covio settings.", zhHans: "此操作会删除全部本地 Covio 设置。")
     /// `copy/dialog/reset/title`
@@ -338,17 +338,17 @@ enum ContractCopy {
     /// `copy/helper/service/enabled`
     static let copyHelperServiceEnabled = LocalizedCopy(key: "copy/helper/service/enabled", en: "Managed by macOS", zhHans: "由 macOS 管理")
     /// `copy/helper/service/error`
-    static let copyHelperServiceError = LocalizedCopy(key: "copy/helper/service/error", en: "Helper service needs attention", zhHans: "Helper 服务需要处理")
+    static let copyHelperServiceError = LocalizedCopy(key: "copy/helper/service/error", en: "Covio system support needs attention", zhHans: "Covio 系统支持需要处理")
     /// `copy/helper/service/legacy`
-    static let copyHelperServiceLegacy = LocalizedCopy(key: "copy/helper/service/legacy", en: "Legacy helper needs migration", zhHans: "旧版 Helper 需要迁移")
+    static let copyHelperServiceLegacy = LocalizedCopy(key: "copy/helper/service/legacy", en: "Covio support needs migration", zhHans: "Covio 支持需要迁移")
     /// `copy/helper/service/not-found`
-    static let copyHelperServiceNotFound = LocalizedCopy(key: "copy/helper/service/not-found", en: "Bundled helper service is missing", zhHans: "应用内的 Helper 服务缺失")
+    static let copyHelperServiceNotFound = LocalizedCopy(key: "copy/helper/service/not-found", en: "Bundled Covio support is missing", zhHans: "应用内的 Covio 支持缺失")
     /// `copy/helper/service/not-registered`
-    static let copyHelperServiceNotRegistered = LocalizedCopy(key: "copy/helper/service/not-registered", en: "Helper is not registered", zhHans: "Helper 未注册")
+    static let copyHelperServiceNotRegistered = LocalizedCopy(key: "copy/helper/service/not-registered", en: "Covio support is not registered", zhHans: "Covio 支持未注册")
     /// `copy/helper/service/requires-approval`
-    static let copyHelperServiceRequiresApproval = LocalizedCopy(key: "copy/helper/service/requires-approval", en: "Approve Covio Helper in System Settings", zhHans: "请在系统设置中批准 Covio Helper")
+    static let copyHelperServiceRequiresApproval = LocalizedCopy(key: "copy/helper/service/requires-approval", en: "Approve Covio support in System Settings", zhHans: "请在系统设置中批准 Covio 支持")
     /// `copy/helper/service/unsupported`
-    static let copyHelperServiceUnsupported = LocalizedCopy(key: "copy/helper/service/unsupported", en: "Helper service is unavailable on this macOS", zhHans: "当前 macOS 不支持 Helper 服务")
+    static let copyHelperServiceUnsupported = LocalizedCopy(key: "copy/helper/service/unsupported", en: "Covio support is unavailable on this macOS", zhHans: "当前 macOS 不支持所需系统能力")
     /// `copy/hub/action/back`
     static let copyHubActionBack = LocalizedCopy(key: "copy/hub/action/back", en: "Back", zhHans: "返回")
     /// `copy/hub/action/done`
@@ -692,7 +692,7 @@ enum ContractCopy {
     /// `copy/monitor/display/keep-awake`
     static let copyMonitorDisplayKeepAwake = LocalizedCopy(key: "copy/monitor/display/keep-awake", en: "Keep system running with lid closed", zhHans: "合盖时保持系统运行")
     /// `copy/monitor/display/keep-awake-hint`
-    static let copyMonitorDisplayKeepAwakeHint = LocalizedCopy(key: "copy/monitor/display/keep-awake-hint", en: "Uses the closed-lid helper and the Power safety guards.", zhHans: "使用合盖 Helper 和 Power 安全护栏。")
+    static let copyMonitorDisplayKeepAwakeHint = LocalizedCopy(key: "copy/monitor/display/keep-awake-hint", en: "Uses Covio system support and the Power safety guards.", zhHans: "使用 Covio 系统支持和 Power 安全护栏。")
     /// `copy/monitor/display/mode`
     static let copyMonitorDisplayMode = LocalizedCopy(key: "copy/monitor/display/mode", en: "Screen when lid closes", zhHans: "合盖时的屏幕")
     /// `copy/monitor/display/mode-black`
@@ -788,11 +788,11 @@ enum ContractCopy {
     /// `copy/monitor/fan/full-temperature`
     static let copyMonitorFanFullTemperature = LocalizedCopy(key: "copy/monitor/fan/full-temperature", en: "Full-speed temperature", zhHans: "全速温度")
     /// `copy/monitor/fan/helper-required`
-    static let copyMonitorFanHelperRequired = LocalizedCopy(key: "copy/monitor/fan/helper-required", en: "Fan writes require the privileged helper.", zhHans: "写入风扇转速需要特权 Helper。")
+    static let copyMonitorFanHelperRequired = LocalizedCopy(key: "copy/monitor/fan/helper-required", en: "Fan control requires Covio system support.", zhHans: "风扇控制需要 Covio 系统支持。")
     /// `copy/monitor/fan/helper-unavailable`
-    static let copyMonitorFanHelperUnavailable = LocalizedCopy(key: "copy/monitor/fan/helper-unavailable", en: "The helper is not running. Fan readings remain available.", zhHans: "Helper 未运行。风扇读数仍可使用。")
+    static let copyMonitorFanHelperUnavailable = LocalizedCopy(key: "copy/monitor/fan/helper-unavailable", en: "Covio system support is unavailable. Fan readings remain available.", zhHans: "Covio 系统支持暂不可用。风扇读数仍可使用。")
     /// `copy/monitor/fan/install-helper`
-    static let copyMonitorFanInstallHelper = LocalizedCopy(key: "copy/monitor/fan/install-helper", en: "Install or repair helper", zhHans: "安装或修复 Helper")
+    static let copyMonitorFanInstallHelper = LocalizedCopy(key: "copy/monitor/fan/install-helper", en: "Restore Covio support", zhHans: "恢复 Covio 支持")
     /// `copy/monitor/fan/legend-window`
     static let copyMonitorFanLegendWindow = LocalizedCopy(key: "copy/monitor/fan/legend-window", en: "Recent samples", zhHans: "近期采样")
     /// `copy/monitor/fan/manual`
@@ -922,7 +922,7 @@ enum ContractCopy {
     /// `copy/monitor/power/charge-limit/failed`
     static let copyMonitorPowerChargeLimitFailed = LocalizedCopy(key: "copy/monitor/power/charge-limit/failed", en: "Charge limit did not apply", zhHans: "充电上限未生效")
     /// `copy/monitor/power/charge-limit/helper-required`
-    static let copyMonitorPowerChargeLimitHelperRequired = LocalizedCopy(key: "copy/monitor/power/charge-limit/helper-required", en: "Install or repair the helper", zhHans: "请安装或修复 helper")
+    static let copyMonitorPowerChargeLimitHelperRequired = LocalizedCopy(key: "copy/monitor/power/charge-limit/helper-required", en: "Charge limit requires Covio system support.", zhHans: "充电上限需要 Covio 系统支持。")
     /// `copy/monitor/power/charge-limit/restore`
     static let copyMonitorPowerChargeLimitRestore = LocalizedCopy(key: "copy/monitor/power/charge-limit/restore", en: "Restore system default", zhHans: "恢复系统默认")
     /// `copy/monitor/power/charge-limit/resume-at`
@@ -1238,11 +1238,11 @@ enum ContractCopy {
     /// `copy/overview/action/sleep-now`
     static let copyOverviewActionSleepNow = LocalizedCopy(key: "copy/overview/action/sleep-now", en: "Sleep Now", zhHans: "立即睡眠")
     /// `copy/overview/helper/install`
-    static let copyOverviewHelperInstall = LocalizedCopy(key: "copy/overview/helper/install", en: "Install helper", zhHans: "安装助手")
+    static let copyOverviewHelperInstall = LocalizedCopy(key: "copy/overview/helper/install", en: "Restore Covio support", zhHans: "恢复 Covio 支持")
     /// `copy/overview/helper/installed`
-    static let copyOverviewHelperInstalled = LocalizedCopy(key: "copy/overview/helper/installed", en: "Helper installed", zhHans: "助手已安装")
+    static let copyOverviewHelperInstalled = LocalizedCopy(key: "copy/overview/helper/installed", en: "Covio support is ready", zhHans: "Covio 支持已就绪")
     /// `copy/overview/helper/missing`
-    static let copyOverviewHelperMissing = LocalizedCopy(key: "copy/overview/helper/missing", en: "Helper not installed", zhHans: "助手未安装")
+    static let copyOverviewHelperMissing = LocalizedCopy(key: "copy/overview/helper/missing", en: "Covio support is unavailable", zhHans: "Covio 支持不可用")
     /// `copy/overview/helper/version`
     static let copyOverviewHelperVersion = LocalizedCopy(key: "copy/overview/helper/version", en: "Version", zhHans: "版本")
     /// `copy/overview/rules/master`
@@ -1320,7 +1320,7 @@ enum ContractCopy {
     /// `copy/page/overview/state/warning`
     static let copyPageOverviewStateWarning = LocalizedCopy(key: "copy/page/overview/state/warning", en: "03 · Overview - Warning", zhHans: "03 · Overview - 需要检查")
     /// `copy/page/overview/summary`
-    static let copyPageOverviewSummary = LocalizedCopy(key: "copy/page/overview/summary", en: "Manage sleep rules and helper status.", zhHans: "管理睡眠规则和助手状态。")
+    static let copyPageOverviewSummary = LocalizedCopy(key: "copy/page/overview/summary", en: "Manage sleep rules and Covio status.", zhHans: "管理睡眠规则和 Covio 状态。")
     /// `copy/page/overview/title`
     static let copyPageOverviewTitle = LocalizedCopy(key: "copy/page/overview/title", en: "Overview", zhHans: "概览")
     /// `copy/page/top-shelf-settings/state/disabled`
@@ -1344,13 +1344,13 @@ enum ContractCopy {
     /// `copy/power/alert/external-conflict`
     static let copyPowerAlertExternalConflict = LocalizedCopy(key: "copy/power/alert/external-conflict", en: "Another app changed the sleep setting. Covio will not clear it.", zhHans: "其他应用修改了睡眠设置。Covio 不会清除该设置。")
     /// `copy/power/alert/helper-missing`
-    static let copyPowerAlertHelperMissing = LocalizedCopy(key: "copy/power/alert/helper-missing", en: "Install the helper before using closed-lid hold.", zhHans: "使用合盖保持唤醒前请安装助手。")
+    static let copyPowerAlertHelperMissing = LocalizedCopy(key: "copy/power/alert/helper-missing", en: "Covio system support is unavailable. Reinstall Covio before using closed-lid hold.", zhHans: "Covio 系统支持暂不可用。重新安装 Covio 后可使用合盖保持唤醒。")
     /// `copy/power/alert/thermal`
     static let copyPowerAlertThermal = LocalizedCopy(key: "copy/power/alert/thermal", en: "The heat guard will release every hold.", zhHans: "温度保护会释放全部保持唤醒。")
     /// `copy/power/description/master`
     static let copyPowerDescriptionMaster = LocalizedCopy(key: "copy/power/description/master", en: "Use Covio to keep this Mac awake. Turning this off releases every rule and session.", zhHans: "使用 Covio 保持 Mac 唤醒。关闭后会释放全部规则和会话。")
     /// `copy/power/error/lid-not-applied`
-    static let copyPowerErrorLidNotApplied = LocalizedCopy(key: "copy/power/error/lid-not-applied", en: "The helper did not apply closed-lid protection. Check Helper status and try again.", zhHans: "Helper 没有应用合盖保护。检查 Helper 状态后重试。")
+    static let copyPowerErrorLidNotApplied = LocalizedCopy(key: "copy/power/error/lid-not-applied", en: "Covio did not apply closed-lid protection. Check system support and try again.", zhHans: "Covio 没有应用合盖保护。检查系统支持后重试。")
     /// `copy/power/error/master-off`
     static let copyPowerErrorMasterOff = LocalizedCopy(key: "copy/power/error/master-off", en: "Turn on Sleep Protection before starting a session.", zhHans: "启动会话前，请先打开“睡眠保护”。")
     /// `copy/power/history/adapter-connected`
@@ -1410,7 +1410,7 @@ enum ContractCopy {
     /// `copy/power/rules/lid`
     static let copyPowerRulesLid = LocalizedCopy(key: "copy/power/rules/lid", en: "Allow closed-lid hold", zhHans: "允许合盖保持唤醒")
     /// `copy/power/rules/lid-hint`
-    static let copyPowerRulesLidHint = LocalizedCopy(key: "copy/power/rules/lid-hint", en: "Requires the closed-lid helper and a successful safety check.", zhHans: "需要合盖 Helper，并通过安全检查。")
+    static let copyPowerRulesLidHint = LocalizedCopy(key: "copy/power/rules/lid-hint", en: "Requires Covio system support and a successful safety check.", zhHans: "需要 Covio 系统支持和安全检查通过。")
     /// `copy/power/rules/low-power-hint`
     static let copyPowerRulesLowPowerHint = LocalizedCopy(key: "copy/power/rules/low-power-hint", en: "Release protection when Low Power Mode is on.", zhHans: "启用低电量模式时释放保护。")
     /// `copy/power/rules/off`
@@ -1492,9 +1492,9 @@ enum ContractCopy {
     /// `copy/power/status/guard-ready`
     static let copyPowerStatusGuardReady = LocalizedCopy(key: "copy/power/status/guard-ready", en: "Safety guard ready", zhHans: "安全护栏就绪")
     /// `copy/power/status/helper`
-    static let copyPowerStatusHelper = LocalizedCopy(key: "copy/power/status/helper", en: "Closed-lid helper", zhHans: "合盖 Helper")
+    static let copyPowerStatusHelper = LocalizedCopy(key: "copy/power/status/helper", en: "Covio support", zhHans: "Covio 支持")
     /// `copy/power/status/helper-hint`
-    static let copyPowerStatusHelperHint = LocalizedCopy(key: "copy/power/status/helper-hint", en: "The privileged helper applies closed-lid holds.", zhHans: "特权 Helper 负责应用合盖保持唤醒。")
+    static let copyPowerStatusHelperHint = LocalizedCopy(key: "copy/power/status/helper-hint", en: "Covio applies privileged system changes.", zhHans: "Covio 负责应用特权系统更改。")
     /// `copy/power/status/low-power-mode`
     static let copyPowerStatusLowPowerMode = LocalizedCopy(key: "copy/power/status/low-power-mode", en: "Low Power Mode", zhHans: "低电量模式")
     /// `copy/power/status/no-external-display`
@@ -1542,15 +1542,15 @@ enum ContractCopy {
     /// `copy/status-item/disabled`
     static let copyStatusItemDisabled = LocalizedCopy(key: "copy/status-item/disabled", en: "Covio is paused.", zhHans: "Covio 已暂停。")
     /// `copy/status-item/helper-error`
-    static let copyStatusItemHelperError = LocalizedCopy(key: "copy/status-item/helper-error", en: "The helper needs attention.", zhHans: "Helper 需要处理。")
+    static let copyStatusItemHelperError = LocalizedCopy(key: "copy/status-item/helper-error", en: "Covio system support needs attention.", zhHans: "Covio 系统支持需要处理。")
     /// `copy/status-item/helper-identity-mismatch`
-    static let copyStatusItemHelperIdentityMismatch = LocalizedCopy(key: "copy/status-item/helper-identity-mismatch", en: "The app and helper releases do not match.", zhHans: "app 与 helper 的发布身份不一致。")
+    static let copyStatusItemHelperIdentityMismatch = LocalizedCopy(key: "copy/status-item/helper-identity-mismatch", en: "Covio components are out of sync.", zhHans: "Covio 组件版本不一致。")
     /// `copy/status-item/helper-outdated`
-    static let copyStatusItemHelperOutdated = LocalizedCopy(key: "copy/status-item/helper-outdated", en: "The helper needs an update.", zhHans: "Helper 需要更新。")
+    static let copyStatusItemHelperOutdated = LocalizedCopy(key: "copy/status-item/helper-outdated", en: "Covio needs an update.", zhHans: "Covio 需要更新。")
     /// `copy/status-item/helper-safe-mode`
-    static let copyStatusItemHelperSafeMode = LocalizedCopy(key: "copy/status-item/helper-safe-mode", en: "Privileged writes are disabled until the helper is repaired.", zhHans: "修复 Helper 前，特权写入保持禁用。")
+    static let copyStatusItemHelperSafeMode = LocalizedCopy(key: "copy/status-item/helper-safe-mode", en: "Privileged controls are disabled until Covio support is restored.", zhHans: "恢复 Covio 支持前，特权控制保持禁用。")
     /// `copy/status-item/helper-untrusted`
-    static let copyStatusItemHelperUntrusted = LocalizedCopy(key: "copy/status-item/helper-untrusted", en: "Covio cannot verify the helper.", zhHans: "Covio 无法验证 Helper。")
+    static let copyStatusItemHelperUntrusted = LocalizedCopy(key: "copy/status-item/helper-untrusted", en: "Covio cannot verify its system support.", zhHans: "Covio 无法验证系统支持。")
     /// `copy/status-item/idle-prevented`
     static let copyStatusItemIdlePrevented = LocalizedCopy(key: "copy/status-item/idle-prevented", en: "Idle sleep is prevented.", zhHans: "已阻止空闲休眠。")
     /// `copy/status-item/lid-prevented`
@@ -1646,7 +1646,7 @@ enum ContractCopy {
     /// `copy/tray/tooltip/charging`
     static let copyTrayTooltipCharging = LocalizedCopy(key: "copy/tray/tooltip/charging", en: "Charging", zhHans: "正在充电")
     /// `copy/tray/tooltip/helper-error`
-    static let copyTrayTooltipHelperError = LocalizedCopy(key: "copy/tray/tooltip/helper-error", en: "Helper error", zhHans: "助手错误")
+    static let copyTrayTooltipHelperError = LocalizedCopy(key: "copy/tray/tooltip/helper-error", en: "System support error", zhHans: "系统支持错误")
     /// `copy/tray/tooltip/idle-prevented`
     static let copyTrayTooltipIdlePrevented = LocalizedCopy(key: "copy/tray/tooltip/idle-prevented", en: "Idle sleep prevented", zhHans: "已阻止闲置睡眠")
     /// `copy/tray/tooltip/lid-prevented`

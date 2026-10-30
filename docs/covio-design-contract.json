@@ -4800,6 +4800,22 @@
       "en": "Manual RPM",
       "zh-Hans": "手动转速"
     },
+    "copy/monitor/fan/full-speed": {
+      "en": "Full speed",
+      "zh-Hans": "全速"
+    },
+    "copy/monitor/fan/full-speed-all": {
+      "en": "All fans full speed",
+      "zh-Hans": "全部风扇全速"
+    },
+    "copy/monitor/fan/full-speed-unit": {
+      "en": "Set fan %d to full speed",
+      "zh-Hans": "风扇 %d 设为全速"
+    },
+    "copy/monitor/fan/restore-auto-curve": {
+      "en": "Restore auto curve",
+      "zh-Hans": "恢复自动曲线"
+    },
     "copy/monitor/fan/sync-fans": {
       "en": "Synchronize fans",
       "zh-Hans": "同步风扇控制"

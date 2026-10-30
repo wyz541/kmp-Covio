@@ -779,6 +779,12 @@ enum ContractCopy {
     static let copyMonitorFanEnable = LocalizedCopy(key: "copy/monitor/fan/enable", en: "Enable fan control", zhHans: "启用风扇控制")
     /// `copy/monitor/fan/full-caption`
     static let copyMonitorFanFullCaption = LocalizedCopy(key: "copy/monitor/fan/full-caption", en: "%d °C reaches full speed", zhHans: "%d °C 达到全速")
+    /// `copy/monitor/fan/full-speed`
+    static let copyMonitorFanFullSpeed = LocalizedCopy(key: "copy/monitor/fan/full-speed", en: "Full speed", zhHans: "全速")
+    /// `copy/monitor/fan/full-speed-all`
+    static let copyMonitorFanFullSpeedAll = LocalizedCopy(key: "copy/monitor/fan/full-speed-all", en: "All fans full speed", zhHans: "全部风扇全速")
+    /// `copy/monitor/fan/full-speed-unit`
+    static let copyMonitorFanFullSpeedUnit = LocalizedCopy(key: "copy/monitor/fan/full-speed-unit", en: "Set fan %d to full speed", zhHans: "风扇 %d 设为全速")
     /// `copy/monitor/fan/full-temperature`
     static let copyMonitorFanFullTemperature = LocalizedCopy(key: "copy/monitor/fan/full-temperature", en: "Full-speed temperature", zhHans: "全速温度")
     /// `copy/monitor/fan/helper-required`
@@ -807,6 +813,8 @@ enum ContractCopy {
     static let copyMonitorFanReadFailed = LocalizedCopy(key: "copy/monitor/fan/read-failed", en: "Fan readings are unavailable.", zhHans: "风扇读数不可用。")
     /// `copy/monitor/fan/reset-curve`
     static let copyMonitorFanResetCurve = LocalizedCopy(key: "copy/monitor/fan/reset-curve", en: "Reset to line", zhHans: "恢复直线")
+    /// `copy/monitor/fan/restore-auto-curve`
+    static let copyMonitorFanRestoreAutoCurve = LocalizedCopy(key: "copy/monitor/fan/restore-auto-curve", en: "Restore auto curve", zhHans: "恢复自动曲线")
     /// `copy/monitor/fan/restore-system`
     static let copyMonitorFanRestoreSystem = LocalizedCopy(key: "copy/monitor/fan/restore-system", en: "Restore system control", zhHans: "恢复系统控制")
     /// `copy/monitor/fan/rpm`
@@ -2035,6 +2043,9 @@ enum ContractCopy {
         copyMonitorFanDetails,
         copyMonitorFanEnable,
         copyMonitorFanFullCaption,
+        copyMonitorFanFullSpeed,
+        copyMonitorFanFullSpeedAll,
+        copyMonitorFanFullSpeedUnit,
         copyMonitorFanFullTemperature,
         copyMonitorFanHelperRequired,
         copyMonitorFanHelperUnavailable,
@@ -2049,6 +2060,7 @@ enum ContractCopy {
         copyMonitorFanQuiet,
         copyMonitorFanReadFailed,
         copyMonitorFanResetCurve,
+        copyMonitorFanRestoreAutoCurve,
         copyMonitorFanRestoreSystem,
         copyMonitorFanRpm,
         copyMonitorFanSensorFilter,

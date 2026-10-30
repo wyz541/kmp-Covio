@@ -274,6 +274,40 @@ final class MonitorFanControlModel: ObservableObject {
         }
     }
 
+    /// 单风扇全速在同步开启时应用到全部风扇，与 Stats 一致。
+    func boostFan(_ fanIndex: Int, reading: MonitorFanReading) {
+        guard let fan = reading.units.first(where: { $0.index == fanIndex }) else { return }
+        manualApplyTask?.cancel()
+        configuration.enabled = true
+        configuration.mode = .manual
+        let targets = configuration.syncFans ? reading.units : [fan]
+        for target in targets {
+            configuration.manualModes[String(target.index)] = .manual
+            configuration.manualRPM[String(target.index)] = target.maximumRPM
+        }
+        persist()
+        apply(reading: reading)
+    }
+
+    /// 全部风扇全速分别使用每台风扇自己的硬件上限。
+    func boostAllFans(reading: MonitorFanReading) {
+        guard !reading.units.isEmpty else { return }
+        manualApplyTask?.cancel()
+        configuration.enabled = true
+        configuration.mode = .manual
+        for fan in reading.units {
+            configuration.manualModes[String(fan.index)] = .manual
+            configuration.manualRPM[String(fan.index)] = fan.maximumRPM
+        }
+        persist()
+        apply(reading: reading)
+    }
+
+    /// 从手动模式恢复自动曲线。系统自动仍使用单独的恢复系统控制动作。
+    func restoreAutoCurve(reading: MonitorFanReading) {
+        setMode(.curve, reading: reading)
+    }
+
     func manualMode(for fanIndex: Int) -> MonitorFanMode {
         configuration.manualModes[String(fanIndex)] == .automatic ? .automatic : .manual
     }

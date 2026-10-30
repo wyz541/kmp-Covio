@@ -540,9 +540,13 @@ struct MonitorFanPreviewRoot: View {
         scenario == "error" ? "Fan control write failed" : nil
     }
 
+    private static var controlsFans: Bool {
+        scenario != "error" && scenario != "system-control"
+    }
+
     @StateObject private var model = MonitorFanControlModel(
         previewConfiguration: MonitorFanConfiguration(
-            enabled: Self.scenario != "error",
+            enabled: Self.controlsFans,
             mode: Self.scenario == "manual-sync"
                 ? .manual
                 : .curve,
@@ -589,7 +593,7 @@ struct MonitorFanPreviewRoot: View {
         ),
         availability: .ready,
         helperStatus: FanControlHelperStatus(
-            active: Self.scenario != "error",
+            active: Self.controlsFans,
             mode: Self.scenario == "manual-sync"
                 ? "manual"
                 : "curve",

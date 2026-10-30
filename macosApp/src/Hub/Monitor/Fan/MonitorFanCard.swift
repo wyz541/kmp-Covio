@@ -265,6 +265,10 @@ struct MonitorFanPopover: View {
         model.availability == .ready
     }
 
+    private var isControllingFans: Bool {
+        model.helperStatus?.active == true || model.configuration.enabled
+    }
+
     private var statusText: String {
         if model.busy {
             return ContractCopy.copyMonitorFanApplying.text(for: language)
@@ -314,7 +318,11 @@ struct MonitorFanPopover: View {
             if !helperReady {
                 helperCallout
             }
-            warning
+            if isControllingFans {
+                takeoverBanner
+            } else {
+                warning
+            }
             controls
             Divider()
             fanSection
@@ -329,13 +337,16 @@ struct MonitorFanPopover: View {
     private var header: some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
+                Text(ContractCopy.copyMonitorFanControlTemperature.text(for: language))
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(MonitorCardKind.fan.accent)
                 Text(MonitorFanFormat.temperature(controlTemperature))
                     .font(.system(size: 30, weight: .semibold, design: .rounded))
                     .foregroundStyle(MacTheme.textPrimary)
                     .monospacedDigit()
                 Text(controlSummaryText)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(MacTheme.textSecondary)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(MacTheme.textSecondary)
             }
             Spacer(minLength: 0)
             Label {
@@ -343,8 +354,8 @@ struct MonitorFanPopover: View {
             } icon: {
                 Circle()
                     .fill(
-                        model.configuration.enabled || model.helperStatus?.active == true
-                            ? MacTheme.successText
+                        isControllingFans
+                            ? MacTheme.warningText
                             : MacTheme.textSecondary
                     )
                     .frame(width: 7, height: 7)
@@ -354,6 +365,49 @@ struct MonitorFanPopover: View {
             .accessibilityLabel(ContractCopy.copyMonitorFanA11yStatus.text(for: language))
             .accessibilityValue(statusText)
         }
+    }
+
+    private var takeoverBanner: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 7) {
+                Image(systemName: "exclamationmark.shield.fill")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(MacTheme.warningText)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(ContractCopy.copyMonitorFanTakeoverTitle.text(for: language))
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(MacTheme.textPrimary)
+                    Text(ContractCopy.copyMonitorFanTakeoverBody.text(for: language))
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(MacTheme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            Button {
+                model.restore()
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.uturn.backward")
+                    Text(ContractCopy.copyMonitorFanRestoreSystem.text(for: language))
+                    Spacer(minLength: 0)
+                }
+                .font(.system(size: 10, weight: .semibold))
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .tint(MonitorCardKind.fan.accent)
+            .frame(maxWidth: .infinity)
+            .disabled(model.busy)
+            .accessibilityHint(ContractCopy.copyMonitorFanTakeoverBody.text(for: language))
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .popoverContentSurface(
+            cornerRadius: 9,
+            tint: MacTheme.warningText.opacity(0.10)
+        )
     }
 
     private var helperCallout: some View {
@@ -578,11 +632,17 @@ struct MonitorFanPopover: View {
     }
 
     private var controlSummaryText: String {
-        let sourceCount = model.configuration.enabledTemperatureSources.count
-        if sourceCount > 0 {
+        let sources = model.configuration.enabledTemperatureSources
+        if sources.count == 1, let source = sources.first {
+            return String(
+                format: ContractCopy.copyMonitorFanControlSource.text(for: language),
+                temperatureSourceTitle(source)
+            )
+        }
+        if sources.count > 1 {
             return String(
                 format: ContractCopy.copyMonitorFanSourceSummary.text(for: language),
-                sourceCount
+                sources.count
             )
         }
         return String(
@@ -591,6 +651,17 @@ struct MonitorFanPopover: View {
                 ? reading.temperatures.count
                 : model.configuration.selectedSensorKeys.count
         )
+    }
+
+    private func temperatureSourceTitle(_ source: MonitorFanTemperatureSource) -> String {
+        switch source {
+        case .cpu:
+            ContractCopy.copyMonitorFanSourceCpu.text(for: language)
+        case .gpu:
+            ContractCopy.copyMonitorFanSourceGpu.text(for: language)
+        case .battery:
+            ContractCopy.copyMonitorFanSourceBattery.text(for: language)
+        }
     }
 
     private var manualControls: some View {
@@ -845,14 +916,6 @@ struct MonitorFanPopover: View {
                         .font(.system(size: 9, weight: .medium))
                         .foregroundStyle(MacTheme.errorText)
                         .textSelection(.enabled)
-                }
-                if model.configuration.enabled || model.helperStatus?.active == true {
-                    Button(ContractCopy.copyMonitorFanRestoreSystem.text(for: language)) {
-                        model.restore()
-                    }
-                    .buttonStyle(.link)
-                    .font(.system(size: 10, weight: .semibold))
-                    .disabled(model.busy)
                 }
             }
         }

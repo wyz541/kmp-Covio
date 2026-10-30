@@ -757,8 +757,12 @@ enum ContractCopy {
     static let copyMonitorFanControlPoint = LocalizedCopy(key: "copy/monitor/fan/control-point", en: "Control point %d", zhHans: "控制点 %d")
     /// `copy/monitor/fan/control-sensors`
     static let copyMonitorFanControlSensors = LocalizedCopy(key: "copy/monitor/fan/control-sensors", en: "Control sensors", zhHans: "控制传感器")
+    /// `copy/monitor/fan/control-source`
+    static let copyMonitorFanControlSource = LocalizedCopy(key: "copy/monitor/fan/control-source", en: "Control source: %@", zhHans: "控温来源：%@")
     /// `copy/monitor/fan/control-summary`
-    static let copyMonitorFanControlSummary = LocalizedCopy(key: "copy/monitor/fan/control-summary", en: "Control temperature · %d sensors", zhHans: "控制温度 · %d 个传感器取最大")
+    static let copyMonitorFanControlSummary = LocalizedCopy(key: "copy/monitor/fan/control-summary", en: "Control sensors: %d · highest wins", zhHans: "控制传感器：%d 个取最高")
+    /// `copy/monitor/fan/control-temperature`
+    static let copyMonitorFanControlTemperature = LocalizedCopy(key: "copy/monitor/fan/control-temperature", en: "Control temperature", zhHans: "控制温度")
     /// `copy/monitor/fan/copy-adapter-curve`
     static let copyMonitorFanCopyAdapterCurve = LocalizedCopy(key: "copy/monitor/fan/copy-adapter-curve", en: "Copy plugged-in curve to battery", zhHans: "复制插电曲线到电池")
     /// `copy/monitor/fan/curve`
@@ -840,7 +844,7 @@ enum ContractCopy {
     /// `copy/monitor/fan/source-request`
     static let copyMonitorFanSourceRequest = LocalizedCopy(key: "copy/monitor/fan/source-request", en: "%d%% request", zhHans: "%d%% 请求")
     /// `copy/monitor/fan/source-summary`
-    static let copyMonitorFanSourceSummary = LocalizedCopy(key: "copy/monitor/fan/source-summary", en: "Control temperature · %d sources", zhHans: "控制温度 · %d 个来源取最大")
+    static let copyMonitorFanSourceSummary = LocalizedCopy(key: "copy/monitor/fan/source-summary", en: "%d control sources · highest wins", zhHans: "%d 个控温来源取最高")
     /// `copy/monitor/fan/source-unavailable`
     static let copyMonitorFanSourceUnavailable = LocalizedCopy(key: "copy/monitor/fan/source-unavailable", en: "Unavailable", zhHans: "不可用")
     /// `copy/monitor/fan/start-caption`
@@ -855,6 +859,10 @@ enum ContractCopy {
     static let copyMonitorFanSystemAuto = LocalizedCopy(key: "copy/monitor/fan/system-auto", en: "System automatic", zhHans: "系统自动")
     /// `copy/monitor/fan/system-control`
     static let copyMonitorFanSystemControl = LocalizedCopy(key: "copy/monitor/fan/system-control", en: "System control", zhHans: "系统控制")
+    /// `copy/monitor/fan/takeover-body`
+    static let copyMonitorFanTakeoverBody = LocalizedCopy(key: "copy/monitor/fan/takeover-body", en: "Covio is controlling the fans. Writing fan speed changes hardware behavior. System control resumes after Covio quits, crashes, or the lease expires.", zhHans: "Covio 正在控制风扇。写入转速会改变硬件行为。退出、崩溃或租约过期后，系统会恢复控制。")
+    /// `copy/monitor/fan/takeover-title`
+    static let copyMonitorFanTakeoverTitle = LocalizedCopy(key: "copy/monitor/fan/takeover-title", en: "System fan control is paused", zhHans: "系统风扇控制已暂停")
     /// `copy/monitor/fan/target`
     static let copyMonitorFanTarget = LocalizedCopy(key: "copy/monitor/fan/target", en: "Target", zhHans: "目标")
     /// `copy/monitor/fan/temperature`
@@ -870,7 +878,7 @@ enum ContractCopy {
     /// `copy/monitor/fan/unit`
     static let copyMonitorFanUnit = LocalizedCopy(key: "copy/monitor/fan/unit", en: "Fan %d", zhHans: "风扇 %d")
     /// `copy/monitor/fan/warning`
-    static let copyMonitorFanWarning = LocalizedCopy(key: "copy/monitor/fan/warning", en: "Writing fan speed changes hardware behavior. Covio restores system control when it exits.", zhHans: "写入风扇转速会改变硬件行为。Covio 退出时恢复系统控制。")
+    static let copyMonitorFanWarning = LocalizedCopy(key: "copy/monitor/fan/warning", en: "Writing fan speed changes hardware behavior.", zhHans: "写入风扇转速会改变硬件行为。")
     /// `copy/monitor/gpu/device`
     static let copyMonitorGpuDevice = LocalizedCopy(key: "copy/monitor/gpu/device", en: "Device", zhHans: "设备")
     /// `copy/monitor/gpu/memory`
@@ -2032,7 +2040,9 @@ enum ContractCopy {
         copyMonitorFanClearBatteryCurve,
         copyMonitorFanControlPoint,
         copyMonitorFanControlSensors,
+        copyMonitorFanControlSource,
         copyMonitorFanControlSummary,
+        copyMonitorFanControlTemperature,
         copyMonitorFanCopyAdapterCurve,
         copyMonitorFanCurve,
         copyMonitorFanCurveHint,
@@ -2081,6 +2091,8 @@ enum ContractCopy {
         copyMonitorFanSyncHint,
         copyMonitorFanSystemAuto,
         copyMonitorFanSystemControl,
+        copyMonitorFanTakeoverBody,
+        copyMonitorFanTakeoverTitle,
         copyMonitorFanTarget,
         copyMonitorFanTemperature,
         copyMonitorFanTemperatureSources,

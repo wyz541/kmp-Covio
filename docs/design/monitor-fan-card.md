@@ -24,6 +24,8 @@
 | ![手动风扇模式亮色](previews/366-fan-manual-stats-light-after-1.png) | ![手动风扇模式深色](previews/366-fan-manual-stats-dark-after-1.png) |
 | ![分层玻璃 popover 亮色](previews/441-fan-popover-light-after-3.png) | ![分层玻璃 popover 深色](previews/441-fan-popover-dark-after-3.png) |
 | ![温度来源规则亮色](previews/474-monitor-fan-temperature-rules-light-after-4.png) | ![温度来源规则深色](previews/474-monitor-fan-temperature-rules-dark-after-4.png) |
+| ![接管恢复亮色](previews/491-fan-takeover-light-after-1.png) | ![接管恢复深色](previews/491-fan-takeover-dark-after-1.png) |
+| ![系统控制亮色](previews/491-fan-system-control-light-after-1.png) | ![系统控制深色](previews/491-fan-system-control-dark-after-1.png) |
 | ![插电与电池曲线亮色](previews/334-fan-power-curves-light-after-2.png) | ![插电与电池曲线深色](previews/334-fan-power-curves-dark-after-2.png) |
 | ![传感器名称筛选亮色](previews/338-fan-sensors-light-after-4.png) | ![传感器名称筛选深色](previews/338-fan-sensors-dark-after-4.png) |
 
@@ -47,7 +49,7 @@ popover 打开期间，工作台保持展开。最后一个 popover 关闭后，
 | 风扇当前转速 | `F%dAc` | 最多每 2 秒 |
 | 风扇目标转速 | `F%dTg` | 最多每 2 秒 |
 | 风扇最小和最大转速 | `F%dMn`、`F%dMx` | 最多每 2 秒 |
-| 控制温度 | 已选传感器读数的最大值 | 跟随采样 |
+| 控制温度 | 已启用温度来源的最热读数；没有来源时使用已选传感器最大值 | 跟随采样 |
 | CPU 占用 | `host_processor_info` | 接入 Monitor 页采样周期 |
 
 SMC 键只在读取器初始化时枚举一次。
@@ -62,9 +64,9 @@ Liquid Glass 不用于内容层。
 减少透明度或增强对比时，内容区回退为不透明 surface。
 头部固定，详情内容在头部下方滚动。
 
-1. 控制温度和接管状态。
+1. 控制温度标签、控温来源和接管状态。
 2. Covio 特权支持不可用时的能力级提示。
-3. 安全说明和恢复系统控制。
+3. 接管安全提示和恢复系统控制。
 4. 启用风扇控制开关。
 5. 曲线或手动转速。
 6. 风扇实际转速和目标转速。
@@ -167,6 +169,21 @@ Liquid Glass 不用于内容层。
 
 来源规则为空时，继续使用旧的控制传感器和多点 RPM 曲线。
 来源规则存在时，规则优先于旧的多点 RPM 曲线。
+
+### 接管与恢复
+
+大号温度上方显示「控制温度」。
+温度下方显示当前控温来源。
+单一温度来源显示来源名称，多来源显示来源数量。
+Covio 接管风扇时，顶部状态圆点使用警告色。
+
+接管状态下，详情区显示「系统风扇控制已暂停」。
+提示说明 Covio 退出、崩溃或租约过期后恢复系统控制。
+「恢复系统控制」显示为完整按钮。
+按钮位于接管提示内，并支持键盘聚焦。
+
+未接管状态下，详情区显示硬件行为警告。
+未接管状态不显示「恢复系统控制」按钮。
 
 ## 6. Helper 与安全
 

@@ -4752,9 +4752,17 @@
       "en": "Fan temperature curve",
       "zh-Hans": "风扇温控曲线"
     },
+    "copy/monitor/fan/control-source": {
+      "en": "Control source: %@",
+      "zh-Hans": "控温来源：%@"
+    },
     "copy/monitor/fan/control-summary": {
-      "en": "Control temperature · %d sensors",
-      "zh-Hans": "控制温度 · %d 个传感器取最大"
+      "en": "Control sensors: %d · highest wins",
+      "zh-Hans": "控制传感器：%d 个取最高"
+    },
+    "copy/monitor/fan/control-temperature": {
+      "en": "Control temperature",
+      "zh-Hans": "控制温度"
     },
     "copy/monitor/fan/system-control": {
       "en": "System control",
@@ -4873,8 +4881,8 @@
       "zh-Hans": "温度来源"
     },
     "copy/monitor/fan/source-summary": {
-      "en": "Control temperature · %d sources",
-      "zh-Hans": "控制温度 · %d 个来源取最大"
+      "en": "%d control sources · highest wins",
+      "zh-Hans": "%d 个控温来源取最高"
     },
     "copy/monitor/fan/source-cpu": {
       "en": "CPU temperature",
@@ -4936,9 +4944,17 @@
       "en": "Target",
       "zh-Hans": "目标"
     },
+    "copy/monitor/fan/takeover-body": {
+      "en": "Covio is controlling the fans. Writing fan speed changes hardware behavior. System control resumes after Covio quits, crashes, or the lease expires.",
+      "zh-Hans": "Covio 正在控制风扇。写入转速会改变硬件行为。退出、崩溃或租约过期后，系统会恢复控制。"
+    },
+    "copy/monitor/fan/takeover-title": {
+      "en": "System fan control is paused",
+      "zh-Hans": "系统风扇控制已暂停"
+    },
     "copy/monitor/fan/warning": {
-      "en": "Writing fan speed changes hardware behavior. Covio restores system control when it exits.",
-      "zh-Hans": "写入风扇转速会改变硬件行为。Covio 退出时恢复系统控制。"
+      "en": "Writing fan speed changes hardware behavior.",
+      "zh-Hans": "写入风扇转速会改变硬件行为。"
     },
     "copy/monitor/fan/unit": {
       "en": "Fan %d",

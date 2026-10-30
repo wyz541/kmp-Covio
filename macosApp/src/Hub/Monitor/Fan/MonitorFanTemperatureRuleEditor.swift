@@ -38,6 +38,11 @@ struct MonitorFanTemperatureRuleEditor: View {
                     .multilineTextAlignment(.trailing)
             }
 
+            if !configuration.enabledTemperatureSources.isEmpty,
+               !omittedThermalSources.isEmpty {
+                sourceCoverageWarning
+            }
+
             ForEach(MonitorFanTemperatureSource.allCases, id: \.self) { source in
                 sourceEditor(source)
             }
@@ -46,6 +51,33 @@ struct MonitorFanTemperatureRuleEditor: View {
                 mergedTargetSummary
             }
         }
+    }
+
+    private var omittedThermalSources: [MonitorFanTemperatureSource] {
+        let enabled = Set(configuration.enabledTemperatureSources)
+        return [MonitorFanTemperatureSource.cpu, .gpu].filter { !enabled.contains($0) }
+    }
+
+    private var sourceCoverageWarning: some View {
+        let names = omittedThermalSources.map(sourceTitle)
+        let separator = language == .english ? ", " : "、"
+        return Label {
+            Text(String(
+                format: ContractCopy.copyMonitorFanSourceCoverageWarning.text(for: language),
+                names.joined(separator: separator)
+            ))
+            .font(.system(size: 9, weight: .medium))
+            .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: "exclamationmark.triangle.fill")
+        }
+        .foregroundStyle(MacTheme.errorText)
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .popoverContentSurface(
+            cornerRadius: 7,
+            tint: MacTheme.errorText.opacity(0.10)
+        )
     }
 
     private func sourceEditor(_ source: MonitorFanTemperatureSource) -> some View {

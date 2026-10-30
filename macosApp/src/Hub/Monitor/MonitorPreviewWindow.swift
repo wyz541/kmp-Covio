@@ -540,6 +540,20 @@ struct MonitorFanPreviewRoot: View {
         scenario == "error" ? "Fan control write failed" : nil
     }
 
+    static var renderHeight: CGFloat {
+        if scenario == "system-control" {
+            return 280
+        }
+        if scenario == "temperature-rules-advanced" {
+            return 760
+        }
+        return 360
+    }
+
+    private static var usesTemperatureRules: Bool {
+        scenario == "temperature-rules" || scenario == "temperature-rules-advanced"
+    }
+
     private static var controlsFans: Bool {
         scenario != "error" && scenario != "system-control"
     }
@@ -587,7 +601,7 @@ struct MonitorFanPreviewRoot: View {
                     ],
                 ]
                 : [:],
-            temperatureRules: Self.scenario == "temperature-rules"
+            temperatureRules: Self.usesTemperatureRules
                 ? ["battery": MonitorFanTemperatureRule.defaultPoints(for: .battery)]
                 : [:]
         ),
@@ -600,7 +614,7 @@ struct MonitorFanPreviewRoot: View {
             controlTemperature: 65.9,
             leaseRemainingSeconds: 20,
             error: Self.previewError,
-            sourceTemperatures: Self.scenario == "temperature-rules"
+            sourceTemperatures: Self.usesTemperatureRules
                 ? ["battery": 35.1]
                 : [:]
         )
@@ -613,9 +627,10 @@ struct MonitorFanPreviewRoot: View {
             model: model,
             scrollsContent: Self.scenario == "sensors",
             rendersForSnapshot: true,
-            sensorsInitiallyExpanded: Self.scenario == "sensors"
+            sensorsInitiallyExpanded: Self.scenario == "sensors",
+            advancedInitiallyExpanded: Self.scenario == "temperature-rules-advanced"
         )
-        .frame(width: 420, height: 760, alignment: .topLeading)
+        .frame(width: 420, alignment: .topLeading)
         .background(MacTheme.surface)
     }
 }
@@ -745,7 +760,7 @@ enum MonitorFanDetailRenderer {
         return await MonitorFanPreviewSnapshot.write(
             MonitorFanPreviewRoot()
                 .environment(\.colorScheme, dark ? .dark : .light),
-            size: CGSize(width: 420, height: 760),
+            size: CGSize(width: 420, height: MonitorFanPreviewRoot.renderHeight),
             path: path,
             dark: dark
         )

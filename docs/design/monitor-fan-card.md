@@ -26,6 +26,7 @@
 | ![温度来源规则亮色](previews/474-monitor-fan-temperature-rules-light-after-4.png) | ![温度来源规则深色](previews/474-monitor-fan-temperature-rules-dark-after-4.png) |
 | ![接管恢复亮色](previews/491-fan-takeover-light-after-1.png) | ![接管恢复深色](previews/491-fan-takeover-dark-after-1.png) |
 | ![系统控制亮色](previews/491-fan-system-control-light-after-1.png) | ![系统控制深色](previews/491-fan-system-control-dark-after-1.png) |
+| ![高级设置亮色](previews/491-fan-takeover-advanced-light-after-1.png) | ![高级设置深色](previews/491-fan-takeover-advanced-dark-after-1.png) |
 | ![插电与电池曲线亮色](previews/334-fan-power-curves-light-after-2.png) | ![插电与电池曲线深色](previews/334-fan-power-curves-dark-after-2.png) |
 | ![传感器名称筛选亮色](previews/338-fan-sensors-light-after-4.png) | ![传感器名称筛选深色](previews/338-fan-sensors-dark-after-4.png) |
 
@@ -57,7 +58,10 @@ SMC 键只在读取器初始化时枚举一次。
 
 ## 5. popover
 
-popover 固定宽度 420 点、固定高度 760 点。
+popover 固定宽度 420 点。
+系统自动状态高度为 300 点。
+Covio 曲线折叠状态高度为 470 点。
+高级区展开或手动状态高度为 760 点。
 popover 外壳使用系统原生 regular Liquid Glass。
 警告区、控制区和传感器区使用标准 thin material。
 Liquid Glass 不用于内容层。
@@ -69,8 +73,9 @@ Liquid Glass 不用于内容层。
 3. Covio 特权支持不可用时的能力级提示。
 4. 接管安全提示和恢复系统控制。
 5. 系统自动、Covio 曲线和手动转速三选一模式。
-6. 曲线控制点或手动转速。
-7. 控制传感器。
+6. 默认折叠的高级设置。
+7. 曲线控制点或手动转速。
+8. 控制传感器。
 
 系统自动模式只释放风扇控制，不运行温度曲线。
 曲线模式才持有风扇并写入目标转速。
@@ -188,8 +193,18 @@ Popover 首屏逐台风扇显示当前 RPM 和目标 RPM。
 「恢复系统控制」显示为高对比完整按钮。
 按钮位于接管提示内，并支持键盘聚焦。
 
-未接管状态下，详情区显示硬件行为警告。
+未接管状态下，详情区显示「macOS 正在控制风扇」。
+未接管状态不显示硬件行为警告。
 未接管状态不显示「恢复系统控制」按钮。
+切换到 Covio 曲线或手动转速后，Covio 开始接管。
+
+温度来源规则启用后，高级区默认折叠。
+高级区标题显示当前 Covio 曲线或手动转速。
+展开高级区后，用户可以编辑温度来源、控制点和同步设置。
+
+CPU 或 GPU 没有参与温度来源规则时，高级区显示警告。
+警告列出未参与控温的来源。
+警告说明 Covio 不会按这些温度提高风扇请求。
 
 ## 6. Helper 与安全
 

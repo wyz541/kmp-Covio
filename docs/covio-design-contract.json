@@ -4768,6 +4768,14 @@
       "en": "System control",
       "zh-Hans": "系统控制"
     },
+    "copy/monitor/fan/system-control-body": {
+      "en": "Switching to Covio curve or manual speed lets Covio take control.",
+      "zh-Hans": "切换到 Covio 曲线或手动转速后，Covio 会接管。"
+    },
+    "copy/monitor/fan/system-control-title": {
+      "en": "macOS is controlling the fans",
+      "zh-Hans": "macOS 正在控制风扇"
+    },
     "copy/monitor/fan/owned": {
       "en": "Covio control",
       "zh-Hans": "Covio 已接管"
@@ -4779,6 +4787,10 @@
     "copy/monitor/fan/unavailable": {
       "en": "Fan data unavailable",
       "zh-Hans": "风扇数据不可用"
+    },
+    "copy/monitor/fan/advanced": {
+      "en": "Advanced settings",
+      "zh-Hans": "高级设置"
     },
     "copy/monitor/fan/details": {
       "en": "Fan control",
@@ -4897,8 +4909,8 @@
       "zh-Hans": "电池温度"
     },
     "copy/monitor/fan/source-unavailable": {
-      "en": "Unavailable",
-      "zh-Hans": "不可用"
+      "en": "No sensor found",
+      "zh-Hans": "未检测到传感器"
     },
     "copy/monitor/fan/source-fan-percent": {
       "en": "Fan %d%%",
@@ -4918,7 +4930,15 @@
     },
     "copy/monitor/fan/source-hint": {
       "en": "Each source uses its hottest sensor. The highest fan request wins.",
-      "zh-Hans": "每个来源取最高传感器。风扇采用最高请求。"
+      "zh-Hans": "每个来源取最热传感器。风扇采用最高请求。"
+    },
+    "copy/monitor/fan/source-coverage-compact": {
+      "en": "Safety sources not participating: %d",
+      "zh-Hans": "安全来源未参与：%d 个"
+    },
+    "copy/monitor/fan/source-coverage-warning": {
+      "en": "Not participating: %@. Covio will not raise fan requests for these temperatures.",
+      "zh-Hans": "未参与控温：%@。Covio 不会按这些温度提高风扇请求。"
     },
     "copy/monitor/fan/restore-system": {
       "en": "Restore system control",

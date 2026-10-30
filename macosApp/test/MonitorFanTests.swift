@@ -700,6 +700,11 @@ final class MonitorFanTests: XCTestCase {
         )
     }
 
+    func testFanTargetFormatAlwaysIncludesRPM() {
+        XCTAssertEqual(MonitorFanFormat.targetRPM(3_500), "3500 RPM")
+        XCTAssertEqual(MonitorFanFormat.targetRPM(nil), "—")
+    }
+
     func testTemperatureRuleInterpolatesAndClampsPercent() {
         let points = [
             MonitorFanTemperatureRulePoint(celsius: 32, fanPercent: 30),

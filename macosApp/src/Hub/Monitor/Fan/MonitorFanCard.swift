@@ -82,7 +82,7 @@ struct MonitorFanCard: View {
                 language: language,
                 model: model
             )
-            .frame(width: 420, height: 760, alignment: .topLeading)
+            .frame(width: 420, alignment: .topLeading)
             .onAppear {
                 popoverCoordinator?.setPresented(true, id: popoverID)
             }
@@ -253,9 +253,11 @@ struct MonitorFanPopover: View {
     var scrollsContent = true
     var rendersForSnapshot = false
     var sensorsInitiallyExpanded = false
+    var advancedInitiallyExpanded = false
 
     @State private var sensorsExpanded = false
     @State private var sensorQuery = ""
+    @State private var advancedExpanded = false
 
     private var sourceTemperatures: [MonitorFanTemperatureSource: Double] {
         var values = model.configuration.temperatureSourceReadings(in: reading)
@@ -281,6 +283,24 @@ struct MonitorFanPopover: View {
         model.helperStatus?.active == true || model.configuration.enabled
     }
 
+    private var preferredHeight: CGFloat {
+        if model.configuration.mode == .automatic {
+            return 280
+        }
+        if model.configuration.mode == .manual {
+            return 760
+        }
+        return advancedExpanded ? 760 : 360
+    }
+
+    private var omittedThermalSourceCount: Int {
+        let enabled = Set(model.configuration.enabledTemperatureSources)
+        guard !enabled.isEmpty else { return 0 }
+        return [MonitorFanTemperatureSource.cpu, .gpu]
+            .filter { !enabled.contains($0) }
+            .count
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
@@ -295,12 +315,21 @@ struct MonitorFanPopover: View {
             }
         }
         .padding(16)
+        .frame(width: 420, height: preferredHeight, alignment: .topLeading)
         .tint(MonitorCardKind.fan.accent)
         .onAppear {
             if sensorsInitiallyExpanded {
                 sensorsExpanded = true
             }
+            if advancedInitiallyExpanded {
+                advancedExpanded = true
+            }
             model.refreshFanControlStatus()
+        }
+        .onChange(of: model.configuration.mode) { _, mode in
+            if mode == .manual {
+                advancedExpanded = true
+            }
         }
         .task {
             while !Task.isCancelled {
@@ -323,7 +352,7 @@ struct MonitorFanPopover: View {
             if isControllingFans {
                 takeoverBanner
             } else {
-                warning
+                systemControlCallout
             }
             controls
             if model.configuration.enabled,
@@ -448,6 +477,12 @@ struct MonitorFanPopover: View {
                         .font(.system(size: 9, weight: .medium))
                         .foregroundStyle(MacTheme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
+                    if let message = model.visibleErrorMessage {
+                        Text(message)
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(MacTheme.errorText)
+                            .textSelection(.enabled)
+                    }
                 }
             }
 
@@ -515,19 +550,53 @@ struct MonitorFanPopover: View {
             modeControl
 
             if model.configuration.mode != .automatic {
-                if model.configuration.mode == .curve {
-                    temperatureRuleEditor
-                    if model.configuration.enabledTemperatureSources.isEmpty {
-                        presetRow
-                        curveEditor
+                DisclosureGroup(isExpanded: $advancedExpanded) {
+                    advancedControls
+                        .padding(.top, 8)
+                } label: {
+                    HStack(spacing: 6) {
+                        Text(ContractCopy.copyMonitorFanAdvanced.text(for: language))
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(MacTheme.textPrimary)
+                        Spacer(minLength: 0)
+                        if omittedThermalSourceCount > 0 {
+                            Label(
+                                String(
+                                    format: ContractCopy.copyMonitorFanSourceCoverageCompact.text(
+                                        for: language
+                                    ),
+                                    omittedThermalSourceCount
+                                ),
+                                systemImage: "exclamationmark.triangle.fill"
+                            )
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(MacTheme.errorText)
+                        } else {
+                            Text(modeTitle(model.configuration.mode))
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundStyle(MacTheme.textSecondary)
+                        }
                     }
-                } else {
-                    manualControls
+                    .frame(minHeight: 24)
                 }
+                .tint(MonitorCardKind.fan.accent)
             }
         }
         .padding(10)
         .popoverContentSurface()
+    }
+
+    @ViewBuilder
+    private var advancedControls: some View {
+        if model.configuration.mode == .curve {
+            temperatureRuleEditor
+            if model.configuration.enabledTemperatureSources.isEmpty {
+                presetRow
+                curveEditor
+            }
+        } else if model.configuration.mode == .manual {
+            manualControls
+        }
     }
 
     private var modeControl: some View {
@@ -881,14 +950,19 @@ struct MonitorFanPopover: View {
         }
     }
 
-    private var warning: some View {
-        HStack(alignment: .top, spacing: 6) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(MacTheme.warningText)
-            VStack(alignment: .leading, spacing: 5) {
-                Text(ContractCopy.copyMonitorFanWarning.text(for: language))
+    private var systemControlCallout: some View {
+        HStack(alignment: .top, spacing: 7) {
+            Image(systemName: "fanblades.fill")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(MonitorCardKind.fan.accent)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(ContractCopy.copyMonitorFanSystemControlTitle.text(for: language))
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(MacTheme.textPrimary)
+                Text(ContractCopy.copyMonitorFanSystemControlBody.text(for: language))
                     .font(.system(size: 9, weight: .medium))
                     .foregroundStyle(MacTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
                 if let message = model.visibleErrorMessage {
                     Text(message)
                         .font(.system(size: 9, weight: .medium))
@@ -897,7 +971,9 @@ struct MonitorFanPopover: View {
                 }
             }
         }
+        .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .popoverContentSurface()
     }
 }
 

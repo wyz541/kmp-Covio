@@ -700,6 +700,6 @@ enum MonitorFanFormat {
 
     static func targetRPM(_ value: Double?) -> String {
         guard let value, value.isFinite else { return "—" }
-        return String(format: "%.0f", value)
+        return String(format: "%.0f RPM", value)
     }
 }

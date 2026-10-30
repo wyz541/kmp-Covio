@@ -6,7 +6,6 @@ struct MonitorFanCard: View {
     let temperatureHistory: [Double]
     let rpmHistory: [Double]
     let language: AppLanguage
-    let runtime: AppRuntime?
     @ObservedObject var model: MonitorFanControlModel
     var popoverCoordinator: HubPopoverCoordinator? = nil
 
@@ -81,7 +80,6 @@ struct MonitorFanCard: View {
             MonitorFanPopover(
                 reading: reading,
                 language: language,
-                runtime: runtime,
                 model: model
             )
             .frame(width: 420, height: 760, alignment: .topLeading)
@@ -102,7 +100,7 @@ struct MonitorFanCard: View {
         }
         .onAppear {
             model.adoptDefaultSensors(from: reading)
-            model.refreshAvailability()
+            model.refreshFanControlStatus()
         }
         .onChange(of: reading) { _, value in
             model.adoptDefaultSensors(from: value)
@@ -251,7 +249,6 @@ private struct MonitorFanTripleChart: View {
 struct MonitorFanPopover: View {
     let reading: MonitorFanReading
     let language: AppLanguage
-    let runtime: AppRuntime?
     @ObservedObject var model: MonitorFanControlModel
     var scrollsContent = true
     var rendersForSnapshot = false
@@ -297,7 +294,7 @@ struct MonitorFanPopover: View {
             if sensorsInitiallyExpanded {
                 sensorsExpanded = true
             }
-            model.refreshAvailability()
+            model.refreshFanControlStatus()
         }
         .task {
             while !Task.isCancelled {
@@ -306,7 +303,7 @@ struct MonitorFanPopover: View {
                 } catch {
                     break
                 }
-                model.refreshAvailability()
+                model.refreshFanControlStatus()
             }
         }
     }
@@ -373,18 +370,6 @@ struct MonitorFanPopover: View {
             .font(.system(size: 10, weight: .medium))
             .foregroundStyle(MacTheme.textSecondary)
 
-            if model.availability == .missing || model.availability == .outdated {
-                Button {
-                    model.installHelper(runtime: runtime)
-                } label: {
-                    Label(
-                        ContractCopy.copyMonitorFanInstallHelper.text(for: language),
-                        systemImage: "lock.shield"
-                    )
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-            }
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)

@@ -8,7 +8,6 @@ import Foundation
 enum SettingsRowID {
     // 概览
     static let overviewMaster = "overview.master"
-    static let overviewHelper = "overview.helper"
 
     // 电池
     static let batteryEnabled = "battery.enabled"
@@ -68,13 +67,6 @@ enum SettingsCatalog {
             title: ContractCopy.copyOverviewRulesMaster,
             summary: ContractCopy.copyPageOverviewSummary,
             keywords: ["master", "rules", "enable", "总开关", "主控", "规则", "启用"]
-        ),
-        SettingsCatalogEntry(
-            rowID: SettingsRowID.overviewHelper,
-            section: .overview,
-            title: ContractCopy.copyOverviewHelperInstall,
-            summary: ContractCopy.copyDialogHelperInstallBody,
-            keywords: ["helper", "install", "uninstall", "privileged", "助手", "安装", "卸载", "特权"]
         ),
     ]
 

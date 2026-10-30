@@ -1,10 +1,9 @@
 import SwiftUI
-import kmpDomain
 
 /// 概览页。
 ///
-/// 顺序：主控卡（总开关与两个立即动作）、helper 卡、状态行。
-/// 状态是只读信息，所以排在最后。
+/// 顺序：主控卡（总开关与两个立即动作）、状态行。
+/// Helper 属于 Covio 全局运行能力，不在设置页单独显示。
 struct OverviewPage: View {
     let runtime: AppRuntime
 
@@ -32,20 +31,9 @@ struct OverviewPage: View {
                 }
             }
 
-            HelperCard(runtime: runtime)
-                .settingsRowAnchor(SettingsRowID.overviewHelper)
-
             MacCard {
                 MacStatusLine(text: runtime.batteryText())
-                MacStatusLine(text: helperText)
-                MacStatusLine(
-                    text: "\(ContractCopy.copyOverviewHelperVersion.text(for: runtime.language)): \(GeneratedReleaseIdentityKt.APP_VERSION)"
-                )
             }
         }
-    }
-
-    private var helperText: String {
-        HelperStatusPresentation.value(runtime.helperStatus, language: runtime.language)
     }
 }

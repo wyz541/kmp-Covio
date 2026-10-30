@@ -1,6 +1,6 @@
 # CovioHelper 服务生命周期
 
-结论：Covio 使用固定路径的 root helper 和 Legacy LaunchDaemon 提供特权能力。当前分发仅限 internal/local。
+结论：Covio 使用一个固定路径的全局 root helper 和 Legacy LaunchDaemon 提供特权能力。Helper 不是用户可见的设置项。当前分发仅限 internal/local。
 
 ## 文档状态
 
@@ -82,18 +82,18 @@ app 比较以下值：
 | --- | --- | --- |
 | `enabled` | LaunchDaemon plist 和固定 helper 都存在 | 无 |
 | `legacy` | 只检测到旧 socket 或没有固定 helper 的旧 plist | 执行一次迁移 |
-| `notRegistered` | 没有检测到 helper 服务 | 安装或修复 helper |
+| `notRegistered` | 没有检测到全局 helper 服务 | 重新安装或升级 Covio |
 | `error` | 安装、启动或签名检查失败 | 查看错误并修复 |
 | `MATCH` | app 与运行中的 helper 身份一致 | 无 |
-| `MISSING` | app 无法连接 helper | 安装或修复 helper |
-| `OUTDATED` | helper 不支持当前身份协议 | 成对升级 app 和 helper |
-| `IDENTITY_MISMATCH` | 发布身份或摘要不一致 | 进入只读；成对修复 |
-| `UNTRUSTED` | helper 或客户端签名不可信 | 进入只读；重新签名 |
+| `MISSING` | app 无法连接帮助进程 | 重新安装或升级 Covio |
+| `OUTDATED` | 帮助进程不支持当前身份协议 | 升级 Covio |
+| `IDENTITY_MISMATCH` | 发布身份或摘要不一致 | 进入只读；重新安装或升级 Covio |
+| `UNTRUSTED` | 帮助进程或客户端签名不可信 | 进入只读；重新安装或升级 Covio |
 
-## 首次安装
+## 安装与修复
 
-1. 用户点击“安装或修复 Helper”。
-2. app 恢复充电上限和风扇控制。
+1. 用户安装或升级 Covio PKG。
+2. 安装事务恢复充电上限和风扇控制。
 3. app 请求一次管理员授权。
 4. 安装脚本把 `CovioHelper` 写到固定路径。
 5. 安装脚本写入 root-owned 元数据。
@@ -126,12 +126,13 @@ PKG 升级把 app、固定 helper、LaunchDaemon plist 和安装记录作为一�
 
 ## 用户修复
 
-1. 打开 Covio 设置。
-2. 查看 Helper 和安全模式状态。
-3. 如果状态是 `MISSING`、`OUTDATED` 或 `LEGACY`，重新安装同一个内部 PKG。
-4. 如果状态是 `IDENTITY_MISMATCH`，确认 app 与 helper 来自同一 `releaseId`。
-5. 如果状态是 `UNTRUSTED`，重新签名 app 和 helper。
-6. 如果安装中断，运行恢复命令。
+1. 打开 Covio 的日志或诊断信息。
+2. 如果状态是 `MISSING`、`OUTDATED` 或 `LEGACY`，重新安装同一个内部 PKG。
+3. 如果状态是 `IDENTITY_MISMATCH`，确认 app 与帮助进程来自同一 `releaseId`。
+4. 如果状态是 `UNTRUSTED`，重新签名 app 和帮助进程。
+5. 如果安装中断，运行恢复命令。
+
+正常设置页和各功能卡片不显示 helper 安装、版本或修复入口。
 
 ```sh
 sudo "/Library/Application Support/Covio/Installer/recover.sh"

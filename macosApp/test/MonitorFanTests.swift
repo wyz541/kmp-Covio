@@ -2,6 +2,16 @@ import XCTest
 @testable import Covio
 
 final class MonitorFanTests: XCTestCase {
+    @MainActor
+    func testGlobalHelperStatusMapsToFanAvailability() {
+        XCTAssertEqual(MonitorFanControlModel.helperAvailability(for: .match), .ready)
+        XCTAssertEqual(MonitorFanControlModel.helperAvailability(for: .missing), .missing)
+        XCTAssertEqual(MonitorFanControlModel.helperAvailability(for: .outdated), .outdated)
+        XCTAssertEqual(MonitorFanControlModel.helperAvailability(for: .identityMismatch), .outdated)
+        XCTAssertEqual(MonitorFanControlModel.helperAvailability(for: .untrusted), .unavailable)
+        XCTAssertEqual(MonitorFanControlModel.helperAvailability(for: nil), .unavailable)
+    }
+
     func testCurveClampsAtFanLimits() {
         XCTAssertEqual(
             MonitorFanCurve.target(

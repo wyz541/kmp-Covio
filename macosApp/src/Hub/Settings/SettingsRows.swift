@@ -59,66 +59,6 @@ extension Array {
     }
 }
 
-/// helper 的安装与卸载。
-///
-/// 只有完整发布身份匹配时显示卸载。其余状态只显示一个修复入口。
-struct HelperCard: View {
-    let runtime: AppRuntime
-
-    var body: some View {
-        MacCard {
-            MacSectionTitle(text: ContractCopy.copyAppName.text(for: runtime.language))
-            MacStatusLine(text: ContractCopy.copyDialogHelperInstallBody.text(for: runtime.language))
-            MacStatusLine(
-                text: HelperStatusPresentation.value(runtime.helperStatus, language: runtime.language)
-            )
-            MacStatusLine(
-                text: HelperServicePresentation.value(
-                    runtime.helperServiceState,
-                    language: runtime.language
-                )
-            )
-
-            if runtime.helperServiceState == .requiresApproval {
-                MacButton(
-                    title: ContractCopy.copyClipboardActionOpenSettings.text(for: runtime.language),
-                    kind: .primary,
-                    isEnabled: !runtime.busy
-                ) { runtime.openHelperApproval() }
-            } else if runtime.helperStatus == .match && runtime.helperServiceState != .legacy {
-                MacButton(
-                    title: ContractCopy.copyDialogHelperUnavailableTitle.text(for: runtime.language),
-                    isEnabled: !runtime.busy
-                ) { runtime.uninstallHelper() }
-            } else {
-                MacButton(
-                    title: HelperStatusPresentation.repairTitle.text(for: runtime.language),
-                    kind: .primary,
-                    isEnabled: !runtime.busy
-                ) { runtime.installHelper() }
-            }
-
-            if runtime.helperServiceState == .requiresApproval {
-                MacAlert(
-                    message: HelperServicePresentation.value(
-                        runtime.helperServiceState,
-                        language: runtime.language
-                    ),
-                    kind: .warning
-                )
-            } else if let reason = HelperStatusPresentation.readOnlyReason(
-                runtime.helperStatus,
-                language: runtime.language
-            ) {
-                MacAlert(
-                    message: reason,
-                    kind: .warning
-                )
-            }
-        }
-    }
-}
-
 /// 剪切板设置。
 ///
 /// Carbon 在快捷键被别的应用占用时静默失败，所以每个动作都要显示

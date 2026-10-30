@@ -3,7 +3,7 @@
   "metadata": {
     "name": "Covio Product Design Contract",
     "status": "native-source-verified",
-    "updatedAt": "2026-10-25",
+    "updatedAt": "2026-10-30",
     "authority": "docs/covio-design-contract.json",
     "visualProjection": {
       "fileName": "Covio — Product Design · macOS 27",
@@ -4313,20 +4313,20 @@
       "zh-Hans": "工具栏"
     },
     "copy/dialog/helper-install/body": {
-      "en": "Covio needs the helper for sleep control.",
-      "zh-Hans": "Covio 需要助手来控制睡眠。"
+      "en": "Covio needs system support for privileged controls.",
+      "zh-Hans": "Covio 需要系统支持来完成特权控制。"
     },
     "copy/dialog/helper-install/title": {
-      "en": "Install helper",
-      "zh-Hans": "安装助手"
+      "en": "Repair Covio support",
+      "zh-Hans": "修复 Covio 支持"
     },
     "copy/dialog/helper-unavailable/body": {
-      "en": "Start the helper, then try again.",
-      "zh-Hans": "启动助手，然后重试。"
+      "en": "Covio system support is unavailable. Reinstall Covio and try again.",
+      "zh-Hans": "Covio 系统支持暂不可用。请重新安装 Covio 后重试。"
     },
     "copy/dialog/helper-unavailable/title": {
-      "en": "Helper unavailable",
-      "zh-Hans": "助手不可用"
+      "en": "Covio support unavailable",
+      "zh-Hans": "Covio 支持不可用"
     },
     "copy/dialog/reset/body": {
       "en": "This action removes all local Covio settings.",
@@ -4917,16 +4917,16 @@
       "zh-Hans": "恢复系统控制"
     },
     "copy/monitor/fan/install-helper": {
-      "en": "Install or repair helper",
-      "zh-Hans": "安装或修复 Helper"
+      "en": "Restore Covio support",
+      "zh-Hans": "恢复 Covio 支持"
     },
     "copy/monitor/fan/helper-required": {
-      "en": "Fan writes require the privileged helper.",
-      "zh-Hans": "写入风扇转速需要特权 Helper。"
+      "en": "Fan control requires Covio system support.",
+      "zh-Hans": "风扇控制需要 Covio 系统支持。"
     },
     "copy/monitor/fan/helper-unavailable": {
-      "en": "The helper is not running. Fan readings remain available.",
-      "zh-Hans": "Helper 未运行。风扇读数仍可使用。"
+      "en": "Covio system support is unavailable. Fan readings remain available.",
+      "zh-Hans": "Covio 系统支持暂不可用。风扇读数仍可使用。"
     },
     "copy/monitor/fan/actual": {
       "en": "Actual",
@@ -5053,8 +5053,8 @@
       "zh-Hans": "合盖时保持系统运行"
     },
     "copy/monitor/display/keep-awake-hint": {
-      "en": "Uses the closed-lid helper and the Power safety guards.",
-      "zh-Hans": "使用合盖 Helper 和 Power 安全护栏。"
+      "en": "Uses Covio system support and the Power safety guards.",
+      "zh-Hans": "使用 Covio 系统支持和 Power 安全护栏。"
     },
     "copy/monitor/display/mode": {
       "en": "Screen when lid closes",
@@ -5677,16 +5677,16 @@
       "zh-Hans": "立即睡眠"
     },
     "copy/overview/helper/install": {
-      "en": "Install helper",
-      "zh-Hans": "安装助手"
+      "en": "Restore Covio support",
+      "zh-Hans": "恢复 Covio 支持"
     },
     "copy/overview/helper/installed": {
-      "en": "Helper installed",
-      "zh-Hans": "助手已安装"
+      "en": "Covio support is ready",
+      "zh-Hans": "Covio 支持已就绪"
     },
     "copy/overview/helper/missing": {
-      "en": "Helper not installed",
-      "zh-Hans": "助手未安装"
+      "en": "Covio support is unavailable",
+      "zh-Hans": "Covio 支持不可用"
     },
     "copy/overview/helper/version": {
       "en": "Version",
@@ -5833,8 +5833,8 @@
       "zh-Hans": "03 · Overview - 需要检查"
     },
     "copy/page/overview/summary": {
-      "en": "Manage sleep rules and helper status.",
-      "zh-Hans": "管理睡眠规则和助手状态。"
+      "en": "Manage sleep rules and Covio status.",
+      "zh-Hans": "管理睡眠规则和 Covio 状态。"
     },
     "copy/page/overview/title": {
       "en": "Overview",
@@ -5965,52 +5965,52 @@
       "zh-Hans": "Covio 已暂停。"
     },
     "copy/status-item/helper-error": {
-      "en": "The helper needs attention.",
-      "zh-Hans": "Helper 需要处理。"
+      "en": "Covio system support needs attention.",
+      "zh-Hans": "Covio 系统支持需要处理。"
     },
     "copy/status-item/helper-identity-mismatch": {
-      "en": "The app and helper releases do not match.",
-      "zh-Hans": "app 与 helper 的发布身份不一致。"
+      "en": "Covio components are out of sync.",
+      "zh-Hans": "Covio 组件版本不一致。"
     },
     "copy/status-item/helper-outdated": {
-      "en": "The helper needs an update.",
-      "zh-Hans": "Helper 需要更新。"
+      "en": "Covio needs an update.",
+      "zh-Hans": "Covio 需要更新。"
     },
     "copy/status-item/helper-safe-mode": {
-      "en": "Privileged writes are disabled until the helper is repaired.",
-      "zh-Hans": "修复 Helper 前，特权写入保持禁用。"
+      "en": "Privileged controls are disabled until Covio support is restored.",
+      "zh-Hans": "恢复 Covio 支持前，特权控制保持禁用。"
     },
     "copy/status-item/helper-untrusted": {
-      "en": "Covio cannot verify the helper.",
-      "zh-Hans": "Covio 无法验证 Helper。"
+      "en": "Covio cannot verify its system support.",
+      "zh-Hans": "Covio 无法验证系统支持。"
     },
     "copy/helper/service/enabled": {
       "en": "Managed by macOS",
       "zh-Hans": "由 macOS 管理"
     },
     "copy/helper/service/error": {
-      "en": "Helper service needs attention",
-      "zh-Hans": "Helper 服务需要处理"
+      "en": "Covio system support needs attention",
+      "zh-Hans": "Covio 系统支持需要处理"
     },
     "copy/helper/service/legacy": {
-      "en": "Legacy helper needs migration",
-      "zh-Hans": "旧版 Helper 需要迁移"
+      "en": "Covio support needs migration",
+      "zh-Hans": "Covio 支持需要迁移"
     },
     "copy/helper/service/not-found": {
-      "en": "Bundled helper service is missing",
-      "zh-Hans": "应用内的 Helper 服务缺失"
+      "en": "Bundled Covio support is missing",
+      "zh-Hans": "应用内的 Covio 支持缺失"
     },
     "copy/helper/service/not-registered": {
-      "en": "Helper is not registered",
-      "zh-Hans": "Helper 未注册"
+      "en": "Covio support is not registered",
+      "zh-Hans": "Covio 支持未注册"
     },
     "copy/helper/service/requires-approval": {
-      "en": "Approve Covio Helper in System Settings",
-      "zh-Hans": "请在系统设置中批准 Covio Helper"
+      "en": "Approve Covio support in System Settings",
+      "zh-Hans": "请在系统设置中批准 Covio 支持"
     },
     "copy/helper/service/unsupported": {
-      "en": "Helper service is unavailable on this macOS",
-      "zh-Hans": "当前 macOS 不支持 Helper 服务"
+      "en": "Covio support is unavailable on this macOS",
+      "zh-Hans": "当前 macOS 不支持所需系统能力"
     },
     "copy/status-item/idle-prevented": {
       "en": "Idle sleep is prevented.",
@@ -6201,8 +6201,8 @@
       "zh-Hans": "正在充电"
     },
     "copy/tray/tooltip/helper-error": {
-      "en": "Helper error",
-      "zh-Hans": "助手错误"
+      "en": "System support error",
+      "zh-Hans": "系统支持错误"
     },
     "copy/tray/tooltip/idle-prevented": {
       "en": "Idle sleep prevented",
@@ -6285,8 +6285,8 @@
       "zh-Hans": "使用 Covio 保持 Mac 唤醒。关闭后会释放全部规则和会话。"
     },
     "copy/power/error/lid-not-applied": {
-      "en": "The helper did not apply closed-lid protection. Check Helper status and try again.",
-      "zh-Hans": "Helper 没有应用合盖保护。检查 Helper 状态后重试。"
+      "en": "Covio did not apply closed-lid protection. Check system support and try again.",
+      "zh-Hans": "Covio 没有应用合盖保护。检查系统支持后重试。"
     },
     "copy/power/error/master-off": {
       "en": "Turn on Sleep Protection before starting a session.",
@@ -6297,12 +6297,12 @@
       "zh-Hans": "适配器"
     },
     "copy/power/status/helper": {
-      "en": "Closed-lid helper",
-      "zh-Hans": "合盖 Helper"
+      "en": "Covio support",
+      "zh-Hans": "Covio 支持"
     },
     "copy/power/status/helper-hint": {
-      "en": "The privileged helper applies closed-lid holds.",
-      "zh-Hans": "特权 Helper 负责应用合盖保持唤醒。"
+      "en": "Covio applies privileged system changes.",
+      "zh-Hans": "Covio 负责应用特权系统更改。"
     },
     "copy/power/status/low-power-mode": {
       "en": "Low Power Mode",
@@ -6437,8 +6437,8 @@
       "zh-Hans": "允许合盖保持唤醒"
     },
     "copy/power/rules/lid-hint": {
-      "en": "Requires the closed-lid helper and a successful safety check.",
-      "zh-Hans": "需要合盖 Helper，并通过安全检查。"
+      "en": "Requires Covio system support and a successful safety check.",
+      "zh-Hans": "需要 Covio 系统支持和安全检查通过。"
     },
     "copy/power/rules/closed-lid-zero-brightness": {
       "en": "Experimental closed-lid black screen",
@@ -6541,8 +6541,8 @@
       "zh-Hans": "最近没有事件"
     },
     "copy/power/alert/helper-missing": {
-      "en": "Install the helper before using closed-lid hold.",
-      "zh-Hans": "使用合盖保持唤醒前请安装助手。"
+      "en": "Covio system support is unavailable. Reinstall Covio before using closed-lid hold.",
+      "zh-Hans": "Covio 系统支持暂不可用。重新安装 Covio 后可使用合盖保持唤醒。"
     },
     "copy/power/alert/external-conflict": {
       "en": "Another app changed the sleep setting. Covio will not clear it.",
@@ -6941,8 +6941,8 @@
       "zh-Hans": "充电上限未生效"
     },
     "copy/monitor/power/charge-limit/helper-required": {
-      "en": "Install or repair the helper",
-      "zh-Hans": "请安装或修复 helper"
+      "en": "Charge limit requires Covio system support.",
+      "zh-Hans": "充电上限需要 Covio 系统支持。"
     },
     "copy/monitor/power/charge-limit/restore": {
       "en": "Restore system default",

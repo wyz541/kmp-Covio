@@ -26,6 +26,7 @@ final class MonitorFanControlModel: ObservableObject {
     private var skipsAvailabilityRefresh = false
     private var manualApplyTask: Task<Void, Never>?
     private var curveApplyTask: Task<Void, Never>?
+    private var helperRefreshTask: Task<Void, Never>?
 
     private static let preferencesKey = "monitor.fan.control.v1"
 
@@ -55,30 +56,47 @@ final class MonitorFanControlModel: ObservableObject {
     }
     #endif
 
-    func refreshAvailability() {
+    static func helperAvailability(for status: HelperStatus?) -> HelperAvailability {
+        guard let status else { return .unavailable }
+        return switch status {
+        case .match: .ready
+        case .missing: .missing
+        case .outdated, .identityMismatch: .outdated
+        default: .unavailable
+        }
+    }
+
+    /// 风扇只读取 AppRuntime 的全局 helper 状态，不再创建自己的安装或修复入口。
+    func updateGlobalHelperStatus(_ status: HelperStatus?) {
         guard !busy, !skipsAvailabilityRefresh else { return }
-        Task.detached(priority: .userInitiated) { [client] in
-            let helperStatus = HelperReleaseInspector.inspect(client: client)
-            let availability: HelperAvailability
-            switch helperStatus {
-            case .match:
-                availability = .ready
-            case .missing:
-                availability = .missing
-            case .outdated, .identityMismatch:
-                availability = .outdated
-            default:
-                availability = .unavailable
+        helperRefreshTask?.cancel()
+        let availability = Self.helperAvailability(for: status)
+        self.availability = availability
+        guard availability == .ready else {
+            helperStatus = nil
+            if configuration.enabled {
+                configuration.enabled = false
+                persist()
             }
-            let status = availability == .ready ? client.fanControlStatus() : nil
+            return
+        }
+
+        refreshFanControlStatus()
+    }
+
+    /// 刷新 helper 返回的风扇运行状态，不重复探测全局 helper 身份。
+    func refreshFanControlStatus() {
+        guard !busy, !skipsAvailabilityRefresh, availability == .ready else { return }
+        helperRefreshTask?.cancel()
+        helperRefreshTask = Task.detached(priority: .userInitiated) { [client] in
+            guard !Task.isCancelled else { return }
+            let status = client.fanControlStatus()
             await MainActor.run {
-                self.availability = availability
+                guard !Task.isCancelled else { return }
                 self.helperStatus = status
-                if availability != .ready || status?.active != true {
-                    if self.configuration.enabled {
-                        self.configuration.enabled = false
-                        self.persist()
-                    }
+                if status?.active != true, self.configuration.enabled {
+                    self.configuration.enabled = false
+                    self.persist()
                 }
             }
         }
@@ -428,16 +446,6 @@ final class MonitorFanControlModel: ObservableObject {
                     self.message = result.message
                 }
             }
-        }
-    }
-
-    func installHelper(runtime: AppRuntime?) {
-        guard let runtime else { return }
-        runtime.installHelper()
-        message = nil
-        Task {
-            try? await Task.sleep(for: .seconds(2))
-            refreshAvailability()
         }
     }
 

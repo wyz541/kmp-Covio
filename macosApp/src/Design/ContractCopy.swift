@@ -744,7 +744,7 @@ enum ContractCopy {
     /// `copy/monitor/fan/applying`
     static let copyMonitorFanApplying = LocalizedCopy(key: "copy/monitor/fan/applying", en: "Applying", zhHans: "正在接管")
     /// `copy/monitor/fan/auto-curve`
-    static let copyMonitorFanAutoCurve = LocalizedCopy(key: "copy/monitor/fan/auto-curve", en: "Auto curve", zhHans: "自动曲线")
+    static let copyMonitorFanAutoCurve = LocalizedCopy(key: "copy/monitor/fan/auto-curve", en: "Covio curve", zhHans: "Covio 曲线")
     /// `copy/monitor/fan/automatic`
     static let copyMonitorFanAutomatic = LocalizedCopy(key: "copy/monitor/fan/automatic", en: "Automatic", zhHans: "自动")
     /// `copy/monitor/fan/balanced`

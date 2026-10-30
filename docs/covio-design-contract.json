@@ -4789,8 +4789,8 @@
       "zh-Hans": "启用风扇控制"
     },
     "copy/monitor/fan/auto-curve": {
-      "en": "Auto curve",
-      "zh-Hans": "自动曲线"
+      "en": "Covio curve",
+      "zh-Hans": "Covio 曲线"
     },
     "copy/monitor/fan/system-auto": {
       "en": "System automatic",

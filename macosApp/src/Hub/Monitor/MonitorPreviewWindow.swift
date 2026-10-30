@@ -549,7 +549,7 @@ struct MonitorFanPreviewRoot: View {
             enabled: Self.controlsFans,
             mode: Self.scenario == "manual-sync"
                 ? .manual
-                : .curve,
+                : Self.scenario == "system-control" ? .automatic : .curve,
             startCelsius: 58,
             fullCelsius: 86,
             selectedSensorKeys: ["TCMz", "TC0P"],
@@ -596,7 +596,7 @@ struct MonitorFanPreviewRoot: View {
             active: Self.controlsFans,
             mode: Self.scenario == "manual-sync"
                 ? "manual"
-                : "curve",
+                : Self.scenario == "system-control" ? "system" : "curve",
             controlTemperature: 65.9,
             leaseRemainingSeconds: 20,
             error: Self.previewError,

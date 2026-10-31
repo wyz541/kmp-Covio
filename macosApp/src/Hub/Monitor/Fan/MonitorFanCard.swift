@@ -296,14 +296,6 @@ struct MonitorFanPopover: View {
         return 360
     }
 
-    private var omittedThermalSourceCount: Int {
-        let enabled = Set(model.configuration.enabledTemperatureSources)
-        guard !enabled.isEmpty else { return 0 }
-        return [MonitorFanTemperatureSource.cpu, .gpu]
-            .filter { !enabled.contains($0) }
-            .count
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
@@ -324,15 +316,13 @@ struct MonitorFanPopover: View {
             if sensorsInitiallyExpanded {
                 sensorsExpanded = true
             }
-            if advancedInitiallyExpanded {
+            if advancedInitiallyExpanded || MonitorFanPolicy.expandsAdvanced(for: model.configuration.mode) {
                 advancedExpanded = true
             }
             model.refreshFanControlStatus()
         }
         .onChange(of: model.configuration.mode) { _, mode in
-            if mode == .manual {
-                advancedExpanded = true
-            }
+            advancedExpanded = MonitorFanPolicy.expandsAdvanced(for: mode)
         }
         .task {
             while !Task.isCancelled {
@@ -562,23 +552,9 @@ struct MonitorFanPopover: View {
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundStyle(MacTheme.textPrimary)
                         Spacer(minLength: 0)
-                        if omittedThermalSourceCount > 0 {
-                            Label(
-                                String(
-                                    format: ContractCopy.copyMonitorFanSourceCoverageCompact.text(
-                                        for: language
-                                    ),
-                                    omittedThermalSourceCount
-                                ),
-                                systemImage: "exclamationmark.triangle.fill"
-                            )
-                            .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(MacTheme.errorText)
-                        } else {
-                            Text(modeTitle(model.configuration.mode))
-                                .font(.system(size: 9, weight: .medium))
-                                .foregroundStyle(MacTheme.textSecondary)
-                        }
+                        Text(modeTitle(model.configuration.mode))
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(MacTheme.textSecondary)
                     }
                     .frame(minHeight: 24)
                 }

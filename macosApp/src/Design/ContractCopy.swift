@@ -833,10 +833,6 @@ enum ContractCopy {
     static let copyMonitorFanSensorLibraryHint = LocalizedCopy(key: "copy/monitor/fan/sensor-library-hint", en: "64 sensors have names. Unknown keys show the raw key.", zhHans: "64 个传感器有名称。未知键显示原始键。")
     /// `copy/monitor/fan/source-battery`
     static let copyMonitorFanSourceBattery = LocalizedCopy(key: "copy/monitor/fan/source-battery", en: "Battery temperature", zhHans: "电池温度")
-    /// `copy/monitor/fan/source-coverage-compact`
-    static let copyMonitorFanSourceCoverageCompact = LocalizedCopy(key: "copy/monitor/fan/source-coverage-compact", en: "Safety sources not participating: %d", zhHans: "安全来源未参与：%d 个")
-    /// `copy/monitor/fan/source-coverage-warning`
-    static let copyMonitorFanSourceCoverageWarning = LocalizedCopy(key: "copy/monitor/fan/source-coverage-warning", en: "Not participating: %@. Covio will not raise fan requests for these temperatures.", zhHans: "未参与控温：%@。Covio 不会按这些温度提高风扇请求。")
     /// `copy/monitor/fan/source-cpu`
     static let copyMonitorFanSourceCpu = LocalizedCopy(key: "copy/monitor/fan/source-cpu", en: "CPU temperature", zhHans: "CPU 温度")
     /// `copy/monitor/fan/source-fan-percent`
@@ -2090,8 +2086,6 @@ enum ContractCopy {
         copyMonitorFanSensorFilterEmpty,
         copyMonitorFanSensorLibraryHint,
         copyMonitorFanSourceBattery,
-        copyMonitorFanSourceCoverageCompact,
-        copyMonitorFanSourceCoverageWarning,
         copyMonitorFanSourceCpu,
         copyMonitorFanSourceFanPercent,
         copyMonitorFanSourceFanPercentLabel,

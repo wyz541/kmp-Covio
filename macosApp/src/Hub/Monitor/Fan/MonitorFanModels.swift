@@ -444,6 +444,10 @@ enum MonitorFanPolicy {
     static let controlIntervalSeconds: TimeInterval = 1
     static let maximumConsecutiveWriteFailures = 3
 
+    static func expandsAdvanced(for mode: MonitorFanMode) -> Bool {
+        mode != .automatic
+    }
+
     static let quiet = MonitorFanConfiguration(
         enabled: true,
         mode: .curve,

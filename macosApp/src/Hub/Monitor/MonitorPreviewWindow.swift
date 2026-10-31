@@ -523,8 +523,8 @@ enum MonitorFanPreviewFixtures {
                 .init(key: "TD3P", celsius: 48.6),
             ],
             units: [
-                .init(index: 0, rpm: 2_789, minimumRPM: 1_500, maximumRPM: 5_348, targetRPM: 2_588, mode: 1),
-                .init(index: 1, rpm: 2_954, minimumRPM: 1_500, maximumRPM: 5_776, targetRPM: 2_709, mode: 1),
+                .init(index: 0, rpm: 2_789, minimumRPM: 1_499, maximumRPM: 5_348, targetRPM: 2_588, mode: 1),
+                .init(index: 1, rpm: 2_954, minimumRPM: 1_499, maximumRPM: 5_776, targetRPM: 2_709, mode: 1),
             ]
         )
     }
@@ -545,7 +545,7 @@ struct MonitorFanPreviewRoot: View {
             return 280
         }
         if scenario == "temperature-rules-advanced" {
-            return 820
+            return 880
         }
         return 360
     }

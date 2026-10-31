@@ -807,8 +807,6 @@ enum ContractCopy {
     static let copyMonitorFanManualRpm = LocalizedCopy(key: "copy/monitor/fan/manual-rpm", en: "Manual RPM", zhHans: "手动转速")
     /// `copy/monitor/fan/owned`
     static let copyMonitorFanOwned = LocalizedCopy(key: "copy/monitor/fan/owned", en: "Covio control", zhHans: "Covio 已接管")
-    /// `copy/monitor/fan/percent-tick`
-    static let copyMonitorFanPercentTick = LocalizedCopy(key: "copy/monitor/fan/percent-tick", en: "5% per tick", zhHans: "每格 5%")
     /// `copy/monitor/fan/power-source-adapter`
     static let copyMonitorFanPowerSourceAdapter = LocalizedCopy(key: "copy/monitor/fan/power-source-adapter", en: "Current: power adapter", zhHans: "当前：插电")
     /// `copy/monitor/fan/power-source-battery`
@@ -827,6 +825,10 @@ enum ContractCopy {
     static let copyMonitorFanRestoreSystem = LocalizedCopy(key: "copy/monitor/fan/restore-system", en: "Restore system control", zhHans: "恢复系统控制")
     /// `copy/monitor/fan/rpm`
     static let copyMonitorFanRpm = LocalizedCopy(key: "copy/monitor/fan/rpm", en: "RPM", zhHans: "转速")
+    /// `copy/monitor/fan/rpm-range`
+    static let copyMonitorFanRpmRange = LocalizedCopy(key: "copy/monitor/fan/rpm-range", en: "Speed range", zhHans: "转速区间")
+    /// `copy/monitor/fan/rpm-tick`
+    static let copyMonitorFanRpmTick = LocalizedCopy(key: "copy/monitor/fan/rpm-tick", en: "RPM · 5% per step", zhHans: "RPM · 每格 5%")
     /// `copy/monitor/fan/sensor-filter`
     static let copyMonitorFanSensorFilter = LocalizedCopy(key: "copy/monitor/fan/sensor-filter", en: "Filter sensors", zhHans: "筛选传感器")
     /// `copy/monitor/fan/sensor-filter-empty`
@@ -2079,7 +2081,6 @@ enum ContractCopy {
         copyMonitorFanManual,
         copyMonitorFanManualRpm,
         copyMonitorFanOwned,
-        copyMonitorFanPercentTick,
         copyMonitorFanPowerSourceAdapter,
         copyMonitorFanPowerSourceBattery,
         copyMonitorFanPowerSourceUnknown,
@@ -2089,6 +2090,8 @@ enum ContractCopy {
         copyMonitorFanRestoreAutoCurve,
         copyMonitorFanRestoreSystem,
         copyMonitorFanRpm,
+        copyMonitorFanRpmRange,
+        copyMonitorFanRpmTick,
         copyMonitorFanSensorFilter,
         copyMonitorFanSensorFilterEmpty,
         copyMonitorFanSensorLibraryHint,

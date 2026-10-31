@@ -715,9 +715,9 @@ final class MonitorFanTests: XCTestCase {
     func testFanPreviewUsesRealMacHardwareRanges() {
         let units = MonitorFanPreviewFixtures.reading.units
 
-        XCTAssertEqual(units[0].minimumRPM, 1_500)
+        XCTAssertEqual(units[0].minimumRPM, 1_499)
         XCTAssertEqual(units[0].maximumRPM, 5_348)
-        XCTAssertEqual(units[1].minimumRPM, 1_500)
+        XCTAssertEqual(units[1].minimumRPM, 1_499)
         XCTAssertEqual(units[1].maximumRPM, 5_776)
     }
 
@@ -839,11 +839,11 @@ final class MonitorFanTests: XCTestCase {
     func testTemperatureSourceDefaultsMatchBatteryWorkflow() {
         XCTAssertEqual(
             MonitorFanTemperatureRule.defaultPoints(for: .battery).map(\.celsius),
-            [32, 34]
+            [30, 32, 34]
         )
         XCTAssertEqual(
             MonitorFanTemperatureRule.defaultPoints(for: .battery).map(\.fanPercent),
-            [30, 50]
+            [0, 40, 60]
         )
         XCTAssertEqual(
             MonitorFanTemperatureRule.defaultPoints(for: .cpu).map(\.celsius),
@@ -852,6 +852,93 @@ final class MonitorFanTests: XCTestCase {
         XCTAssertEqual(
             MonitorFanTemperatureRule.defaultPoints(for: .gpu).map(\.celsius),
             [40, 60]
+        )
+    }
+
+    func testLegacyBatteryDefaultMigratesToThreePointRule() throws {
+        let json = #"""
+        {
+          "enabled": true,
+          "mode": "curve",
+          "temperatureRules": {
+            "battery": [
+              { "celsius": 32, "fanPercent": 30 },
+              { "celsius": 34, "fanPercent": 40 }
+            ]
+          }
+        }
+        """#
+        let configuration = try JSONDecoder().decode(
+            MonitorFanConfiguration.self,
+            from: Data(json.utf8)
+        )
+
+        XCTAssertEqual(
+            configuration.temperatureRules["battery"]?.map(\.celsius),
+            [30, 32, 34]
+        )
+        XCTAssertEqual(
+            configuration.temperatureRules["battery"]?.map(\.fanPercent),
+            [0, 40, 60]
+        )
+    }
+
+    func testNewBatteryDefaultUsesMinimumBelowFirstPoint() {
+        let points = MonitorFanTemperatureRule.defaultPoints(for: .battery)
+
+        XCTAssertEqual(
+            MonitorFanTemperatureRule.targetPercent(points: points, temperature: 27.6),
+            0
+        )
+        XCTAssertEqual(
+            MonitorFanTemperatureRule.targetPercent(points: points, temperature: 30),
+            0
+        )
+        XCTAssertEqual(
+            MonitorFanTemperatureRule.targetPercent(points: points, temperature: 32),
+            40
+        )
+        XCTAssertEqual(
+            MonitorFanTemperatureRule.targetPercent(points: points, temperature: 34),
+            60
+        )
+    }
+
+    func testFanRpmScaleStartsAtEachFanMinimum() {
+        let fan0 = MonitorFanReading.Unit(
+            index: 0,
+            rpm: 2_600,
+            minimumRPM: 1_499,
+            maximumRPM: 5_348,
+            targetRPM: 2_654,
+            mode: 1
+        )
+        let fan1 = MonitorFanReading.Unit(
+            index: 1,
+            rpm: 2_800,
+            minimumRPM: 1_499,
+            maximumRPM: 5_776,
+            targetRPM: 2_782,
+            mode: 1
+        )
+
+        XCTAssertEqual(
+            MonitorFanRpmScale.ticks(for: fan0).map { Int($0.rpm.rounded()) },
+            [1_499, 2_461, 3_424, 4_386, 5_348]
+        )
+        XCTAssertEqual(
+            MonitorFanRpmScale.ticks(for: fan1).map { Int($0.rpm.rounded()) },
+            [1_499, 2_568, 3_638, 4_707, 5_776]
+        )
+        XCTAssertEqual(
+            MonitorFanPercent.rpm(percent: 40, minimumRPM: 1_499, maximumRPM: 5_348),
+            3_038.6,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            MonitorFanPercent.rpm(percent: 60, minimumRPM: 1_499, maximumRPM: 5_776),
+            4_065.2,
+            accuracy: 0.001
         )
     }
 
@@ -896,11 +983,11 @@ final class MonitorFanTests: XCTestCase {
                 .battery: 33,
                 .cpu: 70,
             ]),
-            45
+            50
         )
         XCTAssertEqual(
             configuration.mergedTargetPercent(sourceTemperatures: [.battery: 34]),
-            50
+            60
         )
         XCTAssertNil(
             configuration.mergedTargetPercent(sourceTemperatures: [.gpu: 70])
@@ -923,7 +1010,7 @@ final class MonitorFanTests: XCTestCase {
         model.setTemperatureSource(.battery, enabled: true, reading: reading)
         XCTAssertEqual(
             model.configuration.temperatureRules["battery"]?.map(\.celsius),
-            [32, 34]
+            [30, 32, 34]
         )
 
         model.setTemperatureRulePoints(

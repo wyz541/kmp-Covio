@@ -99,10 +99,47 @@ class ReleasePipelineTests(unittest.TestCase):
         self.assertNotEqual(pipeline.signature_errors(app.replace("(runtime)", ""), app, pkg, dmg, "public"), [])
         self.assertNotEqual(pipeline.signature_errors(app, app, pkg, "Signature=adhoc", "public"), [])
 
-    def test_internal_signature_does_not_require_developer_id(self):
+    def test_internal_signature_allows_adhoc_without_stable_requirement(self):
         self.assertEqual(
             pipeline.signature_errors("Signature=adhoc", "Signature=adhoc", "", "", "internal"),
             [],
+        )
+
+    def test_internal_stable_signature_requires_matching_certificate(self):
+        app = "Authority=Covio Dev\nTeamIdentifier=not set"
+        other = "Authority=Another Dev Certificate\nTeamIdentifier=not set"
+        self.assertEqual(
+            pipeline.signature_errors(
+                app,
+                app,
+                "",
+                "",
+                "internal",
+                require_stable_signing=True,
+            ),
+            [],
+        )
+        self.assertIn(
+            "app is signed ad-hoc",
+            pipeline.signature_errors(
+                "Signature=adhoc",
+                app,
+                "",
+                "",
+                "internal",
+                require_stable_signing=True,
+            ),
+        )
+        self.assertIn(
+            "app and helper use different signing identities",
+            pipeline.signature_errors(
+                app,
+                other,
+                "",
+                "",
+                "internal",
+                require_stable_signing=True,
+            ),
         )
 
     def test_public_notarization_requires_every_ticket_and_gatekeeper_check(self):

@@ -41,7 +41,7 @@ ADR-0018 选择 `SMAppService.daemon`，并要求 Developer ID、hardened runtim
 11. app、helper、Release 和本机安装记录继续使用同一个 `releaseId`。
 12. app 继续验证 helper 的完整发布身份和 SHA-256。身份不一致时进入只读安全模式。
 13. 本机升级继续使用成对安装、精确握手和成对回滚。
-14. 本机签名优先使用稳定自签名证书，减少构建间 cdhash 变化。没有证书时允许 ad-hoc，但 ad-hoc 只用于本机调试。
+14. 本机签名优先使用稳定自签名证书，减少构建间 cdhash 变化。内测 Release 必须使用稳定证书；没有证书时 ad-hoc 只允许用于 CI 或本机调试。
 15. 自签名和 ad-hoc 不提供发布者真实性。文档不得把它们描述为 Developer ID。
 16. 更新只支持手动安装。禁用自动更新和公开更新检查。
 17. 每个本地包提供 SHA-256、安装报告和恢复命令。
@@ -70,7 +70,7 @@ ADR-0018 选择 `SMAppService.daemon`，并要求 Developer ID、hardened runtim
 ### 风险
 
 - 下载制品可能被篡改。缓解：只从可信来源获取，并核对 SHA-256。
-- ad-hoc 构建改变 cdhash。缓解：本机开发使用稳定自签名证书。
+- ad-hoc 构建改变 cdhash。缓解：开发构建和内测 Release 使用稳定自签名证书，创建内测 Release 时拒绝 ad-hoc。
 - helper 与服务版本混合。缓解：精确 releaseId 握手和成对回滚。
 - 管理员安装脚本失败。缓解：安装前备份、安装后握手、失败自动恢复。
 - 用户误以为包已公证。缓解：安装说明和 Release 正文写明 internal/local。
@@ -110,7 +110,7 @@ App Store 仍要求 Apple Developer Program。
 
 | 项目 | 状态 | 确认方法 |
 | --- | --- | --- |
-| 稳定自签名证书生成 | pending | 本机安装、重启和多版本更新 |
+| 稳定自签名证书生成 | completed (#504) | 本机证书、内测包身份和连续安装验证 |
 | Legacy XPC 客户端 requirement | pending | 正签名与错误签名客户端测试 |
 | helper 固定路径安装与卸载 | pending | 干净安装与清理矩阵 |
 | app-helper 事务回滚 | pending | N-1 升级、握手失败和中断恢复 |

@@ -20,21 +20,76 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PROJECT_CONFIG="$ROOT/macosApp/Signing.xcconfig"
 OVERRIDE="$ROOT/macosApp/Signing.local.xcconfig"
 IDENTITY="${COVIO_SIGN_IDENTITY:-Covio Dev}"
+PRINT_IDENTITY=0
+
+if [[ $# -gt 1 ]]; then
+  printf 'Usage: %s [--print-identity]\n' "$0" >&2
+  exit 2
+fi
+if [[ $# -eq 1 ]]; then
+  if [[ "$1" != "--print-identity" ]]; then
+    printf 'Usage: %s [--print-identity]\n' "$0" >&2
+    exit 2
+  fi
+  PRINT_IDENTITY=1
+fi
+
+message() {
+  if [[ "$PRINT_IDENTITY" -eq 1 ]]; then
+    printf '%s\n' "$1" >&2
+  else
+    printf '%s\n' "$1"
+  fi
+}
+
+read_override_identity() {
+  sed -n \
+    's/^[[:space:]]*CODE_SIGN_IDENTITY[[:space:]]*=[[:space:]]*//p' \
+    "$OVERRIDE" | tail -1
+}
+
+print_identity() {
+  local identity="$1"
+  if [[ -z "$identity" || "$identity" == "-" ]]; then
+    printf 'No stable local signing identity is configured.\n' >&2
+    exit 1
+  fi
+  if ! security find-identity -p codesigning 2>/dev/null | grep -Fq "\"$identity\""; then
+    printf 'Missing local signing identity: %s\n' "$identity" >&2
+    exit 1
+  fi
+  printf '%s\n' "$identity"
+}
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
+  if [[ "$PRINT_IDENTITY" -eq 1 ]]; then
+    printf 'A stable local signing identity requires macOS.\n' >&2
+    exit 1
+  fi
   exit 0
 fi
 
 if [[ ! -f "$PROJECT_CONFIG" ]]; then
+  if [[ "$PRINT_IDENTITY" -eq 1 ]]; then
+    printf 'Missing signing configuration: %s\n' "$PROJECT_CONFIG" >&2
+    exit 1
+  fi
   exit 0
 fi
 
 if [[ -f "$OVERRIDE" ]]; then
+  if [[ "$PRINT_IDENTITY" -eq 1 ]]; then
+    print_identity "$(read_override_identity)"
+  fi
   exit 0
 fi
 
 # 不用 -v。`security find-identity -v` 只列受信任的身份，自签名证书不在其中。
 if ! security find-identity -p codesigning 2>/dev/null | grep -q "\"$IDENTITY\""; then
+  if [[ "$PRINT_IDENTITY" -eq 1 ]]; then
+    printf 'Missing local signing identity: %s\n' "$IDENTITY" >&2
+    exit 1
+  fi
   exit 0
 fi
 
@@ -46,5 +101,9 @@ CODE_SIGN_IDENTITY = $IDENTITY
 CODE_SIGN_STYLE = Manual
 EOF
 
-printf '本机签名身份已固定为 %s。\n' "$IDENTITY"
-printf '写入 %s\n' "$OVERRIDE"
+message "本机签名身份已固定为 ${IDENTITY}。"
+message "写入 $OVERRIDE"
+
+if [[ "$PRINT_IDENTITY" -eq 1 ]]; then
+  print_identity "$IDENTITY"
+fi

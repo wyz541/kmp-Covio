@@ -85,6 +85,15 @@ bash scripts/publish-release.sh v<tag>
 内部渠道发布后保持 pre-release。
 内部渠道不会成为正式 latest。
 
+## 内测签名
+
+`scripts/create-release.sh` 为 internal 渠道设置 `COVIO_REQUIRE_STABLE_SIGNING=1`。
+内测 Release 的 app 与 helper 必须使用同一张本机稳定证书。
+证书 Authority 不一致、缺失或 app/helper 为 ad-hoc 时，Draft 创建失败。
+app、helper 和嵌入代码的 `Identifier` 与 `designated =>` 由 `scripts/verify_macos_signing.py` 检查。
+
+CI acceptance 直接调用打包脚本。CI 没有证书，因此该路径仍允许 ad-hoc。
+
 ## 正式发布环境
 
 正式渠道必须设置：

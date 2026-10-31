@@ -288,7 +288,7 @@ struct MonitorFanPopover: View {
             return 280
         }
         if advancedExpanded {
-            return 820
+            return 800
         }
         if model.configuration.mode == .manual {
             return 760

@@ -246,8 +246,9 @@ struct MonitorFanTemperatureRuleEditor: View {
 
             percentSliderRow(
                 value: percentBinding(source: source, index: index, points: points),
+                fans: reading.units,
                 accessibilityLabel: "\(sourceTitle(source)) \(controlPointTitle(index)) \(ContractCopy.copyMonitorFanSourceFanPercentLabel.text(for: language))",
-                accessibilityValue: "\(Int(point.fanPercent.rounded()))%",
+                accessibilityValue: pointAccessibilityValue(point),
                 onEditingChanged: { editing in
                     if !editing {
                         onChangePoints(source, configuredPoints(for: source), true)
@@ -309,16 +310,17 @@ struct MonitorFanTemperatureRuleEditor: View {
 
     private func percentSliderRow(
         value: Binding<Double>,
+        fans: [MonitorFanReading.Unit],
         accessibilityLabel: String,
         accessibilityValue: String,
         onEditingChanged: @escaping (Bool) -> Void
     ) -> some View {
         HStack(alignment: .top, spacing: 6) {
             VStack(alignment: .leading, spacing: 1) {
-                Text(ContractCopy.copyMonitorFanSourceFanPercentLabel.text(for: language))
+                Text(ContractCopy.copyMonitorFanRpmRange.text(for: language))
                     .font(.system(size: 8, weight: .medium))
                     .foregroundStyle(MacTheme.textSecondary)
-                Text(ContractCopy.copyMonitorFanPercentTick.text(for: language))
+                Text(ContractCopy.copyMonitorFanRpmTick.text(for: language))
                     .font(.system(size: 7, weight: .medium))
                     .foregroundStyle(MacTheme.textSecondary)
             }
@@ -335,16 +337,17 @@ struct MonitorFanTemperatureRuleEditor: View {
                 .accessibilityLabel(accessibilityLabel)
                 .accessibilityValue(accessibilityValue)
 
-                HStack(spacing: 0) {
-                    Text("0%")
-                    Spacer(minLength: 0)
-                    Text("25%")
-                    Spacer(minLength: 0)
-                    Text("50%")
-                    Spacer(minLength: 0)
-                    Text("75%")
-                    Spacer(minLength: 0)
-                    Text("100%")
+                VStack(spacing: 1) {
+                    ForEach(fans) { fan in
+                        HStack(spacing: 4) {
+                            Text("F\(fan.index + 1)")
+                                .frame(width: 14, alignment: .leading)
+                            ForEach(MonitorFanRpmScale.ticks(for: fan)) { tick in
+                                Text("\(Int(tick.rpm.rounded()))")
+                                    .frame(maxWidth: .infinity, alignment: .trailing)
+                            }
+                        }
+                    }
                 }
                 .font(.system(size: 7, weight: .medium, design: .rounded))
                 .foregroundStyle(MacTheme.textSecondary)
@@ -429,6 +432,19 @@ struct MonitorFanTemperatureRuleEditor: View {
             return ContractCopy.copyMonitorFanSourceUnavailable.text(for: language)
         }
         return MonitorFanFormat.temperature(temperature)
+    }
+
+    private func pointAccessibilityValue(_ point: MonitorFanTemperatureRulePoint) -> String {
+        let percent = "\(Int(point.fanPercent.rounded()))%"
+        let targets = reading.units.map { fan in
+            let rpm = MonitorFanPercent.rpm(
+                percent: point.fanPercent,
+                minimumRPM: fan.minimumRPM,
+                maximumRPM: fan.maximumRPM
+            )
+            return "\(ContractCopy.copyMonitorFanUnit.text(for: language)) \(Int(rpm.rounded())) RPM"
+        }
+        return ([percent] + targets).joined(separator: "，")
     }
 
     private func sourceRequestText(_ source: MonitorFanTemperatureSource) -> String {

@@ -166,10 +166,13 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
             [String: [MonitorFanCurvePoint]].self,
             forKey: .batteryCurves
         ) ?? [:]
-        temperatureRules = try container.decodeIfPresent(
+        let decodedTemperatureRules = try container.decodeIfPresent(
             [String: [MonitorFanTemperatureRulePoint]].self,
             forKey: .temperatureRules
         ) ?? [:]
+        temperatureRules = MonitorFanTemperatureRule.migratedBatteryDefaults(
+            in: decodedTemperatureRules
+        )
     }
 
     func encode(to encoder: Encoder) throws {
@@ -480,10 +483,28 @@ enum MonitorFanTemperatureRule {
             ]
         case .battery:
             [
-                MonitorFanTemperatureRulePoint(celsius: 32, fanPercent: 30),
-                MonitorFanTemperatureRulePoint(celsius: 34, fanPercent: 50),
+                MonitorFanTemperatureRulePoint(celsius: 30, fanPercent: 0),
+                MonitorFanTemperatureRulePoint(celsius: 32, fanPercent: 40),
+                MonitorFanTemperatureRulePoint(celsius: 34, fanPercent: 60),
             ]
         }
+    }
+
+    /// 旧版两点电池默认值迁移到三点规则。用户自定义的其他规则保持不变。
+    static func migratedBatteryDefaults(
+        in rules: [String: [MonitorFanTemperatureRulePoint]]
+    ) -> [String: [MonitorFanTemperatureRulePoint]] {
+        guard let battery = rules["battery"] else { return rules }
+        let points = normalized(battery)
+        let isLegacyDefault = points.count == 2
+            && points[0].celsius == 32
+            && points[0].fanPercent == 30
+            && points[1].celsius == 34
+            && (points[1].fanPercent == 40 || points[1].fanPercent == 50)
+        guard isLegacyDefault else { return rules }
+        var migrated = rules
+        migrated["battery"] = defaultPoints(for: .battery)
+        return migrated
     }
 
     static func snappedPercent(_ value: Double) -> Double {
@@ -589,6 +610,30 @@ enum MonitorFanSpeedSync {
             targets[fan.index] = target.rounded()
         }
         return targets
+    }
+}
+
+enum MonitorFanRpmScale {
+    struct Tick: Equatable, Identifiable, Sendable {
+        let percent: Double
+        let rpm: Double
+
+        var id: Double { percent }
+    }
+
+    static let percentages: [Double] = [0, 25, 50, 75, 100]
+
+    static func ticks(for fan: MonitorFanReading.Unit) -> [Tick] {
+        percentages.map { percent in
+            Tick(
+                percent: percent,
+                rpm: MonitorFanPercent.rpm(
+                    percent: percent,
+                    minimumRPM: fan.minimumRPM,
+                    maximumRPM: fan.maximumRPM
+                )
+            )
+        }
     }
 }
 

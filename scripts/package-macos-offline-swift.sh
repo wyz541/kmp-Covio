@@ -16,6 +16,7 @@ FILE_NAMING_MODEL_DIR="${COVIO_FILE_NAMING_MODEL_DIR:-}"
 RELEASE_SIGN_IDENTITY="${COVIO_CODE_SIGN_IDENTITY:-}"
 DEVELOPMENT_TEAM="${COVIO_DEVELOPMENT_TEAM:-}"
 NOTARY_PROFILE="${COVIO_NOTARY_PROFILE:-}"
+REQUIRE_STABLE_SIGNING="${COVIO_REQUIRE_STABLE_SIGNING:-0}"
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
   printf 'This script requires macOS.\n' >&2
@@ -32,6 +33,7 @@ python3 -I "$ROOT/scripts/release_manifest.py" check-clean
 VERSION="$(python3 -I "$ROOT/scripts/release_manifest.py" value productVersion)"
 CHANNEL="$(python3 -I "$ROOT/scripts/release_manifest.py" value channel)"
 COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
+INTERNAL_SIGNING_BASELINE="$ROOT/build/internal-signing-$APP_ID.json"
 DEFAULT_DMG="$DIST/$APP_NAME-$VERSION.dmg"
 DEFAULT_APP="$DIST/$APP_NAME.app"
 OFFLINE_DMG="$DIST/$APP_NAME-Offline-$VERSION.dmg"
@@ -51,6 +53,24 @@ fi
 python3 -I "$ROOT/scripts/release_manifest.py" verify-artifact \
   "$RELEASE_MANIFEST" \
   --helper "$DEFAULT_APP/Contents/MacOS/CovioHelper"
+
+if [[ "$CHANNEL" == "internal" && -z "$RELEASE_SIGN_IDENTITY" ]]; then
+  if LOCAL_IDENTITY="$(bash "$ROOT/scripts/setup-local-signing.sh" --print-identity 2>/dev/null)"; then
+    RELEASE_SIGN_IDENTITY="$LOCAL_IDENTITY"
+    printf 'Internal offline package signing identity: %s\n' "$RELEASE_SIGN_IDENTITY"
+  elif [[ "$REQUIRE_STABLE_SIGNING" == "1" ]]; then
+    printf 'Internal release packaging requires a stable local signing identity.\n' >&2
+    printf 'Run bash scripts/setup-local-signing.sh and see docs/adr/adr-0005-local-code-signing.md.\n' >&2
+    exit 1
+  else
+    printf 'No local signing identity; internal offline package will use ad-hoc signing.\n' >&2
+  fi
+fi
+if [[ "$CHANNEL" == "internal" && "$REQUIRE_STABLE_SIGNING" == "1" && ( -z "$RELEASE_SIGN_IDENTITY" || "$RELEASE_SIGN_IDENTITY" == "-" ) ]]; then
+  printf 'Internal release packaging requires a stable local signing identity.\n' >&2
+  printf 'Run bash scripts/setup-local-signing.sh and see docs/adr/adr-0005-local-code-signing.md.\n' >&2
+  exit 1
+fi
 
 if [[ "$CHANNEL" == "public" ]]; then
   if [[ -z "$RELEASE_SIGN_IDENTITY" || "$RELEASE_SIGN_IDENTITY" == "-" ]]; then
@@ -99,6 +119,14 @@ else
   /usr/bin/codesign --force --sign - "$OFFLINE_APP"
 fi
 /usr/bin/codesign --verify --deep --strict "$OFFLINE_APP"
+
+if [[ "$CHANNEL" == "internal" && -n "$RELEASE_SIGN_IDENTITY" && "$RELEASE_SIGN_IDENTITY" != "-" ]]; then
+  python3 -I "$ROOT/scripts/verify_macos_signing.py" \
+    "$OFFLINE_APP" \
+    --require-stable \
+    --baseline "$INTERNAL_SIGNING_BASELINE"
+fi
+
 bash "$ROOT/scripts/verify-helper-daemon.sh" "$OFFLINE_APP" --require-manifest
 
 notarize_and_staple() {

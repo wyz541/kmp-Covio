@@ -398,9 +398,13 @@ Model weights are not in Git.
 1. Prepare the release identity:
 
    ```sh
+   bash scripts/setup-local-signing.sh
    python3 scripts/release_manifest.py bump
    python3 scripts/release_manifest.py check
    ```
+
+   Internal Release creation requires the `Covio Dev` identity.
+   `scripts/create-release.sh` fails when the stable identity is missing.
 
 2. Package the default slim app:
 
@@ -443,7 +447,9 @@ The offline script embeds the model under `Contents/Resources/Models/Qwen3VL-2B-
 The script reads versions from `release/release-manifest.json` and checks that the bundle carries them.
 The script writes the final release identity, Git commit, helper SHA-256, installer identities, and model identity to `dist/release-manifest.json`.
 The app contains `Contents/MacOS/CovioHelper`. The PKG installs the matching helper and LaunchDaemon at fixed root-owned paths.
-The script checks that the bundle carries `macosApp/src/Covio.icns` and applies an ad-hoc signature.
+The script checks that the bundle carries `macosApp/src/Covio.icns`.
+The internal package uses the local `Covio Dev` identity when available.
+CI packaging without a certificate uses an ad-hoc signature.
 The script builds the DMG with `diskutil image create`.
 The script prints app and DMG byte sizes.
 

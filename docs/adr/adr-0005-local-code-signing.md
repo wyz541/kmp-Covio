@@ -22,7 +22,7 @@ $ codesign -d -r- build/xcode-dd/Build/Products/Debug/Covio.app
 三个约束：
 
 1. CI 跑在 GitHub 运行器上。那里没有本机证书。默认配置必须能构建。
-2. `scripts/package-macos-swift.sh` 有意用 ad-hoc 签名对外分发。分发签名要 Developer ID 证书与公证，不在本决策范围内。
+2. internal 包复用本机稳定证书。没有证书时，仅 CI 或直接本机打包可以使用 ad-hoc。公开分发要 Developer ID 证书与公证，不在本决策范围内。
 3. 本机没有可用的签名身份。`security find-identity -v -p codesigning` 返回 0 个。
 
 ## 决策
@@ -83,6 +83,14 @@ CODE_SIGN_STYLE = Manual
 
 Xcode 图形界面里构建走 `Covio.xcscheme` 的 Build 预动作，也会调用脚本。因此每个 worktree 的第一次构建都会补上这个文件，不需要手动步骤。
 
+## 内测包继承本机身份
+
+`scripts/package-macos-swift.sh` 与 `scripts/package-macos-offline-swift.sh` 在 internal 渠道调用 `scripts/setup-local-signing.sh --print-identity`。本机有证书时，两个脚本使用同一身份签名 app、helper、嵌入框架和 DMG。
+
+`scripts/create-release.sh` 强制设置 `COVIO_REQUIRE_STABLE_SIGNING=1`。没有稳定证书时，内测 Release 打包失败。CI 的 acceptance 作业直接调用打包脚本，因此无证书时仍可使用 ad-hoc。
+
+内测包生成后调用 `scripts/verify_macos_signing.py`。构建、开发和内测包共用固定证书根。`CDHash` 可以变化，`Identifier` 与 `designated =>` 必须保持相同。
+
 ## 开发签名自动检查
 
 构建脚本与测试脚本在产物生成后调用 `scripts/verify_macos_signing.py`。检查覆盖主应用、helper 与嵌入框架。
@@ -120,7 +128,7 @@ python3 -I scripts/verify_macos_signing.py \
 ### 风险
 
 - 证书进登录钥匙串后，其他进程可以用它签名。缓解：该证书只用于本机开发，不用于分发。
-- 自签名证书过不了 Gatekeeper。缓解：分发仍走 `package-macos-swift.sh` 的 ad-hoc 路径，将来换 Developer ID。
+- 自签名证书过不了 Gatekeeper。缓解：internal 包继续走手动放行；公开分发时换 Developer ID 与 notarization。
 
 ## 备选方案
 

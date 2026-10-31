@@ -209,9 +209,25 @@ def signature_errors(
     package: str,
     disk_image: str,
     channel: str,
+    require_stable_signing: bool = False,
 ) -> list[str]:
     if channel == "internal":
-        return []
+        if not require_stable_signing:
+            return []
+        errors: list[str] = []
+        authorities: dict[str, str | None] = {}
+        for name, report in (("app", app), ("helper", helper)):
+            authority = _signature_authority(report)
+            authorities[name] = authority
+            if re.search(r"^Signature=adhoc$", report, re.MULTILINE):
+                errors.append(f"{name} is signed ad-hoc")
+            elif authority is None:
+                errors.append(f"{name} has no signing Authority")
+        if authorities["app"] and authorities["app"] == authorities["helper"]:
+            return errors
+        if authorities["app"] and authorities["helper"]:
+            errors.append("app and helper use different signing identities")
+        return errors
     errors: list[str] = []
     for name, report in (("app", app), ("helper", helper)):
         if "Authority=Developer ID Application:" not in report:
@@ -227,6 +243,11 @@ def signature_errors(
     if "Developer ID Installer:" not in package or "Status: signed" not in package:
         errors.append("pkg is not signed with Developer ID Installer")
     return errors
+
+
+def _signature_authority(report: str) -> str | None:
+    match = re.search(r"^Authority=(.+)$", report, re.MULTILINE)
+    return match.group(1).strip() if match else None
 
 
 def notarization_errors(
@@ -445,6 +466,7 @@ def verify_release(
     expected_commit: str | None = None,
     evidence_output: pathlib.Path | None = None,
     compare_path: pathlib.Path | None = None,
+    require_stable_signing: bool = False,
 ) -> dict[str, Any]:
     if source_manifest is None:
         source = release.load_spec(root)
@@ -517,6 +539,7 @@ def verify_release(
             package_signature.output,
             disk_image_signature.output,
             channel,
+            require_stable_signing,
         )
         if errors:
             raise ReleaseVerificationError("\n".join(errors))
@@ -623,6 +646,23 @@ def verify_release(
                 require_command(
                     ["/usr/bin/codesign", "--verify", "--deep", "--strict", str(offline_app)]
                 )
+
+                if channel == "internal" and require_stable_signing:
+                    offline_app_signature = _signature_report(offline_app)
+                    offline_helper_signature = _signature_report(offline_helper)
+                    errors = signature_errors(
+                        offline_app_signature,
+                        offline_helper_signature,
+                        "",
+                        "",
+                        channel,
+                        require_stable_signing=True,
+                    )
+                    if errors:
+                        raise ReleaseVerificationError(
+                            "offline app signing identity is not stable:\n"
+                            + "\n".join(errors)
+                        )
 
                 if channel == "public":
                     require_command(
@@ -803,6 +843,7 @@ def main(argv: list[str] | None = None) -> int:
     verify.add_argument("--expected-commit")
     verify.add_argument("--evidence", type=pathlib.Path)
     verify.add_argument("--compare-evidence", type=pathlib.Path)
+    verify.add_argument("--require-stable-signing", action="store_true")
 
     tag = sub.add_parser("tag")
     tag.add_argument("--root", type=pathlib.Path, default=ROOT)
@@ -839,6 +880,7 @@ def main(argv: list[str] | None = None) -> int:
                 expected_commit=args.expected_commit,
                 evidence_output=args.evidence,
                 compare_path=args.compare_evidence,
+                require_stable_signing=args.require_stable_signing,
             )
             print("release verification passed")
             return 0

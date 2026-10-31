@@ -31,6 +31,11 @@ BUILD_NUMBER="$(python3 -I "$ROOT/scripts/release_manifest.py" value buildNumber
 CHANNEL="$(python3 -I "$ROOT/scripts/release_manifest.py" value channel)"
 TAG="$(python3 -I "$PIPELINE" tag --root "$ROOT")"
 COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
+VERIFY_SIGN_ARGS=()
+if [[ "$CHANNEL" == "internal" ]]; then
+  export COVIO_REQUIRE_STABLE_SIGNING=1
+  VERIFY_SIGN_ARGS+=(--require-stable-signing)
+fi
 APP_ZIP="$DIST/Covio-$VERSION.app.zip"
 DMG="$DIST/Covio-$VERSION.dmg"
 PKG="$DIST/Covio-$VERSION.pkg"
@@ -74,6 +79,7 @@ python3 -I "$PIPELINE" verify \
   --channel "$CHANNEL" \
   --root "$ROOT" \
   --expected-commit "$COMMIT" \
+  "${VERIFY_SIGN_ARGS[@]}" \
   --evidence "$EVIDENCE"
 python3 -I "$PIPELINE" notes \
   --evidence "$EVIDENCE" \

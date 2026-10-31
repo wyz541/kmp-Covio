@@ -54,8 +54,13 @@ The artifact manifest adds `gitCommit`, `releaseId`, `helperSHA256`, both instal
 Build the default slim app:
 
 ```sh
+bash scripts/setup-local-signing.sh
 bash scripts/package-macos-swift.sh
 ```
+
+Internal Release creation requires a stable local signing identity.
+The app and helper must use the same certificate.
+CI packaging without a certificate still uses ad-hoc signing.
 
 Build the optional offline app and DMG:
 

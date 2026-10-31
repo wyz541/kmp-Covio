@@ -98,6 +98,10 @@ with open(sys.argv[1], encoding="utf-8") as stream:
     print(json.load(stream)["channel"])
 PY
 )"
+VERIFY_SIGN_ARGS=()
+if [[ "$CHANNEL" == "internal" ]]; then
+  VERIFY_SIGN_ARGS+=(--require-stable-signing)
+fi
 EVIDENCE_TAG="$(python3 -I - "$ASSET_DIR/release-evidence.json" <<'PY'
 import json
 import sys
@@ -115,6 +119,7 @@ python3 -I "$PIPELINE" verify \
   --channel "$CHANNEL" \
   --source-manifest "$RELEASE_TMP/source-release-manifest.json" \
   --expected-commit "$TARGET_COMMIT" \
+  "${VERIFY_SIGN_ARGS[@]}" \
   --evidence "$RELEASE_TMP/recomputed-release-evidence.json" \
   --compare-evidence "$ASSET_DIR/release-evidence.json"
 python3 -I "$PIPELINE" promote-check \

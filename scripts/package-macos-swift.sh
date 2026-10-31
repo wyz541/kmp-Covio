@@ -25,6 +25,7 @@ RELEASE_SIGN_IDENTITY="${COVIO_CODE_SIGN_IDENTITY:-}"
 INSTALLER_SIGN_IDENTITY="${COVIO_INSTALLER_SIGN_IDENTITY:-}"
 DEVELOPMENT_TEAM="${COVIO_DEVELOPMENT_TEAM:-}"
 NOTARY_PROFILE="${COVIO_NOTARY_PROFILE:-}"
+REQUIRE_STABLE_SIGNING="${COVIO_REQUIRE_STABLE_SIGNING:-0}"
 CLEANUP_PATHS=()
 
 cleanup_temporary_paths() {
@@ -57,6 +58,7 @@ BUILD_NUMBER="$(python3 -I "$ROOT/scripts/release_manifest.py" value buildNumber
 CHANNEL="$(python3 -I "$ROOT/scripts/release_manifest.py" value channel)"
 COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
 RELEASE_ID="$(python3 -I "$ROOT/scripts/release_manifest.py" release-id --commit "$COMMIT")"
+INTERNAL_SIGNING_BASELINE="$ROOT/build/internal-signing-$APP_ID.json"
 DMG_PATH="$DIST/$APP_NAME-$VERSION.dmg"
 APP_ZIP="$DIST/$APP_NAME-$VERSION.app.zip"
 PKG_PATH="$DIST/$APP_NAME-$VERSION.pkg"
@@ -64,6 +66,24 @@ TRANSACTION_ID="build-$BUILD_NUMBER-${COMMIT:0:12}"
 STAGED_APP_RELATIVE="Library/Application Support/Covio/Installer/staged/$APP_NAME.app"
 STAGED_APP_PATH="/$STAGED_APP_RELATIVE"
 OFFLINE_DMG="$DIST/$APP_NAME-Offline-$VERSION.dmg"
+
+if [[ "$CHANNEL" == "internal" && -z "$RELEASE_SIGN_IDENTITY" ]]; then
+  if LOCAL_IDENTITY="$(bash "$ROOT/scripts/setup-local-signing.sh" --print-identity 2>/dev/null)"; then
+    RELEASE_SIGN_IDENTITY="$LOCAL_IDENTITY"
+    printf 'Internal package signing identity: %s\n' "$RELEASE_SIGN_IDENTITY"
+  elif [[ "$REQUIRE_STABLE_SIGNING" == "1" ]]; then
+    printf 'Internal release packaging requires a stable local signing identity.\n' >&2
+    printf 'Run bash scripts/setup-local-signing.sh and see docs/adr/adr-0005-local-code-signing.md.\n' >&2
+    exit 1
+  else
+    printf 'No local signing identity; internal package will use ad-hoc signing.\n' >&2
+  fi
+fi
+if [[ "$CHANNEL" == "internal" && "$REQUIRE_STABLE_SIGNING" == "1" && ( -z "$RELEASE_SIGN_IDENTITY" || "$RELEASE_SIGN_IDENTITY" == "-" ) ]]; then
+  printf 'Internal release packaging requires a stable local signing identity.\n' >&2
+  printf 'Run bash scripts/setup-local-signing.sh and see docs/adr/adr-0005-local-code-signing.md.\n' >&2
+  exit 1
+fi
 
 if [[ "$CHANNEL" == "public" ]]; then
   if [[ -z "$RELEASE_SIGN_IDENTITY" || "$RELEASE_SIGN_IDENTITY" == "-" ]]; then
@@ -106,8 +126,10 @@ if [[ -n "$RELEASE_SIGN_IDENTITY" && "$RELEASE_SIGN_IDENTITY" != "-" ]]; then
   XCODE_SIGN_ARGS+=(
     CODE_SIGN_STYLE=Manual
     CODE_SIGN_IDENTITY="$RELEASE_SIGN_IDENTITY"
-    DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM"
   )
+  if [[ -n "$DEVELOPMENT_TEAM" ]]; then
+    XCODE_SIGN_ARGS+=(DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM")
+  fi
 else
   XCODE_SIGN_ARGS+=(CODE_SIGN_STYLE=Automatic CODE_SIGN_IDENTITY=-)
 fi
@@ -265,6 +287,13 @@ else
   /usr/bin/codesign --force --sign - "$APP_IMAGE"
 fi
 /usr/bin/codesign --verify --deep --strict "$APP_IMAGE"
+
+if [[ "$CHANNEL" == "internal" && -n "$RELEASE_SIGN_IDENTITY" && "$RELEASE_SIGN_IDENTITY" != "-" ]]; then
+  python3 -I "$ROOT/scripts/verify_macos_signing.py" \
+    "$APP_IMAGE" \
+    --require-stable \
+    --baseline "$INTERNAL_SIGNING_BASELINE"
+fi
 
 notarize_and_staple() {
   local target="$1"

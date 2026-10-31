@@ -85,6 +85,14 @@ if [[ "$CHANNEL" == "internal" && "$REQUIRE_STABLE_SIGNING" == "1" && ( -z "$REL
   exit 1
 fi
 
+release_codesign() {
+  if [[ "$CHANNEL" == "public" ]]; then
+    /usr/bin/codesign --options runtime "$@"
+  else
+    /usr/bin/codesign "$@"
+  fi
+}
+
 if [[ "$CHANNEL" == "public" ]]; then
   if [[ -z "$RELEASE_SIGN_IDENTITY" || "$RELEASE_SIGN_IDENTITY" == "-" ]]; then
     printf 'Public packaging requires COVIO_CODE_SIGN_IDENTITY.\n' >&2
@@ -258,10 +266,9 @@ fi
 # 先签整个 bundle，确保嵌套 helper 的最终字节稳定。生成发布清单后只重签 app 外层，
 # 避免复制清单使签名失效，也避免 helper 摘要随 deep 签名再次变化。
 if [[ -n "$RELEASE_SIGN_IDENTITY" && "$RELEASE_SIGN_IDENTITY" != "-" ]]; then
-  /usr/bin/codesign \
+  release_codesign \
     --force \
     --deep \
-    --options runtime \
     --timestamp \
     --sign "$RELEASE_SIGN_IDENTITY" \
     "$APP_IMAGE"
@@ -277,9 +284,8 @@ python3 -I "$ROOT/scripts/release_manifest.py" generate-bundle-manifest \
   --commit "$COMMIT"
 
 if [[ -n "$RELEASE_SIGN_IDENTITY" && "$RELEASE_SIGN_IDENTITY" != "-" ]]; then
-  /usr/bin/codesign \
+  release_codesign \
     --force \
-    --options runtime \
     --timestamp \
     --sign "$RELEASE_SIGN_IDENTITY" \
     "$APP_IMAGE"
@@ -363,9 +369,8 @@ mkdir -p \
   "$ROOT/installer/atomic_swap.c" \
   -o "$TRANSACTION_BINARY"
 if [[ -n "$RELEASE_SIGN_IDENTITY" && "$RELEASE_SIGN_IDENTITY" != "-" ]]; then
-  /usr/bin/codesign \
+  release_codesign \
     --force \
-    --options runtime \
     --timestamp \
     --sign "$RELEASE_SIGN_IDENTITY" \
     "$TRANSACTION_BINARY"

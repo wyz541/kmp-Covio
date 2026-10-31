@@ -72,6 +72,14 @@ if [[ "$CHANNEL" == "internal" && "$REQUIRE_STABLE_SIGNING" == "1" && ( -z "$REL
   exit 1
 fi
 
+release_codesign() {
+  if [[ "$CHANNEL" == "public" ]]; then
+    /usr/bin/codesign --options runtime "$@"
+  else
+    /usr/bin/codesign "$@"
+  fi
+}
+
 if [[ "$CHANNEL" == "public" ]]; then
   if [[ -z "$RELEASE_SIGN_IDENTITY" || "$RELEASE_SIGN_IDENTITY" == "-" ]]; then
     printf 'Public packaging requires COVIO_CODE_SIGN_IDENTITY.\n' >&2
@@ -108,9 +116,8 @@ fi
 python3 -I "$MODEL_VERIFY" --manifest "$MODEL_MANIFEST" verify-directory "$MODEL_RESOURCE"
 
 if [[ -n "$RELEASE_SIGN_IDENTITY" && "$RELEASE_SIGN_IDENTITY" != "-" ]]; then
-  /usr/bin/codesign \
+  release_codesign \
     --force \
-    --options runtime \
     --timestamp \
     --sign "$RELEASE_SIGN_IDENTITY" \
     "$OFFLINE_APP"

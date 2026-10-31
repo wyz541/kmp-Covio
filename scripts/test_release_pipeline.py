@@ -99,6 +99,18 @@ class ReleasePipelineTests(unittest.TestCase):
         self.assertNotEqual(pipeline.signature_errors(app.replace("(runtime)", ""), app, pkg, dmg, "public"), [])
         self.assertNotEqual(pipeline.signature_errors(app, app, pkg, "Signature=adhoc", "public"), [])
 
+    def test_internal_package_signing_omits_hardened_runtime(self):
+        for name in (
+            "package-macos-swift.sh",
+            "package-macos-offline-swift.sh",
+        ):
+            script = SCRIPT.with_name(name).read_text(encoding="utf-8")
+            with self.subTest(script=name):
+                self.assertEqual(script.count("--options runtime"), 1)
+                self.assertIn("release_codesign()", script)
+                self.assertIn('if [[ "$CHANNEL" == "public" ]]; then', script)
+                self.assertNotIn("SIGN_RUNTIME_FLAGS", script)
+
     def test_internal_signature_allows_adhoc_without_stable_requirement(self):
         self.assertEqual(
             pipeline.signature_errors("Signature=adhoc", "Signature=adhoc", "", "", "internal"),

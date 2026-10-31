@@ -2,6 +2,12 @@ import XCTest
 @testable import Covio
 
 final class MonitorFanTests: XCTestCase {
+    func testAdvancedSettingsExpandForCovioModes() {
+        XCTAssertFalse(MonitorFanPolicy.expandsAdvanced(for: .automatic))
+        XCTAssertTrue(MonitorFanPolicy.expandsAdvanced(for: .curve))
+        XCTAssertTrue(MonitorFanPolicy.expandsAdvanced(for: .manual))
+    }
+
     @MainActor
     func testGlobalHelperStatusMapsToFanAvailability() {
         XCTAssertEqual(MonitorFanControlModel.helperAvailability(for: .match), .ready)

@@ -4936,14 +4936,6 @@
       "en": "Each source uses its hottest sensor. The highest fan request wins.",
       "zh-Hans": "每个来源取最热传感器。风扇采用最高请求。"
     },
-    "copy/monitor/fan/source-coverage-compact": {
-      "en": "Safety sources not participating: %d",
-      "zh-Hans": "安全来源未参与：%d 个"
-    },
-    "copy/monitor/fan/source-coverage-warning": {
-      "en": "Not participating: %@. Covio will not raise fan requests for these temperatures.",
-      "zh-Hans": "未参与控温：%@。Covio 不会按这些温度提高风扇请求。"
-    },
     "copy/monitor/fan/restore-system": {
       "en": "Restore system control",
       "zh-Hans": "恢复系统控制"

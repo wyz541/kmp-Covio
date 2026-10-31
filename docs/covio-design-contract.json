@@ -4924,14 +4924,6 @@
       "en": "Fan percentage",
       "zh-Hans": "风扇百分比"
     },
-    "copy/monitor/fan/rpm-range": {
-      "en": "Speed range",
-      "zh-Hans": "转速区间"
-    },
-    "copy/monitor/fan/rpm-tick": {
-      "en": "RPM · 5% per step",
-      "zh-Hans": "RPM · 每格 5%"
-    },
     "copy/monitor/fan/source-request": {
       "en": "%d%% request",
       "zh-Hans": "%d%% 请求"

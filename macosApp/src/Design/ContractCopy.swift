@@ -825,10 +825,6 @@ enum ContractCopy {
     static let copyMonitorFanRestoreSystem = LocalizedCopy(key: "copy/monitor/fan/restore-system", en: "Restore system control", zhHans: "恢复系统控制")
     /// `copy/monitor/fan/rpm`
     static let copyMonitorFanRpm = LocalizedCopy(key: "copy/monitor/fan/rpm", en: "RPM", zhHans: "转速")
-    /// `copy/monitor/fan/rpm-range`
-    static let copyMonitorFanRpmRange = LocalizedCopy(key: "copy/monitor/fan/rpm-range", en: "Speed range", zhHans: "转速区间")
-    /// `copy/monitor/fan/rpm-tick`
-    static let copyMonitorFanRpmTick = LocalizedCopy(key: "copy/monitor/fan/rpm-tick", en: "RPM · 5% per step", zhHans: "RPM · 每格 5%")
     /// `copy/monitor/fan/sensor-filter`
     static let copyMonitorFanSensorFilter = LocalizedCopy(key: "copy/monitor/fan/sensor-filter", en: "Filter sensors", zhHans: "筛选传感器")
     /// `copy/monitor/fan/sensor-filter-empty`
@@ -2090,8 +2086,6 @@ enum ContractCopy {
         copyMonitorFanRestoreAutoCurve,
         copyMonitorFanRestoreSystem,
         copyMonitorFanRpm,
-        copyMonitorFanRpmRange,
-        copyMonitorFanRpmTick,
         copyMonitorFanSensorFilter,
         copyMonitorFanSensorFilterEmpty,
         copyMonitorFanSensorLibraryHint,

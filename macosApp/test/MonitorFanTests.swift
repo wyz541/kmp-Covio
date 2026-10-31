@@ -904,7 +904,7 @@ final class MonitorFanTests: XCTestCase {
         )
     }
 
-    func testFanRpmScaleStartsAtEachFanMinimum() {
+    func testFanRpmSummaryShowsMinimumTargetAndMaximum() {
         let fan0 = MonitorFanReading.Unit(
             index: 0,
             rpm: 2_600,
@@ -922,24 +922,25 @@ final class MonitorFanTests: XCTestCase {
             mode: 1
         )
 
-        XCTAssertEqual(
-            MonitorFanRpmScale.ticks(for: fan0).map { Int($0.rpm.rounded()) },
-            [1_499, 2_461, 3_424, 4_386, 5_348]
-        )
-        XCTAssertEqual(
-            MonitorFanRpmScale.ticks(for: fan1).map { Int($0.rpm.rounded()) },
-            [1_499, 2_568, 3_638, 4_707, 5_776]
-        )
-        XCTAssertEqual(
-            MonitorFanPercent.rpm(percent: 40, minimumRPM: 1_499, maximumRPM: 5_348),
-            3_038.6,
-            accuracy: 0.001
-        )
-        XCTAssertEqual(
-            MonitorFanPercent.rpm(percent: 60, minimumRPM: 1_499, maximumRPM: 5_776),
-            4_065.2,
-            accuracy: 0.001
-        )
+        let minimum = MonitorFanRpmScale.summary(for: fan0, percent: 0)
+        XCTAssertEqual(minimum.minimumRPM, 1_499)
+        XCTAssertEqual(minimum.targetRPM, 1_499)
+        XCTAssertEqual(minimum.maximumRPM, 5_348)
+
+        let fan0Forty = MonitorFanRpmScale.summary(for: fan0, percent: 40)
+        XCTAssertEqual(fan0Forty.minimumRPM, 1_499)
+        XCTAssertEqual(fan0Forty.targetRPM, 3_038.6, accuracy: 0.001)
+        XCTAssertEqual(fan0Forty.maximumRPM, 5_348)
+
+        let fan1Forty = MonitorFanRpmScale.summary(for: fan1, percent: 40)
+        XCTAssertEqual(fan1Forty.minimumRPM, 1_499)
+        XCTAssertEqual(fan1Forty.targetRPM, 3_209.8, accuracy: 0.001)
+        XCTAssertEqual(fan1Forty.maximumRPM, 5_776)
+
+        let fan1Sixty = MonitorFanRpmScale.summary(for: fan1, percent: 60)
+        XCTAssertEqual(fan1Sixty.minimumRPM, 1_499)
+        XCTAssertEqual(fan1Sixty.targetRPM, 4_065.2, accuracy: 0.001)
+        XCTAssertEqual(fan1Sixty.maximumRPM, 5_776)
     }
 
     func testControlTemperatureUsesOnlyEnabledRuleSources() {

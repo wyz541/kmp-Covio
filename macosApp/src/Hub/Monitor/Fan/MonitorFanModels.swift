@@ -614,26 +614,25 @@ enum MonitorFanSpeedSync {
 }
 
 enum MonitorFanRpmScale {
-    struct Tick: Equatable, Identifiable, Sendable {
-        let percent: Double
-        let rpm: Double
-
-        var id: Double { percent }
+    struct Summary: Equatable, Sendable {
+        let minimumRPM: Double
+        let targetRPM: Double
+        let maximumRPM: Double
     }
 
-    static let percentages: [Double] = [0, 25, 50, 75, 100]
-
-    static func ticks(for fan: MonitorFanReading.Unit) -> [Tick] {
-        percentages.map { percent in
-            Tick(
+    static func summary(
+        for fan: MonitorFanReading.Unit,
+        percent: Double
+    ) -> Summary {
+        Summary(
+            minimumRPM: fan.minimumRPM,
+            targetRPM: MonitorFanPercent.rpm(
                 percent: percent,
-                rpm: MonitorFanPercent.rpm(
-                    percent: percent,
-                    minimumRPM: fan.minimumRPM,
-                    maximumRPM: fan.maximumRPM
-                )
-            )
-        }
+                minimumRPM: fan.minimumRPM,
+                maximumRPM: fan.maximumRPM
+            ),
+            maximumRPM: fan.maximumRPM
+        )
     }
 }
 

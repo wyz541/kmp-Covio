@@ -224,26 +224,6 @@ struct MonitorFanTemperatureRuleEditor: View {
                 .accessibilityLabel(ContractCopy.copyMonitorFanDeletePoint.text(for: language))
             }
 
-            let temperatureRange = temperatureRange(for: index, points: points)
-            if temperatureRange.lowerBound < temperatureRange.upperBound {
-                temperatureSliderRow(
-                    value: temperatureBinding(source: source, index: index, points: points),
-                    range: temperatureRange,
-                    accessibilityLabel: "\(sourceTitle(source)) \(controlPointTitle(index)) \(ContractCopy.copyMonitorFanTemperature.text(for: language))",
-                    accessibilityValue: "\(Int(point.celsius.rounded())) °C",
-                    onEditingChanged: { editing in
-                        if !editing {
-                            onChangePoints(source, configuredPoints(for: source), true)
-                        }
-                    }
-                )
-            } else {
-                fixedValueRow(
-                    title: ContractCopy.copyMonitorFanTemperature.text(for: language),
-                    value: "\(Int(point.celsius.rounded())) °C"
-                )
-            }
-
             percentSliderRow(
                 value: percentBinding(source: source, index: index, points: points),
                 fans: reading.units,
@@ -315,46 +295,66 @@ struct MonitorFanTemperatureRuleEditor: View {
         accessibilityValue: String,
         onEditingChanged: @escaping (Bool) -> Void
     ) -> some View {
-        HStack(alignment: .top, spacing: 6) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(ContractCopy.copyMonitorFanRpmRange.text(for: language))
-                    .font(.system(size: 8, weight: .medium))
-                    .foregroundStyle(MacTheme.textSecondary)
-                Text(ContractCopy.copyMonitorFanRpmTick.text(for: language))
-                    .font(.system(size: 7, weight: .medium))
-                    .foregroundStyle(MacTheme.textSecondary)
-            }
-            .frame(width: 58, alignment: .leading)
+        VStack(alignment: .leading, spacing: 2) {
+            Slider(
+                value: value,
+                in: 0...100,
+                step: MonitorFanPolicy.rulePercentStep,
+                onEditingChanged: onEditingChanged
+            )
+            .disabled(busy)
+            .accessibilityLabel(accessibilityLabel)
+            .accessibilityValue(accessibilityValue)
 
-            VStack(alignment: .leading, spacing: 1) {
-                Slider(
-                    value: value,
-                    in: 0...100,
-                    step: MonitorFanPolicy.rulePercentStep,
-                    onEditingChanged: onEditingChanged
-                )
-                .disabled(busy)
-                .accessibilityLabel(accessibilityLabel)
-                .accessibilityValue(accessibilityValue)
-
-                VStack(spacing: 1) {
-                    ForEach(fans) { fan in
-                        HStack(spacing: 4) {
-                            Text("F\(fan.index + 1)")
-                                .frame(width: 14, alignment: .leading)
-                            ForEach(MonitorFanRpmScale.ticks(for: fan)) { tick in
-                                Text("\(Int(tick.rpm.rounded()))")
-                                    .frame(maxWidth: .infinity, alignment: .trailing)
-                            }
-                        }
-                    }
+            VStack(spacing: 2) {
+                ForEach(fans) { fan in
+                    fanRpmRow(fan: fan, percent: value.wrappedValue)
                 }
-                .font(.system(size: 7, weight: .medium, design: .rounded))
-                .foregroundStyle(MacTheme.textSecondary)
-                .monospacedDigit()
-                .accessibilityHidden(true)
             }
         }
+    }
+
+    private func fanRpmRow(fan: MonitorFanReading.Unit, percent: Double) -> some View {
+        let summary = MonitorFanRpmScale.summary(for: fan, percent: percent)
+        return HStack(spacing: 6) {
+            Text("F\(fan.index + 1)")
+                .font(.system(size: 8, weight: .semibold, design: .rounded))
+                .foregroundStyle(MacTheme.textSecondary)
+                .frame(width: 16, alignment: .leading)
+
+            rpmEndpointChip(summary.minimumRPM)
+
+            Spacer(minLength: 4)
+
+            Text(MonitorFanFormat.rpm(summary.targetRPM))
+                .font(.system(size: 8, weight: .semibold, design: .rounded))
+                .foregroundStyle(MacTheme.accent)
+                .monospacedDigit()
+
+            Spacer(minLength: 4)
+
+            rpmEndpointChip(summary.maximumRPM)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(ContractCopy.copyMonitorFanUnit.text(for: language)) \(fan.index + 1)")
+        .accessibilityValue(
+            "\(Int(summary.minimumRPM.rounded())) RPM，目标 \(Int(summary.targetRPM.rounded())) RPM，最高 \(Int(summary.maximumRPM.rounded())) RPM"
+        )
+    }
+
+    private func rpmEndpointChip(_ rpm: Double) -> some View {
+        Text("\(Int(rpm.rounded()))")
+            .font(.system(size: 7, weight: .medium, design: .rounded))
+            .foregroundStyle(MacTheme.textSecondary)
+            .monospacedDigit()
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1)
+            .background(
+                Capsule().fill(MacTheme.surface.opacity(0.34))
+            )
+            .overlay(
+                Capsule().strokeBorder(MacTheme.divider.opacity(0.55), lineWidth: 0.5)
+            )
     }
 
     private func fixedValueRow(title: String, value: String) -> some View {

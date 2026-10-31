@@ -79,6 +79,11 @@ if [[ "$CHANNEL" == "internal" && -z "$RELEASE_SIGN_IDENTITY" ]]; then
     printf 'No local signing identity; internal package will use ad-hoc signing.\n' >&2
   fi
 fi
+if [[ "$CHANNEL" == "internal" && "$REQUIRE_STABLE_SIGNING" == "1" && ( -z "$RELEASE_SIGN_IDENTITY" || "$RELEASE_SIGN_IDENTITY" == "-" ) ]]; then
+  printf 'Internal release packaging requires a stable local signing identity.\n' >&2
+  printf 'Run bash scripts/setup-local-signing.sh and see docs/adr/adr-0005-local-code-signing.md.\n' >&2
+  exit 1
+fi
 
 if [[ "$CHANNEL" == "public" ]]; then
   if [[ -z "$RELEASE_SIGN_IDENTITY" || "$RELEASE_SIGN_IDENTITY" == "-" ]]; then

@@ -89,6 +89,8 @@ bash scripts/publish-release.sh v<tag>
 
 `scripts/create-release.sh` 为 internal 渠道设置 `COVIO_REQUIRE_STABLE_SIGNING=1`。
 内测 Release 的 app 与 helper 必须使用同一张本机稳定证书。
+内测包不启用 hardened runtime。自签证书没有 Team ID，启用后 Library Validation 会拒绝加载内嵌框架。
+公共包继续要求 hardened runtime。
 证书 Authority 不一致、缺失或 app/helper 为 ad-hoc 时，Draft 创建失败。
 app、helper 和嵌入代码的 `Identifier` 与 `designated =>` 由 `scripts/verify_macos_signing.py` 检查。
 
